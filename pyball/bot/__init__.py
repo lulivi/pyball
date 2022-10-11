@@ -49,7 +49,7 @@ def build_application() -> Application:
 
     """
     my_persistence = PicklePersistence(
-        filepath=Path(__file__).resolve().parent.joinpath("bot.persistence")
+        filepath=Path(__file__).resolve().parents[2].joinpath("bot.persistence")
     )
 
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()
