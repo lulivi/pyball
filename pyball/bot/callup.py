@@ -23,7 +23,7 @@
 import functools
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from typing import Callable, Dict, Final, Optional, Set
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -37,22 +37,14 @@ from pyball.settings import SUBSTITUTES_ID
 class PlayerAction(Enum):
     """Represents the possible actions of a player."""
 
-    JOIN = "join"
-    LEAVE = "leave"
-
-    def __str__(self) -> str:
-        """Value of the enum member.
-
-        :returns: The string object representation.
-
-        """
-        return self.value
+    JOIN = auto()
+    LEAVE = auto()
 
 
 CALL_UP_KEYBOARD: Final[InlineKeyboardMarkup] = InlineKeyboardMarkup(
     [
-        [InlineKeyboardButton("Me apunto!!! :)", callback_data=str(PlayerAction.JOIN))],
-        [InlineKeyboardButton("Me borro :(", callback_data=str(PlayerAction.LEAVE))],
+        [InlineKeyboardButton("Me apunto!!! :)", callback_data=PlayerAction.JOIN.name)],
+        [InlineKeyboardButton("Me borro :(", callback_data=PlayerAction.LEAVE.name)],
     ]
 )
 
@@ -174,15 +166,16 @@ class CallUp:
     """
 
     __slots__ = ["__title", "__main_chat", "__subs_chat", "__players", "__actions"]
+    __actions: Dict[str, Callable]
 
     def __init__(self, title: str, main_chat_id: str, main_chat_msg: str) -> None:
         self.__title: str = title
         self.__main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
         self.__subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
         self.__players: Players = Players()
-        self.__actions: Dict[str, Callable] = {
-            str(PlayerAction.JOIN): self.add_player,
-            str(PlayerAction.LEAVE): self.del_player,
+        self.__actions = {
+            PlayerAction.JOIN.name: self.add_player,
+            PlayerAction.LEAVE.name: self.del_player,
         }
 
     @property
@@ -212,14 +205,14 @@ class CallUp:
         """
         return self.__subs_chat
 
-    def act(self, action: PlayerAction, player: str) -> None:
+    def act(self, action: str, player: str) -> None:
         """Act depending on the player action.
 
         :param action: Action of joining or leaving the CallUp.
         :param player: Name of the player.
 
         """
-        self.__actions[str(action)](player)
+        self.__actions[action](player)
 
     def set_subs_message_id(self, message_id: Optional[str]) -> None:
         """Set the substitutes chat message identifier.

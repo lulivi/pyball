@@ -25,6 +25,7 @@ from typing import Callable, Optional
 from telegram import Bot, Message
 from telegram.constants import ParseMode
 from telegram.error import Forbidden
+from telegram.ext import ContextTypes
 
 from pyball.bot.callup import CALL_UP_KEYBOARD, CallUp
 from pyball.bot.errors import (
@@ -37,21 +38,65 @@ from pyball.bot.logger import PYBALL_LOGGER
 from pyball.settings import ADMINS_IDS
 
 
-async def bot_call_message_function(
+async def create_callup(title: str, chat_id: str, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Create a new call-up.
+
+    :param title: Call-up title:
+    :param chat_id: Chat identifier in which to send the call-up message.
+    :param context: Information related to the bot and the chat.
+
+    """
+    chat_message_id = (
+        await bot_call_message_function_with_keyboard(
+            bot_message_function=context.bot.send_message,
+            text=f"Lista de jugadores para la convocatoria *{title}*",
+            chat_id=chat_id,
+        )
+    ).message_id
+
+    context.chat_data["call-up"] = CallUp(title, chat_id, chat_message_id)
+
+
+async def bot_call_message_function_with_keyboard(
     bot_message_function: Callable,
-    message: str,
+    text: str,
+    *args,
+    **kwargs,
 ) -> Message:
-    """Edit call-up message.
+    """Call bot function with desired args and the call-up buttons.
 
     :param bot_message_function: Bot method that will be called to send or update a message.
-    :param message: The string to send.
+    :param text: The string to send.
+    :returns: The message sent or edited.
+
+    """
+    return await bot_call_message_function(
+        bot_message_function,
+        text,
+        reply_markup=CALL_UP_KEYBOARD,
+        *args,
+        **kwargs,
+    )
+
+
+async def bot_call_message_function(
+    bot_message_function: Callable,
+    text: str,
+    *args,
+    **kwargs,
+) -> Message:
+    """Call bot function with desired args.
+
+    :param bot_message_function: Bot method that will be called to send or update a message.
+    :param text: The string to send.
     :returns: The message sent or edited.
 
     """
     return await bot_message_function(
-        text=message,
-        reply_markup=CALL_UP_KEYBOARD,
+        text=text,
         parse_mode=ParseMode.MARKDOWN,
+        *args,
+        **kwargs,
     )
 
 
@@ -81,9 +126,12 @@ def ensure_admin(user_id: str) -> None:
     :raises NotAdminError: If the user is not in the admin list.
 
     """
-    PYBALL_LOGGER.debug(f"Checking if user {user_id} is in the admin list: {ADMINS_IDS}")
+
     if ADMINS_IDS and user_id not in ADMINS_IDS:
+        PYBALL_LOGGER.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
         raise NotAdminError("No tienes permisos para ejecutar este comando.")
+
+    PYBALL_LOGGER.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
 
 
 def get_command_argument(

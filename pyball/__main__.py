@@ -22,11 +22,16 @@
 # SOFTWARE.
 """Bot main file."""
 
+from argparse import ArgumentParser
+
 from pyball.bot import build_application
 
 
 def main() -> None:
     """Start the bot."""
+    parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
+    parser.parse_args()
+
     # Create the pickle persistence
     application = build_application()
 

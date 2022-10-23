@@ -1,3 +1,13 @@
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+
+[tool.poetry-dynamic-versioning]
+dirty = true
+enable = true
+format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}+{{ distance }}.{{ commit }}{% endif %}"
+latest-tag = true
+vcs = "git"
 
 [tool.poetry]
 name = "pyball"
@@ -9,16 +19,18 @@ readme = "README.md"
 packages = [{ include = "pyball" }]
 
 [tool.poetry.scripts]
-pyball-run = "pyball.__main__:main"
+pyball = "pyball.__main__:main"
 
 [tool.poetry.dev-dependencies]
 black = "22.3.0"
 isort = "5.9.3"
+tox = "*"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
-python-telegram-bot = "20.0a2"
+python-telegram-bot = "20.0a4"
 python-decouple = "3.6"
+peewee = "3.15.3"
 
 [tool.black]
 line-length = 99
@@ -28,3 +40,18 @@ preview = true
 profile = "black"
 line_length = 99
 lines_between_types = 1
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+isolated_build = True
+skip_missing_interpreters = true
+
+[testenv:lint]
+allowlist_externals =
+    black
+    isort
+commands =
+    black --check {toxinidir}/pyball/
+    isort --check {toxinidir}/pyball/
+"""

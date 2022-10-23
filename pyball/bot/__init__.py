@@ -32,11 +32,12 @@ from pyball.bot.commands import (
     command_del,
     command_help,
     command_new,
+    command_repeat,
     command_search,
+    command_stop_repeat,
     command_stop_search,
 )
-from pyball.settings import BOT_TOKEN, LOCALE
-
+from pyball.settings import BOT_TOKEN, LOCALE, PERSISTENCE_FILE_PATH
 
 # Set locale for sorting player names
 locale.setlocale(locale.LC_ALL, LOCALE)
@@ -45,17 +46,17 @@ locale.setlocale(locale.LC_ALL, LOCALE)
 def build_application() -> Application:
     """Create and build the bot application.
 
-    :returns: the built application.
+    :returns: The built application.
 
     """
-    my_persistence = PicklePersistence(
-        filepath=Path(__file__).resolve().parents[2].joinpath("bot.persistence")
-    )
+    my_persistence = PicklePersistence(filepath=PERSISTENCE_FILE_PATH)
 
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()
 
     application.add_handler(CommandHandler(("start", "help"), command_help))
     application.add_handler(CommandHandler("new", command_new))
+    application.add_handler(CommandHandler("repeat", command_repeat))
+    application.add_handler(CommandHandler("stop_repeat", command_stop_repeat))
     application.add_handler(CommandHandler("add", command_add))
     application.add_handler(CommandHandler("del", command_del))
     application.add_handler(CommandHandler("search", command_search))
