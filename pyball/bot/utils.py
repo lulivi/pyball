@@ -27,14 +27,15 @@ from telegram.constants import ParseMode
 from telegram.error import Forbidden
 from telegram.ext import ContextTypes
 
-from pyball.bot.callup import CALL_UP_KEYBOARD, CallUp
 from pyball.bot.errors import (
     CommandArgumentError,
     ExpectedMessageIdError,
     NoCallUpError,
     NotAdminError,
 )
-from pyball.bot.logger import PYBALL_LOGGER
+from pyball.bot.globals import CALL_UP_KEYBOARD
+from pyball.callup.callup import CallUp
+from pyball.logger import PYBALL_LOGGER
 from pyball.settings import ADMINS_IDS
 
 
@@ -54,7 +55,7 @@ async def create_callup(title: str, chat_id: str, context: ContextTypes.DEFAULT_
         )
     ).message_id
 
-    context.chat_data["call-up"] = CallUp(title, chat_id, chat_message_id)
+    context.chat_data["call-up"] = CallUp(title, chat_id, str(chat_message_id))
 
 
 async def bot_call_message_function_with_keyboard(
@@ -113,7 +114,9 @@ def validate_call_up_message_id(call_up: Optional[CallUp], reply_to_message: Opt
             "Inicia una convocatoria antes de nada. No existe registro de la anterior."
         )
 
-    if reply_to_message is None or not call_up.validate_message_id(reply_to_message.message_id):
+    if reply_to_message is None or not call_up.validate_message_id(
+        str(reply_to_message.message_id)
+    ):
         raise ExpectedMessageIdError(
             "Responde al mensaje de la última convocatoria con el comando elegido."
         )

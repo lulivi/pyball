@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# pylint: disable=unused-argument, wrong-import-position
-
 # Copyright (c) 2022 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy

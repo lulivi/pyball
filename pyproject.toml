@@ -25,6 +25,8 @@ pyball = "pyball.__main__:main"
 black = "22.3.0"
 isort = "5.9.3"
 tox = "*"
+tox-poetry = "*"
+mypy = "0.982"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
@@ -48,10 +50,7 @@ isolated_build = True
 skip_missing_interpreters = true
 
 [testenv:lint]
-allowlist_externals =
-    black
-    isort
 commands =
-    black --check {toxinidir}/pyball/
-    isort --check {toxinidir}/pyball/
+    black --check --diff {toxinidir}/pyball/
+    isort --check --diff {toxinidir}/pyball/
 """

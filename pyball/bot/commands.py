@@ -29,16 +29,12 @@ from telegram import Update
 from telegram.error import Forbidden
 from telegram.ext import CallbackContext, ContextTypes
 
-from pyball.bot.callup import CallUp
 from pyball.bot.errors import (
     CommandArgumentError,
     ExpectedMessageIdError,
     NoCallUpError,
     NotAdminError,
-    PlayerAlreadyCalledUpError,
-    PlayerNotCalledUpError,
 )
-from pyball.bot.logger import PYBALL_LOGGER
 from pyball.bot.utils import (
     bot_call_message_function,
     bot_call_message_function_with_keyboard,
@@ -48,6 +44,9 @@ from pyball.bot.utils import (
     search_substitutes,
     validate_call_up_message_id,
 )
+from pyball.callup.callup import CallUp
+from pyball.callup.errors import PlayerAlreadyCalledUpError, PlayerNotCalledUpError
+from pyball.logger import PYBALL_LOGGER
 
 
 async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -21,35 +21,23 @@
 """Error, error!"""
 
 
-class PyBallError(Exception):
-    """Base error for PyBall bot."""
+class PyBallBotError(Exception):
+    """Base class for the PyBall bot errors."""
 
 
-class NotAdminError(PyBallError):
+class NotAdminError(PyBallBotError):
     """The user is not in the admin list."""
 
 
-class NoCallUpError(PyBallError):
+class NoCallUpError(PyBallBotError):
     """There is no created call-up."""
 
 
-class ExpectedMessageIdError(PyBallError):
+class ExpectedMessageIdError(PyBallBotError):
     """When the message identifier is not the expected one."""
 
 
-class PlayerAlreadyCalledUpError(PyBallError):
-    """The player is already in the call-up."""
-
-
-class PlayerNotCalledUpError(PyBallError):
-    """The player hasn't been called-up."""
-
-
-class PlayerParsingError(PyBallError):
-    """The player name was not found in the message."""
-
-
-class CommandArgumentError(PyBallError):
+class CommandArgumentError(PyBallBotError):
     """The argument was not specified."""
 
     def __init__(self, command_name: str, argument_name: str, argument_example: str) -> None:
