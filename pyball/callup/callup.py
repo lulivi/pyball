@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Optional
 
 from pyball.callup.players import PlayerAction, Players
+from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
 
 
@@ -47,6 +48,8 @@ class CallUp:
     :ivar __main_chat: Info about the main chat post.
     :ivar __subs_chat: Info about the substitutes chat post.
     :ivar __players: Object containing the list of players.
+    :cvar __actions: Dictionary containing the two actions for a player to do in
+        a call-up.
 
     """
 
@@ -62,6 +65,7 @@ class CallUp:
             PlayerAction.JOIN.name: self.add_player,
             PlayerAction.LEAVE.name: self.del_player,
         }
+        PYBALL_LOGGER.debug(f"Creating a new call-up: {self.__title}")
 
     @property
     def title(self) -> str:
