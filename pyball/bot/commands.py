@@ -200,7 +200,7 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await search_substitutes(
         call_up=call_up,
         reply_function=update.message.reply_text,
-        bot=context.Bot,
+        bot=context.bot,
     )
 
 
@@ -256,9 +256,7 @@ async def command_stop_search(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     call_up.set_subs_message_id(None)
-    await bot_call_message_function_with_keyboard(
-        update.message.reply_text, "Se ha detenido la búsqueda de suplentes."
-    )
+    await update.message.reply_text("Se ha detenido la búsqueda de suplentes.")
 
 
 async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

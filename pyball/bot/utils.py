@@ -190,6 +190,7 @@ async def search_substitutes(
         return
 
     try:
+        PYBALL_LOGGER.debug(f"Sending search message {call_up}")
         search_message = await update_substitutes_search(call_up, bot)
     except Forbidden as error:
         reply_function(
