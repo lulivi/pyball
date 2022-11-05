@@ -22,7 +22,7 @@
 
 import locale
 
-from pathlib import Path
+import peewee
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, PicklePersistence
 
@@ -31,13 +31,17 @@ from pyball.bot.commands import (
     command_add,
     command_del,
     command_help,
+    command_list_players,
     command_new,
+    command_ranking,
     command_repeat,
     command_search,
     command_stop_repeat,
     command_stop_search,
+    command_teams,
 )
-from pyball.settings import BOT_TOKEN, LOCALE, PERSISTENCE_FILE_PATH
+from pyball.db.model import database
+from pyball.settings import BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, PERSISTENCE_FILE_PATH
 
 # Set locale for sorting player names
 locale.setlocale(locale.LC_ALL, LOCALE)
@@ -50,6 +54,7 @@ def build_application() -> Application:
 
     """
     my_persistence = PicklePersistence(filepath=PERSISTENCE_FILE_PATH)
+    database.initialize(peewee.SqliteDatabase(DATABASE_FILE_PATH))
 
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()
 
@@ -61,6 +66,9 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("del", command_del))
     application.add_handler(CommandHandler("search", command_search))
     application.add_handler(CommandHandler("stop_search", command_stop_search))
+    application.add_handler(CommandHandler("teams", command_teams))
+    application.add_handler(CommandHandler("list_players", command_list_players))
+    application.add_handler(CommandHandler("ranking", command_ranking))
     application.add_handler(CallbackQueryHandler(button_game))
 
     return application

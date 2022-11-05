@@ -60,6 +60,3 @@ logging.basicConfig(
 )
 
 PYBALL_LOGGER = logging.getLogger(__name__)
-PYBALL_LOGGER.warning("**********************************************************")
-PYBALL_LOGGER.warning("*********************** Booting up!! *********************")
-PYBALL_LOGGER.warning("**********************************************************")

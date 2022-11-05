@@ -25,9 +25,32 @@ class PyBallError(Exception):
     """Base error for PyBall bot."""
 
 
+class PlayerDoesNotExistError(PyBallError):
+    """The player is not found in the database."""
+
+
 class PlayerAlreadyCalledUpError(PyBallError):
     """The player is already in the call-up."""
 
 
 class PlayerNotCalledUpError(PyBallError):
     """The player hasn't been called-up."""
+
+
+class MatchWrongPlayersNumberError(PyBallError):
+    """The number of player for the match is wrong."""
+
+    def __init__(self, current_players: int) -> None:
+        self.current_players = current_players
+        self.message = (
+            f"The number of players (`{current_players}`) cannot evenly create 2 or 3 teams"
+        )
+        super().__init__(self.message)
+
+
+class MatchNotYetCreatedError(PyBallError):
+    """The match hasn't been created yet."""
+
+
+class MissingMatchResultsError(PyBallError):
+    """There is not enough statistics for all the players in the match."""

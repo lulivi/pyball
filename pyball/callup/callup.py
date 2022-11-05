@@ -20,9 +20,13 @@
 
 """Call-up object."""
 
-from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+import datetime
 
+from dataclasses import dataclass
+from typing import Callable, Dict, Optional, Union
+
+from pyball.callup.errors import MatchNotYetCreatedError
+from pyball.callup.match import Match, MatchResults
 from pyball.callup.players import PlayerAction, Players
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
@@ -53,11 +57,20 @@ class CallUp:
 
     """
 
-    __slots__ = ["__title", "__main_chat", "__subs_chat", "__players", "__actions"]
+    __slots__ = [
+        "__date",
+        "__title",
+        "__main_chat",
+        "__subs_chat",
+        "__players",
+        "__actions",
+        "__match",
+    ]
     __actions: Dict[str, Callable]
 
-    def __init__(self, title: str, main_chat_id: str, main_chat_msg: str) -> None:
-        self.__title: str = title
+    def __init__(self, date: datetime.datetime, main_chat_id: str, main_chat_msg: str) -> None:
+        self.__date: datetime.datetime = date
+        self.__title: str = datetime.datetime.strftime(date, "%A %d/%m/%Y %H:%M")
         self.__main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
         self.__subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
         self.__players: Players = Players()
@@ -65,6 +78,7 @@ class CallUp:
             PlayerAction.JOIN.name: self.add_player,
             PlayerAction.LEAVE.name: self.del_player,
         }
+        self.__match: Optional[Match] = None
         PYBALL_LOGGER.debug(f"Creating a new call-up: {self.__title}")
 
     @property
@@ -86,6 +100,20 @@ class CallUp:
         return self.__players
 
     @property
+    def match(self) -> Match:
+        """Obtain the Match object.
+
+        If the teams are not created, this call will create them.
+
+        :returns: The match.
+
+        """
+        if not self.__match:
+            self.create_match()
+
+        return self.__match
+
+    @property
     def subs_chat(self) -> ChatInfo:
         """Get the substitutes chat information.
 
@@ -94,7 +122,7 @@ class CallUp:
         """
         return self.__subs_chat
 
-    def act(self, action: str, player: str) -> None:
+    def act(self, action: str, player: Union[str, int]) -> None:
         """Act depending on the player action.
 
         :param action: Action of joining or leaving the CallUp.
@@ -136,26 +164,33 @@ class CallUp:
         """
         return self.__subs_chat.msg_id is not None
 
-    def add_player(self, player_name: str) -> None:
+    def add_player(self, player: Union[str, int]) -> None:
         """Add player to the call-up.
 
         :param player_name: Name of the player who wants to join.
 
         """
-        self.__players.join(player_name)
+        self.__players.join(player)
 
-    def del_player(self, player_name: str) -> None:
+    def del_player(self, player: Union[str, int]) -> None:
         """Remove a player from the call-up.
 
         :param player_name: Name of the player who wants to leave.
 
         """
-        self.__players.leave(player_name)
+        self.__players.leave(player)
+
+    def create_match(self) -> None:
+        """Create a new match."""
+        self.__match = Match(self.__players)
+
+    def set_results(self, results: MatchResults) -> None:
+        if self.__match is None:
+            raise MatchNotYetCreatedError(
+                "The match hasn't been created yet, so no results can be set"
+            )
+
+        self.__match.set_results(results, self.__date)
 
     def __str__(self) -> str:
-        """Text that shows the call-up title and the players called-up.
-
-        :returns: The call-up message.
-
-        """
-        return f"Lista de jugadores para la convocatoria *{self.title}*\n{str(self.players)}"
+        return f"Lista de jugadores para la convocatoria *{self.__title}*\n{str(self.__players)}"

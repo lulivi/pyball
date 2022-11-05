@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2022 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,12 +23,17 @@
 from argparse import ArgumentParser
 
 from pyball.bot import build_application
+from pyball.logger import PYBALL_LOGGER
 
 
 def main() -> None:
     """Start the bot."""
     parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
     parser.parse_args()
+
+    PYBALL_LOGGER.warning("**********************************************************")
+    PYBALL_LOGGER.warning("*********************** Booting up!! *********************")
+    PYBALL_LOGGER.warning("**********************************************************")
 
     # Create the pickle persistence
     application = build_application()

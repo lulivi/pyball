@@ -45,7 +45,13 @@ from pyball.bot.utils import (
     validate_call_up_message_id,
 )
 from pyball.callup.callup import CallUp
-from pyball.callup.errors import PlayerAlreadyCalledUpError, PlayerNotCalledUpError
+from pyball.callup.errors import (
+    MatchWrongPlayersNumberError,
+    PlayerAlreadyCalledUpError,
+    PlayerDoesNotExistError,
+    PlayerNotCalledUpError,
+)
+from pyball.db.utils import get_player_list
 from pyball.logger import PYBALL_LOGGER
 
 
@@ -59,14 +65,15 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await bot_call_message_function(
         update.message.reply_text,
         "¡Hola! Este bot puede ayudarte a organizar tu convocatoria.\n\n- Utiliza el comando `/new"
-        " <título>` para iniciar una nueva convocatoria o reiniciar la anterior.\n\n- Utiliza el"
-        " comando `/add <nombre>` para añadir a una persona manualmente o `/del <nombre>` para"
-        " eliminarla respondiendo al mensaje de la convocatoria.\n\n- Utiliza el comando `/search`"
-        " para buscar suplentes para el partido y `/stop_search` si una vez iniciada la búsqueda"
-        " se quiere parar la actualización de jugadores y borrar el mensaje a los suplentes.\n\n-"
-        " Usa el comando `/repeat <día> <hora>: <título>` para fijar un día en el que crear una"
-        " convocatoria automáticamente. En el parámetro `<título>` se pueden utilizar los [códigos"
-        " de formato](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)"
+        " <fecha y hora>` para iniciar una nueva convocatoria o reiniciar la anterior.\n\n-"
+        " Utiliza el comando `/add <nombre>` para añadir a una persona manualmente o `/del"
+        " <nombre>` para eliminarla respondiendo al mensaje de la convocatoria.\n\n- Utiliza el"
+        " comando `/search` para buscar suplentes para el partido y `/stop_search` si una vez"
+        " iniciada la búsqueda se quiere parar la actualización de jugadores y borrar el mensaje a"
+        " los suplentes.\n\n- Usa el comando `/repeat <día> <hora>: <título>` para fijar un día en"
+        " el que crear una convocatoria automáticamente. En el parámetro `<título>` se pueden"
+        " utilizar los [códigos de"
+        " formato](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)"
         " para formatear fechas. Por ejemplo, si se usa el comando\n`/repeat Miércoles 21:00 - %A"
         " %d/%m/%y`\ncada miércoles a las 21h se crearía una encuesta con el título\n`<día de"
         " semana> <día>/<mes>/<año>`\npor ejemplo **Miércoles 19/10/22**. Para cancelar la"
@@ -74,6 +81,7 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+@ensure_admin
 async def command_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Generates a new call-up.
 
@@ -82,15 +90,22 @@ async def command_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     """
     try:
-        ensure_admin(update.message.from_user.id)
-        title = get_command_argument(
-            update.message.text, "new", "título de la convocatoria", "10/10/10 20h", True
+        argument = get_command_argument(
+            update.message.text, "new", "fecha y hora de la convocatoria", "30/02/22 20:30", True
         )
-    except (CommandArgumentError, NotAdminError) as error:
+        call_up_date = datetime.datetime.strptime(argument, "%d/%m/%y %H:%M")
+    except CommandArgumentError as error:
         await update.message.reply_text(str(error))
         return
+    except ValueError:
+        await bot_call_message_function(
+            update.message.reply_text,
+            "La fecha de la nueva convocatoria no es correcta. Por favor, indícala en formato"
+            " `YY/MM/DD HH:MM`.",
+        )
+        return
 
-    await create_callup(title, str(update.message.chat_id), context)
+    await create_callup(call_up_date, str(update.message.chat_id), context)
 
 
 async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -111,12 +126,12 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
 
-    player = update.effective_user.full_name
+    player = update.effective_user.id
     answer: Optional[str] = None
 
     try:
         call_up.act(query.data, player)
-    except (PlayerAlreadyCalledUpError, PlayerNotCalledUpError) as error:
+    except (PlayerAlreadyCalledUpError, PlayerNotCalledUpError, PlayerDoesNotExistError) as error:
         answer = str(error)
         return
     finally:
@@ -130,6 +145,7 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+@ensure_admin
 async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Adds a new player to the call-up.
 
@@ -139,7 +155,6 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     call_up: CallUp = context.chat_data.get("call-up")
     try:
-        ensure_admin(update.message.from_user.id)
         validate_call_up_message_id(call_up, update.message.reply_to_message)
         player = get_command_argument(
             update_message_text=update.message.text,
@@ -148,13 +163,18 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             argument_example="Antonio Manuel",
             required=True,
         )
-    except (NoCallUpError, ExpectedMessageIdError, CommandArgumentError, NotAdminError) as error:
+    except (NoCallUpError, ExpectedMessageIdError, CommandArgumentError) as error:
         await update.message.reply_text(str(error))
         return
 
     try:
         call_up.add_player(player)
     except PlayerAlreadyCalledUpError:
+        return
+    except PlayerDoesNotExistError as error:
+        await update.message.reply_text(
+            f"No se ha encontrado al jugador `{player}` en la base de datos."
+        )
         return
 
     await bot_call_message_function_with_keyboard(
@@ -167,6 +187,7 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+@ensure_admin
 async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Removes a player from the call-up.
 
@@ -176,7 +197,6 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     call_up: CallUp = context.chat_data.get("call-up")
     try:
-        ensure_admin(update.message.from_user.id)
         validate_call_up_message_id(call_up, update.message.reply_to_message)
         player = get_command_argument(
             update_message_text=update.message.text,
@@ -193,6 +213,11 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         call_up.del_player(player)
     except PlayerNotCalledUpError:
         return
+    except PlayerDoesNotExistError as error:
+        update.message.reply_text(
+            f"No se ha encontrado al jugador `{player}` en la base de datos."
+        )
+        return
 
     await bot_call_message_function_with_keyboard(
         update.message.reply_to_message.edit_text, str(call_up)
@@ -204,6 +229,7 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+@ensure_admin
 async def command_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Search for substitute players.
 
@@ -213,9 +239,8 @@ async def command_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """
     call_up: CallUp = context.chat_data.get("call-up")
     try:
-        ensure_admin(update.message.from_user.id)
         validate_call_up_message_id(call_up, update.message.reply_to_message)
-    except (NoCallUpError, ExpectedMessageIdError, NotAdminError) as error:
+    except (NoCallUpError, ExpectedMessageIdError) as error:
         await update.message.reply_text(str(error))
         return
 
@@ -227,6 +252,7 @@ async def command_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+@ensure_admin
 async def command_stop_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Stop the player search.
 
@@ -237,8 +263,7 @@ async def command_stop_search(update: Update, context: ContextTypes.DEFAULT_TYPE
     call_up: CallUp = context.chat_data.get("call-up")
     try:
         validate_call_up_message_id(call_up, update.message.reply_to_message)
-        ensure_admin(update.message.from_user.id)
-    except (NoCallUpError, ExpectedMessageIdError, NotAdminError) as error:
+    except (NoCallUpError, ExpectedMessageIdError) as error:
         await update.message.reply_text(str(error))
         return
 
@@ -259,6 +284,7 @@ async def command_stop_search(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text("Se ha detenido la búsqueda de suplentes.")
 
 
+@ensure_admin
 async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Call the new method periodically.
 
@@ -308,7 +334,6 @@ async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     argument_example = r"Miércoles 21:00 - %A %d/%m/%y"
 
     try:
-        ensure_admin(update.message.from_user.id)
         day_hour_title = get_command_argument(
             update_message_text=update.message.text,
             command_name=command_name,
@@ -316,7 +341,7 @@ async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             argument_example=argument_example,
             required=True,
         )
-    except (CommandArgumentError, NotAdminError) as error:
+    except CommandArgumentError as error:
         await update.message.reply_text(str(error))
         return
 
@@ -340,6 +365,7 @@ async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+@ensure_admin
 async def command_stop_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Stop the regular job.
 
@@ -349,3 +375,62 @@ async def command_stop_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE
     """
     for job in context.job_queue.jobs():
         job.schedule_removal()
+
+
+@ensure_admin
+async def command_list_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List the available players.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    await bot_call_message_function(
+        bot_message_function=update.message.reply_text,
+        text="\n".join(f"· `{p.name}`" for p in get_player_list()),
+    )
+
+
+@ensure_admin
+async def command_teams(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the last teams or create new ones.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    call_up: CallUp = context.chat_data.get("call-up")
+    try:
+        validate_call_up_message_id(call_up, update.message.reply_to_message)
+    except (NoCallUpError, ExpectedMessageIdError) as error:
+        await update.message.reply_text(str(error))
+        return
+
+    try:
+        call_up.create_match()
+    except MatchWrongPlayersNumberError as error:
+        await update.message.reply_text(
+            f"El número de jugadores apuntados (`{error.current_players}`) no es suficiente para"
+            " crear 2 o 3 equipos."
+        )
+        return
+
+    await bot_call_message_function(
+        bot_message_function=update.message.reply_text,
+        text=str(call_up.match),
+    )
+
+
+@ensure_admin
+async def command_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List the available players.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    ranking = sorted(get_player_list(), key=lambda p: p.skill, reverse=True)
+    await bot_call_message_function(
+        bot_message_function=update.message.reply_text,
+        text="\n".join(f"{idx:02} - `{p.name}`" for idx, p in enumerate(ranking)),
+    )

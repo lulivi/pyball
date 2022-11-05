@@ -19,30 +19,29 @@
 # SOFTWARE.
 
 """Utility functions."""
+import datetime
+import functools
 
 from typing import Callable, Optional
 
-from telegram import Bot, Message
+from telegram import Bot, Message, Update
 from telegram.constants import ParseMode
 from telegram.error import Forbidden
 from telegram.ext import ContextTypes
 
-from pyball.bot.errors import (
-    CommandArgumentError,
-    ExpectedMessageIdError,
-    NoCallUpError,
-    NotAdminError,
-)
+from pyball.bot.errors import CommandArgumentError, ExpectedMessageIdError, NoCallUpError
 from pyball.bot.globals import CALL_UP_KEYBOARD
 from pyball.callup.callup import CallUp
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import ADMINS_IDS
 
 
-async def create_callup(title: str, chat_id: str, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def create_callup(
+    date: datetime.datetime, chat_id: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Create a new call-up.
 
-    :param title: Call-up title:
+    :param date: Call-up date:
     :param chat_id: Chat identifier in which to send the call-up message.
     :param context: Information related to the bot and the chat.
 
@@ -50,12 +49,12 @@ async def create_callup(title: str, chat_id: str, context: ContextTypes.DEFAULT_
     chat_message_id = (
         await bot_call_message_function_with_keyboard(
             bot_message_function=context.bot.send_message,
-            text=f"Lista de jugadores para la convocatoria *{title}*",
+            text=f"Lista de jugadores para la convocatoria *{date.strftime('%y/%m/%d %H:%M')}*",
             chat_id=chat_id,
         )
     ).message_id
 
-    context.chat_data["call-up"] = CallUp(title, chat_id, str(chat_message_id))
+    context.chat_data["call-up"] = CallUp(date, chat_id, str(chat_message_id))
 
 
 async def bot_call_message_function_with_keyboard(
@@ -122,19 +121,24 @@ def validate_call_up_message_id(call_up: Optional[CallUp], reply_to_message: Opt
         )
 
 
-def ensure_admin(user_id: str) -> None:
-    """Check if the user has the correct rights.
+def ensure_admin(func):
+    """Ensure the command is being executed by an admin."""
 
-    :param user_id: User identifier.
-    :raises NotAdminError: If the user is not in the admin list.
+    @functools.wraps(func)
+    async def wrapper_only_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Check the user executing the command is admin."""
+        user_id = update.message.from_user.id
 
-    """
+        if ADMINS_IDS and user_id not in ADMINS_IDS:
+            PYBALL_LOGGER.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
+            await update.message.reply_text("No tienes permisos para ejecutar este comando.")
+            return
 
-    if ADMINS_IDS and user_id not in ADMINS_IDS:
-        PYBALL_LOGGER.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
-        raise NotAdminError("No tienes permisos para ejecutar este comando.")
+        PYBALL_LOGGER.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
 
-    PYBALL_LOGGER.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
+        return await func(update, context)
+
+    return wrapper_only_admin
 
 
 def get_command_argument(
