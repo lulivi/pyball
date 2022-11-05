@@ -17,7 +17,7 @@ poetry install
 And run the bot!
 
 ```bash
-poetry run pyball-run
+poetry run pyball
 ```
 
 ## License

@@ -30,13 +30,23 @@ LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 BOT_TOKEN: str = config("BOT_TOKEN")
 SUBSTITUTES_ID: str = config("SUBSTITUTES_ID")
 ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")
-PERSISTENCE_FILE_PATH: Path = config(
-    "PERSISTENCE_FILE_PATH",
-    cast=Path,
-    default=REPOSITORY_ROOT_DIR.joinpath("bot.persistence"),
-)
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",
     cast=Path,
     default=REPOSITORY_ROOT_DIR.joinpath("logs"),
+)
+DATA_DIRECTORY_PATH: Path = config(
+    "DATA_DIRECTORY_PATH",
+    cast=Path,
+    default=REPOSITORY_ROOT_DIR.joinpath("data"),
+)
+DATABASE_FILE_PATH: Path = config(
+    "DATABASE_FILE_PATH",
+    cast=Path,
+    default=DATA_DIRECTORY_PATH.joinpath("pyball.db"),
+)
+PERSISTENCE_FILE_PATH: Path = config(
+    "PERSISTENCE_FILE_PATH",
+    cast=Path,
+    default=DATA_DIRECTORY_PATH.joinpath("bot.persistence"),
 )
