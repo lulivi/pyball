@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 """Call-up related errors."""
-
+from typing import List
 
 class PyBallError(Exception):
     """Base error for PyBall bot."""
@@ -52,5 +52,12 @@ class MatchNotYetCreatedError(PyBallError):
     """The match hasn't been created yet."""
 
 
-class MissingMatchResultsError(PyBallError):
-    """There is not enough statistics for all the players in the match."""
+class StatisticOfNonPlayers(PyBallError):
+    """There are statistics of players that are not in any of the teams."""
+
+    def __init__(self, non_players: List[str]) -> None:
+        self.non_players = non_players
+        self.message = (
+            f"Players `{self.non_players}` are not in any of the teams"
+        )
+        super().__init__(self.message)

@@ -20,10 +20,11 @@
 
 """Match object."""
 import datetime
+import itertools
 
 from typing import Dict, List, Optional, Tuple
 
-from pyball.callup.errors import MatchWrongPlayersNumberError, MissingMatchResultsError
+from pyball.callup.errors import MatchWrongPlayersNumberError, StatisticOfNonPlayers
 from pyball.callup.players import Players
 from pyball.db import wrapper
 from pyball.db.utils import MatchResultType, add_match_result_from_dict_list
@@ -144,23 +145,22 @@ class Match:
         return abs(Match.__skill_sum(team_a) - Match.__skill_sum(team_b))
 
     def set_results(self, match_results: MatchResults, date: datetime.datetime) -> None:
-        total_players = sum([len(team) for team in self.__teams])
-        if len(match_results) != total_players:
-            raise MissingMatchResultsError(
-                f"There is not enough statistics (`{len(match_results)}`) for all the players in"
-                f" the match (`{total_players}`)"
-            )
+        match_results_dict = match_results.as_dict()
+        current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
+        unplayed_players = set(match_results_dict) - (current_players)
+        if unplayed_players:
+            raise StatisticOfNonPlayers(list(unplayed_players))
 
         db_results = []
-        match_results_dict = match_results.as_dict()
         for team_index, team in enumerate(self.__teams):
             for player in team:
+                goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
                 db_results.append(
                     {
                         "date": date,
                         "team": self.__team_names[team_index],
                         "player": player.id,
-                        **match_results_dict[player.name],  # goals and assits
+                        **goals_and_assists,
                     }
                 )
 
@@ -172,7 +172,7 @@ class Match:
 
         str_output = ""
         for team_name, team in zip(self.__team_names[: len(self.__teams)], self.__teams):
-            team_list = "\n· ".join(map(lambda p: p.name, team))
+            team_list = "\n· ".join(map(lambda p: f"`{p.name}`", team))
             team_sum = Match.__skill_sum(team)
             PYBALL_LOGGER.debug(f"Team {team_name} ({team_sum}): {team}")
             str_output = f"{str_output}\nTeam {team_name}:\n· {team_list}\n"

@@ -46,11 +46,15 @@ from pyball.bot.utils import (
 )
 from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
+    MatchNotYetCreatedError,
     MatchWrongPlayersNumberError,
     PlayerAlreadyCalledUpError,
     PlayerDoesNotExistError,
     PlayerNotCalledUpError,
+    StatisticOfNonPlayers,
 )
+from pyball.callup.match import MatchResults
+from pyball.db.errors import StatisticForPlayerInMatchAlreadyExistent
 from pyball.db.utils import get_player_list
 from pyball.logger import PYBALL_LOGGER
 
@@ -421,7 +425,6 @@ async def command_teams(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
-@ensure_admin
 async def command_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List the available players.
 
@@ -432,5 +435,69 @@ async def command_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ranking = sorted(get_player_list(), key=lambda p: p.skill, reverse=True)
     await bot_call_message_function(
         bot_message_function=update.message.reply_text,
-        text="\n".join(f"{idx:02} - `{p.name}`" for idx, p in enumerate(ranking)),
+        text="\n".join(f"{idx + 1: 2} - `{p.name}`" for idx, p in enumerate(ranking)),
+    )
+
+
+async def command_set_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Set a match results.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    call_up: CallUp = context.chat_data.get("call-up")
+    try:
+        validate_call_up_message_id(call_up, update.message.reply_to_message)
+    except (NoCallUpError, ExpectedMessageIdError) as error:
+        await update.message.reply_text(str(error))
+        return
+
+    statistics = update.message.text.splitlines()[1:]
+    match_results = MatchResults()
+
+    for stat in statistics:
+        try:
+            name, str_goals, str_assists = stat.rsplit(" ", 2)
+            goals = int(str_goals)
+            assists = int(str_assists)
+        except ValueError:
+            await bot_call_message_function(
+                bot_message_function=update.message.reply_text,
+                text=(
+                    "El formato no es correcto, introduce por línea: <nombre> <goles>"
+                    " <asistencias>. Por ejemplo\n\n`Antonio Jesús 2 0`"
+                ),
+            )
+            return
+        match_results.add_stat(name, goals, assists)
+
+    try:
+        call_up.set_results(match_results)
+    except MatchNotYetCreatedError:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text="Aún no se han creado equipos para el partido actual. Envía /teams primero.",
+        )
+        return
+    except StatisticOfNonPlayers as error:
+        player_list = "\n".join(f"· {p}" for p in error.non_players)
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=f"Ninguno de estos jugadores está apuntado en el partido:\n{player_list}",
+        )
+        return
+    except StatisticForPlayerInMatchAlreadyExistent as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=(
+                f"Las estadisticas de partido de {error.player.name} han sido previamente"
+                f" guardadas para el partido {error.date}"
+            ),
+        )
+        return
+
+    await bot_call_message_function(
+        bot_message_function=update.message.reply_text,
+        text=f"Estadisticas actualizadas!",
     )

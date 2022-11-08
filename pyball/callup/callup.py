@@ -193,4 +193,9 @@ class CallUp:
         self.__match.set_results(results, self.__date)
 
     def __str__(self) -> str:
-        return f"Lista de jugadores para la convocatoria *{self.__title}*\n{str(self.__players)}"
+        output = f"Lista de jugadores para la convocatoria *{self.__title}*\n{str(self.__players)}"
+
+        if self.__match is not None:
+            output = f"{output}\n{str(self.__match)}"
+
+        return output

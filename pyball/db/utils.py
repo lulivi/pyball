@@ -2,10 +2,10 @@ import datetime
 
 from typing import Dict, List, Union
 
-from peewee import fn
+from peewee import IntegrityError, fn
 
 from pyball.db import model, wrapper
-from pyball.db.errors import PlayerNotUpdatedError
+from pyball.db.errors import PlayerNotUpdatedError, StatisticForPlayerInMatchAlreadyExistent
 
 MatchResultType = List[Dict[str, Union[str, int, datetime.datetime]]]
 
@@ -63,7 +63,12 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
 
     """
     for stat in match_result:
-        model.MatchStatistic.insert(stat).execute()
+        try:
+            model.MatchStatistic.insert(stat).execute()
+        except IntegrityError:
+            raise StatisticForPlayerInMatchAlreadyExistent(
+                stat["date"], find_player(stat["player"])
+            )
         if (
             model.Player.update(
                 {
@@ -77,6 +82,15 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
         ):
             raise PlayerNotUpdatedError("Couldn't update the player goals or assists")
 
+    update_players_skill()
+
+
+def update_players_skill() -> None:
+    """Update the skill of all the players in the database.
+
+    :raises PlayerNotUpdatedError: if no skill is updated.
+
+    """
     goals = model.Player.select(
         fn.MIN(model.Player.goals).alias("min"), fn.MAX(model.Player.goals).alias("max")
     ).get()
@@ -86,7 +100,6 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
 
     for player in model.Player.select().objects(wrapper.Player):
         player.compute_skill(goals.min, goals.max, assists.min, assists.max)
-        print(player.name, player.skill)
         if (
             model.Player.update({model.Player.skill: player.skill})
             .where(model.Player.id == player.id)

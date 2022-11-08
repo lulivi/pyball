@@ -36,6 +36,7 @@ from pyball.bot.commands import (
     command_ranking,
     command_repeat,
     command_search,
+    command_set_results,
     command_stop_repeat,
     command_stop_search,
     command_teams,
@@ -69,6 +70,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("teams", command_teams))
     application.add_handler(CommandHandler("list_players", command_list_players))
     application.add_handler(CommandHandler("ranking", command_ranking))
+    application.add_handler(CommandHandler("set_results", command_set_results))
     application.add_handler(CallbackQueryHandler(button_game))
 
     return application
