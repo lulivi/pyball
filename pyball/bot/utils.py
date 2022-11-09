@@ -26,7 +26,7 @@ from typing import Callable, Optional
 
 from telegram import Bot, Message, Update
 from telegram.constants import ParseMode
-from telegram.error import Forbidden
+from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
 from pyball.bot.errors import CommandArgumentError, ExpectedMessageIdError, NoCallUpError
@@ -92,15 +92,38 @@ async def bot_call_message_function(
     :returns: The message sent or edited.
 
     """
-    return await bot_message_function(
-        text=text,
-        parse_mode=ParseMode.MARKDOWN,
-        *args,
-        **kwargs,
-    )
+    try:
+        ret = await bot_message_function(
+            text=text,
+            parse_mode=ParseMode.MARKDOWN,
+            *args,
+            **kwargs,
+        )
+    except BadRequest as error:
+        if "Message is not modified" in str(error):
+            return
+        raise
+    return ret
 
 
-def validate_call_up_message_id(call_up: Optional[CallUp], reply_to_message: Optional[Message]):
+def get_call_up(chat_data: dict) -> CallUp:
+    """Get the call-up object.
+
+    :param chat_data: Chat dictionary with the call-up object.
+    :raise NoCallUpError: If no CallUp object has been found in the dictionary.
+
+    """
+    call_up = chat_data.get("call-up")
+
+    if call_up is None:
+        raise NoCallUpError(
+            "Inicia una convocatoria antes de nada. No existe registro de la anterior."
+        )
+
+    return call_up
+
+
+def validate_call_up_message_id(call_up: CallUp, reply_to_message: Optional[Message]):
     """Ensure the message identifier matches with the last call-up message.
 
     :param reply_to_message: The message the incommind command is replying to.
@@ -108,11 +131,6 @@ def validate_call_up_message_id(call_up: Optional[CallUp], reply_to_message: Opt
     :raises ExpectedMessageIdError: If the replied message id does not match with the last call-up.
 
     """
-    if call_up is None:
-        raise NoCallUpError(
-            "Inicia una convocatoria antes de nada. No existe registro de la anterior."
-        )
-
     if reply_to_message is None or not call_up.validate_message_id(
         str(reply_to_message.message_id)
     ):
@@ -214,14 +232,14 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
     :param bot: Main bot object necessary to send and edit messages in other chat.
 
     """
-    remaining__players = call_up.remaining_players()
+    remaining_players = call_up.remaining_players()
 
     substitutes_message_text = (
         "¡Hola compas! Estamos buscando suplentes para este partido.\n\nConvocatoria:"
-        f" {call_up.title}\nJugadores restantes: {remaining__players}"
+        f" {call_up.title}\nJugadores restantes: {remaining_players}"
     )
     call_up_reply_message = "Mensaje de búsqueda enviado."
-    if remaining__players < 1:
+    if remaining_players < 1:
         substitutes_message_text = (
             f"¡Hola compas! Ya hemos llegado al cupo de personas convocadas, ¡muchas gracias!"
         )
@@ -232,8 +250,7 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
     if call_up.is_searching():
         await bot.edit_message_text(
             text=substitutes_message_text,
-            chat_id=call_up.subs_chat.chat_id,
-            message_id=call_up.subs_chat.msg_id,
+            **call_up.subs_chat,
         )
         return call_up_reply_message
 

@@ -161,5 +161,5 @@ class Players:
         )
         sorted_players.extend(["?????"] * (self.__maximum - len(self.__players)))
         return "\n".join(
-            [f"{index + 1:0>2} - {player}" for index, player in enumerate(sorted_players)]
+            [f"{index + 1} - `{player}`" for index, player in enumerate(sorted_players)]
         )

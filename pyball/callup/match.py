@@ -53,12 +53,13 @@ class Match:
 
     """
 
-    __slots__ = ["__teams"]
+    __slots__ = ["__teams", "__score"]
     __team_names: Tuple[str] = ("Verde", "Naranja", "Sin peto")
 
     def __init__(self, players: Players, teams_number: Optional[int] = None) -> None:
         self.__teams: Optional[List[List[wrapper.Player]]] = None
         self.__create_teams(players, teams_number)
+        self.__score: List[int] = [""] * len(self.__teams)
 
     def __create_teams(self, players: Players, teams_number: Optional[int] = None) -> None:
         """Generate two balanced teams.
@@ -153,8 +154,10 @@ class Match:
 
         db_results = []
         for team_index, team in enumerate(self.__teams):
+            team_score = 0
             for player in team:
                 goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
+                team_score += goals_and_assists["goals"]
                 db_results.append(
                     {
                         "date": date,
@@ -163,6 +166,7 @@ class Match:
                         **goals_and_assists,
                     }
                 )
+            self.__score[team_index] = team_score
 
         add_match_result_from_dict_list(db_results)
 
@@ -171,9 +175,14 @@ class Match:
             return "No teams created yet."
 
         str_output = ""
-        for team_name, team in zip(self.__team_names[: len(self.__teams)], self.__teams):
+        team_goals: str = ""
+        for team_index, (team_name, team) in enumerate(
+            zip(self.__team_names[: len(self.__teams)], self.__teams)
+        ):
             team_list = "\n· ".join(map(lambda p: f"`{p.name}`", team))
             team_sum = Match.__skill_sum(team)
             PYBALL_LOGGER.debug(f"Team {team_name} ({team_sum}): {team}")
-            str_output = f"{str_output}\nTeam {team_name}:\n· {team_list}\n"
+            if self.__score:
+                team_goals = str(self.__score[team_index])
+            str_output = f"{str_output}\nTeam {team_name}: {team_goals}\n· {team_list}\n"
         return str_output

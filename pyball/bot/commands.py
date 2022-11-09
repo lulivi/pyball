@@ -40,6 +40,7 @@ from pyball.bot.utils import (
     bot_call_message_function_with_keyboard,
     create_callup,
     ensure_admin,
+    get_call_up,
     get_command_argument,
     search_substitutes,
     validate_call_up_message_id,
@@ -120,9 +121,8 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     """
     query = update.callback_query
-    call_up: CallUp = context.chat_data.get("call-up")
-
     try:
+        call_up: CallUp = get_call_up(context.chat_data)
         validate_call_up_message_id(call_up, query.message)
     except (NoCallUpError, ExpectedMessageIdError):
         await query.answer(
@@ -157,9 +157,8 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     :param context: The information related to the update.
 
     """
-    call_up: CallUp = context.chat_data.get("call-up")
     try:
-        validate_call_up_message_id(call_up, update.message.reply_to_message)
+        call_up: CallUp = get_call_up(context.chat_data)
         player = get_command_argument(
             update_message_text=update.message.text,
             command_name="add",
@@ -167,7 +166,7 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             argument_example="Antonio Manuel",
             required=True,
         )
-    except (NoCallUpError, ExpectedMessageIdError, CommandArgumentError) as error:
+    except (NoCallUpError, CommandArgumentError) as error:
         await update.message.reply_text(str(error))
         return
 
@@ -176,13 +175,16 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except PlayerAlreadyCalledUpError:
         return
     except PlayerDoesNotExistError as error:
-        await update.message.reply_text(
-            f"No se ha encontrado al jugador `{player}` en la base de datos."
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=f"No se ha encontrado al jugador `{player}` en la base de datos.",
         )
         return
 
     await bot_call_message_function_with_keyboard(
-        update.message.reply_to_message.edit_text, str(call_up)
+        bot_message_function=context.bot.edit_message_text,
+        text=str(call_up),
+        **call_up.main_chat.as_dict(),
     )
     await search_substitutes(
         call_up=call_up,
@@ -199,9 +201,8 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     :param context: The information related to the update.
 
     """
-    call_up: CallUp = context.chat_data.get("call-up")
     try:
-        validate_call_up_message_id(call_up, update.message.reply_to_message)
+        call_up: CallUp = get_call_up(context.chat_data)
         player = get_command_argument(
             update_message_text=update.message.text,
             command_name="del",
@@ -209,7 +210,7 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             argument_example="Antonio Manuel",
             required=True,
         )
-    except (NoCallUpError, ExpectedMessageIdError, CommandArgumentError, NotAdminError) as error:
+    except (NoCallUpError, CommandArgumentError, NotAdminError) as error:
         await update.message.reply_text(str(error))
         return
 
@@ -224,7 +225,9 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     await bot_call_message_function_with_keyboard(
-        update.message.reply_to_message.edit_text, str(call_up)
+        bot_message_function=context.bot.edit_message_text,
+        text=str(call_up),
+        **call_up.main_chat.as_dict(),
     )
     await search_substitutes(
         call_up=call_up,
@@ -241,10 +244,9 @@ async def command_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     :param context: The information related to the update.
 
     """
-    call_up: CallUp = context.chat_data.get("call-up")
     try:
-        validate_call_up_message_id(call_up, update.message.reply_to_message)
-    except (NoCallUpError, ExpectedMessageIdError) as error:
+        call_up: CallUp = get_call_up(context.chat_data)
+    except NoCallUpError as error:
         await update.message.reply_text(str(error))
         return
 
@@ -264,10 +266,9 @@ async def command_stop_search(update: Update, context: ContextTypes.DEFAULT_TYPE
     :param context: The information related to the update.
 
     """
-    call_up: CallUp = context.chat_data.get("call-up")
     try:
-        validate_call_up_message_id(call_up, update.message.reply_to_message)
-    except (NoCallUpError, ExpectedMessageIdError) as error:
+        call_up: CallUp = get_call_up(context.chat_data)
+    except NoCallUpError as error:
         await update.message.reply_text(str(error))
         return
 
@@ -275,9 +276,9 @@ async def command_stop_search(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     try:
-        await context.bot.delete_message(call_up.subs_chat.chat_id, call_up.subs_chat.msg_id)
+        await context.bot.delete_message(**call_up.subs_chat.as_dict())
     except Forbidden as error:
-        await bot_call_message_function_with_keyboard(
+        await bot_call_message_function(
             update.message.reply_text,
             "El bot no tiene los permisos suficientes para eliminar el mensaje del chat de"
             f" suplentes:\n\t{str(error)}",
@@ -403,10 +404,9 @@ async def command_teams(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     :param context: The information related to the update.
 
     """
-    call_up: CallUp = context.chat_data.get("call-up")
     try:
-        validate_call_up_message_id(call_up, update.message.reply_to_message)
-    except (NoCallUpError, ExpectedMessageIdError) as error:
+        call_up: CallUp = get_call_up(context.chat_data)
+    except NoCallUpError as error:
         await update.message.reply_text(str(error))
         return
 
@@ -419,9 +419,10 @@ async def command_teams(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
         return
 
-    await bot_call_message_function(
-        bot_message_function=update.message.reply_text,
-        text=str(call_up.match),
+    await bot_call_message_function_with_keyboard(
+        bot_message_function=context.bot.edit_message_text,
+        text=str(call_up),
+        **call_up.main_chat.as_dict(),
     )
 
 
@@ -435,10 +436,11 @@ async def command_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ranking = sorted(get_player_list(), key=lambda p: p.skill, reverse=True)
     await bot_call_message_function(
         bot_message_function=update.message.reply_text,
-        text="\n".join(f"{idx + 1: 2} - `{p.name}`" for idx, p in enumerate(ranking)),
+        text="\n".join(f"{idx + 1} - `{p.name}`" for idx, p in enumerate(ranking)),
     )
 
 
+@ensure_admin
 async def command_set_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Set a match results.
 
@@ -446,10 +448,9 @@ async def command_set_results(update: Update, context: ContextTypes.DEFAULT_TYPE
     :param context: The information related to the update.
 
     """
-    call_up: CallUp = context.chat_data.get("call-up")
     try:
-        validate_call_up_message_id(call_up, update.message.reply_to_message)
-    except (NoCallUpError, ExpectedMessageIdError) as error:
+        call_up: CallUp = get_call_up(context.chat_data)
+    except NoCallUpError as error:
         await update.message.reply_text(str(error))
         return
 
@@ -498,6 +499,16 @@ async def command_set_results(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     await bot_call_message_function(
-        bot_message_function=update.message.reply_text,
-        text=f"Estadisticas actualizadas!",
+        bot_message_function=context.bot.edit_message_text,
+        text=str(call_up),
+        **call_up.main_chat.as_dict(),
     )
+
+    await bot_call_message_function(
+        bot_message_function=context.bot.send_message,
+        text="Partido concluido!",
+        chat_id=call_up.main_chat.chat_id,
+        reply_to_message_id=call_up.main_chat.message_id,
+    )
+
+    del context.chat_data["call-up"]

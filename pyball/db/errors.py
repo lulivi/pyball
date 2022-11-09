@@ -22,6 +22,7 @@
 
 import datetime
 
+
 class PyBallDbError(Exception):
     """Base error for PyBall database transactions."""
 
@@ -29,13 +30,12 @@ class PyBallDbError(Exception):
 class PlayerNotUpdatedError(PyBallDbError):
     """The player was not updated."""
 
+
 class StatisticForPlayerInMatchAlreadyExistent(PyBallDbError):
     """The statistic for that player in that match is already in the database."""
 
     def __init__(self, date: datetime.datetime, player: str) -> None:
         self.date = date
         self.player = player
-        self.message = (
-            f"Player `{self.player}` already has a statistic in `{self.date}` match"
-        )
+        self.message = f"Player `{self.player}` already has a statistic in `{self.date}` match"
         super().__init__(self.message)

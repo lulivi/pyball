@@ -21,6 +21,7 @@
 """Call-up related errors."""
 from typing import List
 
+
 class PyBallError(Exception):
     """Base error for PyBall bot."""
 
@@ -57,7 +58,5 @@ class StatisticOfNonPlayers(PyBallError):
 
     def __init__(self, non_players: List[str]) -> None:
         self.non_players = non_players
-        self.message = (
-            f"Players `{self.non_players}` are not in any of the teams"
-        )
+        self.message = f"Players `{self.non_players}` are not in any of the teams"
         super().__init__(self.message)

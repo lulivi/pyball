@@ -41,8 +41,12 @@ class ChatInfo:
 
     """
 
-    chat_id: str
-    msg_id: Optional[str] = None
+    chat_id: int
+    message_id: Optional[int] = None
+
+    def as_dict(self) -> Dict[str, int]:
+        """Return the instance variables as a dictionary."""
+        return vars(self)
 
 
 class CallUp:
@@ -68,7 +72,7 @@ class CallUp:
     ]
     __actions: Dict[str, Callable]
 
-    def __init__(self, date: datetime.datetime, main_chat_id: str, main_chat_msg: str) -> None:
+    def __init__(self, date: datetime.datetime, main_chat_id: int, main_chat_msg: int) -> None:
         self.__date: datetime.datetime = date
         self.__title: str = datetime.datetime.strftime(date, "%A %d/%m/%Y %H:%M")
         self.__main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
@@ -114,6 +118,15 @@ class CallUp:
         return self.__match
 
     @property
+    def main_chat(self) -> ChatInfo:
+        """Get the main chat information.
+
+        :returns: Main chat id and message id.
+
+        """
+        return self.__main_chat
+
+    @property
     def subs_chat(self) -> ChatInfo:
         """Get the substitutes chat information.
 
@@ -137,7 +150,7 @@ class CallUp:
         :param message_id: The identifier of the substitutes search message or None.
 
         """
-        self.__subs_chat.msg_id = message_id
+        self.__subs_chat.message_id = message_id
 
     def remaining_players(self) -> int:
         """Return the number of remaining players for the call-up.
@@ -154,7 +167,7 @@ class CallUp:
         :returns: Whether the incomming message id is the same as the call-up message id.
 
         """
-        return self.__main_chat.msg_id == request_message_id
+        return self.__main_chat.message_id == request_message_id
 
     def is_searching(self) -> bool:
         """Check if the current call-up is searching for substitutes.
@@ -162,7 +175,7 @@ class CallUp:
         :returns: Whether the call-up needs substitutes.
 
         """
-        return self.__subs_chat.msg_id is not None
+        return self.__subs_chat.message_id is not None
 
     def add_player(self, player: Union[str, int]) -> None:
         """Add player to the call-up.
@@ -171,6 +184,7 @@ class CallUp:
 
         """
         self.__players.join(player)
+        self.__match = None
 
     def del_player(self, player: Union[str, int]) -> None:
         """Remove a player from the call-up.
@@ -179,6 +193,7 @@ class CallUp:
 
         """
         self.__players.leave(player)
+        self.__match = None
 
     def create_match(self) -> None:
         """Create a new match."""
