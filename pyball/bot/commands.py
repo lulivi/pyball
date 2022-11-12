@@ -41,7 +41,6 @@ from pyball.bot.utils import (
     get_command_argument,
     parse_command,
     search_substitutes,
-    split_without_splitting_quotes,
     validate_call_up_message_id,
 )
 from pyball.callup.callup import CallUp

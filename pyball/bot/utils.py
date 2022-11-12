@@ -308,7 +308,7 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
     if call_up.is_searching():
         await bot.edit_message_text(
             text=substitutes_message_text,
-            **call_up.subs_chat,
+            **call_up.subs_chat.as_dict(),
         )
         return call_up_reply_message
 
