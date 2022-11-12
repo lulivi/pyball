@@ -19,21 +19,78 @@
 # SOFTWARE.
 
 """Utility functions."""
+import argparse
 import datetime
 import functools
+import re
 
-from typing import Callable, Optional
+from typing import Callable, List, NamedTuple, Optional
 
 from telegram import Bot, Message, Update
 from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
-from pyball.bot.errors import CommandArgumentError, ExpectedMessageIdError, NoCallUpError
+from pyball.bot.errors import CommandError, ExpectedMessageIdError, NoCallUpError
 from pyball.bot.globals import CALL_UP_KEYBOARD
 from pyball.callup.callup import CallUp
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import ADMINS_IDS
+
+
+class CommandArgument(NamedTuple):
+    """Parser simple argument."""
+
+    name: str
+    metavar: str
+
+
+class CommandParser(argparse.ArgumentParser):
+    """ArgumentParser class to avoid printing help, just raise an error with the usage."""
+
+    def print_help(self, _=None):
+        """Raises an error with the help."""
+        raise CommandError(f"```{self.format_help()}```")
+
+    def error(self, _):
+        """Raises an error with the usage."""
+        raise CommandError(f"```{self.format_usage()}```")
+
+
+def parse_command(
+    command: str, arguments: List[CommandArgument], text: str, single_arg: bool = False
+) -> argparse.Namespace:
+    """Create a simple parser for the commands.
+
+    :param command: The command string used in Telegram.
+    :param arguments: The lists of arguments to add to the parser.
+    :param text: The input string.
+    :returns: The parsed namespace.
+
+    """
+    parser = CommandParser(command)
+
+    for argument in arguments:
+        parser.add_argument(argument.name, metavar=argument.metavar)
+
+    string_input = text.replace(command, "").strip()
+    arg_list = [string_input] if single_arg else __split_without_splitting_quotes(string_input)
+
+    return parser.parse_args(arg_list)
+
+
+__RE_NO_QUOTES_SPLIT = re.compile('(?:".*?"|\S)+')
+"""Regex pattern to find words and quoted words."""
+
+
+def __split_without_splitting_quotes(text: str) -> List[str]:
+    """Split the string by words respecting the quoted substrings.
+
+    :param text: The string to split.
+    :returns: The list of words.
+
+    """
+    return [word.strip('"') for word in __RE_NO_QUOTES_SPLIT.findall(text)]
 
 
 async def create_callup(
@@ -46,15 +103,16 @@ async def create_callup(
     :param context: Information related to the bot and the chat.
 
     """
+    call_up = CallUp(date, chat_id, chat_message_id)
+    context.chat_data["call-up"] = call_up
+
     chat_message_id = (
         await bot_call_message_function_with_keyboard(
             bot_message_function=context.bot.send_message,
-            text=f"Lista de jugadores para la convocatoria *{date.strftime('%y/%m/%d %H:%M')}*",
-            chat_id=chat_id,
+            text=str(call_up),
+            chat_id=call_up.main_chat.chat_id,
         )
     ).message_id
-
-    context.chat_data["call-up"] = CallUp(date, chat_id, str(chat_message_id))
 
 
 async def bot_call_message_function_with_keyboard(
@@ -71,8 +129,8 @@ async def bot_call_message_function_with_keyboard(
 
     """
     return await bot_call_message_function(
-        bot_message_function,
-        text,
+        bot_message_function=bot_message_function,
+        text=text,
         reply_markup=CALL_UP_KEYBOARD,
         *args,
         **kwargs,
@@ -178,7 +236,7 @@ def get_command_argument(
     :param argument_example: Example value
     :param required: If the argument is required or optional.
     :returns: The arugument value or an empty string.
-    :raises CommandArgumentError: If the argument is required and it is not found.
+    :raises CommandError: If the argument is required and it is not found.
 
     """
     argument: str = ""
@@ -186,7 +244,7 @@ def get_command_argument(
         argument = update_message_text.split(None, 1)[1]
     except IndexError:
         if required:
-            raise CommandArgumentError(command_name, argument_name, argument_example)
+            raise CommandError(command_name, argument_name, argument_example)
 
     return argument
 

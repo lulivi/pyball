@@ -37,17 +37,5 @@ class ExpectedMessageIdError(PyBallBotError):
     """When the message identifier is not the expected one."""
 
 
-class CommandArgumentError(PyBallBotError):
+class CommandError(PyBallBotError):
     """The argument was not specified."""
-
-    def __init__(self, command_name: str, argument_name: str, argument_example: str) -> None:
-        self._command_name: str = command_name
-        self._argument_name: str = argument_name
-        self._argument_example: str = argument_example
-
-    def __str__(self) -> str:
-        return (
-            f"Por favor, indica el {self._argument_name} a continuación del comando:"
-            f" /{self._command_name} <{self._argument_name}>. Por"
-            f" ejemplo:\n\n\t/{self._command_name} {self._argument_example}"
-        )

@@ -31,6 +31,16 @@ class PlayerNotUpdatedError(PyBallDbError):
     """The player was not updated."""
 
 
+class PlayerAlreadyExistentError(PyBallDbError):
+    """The player is already in the database."""
+
+    def __init__(self, name: str, id: int) -> None:
+        self.name = name
+        self.id = id
+        self.message = f"Player `{self.name}` already in the database (with id: `{self.id}`)"
+        super().__init__(self.message)
+
+
 class StatisticForPlayerInMatchAlreadyExistent(PyBallDbError):
     """The statistic for that player in that match is already in the database."""
 

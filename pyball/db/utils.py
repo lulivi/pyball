@@ -1,11 +1,15 @@
 import datetime
 
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from peewee import IntegrityError, fn
 
 from pyball.db import model, wrapper
-from pyball.db.errors import PlayerNotUpdatedError, StatisticForPlayerInMatchAlreadyExistent
+from pyball.db.errors import (
+    PlayerAlreadyExistentError,
+    PlayerNotUpdatedError,
+    StatisticForPlayerInMatchAlreadyExistent,
+)
 
 MatchResultType = List[Dict[str, Union[str, int, datetime.datetime]]]
 
@@ -23,6 +27,28 @@ def find_player(player: Union[str, int]) -> wrapper.Player:
         operation = model.Player.name == player
 
     return wrapper.Player.from_db(model.Player.get(operation))
+
+
+def create_player(
+    player_name: str, player_id: Optional[int] = None, main_player: bool = False
+) -> None:
+    """Add a new player to the database.
+
+    :param player_name: Name of the new player.
+    :param player_id: Id for the new player. If not set, automatic ID will be provided.
+    :param main_player: Wether the player is part of the main team.
+    :raises PlayerAlreadyExistentError: If the name or the id are already in the database.
+
+    """
+    table_info = {"name": player_name, "main": main_player}
+
+    if player_id is not None:
+        table_info["id"] = player_id
+
+    try:
+        model.Player.insert(**table_info).execute()
+    except IntegrityError as error:
+        raise PlayerAlreadyExistentError(player_name, player_id) from error
 
 
 def get_player_list() -> List[wrapper.Player]:

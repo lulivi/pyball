@@ -53,7 +53,7 @@ class Player(BaseModel):
     """Player statistics and information."""
 
     id = IntegerField(primary_key=True)
-    name = CharField(null=False)
+    name = CharField(null=False, unique=True)
     main = BooleanField(null=False)
     goals = IntegerField(default=0)
     assists = IntegerField(default=0)

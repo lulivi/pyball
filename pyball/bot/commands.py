@@ -21,6 +21,7 @@
 """Bot commands and buttons."""
 
 import datetime
+import re
 import time
 
 from typing import Optional
@@ -29,20 +30,18 @@ from telegram import Update
 from telegram.error import Forbidden
 from telegram.ext import CallbackContext, ContextTypes
 
-from pyball.bot.errors import (
-    CommandArgumentError,
-    ExpectedMessageIdError,
-    NoCallUpError,
-    NotAdminError,
-)
+from pyball.bot.errors import CommandError, ExpectedMessageIdError, NoCallUpError, NotAdminError
 from pyball.bot.utils import (
+    CommandArgument,
     bot_call_message_function,
     bot_call_message_function_with_keyboard,
     create_callup,
     ensure_admin,
     get_call_up,
     get_command_argument,
+    parse_command,
     search_substitutes,
+    split_without_splitting_quotes,
     validate_call_up_message_id,
 )
 from pyball.callup.callup import CallUp
@@ -55,8 +54,8 @@ from pyball.callup.errors import (
     StatisticOfNonPlayers,
 )
 from pyball.callup.match import MatchResults
-from pyball.db.errors import StatisticForPlayerInMatchAlreadyExistent
-from pyball.db.utils import get_player_list
+from pyball.db.errors import PlayerAlreadyExistentError, StatisticForPlayerInMatchAlreadyExistent
+from pyball.db.utils import create_player, get_player_list
 from pyball.logger import PYBALL_LOGGER
 
 
@@ -79,9 +78,9 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         " el que crear una convocatoria automáticamente. En el parámetro `<título>` se pueden"
         " utilizar los [códigos de"
         " formato](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)"
-        " para formatear fechas. Por ejemplo, si se usa el comando\n`/repeat Miércoles 21:00 - %A"
-        " %d/%m/%y`\ncada miércoles a las 21h se crearía una encuesta con el título\n`<día de"
-        " semana> <día>/<mes>/<año>`\npor ejemplo **Miércoles 19/10/22**. Para cancelar la"
+        " para formatear fechas. Por ejemplo, si se usa el comando\n`/repeat Miércoles 20:00 - %A"
+        " %Y/%m/%d`\ncada miércoles a las 21h se crearía una encuesta con el título\n`<día de"
+        " semana> <año>/<mes>/<día>`\npor ejemplo **Miércoles 2022/10/23**. Para cancelar la"
         " siguiente convocatoria automática usar `/stop_repeat`.",
     )
 
@@ -95,18 +94,26 @@ async def command_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     """
     try:
-        argument = get_command_argument(
-            update.message.text, "new", "fecha y hora de la convocatoria", "30/02/22 20:30", True
+        args = parse_command(
+            command="/new",
+            arguments=[CommandArgument("date", "<fecha>")],
+            text=update.message.text,
+            single_arg=True,
         )
-        call_up_date = datetime.datetime.strptime(argument, "%d/%m/%y %H:%M")
-    except CommandArgumentError as error:
-        await update.message.reply_text(str(error))
+        call_up_date = datetime.datetime.strptime(args.date, "%Y/%m/%d %H:%M")
+    except CommandError as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=str(error),
+        )
         return
     except ValueError:
         await bot_call_message_function(
-            update.message.reply_text,
-            "La fecha de la nueva convocatoria no es correcta. Por favor, indícala en formato"
-            " `YY/MM/DD HH:MM`.",
+            bot_message_function=update.message.reply_text,
+            text=(
+                "La fecha de la nueva convocatoria no es correcta. Por favor, indícala en formato"
+                ' `"YYYY/MM/DD HH:MM"`.'
+            ),
         )
         return
 
@@ -159,25 +166,27 @@ async def command_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     try:
         call_up: CallUp = get_call_up(context.chat_data)
-        player = get_command_argument(
-            update_message_text=update.message.text,
-            command_name="add",
-            argument_name="player name",
-            argument_example="Antonio Manuel",
-            required=True,
+        args = parse_command(
+            command="/add",
+            arguments=[CommandArgument("name", "<nombre jugador>")],
+            text=update.message.text,
+            single_arg=True,
         )
-    except (NoCallUpError, CommandArgumentError) as error:
-        await update.message.reply_text(str(error))
+    except (NoCallUpError, CommandError) as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=str(error),
+        )
         return
 
     try:
-        call_up.add_player(player)
+        call_up.add_player(args.name)
     except PlayerAlreadyCalledUpError:
         return
     except PlayerDoesNotExistError as error:
         await bot_call_message_function(
             bot_message_function=update.message.reply_text,
-            text=f"No se ha encontrado al jugador `{player}` en la base de datos.",
+            text=f"No se ha encontrado al jugador `{args.name}` en la base de datos.",
         )
         return
 
@@ -203,24 +212,26 @@ async def command_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     try:
         call_up: CallUp = get_call_up(context.chat_data)
-        player = get_command_argument(
-            update_message_text=update.message.text,
-            command_name="del",
-            argument_name="player name",
-            argument_example="Antonio Manuel",
-            required=True,
+        args = parse_command(
+            command="/del",
+            arguments=[CommandArgument("name", "<nombre jugador>")],
+            text=update.message.text,
+            single_arg=True,
         )
-    except (NoCallUpError, CommandArgumentError, NotAdminError) as error:
-        await update.message.reply_text(str(error))
+    except (NoCallUpError, CommandError, NotAdminError) as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=str(error),
+        )
         return
 
     try:
-        call_up.del_player(player)
+        call_up.del_player(args.name)
     except PlayerNotCalledUpError:
         return
     except PlayerDoesNotExistError as error:
         update.message.reply_text(
-            f"No se ha encontrado al jugador `{player}` en la base de datos."
+            f"No se ha encontrado al jugador `{args.name}` en la base de datos."
         )
         return
 
@@ -336,7 +347,7 @@ async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     command_name = "repeat"
     argument_name = r"<día> <hora>: <título>"
-    argument_example = r"Miércoles 21:00 - %A %d/%m/%y"
+    argument_example = r"Miércoles 21:00 - %A %Y/%m/%d"
 
     try:
         day_hour_title = get_command_argument(
@@ -346,7 +357,7 @@ async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             argument_example=argument_example,
             required=True,
         )
-    except CommandArgumentError as error:
+    except CommandError as error:
         await update.message.reply_text(str(error))
         return
 
@@ -356,7 +367,7 @@ async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         clean_title: str = title.strip()
     except ValueError:
         await update.message.reply_text(
-            str(CommandArgumentError(command_name, argument_name, argument_example))
+            str(CommandError(command_name, argument_name, argument_example))
         )
         return
 
@@ -512,3 +523,42 @@ async def command_set_results(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     del context.chat_data["call-up"]
+
+
+@ensure_admin
+async def command_create_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Add a new player to the database.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    try:
+        args = parse_command(
+            command="/create_player",
+            arguments=[
+                CommandArgument("name", "<nombre jugador>"),
+                CommandArgument("-id", "<identificador>"),
+            ],
+            text=update.message.text,
+        )
+    except CommandError as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=str(error),
+        )
+        return
+
+    try:
+        create_player(args.name, args.id)
+    except PlayerAlreadyExistentError:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=f"El jugador `{args.name}` ya existe en la base de datos (o su id)",
+        )
+        return
+
+    await bot_call_message_function(
+        bot_message_function=update.message.reply_text,
+        text=f"Jugador `{args.name}` añadido con éxito",
+    )
