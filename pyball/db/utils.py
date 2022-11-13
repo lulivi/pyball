@@ -8,7 +8,6 @@ from peewee import IntegrityError, fn
 
 from pyball.db import model, wrapper
 from pyball.db.errors import (
-    InconsistencyError,
     PlayerAlreadyExistentError,
     PlayerNotUpdatedError,
     ScoreInconsistencyError,
@@ -214,7 +213,7 @@ def check_inconsistencies() -> None:
             )
 
 
-def fix_matches_count_incosistencies() -> None:
+def fix_inconsistencies() -> None:
     """Fix inconsistencies related to the sum of win, lost and tied maches and scores."""
 
     def default_stat() -> Dict[str, int]:
