@@ -73,7 +73,11 @@ def parse_command(
     for argument in arguments:
         parser.add_argument(argument.name, metavar=argument.metavar)
 
-    string_input = text.replace(command, "").strip()
+    try:
+        string_input = text.split(" ", 1)[1].strip()
+    except IndexError:
+        parser.error()
+
     arg_list = [string_input] if single_arg else __split_without_splitting_quotes(string_input)
 
     return parser.parse_args(arg_list)
@@ -103,16 +107,15 @@ async def create_callup(
     :param context: Information related to the bot and the chat.
 
     """
-    call_up = CallUp(date, chat_id, chat_message_id)
-    context.chat_data["call-up"] = call_up
-
     chat_message_id = (
         await bot_call_message_function_with_keyboard(
             bot_message_function=context.bot.send_message,
-            text=str(call_up),
-            chat_id=call_up.main_chat.chat_id,
+            text=f"Lista de jugadores para la convocatoria *{date.strftime('%A %d/%m/%Y %H:%M')}*",
+            chat_id=chat_id,
         )
     ).message_id
+
+    context.chat_data["call-up"] = CallUp(date, chat_id, str(chat_message_id))
 
 
 async def bot_call_message_function_with_keyboard(
