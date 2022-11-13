@@ -60,7 +60,12 @@ def get_player_list() -> List[wrapper.Player]:
     return model.Player.select().objects(wrapper.Player)
 
 
-def get_match_dict():
+def get_match_dict() -> Dict[datetime.datetime, Dict[str, int]]:
+    """Get a list of the matches.
+
+    :returns: The matches with their score.
+
+    """
     matches = {}
 
     for match in (
@@ -74,11 +79,26 @@ def get_match_dict():
             )
             .where(model.MatchStatistic.date == match.date)
             .group_by(model.MatchStatistic.team)
-            .namedtuples()
         )
         matches[match.date] = {k.team: k.goals for k in teams}
 
     return matches
+
+
+def format_match_list() -> str:
+    """Get the list of matches.
+
+    :returns: All the matches with their result.
+
+    """
+    match_list = ""
+
+    for date, match in get_match_dict().items():
+        match_list = (
+            f"{match_list}{date.strftime('%Y/%m/%d %H:%M')}: Naranja {match['Naranja']} -"
+            f" {match['Verde']} Verde\n"
+        )
+    return match_list
 
 
 def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
@@ -89,6 +109,7 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
 
     """
     for stat in match_result:
+        wins, losses, ties = stat.pop("wins"), stat.pop("losses"), stat.pop("ties")
         try:
             model.MatchStatistic.insert(stat).execute()
         except IntegrityError:
@@ -100,6 +121,9 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
                 {
                     model.Player.goals: model.Player.goals + stat["goals"],
                     model.Player.assists: model.Player.assists + stat["assists"],
+                    model.Player.wins: model.Player.wins + wins,
+                    model.Player.losses: model.Player.losses + losses,
+                    model.Player.ties: model.Player.ties + ties,
                 }
             )
             .where(model.Player.id == stat["player"])

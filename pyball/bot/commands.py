@@ -52,9 +52,9 @@ from pyball.callup.errors import (
     PlayerNotCalledUpError,
     StatisticOfNonPlayers,
 )
-from pyball.callup.match import MatchResults
+from pyball.callup.match import MatchStats
 from pyball.db.errors import PlayerAlreadyExistentError, StatisticForPlayerInMatchAlreadyExistent
-from pyball.db.utils import create_player, get_player_list
+from pyball.db.utils import create_player, format_match_list, get_player_list
 from pyball.logger import PYBALL_LOGGER
 
 
@@ -407,6 +407,20 @@ async def command_list_players(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 @ensure_admin
+async def command_list_matches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List the available matches.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    await bot_call_message_function(
+        bot_message_function=update.message.reply_text,
+        text="\n".join(format_match_list()),
+    )
+
+
+@ensure_admin
 async def command_teams(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show the last teams or create new ones.
 
@@ -465,7 +479,7 @@ async def command_set_results(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     statistics = update.message.text.splitlines()[1:]
-    match_results = MatchResults()
+    match_results = MatchStats()
 
     for stat in statistics:
         try:

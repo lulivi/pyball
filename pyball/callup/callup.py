@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Union
 
 from pyball.callup.errors import MatchNotYetCreatedError
-from pyball.callup.match import Match, MatchResults
+from pyball.callup.match import Match, MatchStats
 from pyball.callup.players import PlayerAction, Players
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
@@ -199,7 +199,7 @@ class CallUp:
         """Create a new match."""
         self.__match = Match(self.__players)
 
-    def set_results(self, results: MatchResults) -> None:
+    def set_results(self, results: MatchStats) -> None:
         if self.__match is None:
             raise MatchNotYetCreatedError(
                 "The match hasn't been created yet, so no results can be set"

@@ -32,6 +32,7 @@ from pyball.bot.commands import (
     command_create_player,
     command_del,
     command_help,
+    command_list_matches,
     command_list_players,
     command_new,
     command_ranking,
@@ -70,6 +71,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("stop_search", command_stop_search))
     application.add_handler(CommandHandler("teams", command_teams))
     application.add_handler(CommandHandler("list_players", command_list_players))
+    application.add_handler(CommandHandler("list_matches", command_list_matches))
     application.add_handler(CommandHandler("ranking", command_ranking))
     application.add_handler(CommandHandler("set_results", command_set_results))
     application.add_handler(CommandHandler("create_player", command_create_player))

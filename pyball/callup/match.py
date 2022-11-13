@@ -31,7 +31,7 @@ from pyball.db.utils import MatchResultType, add_match_result_from_dict_list
 from pyball.logger import PYBALL_LOGGER
 
 
-class MatchResults:
+class MatchStats:
     def __init__(self):
         self.__result: Dict[str, int] = {}
 
@@ -145,7 +145,18 @@ class Match:
         """
         return abs(Match.__skill_sum(team_a) - Match.__skill_sum(team_b))
 
-    def set_results(self, match_results: MatchResults, date: datetime.datetime) -> None:
+    def set_results(self, match_results: MatchStats, date: datetime.datetime) -> None:
+        """Calculate and pass the necessary information to the database.
+
+        This function will prepare a list of dictionaries containing the date, player id, team,
+        goals, assists necessary to insert the data into the MatchStatistic table. Also the wins,
+        losses and ties to the Player table.
+
+        :param match_results: A dictionary of players with their corresponding goals and assists in
+            the match.
+        :param date: Date of the match.
+
+        """
         match_results_dict = match_results.as_dict()
         current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
         unplayed_players = set(match_results_dict) - (current_players)
@@ -164,11 +175,42 @@ class Match:
                         "team": self.__team_names[team_index],
                         "player": player.id,
                         **goals_and_assists,
+                        "wins": 0,
+                        "losses": 0,
+                        "ties": 0,
                     }
                 )
             self.__score[team_index] = team_score
 
+        if len(self.__teams) == 2:
+            team_0_names = [p.id for p in self.__teams[0]]
+            team_0_result, team_1_result = self.__get_results_names(*self.__score)
+            [
+                stat.update({team_0_result: 1})
+                for stat in db_results
+                if stat["player"] in team_0_names
+            ]
+            [
+                stat.update({team_1_result: 1})
+                for stat in db_results
+                if stat["player"] not in team_0_names
+            ]
+
         add_match_result_from_dict_list(db_results)
+
+    def __get_results_names(self, score_0: int, score_1: int) -> Tuple[str, str]:
+        """Get the stat that has to be increased for each team.
+
+        :param score_0: Team 0 score.
+        :param score_1: Team 1 score.
+        :returns: The tuple of stat for team 0 and team 1.
+
+        """
+        if score_0 > score_1:
+            return "wins", "losses"
+        if score_0 < score_1:
+            return "losses", "wins"
+        return "ties", "ties"
 
     def __str__(self) -> str:
         if self.__teams is None:
