@@ -27,7 +27,7 @@ from typing import Dict, List, Optional, Tuple
 from pyball.callup.errors import MatchWrongPlayersNumberError, StatisticOfNonPlayers
 from pyball.callup.players import Players
 from pyball.db import wrapper
-from pyball.db.utils import MatchResultType, add_match_result_from_dict_list
+from pyball.db.utils import MatchResultType, add_match_result_from_dict_list, get_results_names
 from pyball.logger import PYBALL_LOGGER
 
 
@@ -184,7 +184,7 @@ class Match:
 
         if len(self.__teams) == 2:
             team_0_names = [p.id for p in self.__teams[0]]
-            team_0_result, team_1_result = self.__get_results_names(*self.__score)
+            team_0_result, team_1_result = get_results_names(*self.__score)
             [
                 stat.update({team_0_result: 1})
                 for stat in db_results
@@ -197,20 +197,6 @@ class Match:
             ]
 
         add_match_result_from_dict_list(db_results)
-
-    def __get_results_names(self, score_0: int, score_1: int) -> Tuple[str, str]:
-        """Get the stat that has to be increased for each team.
-
-        :param score_0: Team 0 score.
-        :param score_1: Team 1 score.
-        :returns: The tuple of stat for team 0 and team 1.
-
-        """
-        if score_0 > score_1:
-            return "wins", "losses"
-        if score_0 < score_1:
-            return "losses", "wins"
-        return "ties", "ties"
 
     def __str__(self) -> str:
         if self.__teams is None:

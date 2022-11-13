@@ -49,3 +49,15 @@ class StatisticForPlayerInMatchAlreadyExistent(PyBallDbError):
         self.player = player
         self.message = f"Player `{self.player}` already has a statistic in `{self.date}` match"
         super().__init__(self.message)
+
+
+class InconsistencyError(PyBallDbError):
+    """There is an inconsistency in the database."""
+
+
+class ScoreInconsistencyError(InconsistencyError):
+    """There is an inconsitency error related to the goals or assis."""
+
+
+class MatchesCountInconsistencyError(InconsistencyError):
+    """There is an inconsitency error related to the number of wins, losses and ties."""

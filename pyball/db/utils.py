@@ -1,17 +1,37 @@
 import datetime
 
-from typing import Dict, List, Optional, Union
+from collections import defaultdict
+from pprint import pprint
+from typing import Dict, List, Optional, Tuple, Union
 
 from peewee import IntegrityError, fn
 
 from pyball.db import model, wrapper
 from pyball.db.errors import (
+    InconsistencyError,
     PlayerAlreadyExistentError,
     PlayerNotUpdatedError,
+    ScoreInconsistencyError,
+    MatchesCountInconsistencyError,
     StatisticForPlayerInMatchAlreadyExistent,
 )
 
 MatchResultType = List[Dict[str, Union[str, int, datetime.datetime]]]
+
+
+def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
+    """Get the stat that has to be increased for each team.
+
+    :param score_0: Team 0 score.
+    :param score_1: Team 1 score.
+    :returns: The tuple of stat for team 0 and team 1.
+
+    """
+    if score_0 > score_1:
+        return "wins", "losses"
+    if score_0 < score_1:
+        return "losses", "wins"
+    return "ties", "ties"
 
 
 def find_player(player: Union[str, int]) -> wrapper.Player:
@@ -133,6 +153,7 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
             raise PlayerNotUpdatedError("Couldn't update the player goals or assists")
 
     update_players_skill()
+    check_inconsistencies()
 
 
 def update_players_skill() -> None:
@@ -156,3 +177,101 @@ def update_players_skill() -> None:
             .execute()
         ) != 1:
             raise PlayerNotUpdatedError("Could not update the player skill")
+
+
+def check_inconsistencies() -> None:
+    """Check inconsistencies in the database related to goals, assists, wins, losses and ties.
+
+    :raises ScoreInconsistencyError: When the sum of the score in all the matches is different to
+        the one in the player statistics.
+    :raises MatchesCountInconsistencyError: When the sum of wins, losses or ties is different than
+        the one found in the match statistics table.
+
+    """
+    for p in model.Player.select():
+        stats = (
+            model.MatchStatistic.select(
+                fn.SUM(model.MatchStatistic.goals), fn.SUM(model.MatchStatistic.assists)
+            )
+            .where(model.MatchStatistic.player == p)
+            .group_by(model.MatchStatistic.player)
+            .get_or_none()
+        )
+
+        if stats and (stats.goals != p.goals or stats.assists != p.assists):
+            raise ScoreInconsistencyError(
+                f"DB incosistency ({p.name}): match statistics ({stats.goals}, {stats.assists})"
+                f" are different from the player ones ({p.goals}, {p.assists})"
+            )
+
+    for p in model.Player.select():
+        matches = model.MatchStatistic.select().where(model.MatchStatistic.player == p).count()
+        player_stats = p.wins + p.losses + p.ties
+        if matches != player_stats:
+            raise MatchesCountInconsistencyError(
+                f"DB incosistency ({p.name}): the number of match statistics ({matches}) is"
+                f" different to the sum of won, lost and tied games ({player_stats})"
+            )
+
+
+def fix_matches_count_incosistencies() -> None:
+    """Fix inconsistencies related to the sum of win, lost and tied maches and scores."""
+
+    def default_stat() -> Dict[str, int]:
+        """Base statistic for all player."""
+        return {"wins": 0, "losses": 0, "ties": 0}
+
+    dates = [
+        s.date
+        for s in model.MatchStatistic.select(model.MatchStatistic.date).group_by(
+            model.MatchStatistic.date
+        )
+    ]
+
+    player_stats = defaultdict(default_stat)
+    for d in dates:
+        orange_players = model.MatchStatistic.select(model.MatchStatistic.player).where(
+            model.MatchStatistic.date == d, model.MatchStatistic.team == "Naranja"
+        )
+        green_players = model.MatchStatistic.select(model.MatchStatistic.player).where(
+            model.MatchStatistic.date == d, model.MatchStatistic.team == "Verde"
+        )
+        goals_orange = (
+            model.MatchStatistic.select(fn.SUM(model.MatchStatistic.goals))
+            .where(model.MatchStatistic.date == d, model.MatchStatistic.team == "Naranja")
+            .group_by(model.MatchStatistic.team)
+            .scalar()
+        )
+        goals_green = (
+            model.MatchStatistic.select(fn.SUM(model.MatchStatistic.goals))
+            .where(model.MatchStatistic.date == d, model.MatchStatistic.team == "Verde")
+            .group_by(model.MatchStatistic.team)
+            .scalar()
+        )
+        orange_stat, green_stat = get_results_names(goals_orange, goals_green)
+
+        for p in orange_players:
+            player_stats[p.player][orange_stat] += 1
+        for p in green_players:
+            player_stats[p.player][green_stat] += 1
+
+    for p, stats in player_stats.items():
+        if model.Player.update(stats).where(model.Player.id == p.id).execute() != 1:
+            raise PlayerNotUpdatedError(
+                f"There was an error updating player `{player.name} when fixing the match count"
+            )
+
+    for stat in (
+        model.MatchStatistic.select(
+            model.MatchStatistic.player,
+            fn.SUM(model.MatchStatistic.goals),
+            fn.SUM(model.MatchStatistic.assists),
+        )
+        .group_by(model.MatchStatistic.player)
+        .dicts()
+    ):
+        player = stat.pop("player")
+        if model.Player.update(stat).where(model.Player.id == player).execute() != 1:
+            raise PlayerNotUpdatedError(
+                f"There was an error updating player `{player.name} when fixing the scores"
+            )
