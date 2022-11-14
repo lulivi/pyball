@@ -76,20 +76,10 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     """
     await bot_call_message_function(
         update.message.reply_text,
-        "¡Hola! Este bot puede ayudarte a organizar tu convocatoria.\n\n- Utiliza el comando `/new"
-        " <fecha y hora>` para iniciar una nueva convocatoria o reiniciar la anterior.\n\n-"
-        " Utiliza el comando `/add <nombre>` para añadir a una persona manualmente o `/del"
-        " <nombre>` para eliminarla respondiendo al mensaje de la convocatoria.\n\n- Utiliza el"
-        " comando `/search` para buscar suplentes para el partido y `/stop_search` si una vez"
-        " iniciada la búsqueda se quiere parar la actualización de jugadores y borrar el mensaje a"
-        " los suplentes.\n\n- Usa el comando `/repeat <día> <hora>: <título>` para fijar un día en"
-        " el que crear una convocatoria automáticamente. En el parámetro `<título>` se pueden"
-        " utilizar los [códigos de formato"
-        "](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)"
-        " para formatear fechas. Por ejemplo, si se usa el comando\n`/repeat Miércoles 20:00 - %A"
-        " %Y/%m/%d`\ncada miércoles a las 21h se crearía una encuesta con el título\n`<día de"
-        " semana> <año>/<mes>/<día>`\npor ejemplo **Miércoles 2022/10/23**. Para cancelar la"
-        " siguiente convocatoria automática usar `/stop_repeat`.",
+        "¡Hola! Este bot puede ayudarte a organizar tu convocatoria.\n\n- Utiliza el comando"
+        " `/callup` para crear o interaccionar con la convocatoria.\n\n- Usa el comando `/player`"
+        " para listar o añádir jugadores de la base de datos.\n\n- El comando `/match` te permite"
+        " obtener informacion acerca de los partidos.",
     )
 
 

@@ -101,11 +101,11 @@ class CommandParser(argparse.ArgumentParser):
 
     def print_help(self, _=None):
         """Raise an error with the help."""
-        raise BotCommandError(f"```{self.format_help()}```")
+        raise BotCommandError(f"```\n{self.format_help()}```")
 
     def error(self, _=None):
         """Raise an error with the usage."""
-        raise BotCommandError(f"```{self.format_usage()}```")
+        raise BotCommandError(f"```\n{self.format_usage()}```")
 
 
 def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dict[str, Any]:
@@ -423,7 +423,7 @@ async def callup_new(
     chat_message_id = (
         await bot_call_message_function_with_keyboard(
             bot_message_function=context.bot.send_message,
-            text=f"Lista de jugadores para la convocatoria *{date.strftime('%A %d/%m/%Y %H:%M')}*",
+            text=f"Convocatoria: *{date.strftime('%A %Y/%m/%d %H:%M')}*",
             chat_id=chat_id,
         )
     ).message_id

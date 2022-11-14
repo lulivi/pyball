@@ -74,7 +74,7 @@ class CallUp:
 
     def __init__(self, date: datetime.datetime, main_chat_id: int, main_chat_msg: int) -> None:
         self.__date: datetime.datetime = date
-        self.__title: str = datetime.datetime.strftime(date, "%A %d/%m/%Y %H:%M")
+        self.__title: str = datetime.datetime.strftime(date, "%A %Y/%m/%d %H:%M")
         self.__main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
         self.__subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
         self.__players: Players = Players()
@@ -213,7 +213,7 @@ class CallUp:
         self.__match.set_results(results, self.__date)
 
     def __str__(self) -> str:
-        output = f"Lista de jugadores para la convocatoria *{self.__title}*\n{str(self.__players)}"
+        output = f"Convocatoria: *{self.__title}*\n\n{str(self.__players)}"
 
         if self.__match is not None:
             output = f"{output}\n{str(self.__match)}"
