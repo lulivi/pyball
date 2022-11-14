@@ -20,7 +20,10 @@
 
 """Classes wrappers for the database."""
 
+import datetime
+
 from dataclasses import dataclass
+from typing import cast
 
 from pyball.db import model
 
@@ -55,7 +58,7 @@ class Player:
 
     @property
     def match_count(self) -> int:
-        """Number of matches played by the player.
+        """Retrieve the number of matches played by the player.
 
         :returns: The sum of won, lost and tied maches.
 
@@ -65,6 +68,14 @@ class Player:
     def compute_skill(
         self, min_goals: int, max_goals: int, min_assists: int, max_assists: int
     ) -> None:
+        """Calc the skill level for the player.
+
+        :param min_goals: The least number of goals that a player has.
+        :param max_goals: The maximum number of goals that a player has.
+        :param min_assists: The least number of assists that a player has.
+        :param max_assists: The maximum number of assists that a player has.
+
+        """
         win_perc = (
             ((self.wins + 0.5 * self.ties) / self.match_count) * 100 if self.match_count > 0 else 0
         )
@@ -75,37 +86,68 @@ class Player:
             statistics = 0.7 * statistics + 0.3 * self.rank
         self.skill = statistics
 
-    def as_dict(self) -> dict:
-        return vars(self)
-
-    def as_list(self) -> list:
-        return [
-            self.id,
-            self.name,
-            self.main,
-            self.goals,
-            self.assists,
-            self.wins,
-            self.losses,
-            self.ties,
-            self.rank,
-            self.skill,
-        ]
-
     @staticmethod
     def from_db(player: model.Player) -> "Player":
+        """Create a Player object from the database Player class.
+
+        :param player: The database Player object.
+        :returns: The new Player instance.
+
+        """
         return Player(
-            id=player.id,
-            name=player.name,
-            main=player.main,
-            goals=player.goals,
-            assists=player.assists,
-            wins=player.wins,
-            losses=player.losses,
-            ties=player.ties,
-            rank=player.rank,
-            skill=player.skill,
+            id=cast(int, player.id),
+            name=cast(str, player.name),
+            main=cast(bool, player.main),
+            goals=cast(int, player.goals),
+            assists=cast(int, player.assists),
+            wins=cast(int, player.wins),
+            losses=cast(int, player.losses),
+            ties=cast(int, player.ties),
+            rank=cast(int, player.rank),
+            skill=cast(float, player.skill),
         )
 
     def __str__(self) -> str:
         return self.name
+
+
+@dataclass
+class MatchStatistic:
+    """Match statistic information.
+
+    :ivar date: Date of the match.
+    :ivar player: Player object.
+    :ivar team: Team name.
+    :ivar goals: Number of goals.
+    :ivar assists: Number of assists.
+
+    """
+
+    date: datetime.datetime
+    player: int
+    team: str
+    goals: int
+    assists: int
+    result: str = ""
+
+    def db_dict(self) -> dict:
+        """Return the database necessary information.
+
+        :returns: The dictionary containing the database columns.
+
+        """
+        return {
+            "date": self.date,
+            "player": self.player,
+            "team": self.team,
+            "goals": self.goals,
+            "assists": self.assists,
+        }
+
+    def set_result(self, result: str) -> None:
+        """Set the player result to update the player wins, losses or ties.
+
+        :param result: A representation of the result.
+
+        """
+        self.result = result

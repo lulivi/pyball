@@ -28,20 +28,10 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Pick
 
 from pyball.bot.commands import (
     button_game,
-    command_add,
-    command_create_player,
-    command_del,
+    command_callup,
     command_help,
-    command_list_matches,
-    command_list_players,
-    command_new,
-    command_ranking,
-    command_repeat,
-    command_search,
-    command_set_results,
-    command_stop_repeat,
-    command_stop_search,
-    command_teams,
+    command_match,
+    command_player,
 )
 from pyball.db.model import database
 from pyball.settings import BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, PERSISTENCE_FILE_PATH
@@ -62,19 +52,9 @@ def build_application() -> Application:
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()
 
     application.add_handler(CommandHandler(("start", "help"), command_help))
-    application.add_handler(CommandHandler("new", command_new))
-    application.add_handler(CommandHandler("repeat", command_repeat))
-    application.add_handler(CommandHandler("stop_repeat", command_stop_repeat))
-    application.add_handler(CommandHandler("add", command_add))
-    application.add_handler(CommandHandler("del", command_del))
-    application.add_handler(CommandHandler("search", command_search))
-    application.add_handler(CommandHandler("stop_search", command_stop_search))
-    application.add_handler(CommandHandler("teams", command_teams))
-    application.add_handler(CommandHandler("list_players", command_list_players))
-    application.add_handler(CommandHandler("list_matches", command_list_matches))
-    application.add_handler(CommandHandler("ranking", command_ranking))
-    application.add_handler(CommandHandler("set_results", command_set_results))
-    application.add_handler(CommandHandler("create_player", command_create_player))
+    application.add_handler(CommandHandler(("m", "match"), command_match))
+    application.add_handler(CommandHandler(("p", "player"), command_player))
+    application.add_handler(CommandHandler(("c", "callup"), command_callup))
     application.add_handler(CallbackQueryHandler(button_game))
 
     return application

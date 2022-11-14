@@ -1,21 +1,40 @@
+# Copyright (c) 2022 Luis Liñán
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""Database utils."""
+
 import datetime
 
 from collections import defaultdict
-from pprint import pprint
-from typing import Dict, List, Optional, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Tuple, Union
 
 from peewee import IntegrityError, fn
 
 from pyball.db import model, wrapper
 from pyball.db.errors import (
-    PlayerAlreadyExistentError,
-    PlayerNotUpdatedError,
-    ScoreInconsistencyError,
-    MatchesCountInconsistencyError,
-    StatisticForPlayerInMatchAlreadyExistent,
+    DbMatchesCountInconsistencyError,
+    DbPlayerAlreadyExistentError,
+    DbPlayerNotUpdatedError,
+    DbScoreInconsistencyError,
+    DbStatisticForPlayerInMatchAlreadyExistent,
 )
-
-MatchResultType = List[Dict[str, Union[str, int, datetime.datetime]]]
 
 
 def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
@@ -56,7 +75,7 @@ def create_player(
     :param player_name: Name of the new player.
     :param player_id: Id for the new player. If not set, automatic ID will be provided.
     :param main_player: Wether the player is part of the main team.
-    :raises PlayerAlreadyExistentError: If the name or the id are already in the database.
+    :raises DbPlayerAlreadyExistentError: If the name or the id are already in the database.
 
     """
     table_info = {"name": player_name, "main": main_player}
@@ -67,7 +86,7 @@ def create_player(
     try:
         model.Player.insert(**table_info).execute()
     except IntegrityError as error:
-        raise PlayerAlreadyExistentError(player_name, player_id) from error
+        raise DbPlayerAlreadyExistentError(player_name, player_id) from error
 
 
 def get_player_list() -> List[wrapper.Player]:
@@ -120,36 +139,31 @@ def format_match_list() -> str:
     return match_list
 
 
-def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
+def add_match_result_from_dict_list(match_statistics: List[wrapper.MatchStatistic]) -> None:
     """Insert the new smatch statistics into the database and update the players.
 
-    :param match_result: A dictionary containing the match statistics per player.
-    :raises PlayerNotUpdatedError: If a player is not updated with the match result.
+    :param match_statistics: A list of match statistics.
+    :raises DbPlayerNotUpdatedError: If a player is not updated with the match result.
 
     """
-    for stat in match_result:
-        wins, losses, ties = stat.pop("wins"), stat.pop("losses"), stat.pop("ties")
+    for stat in match_statistics:
         try:
-            model.MatchStatistic.insert(stat).execute()
+            model.MatchStatistic.insert(stat.db_dict()).execute()
         except IntegrityError:
-            raise StatisticForPlayerInMatchAlreadyExistent(
-                stat["date"], find_player(stat["player"])
-            )
+            raise DbStatisticForPlayerInMatchAlreadyExistent(stat.date, stat.player.name)
         if (
             model.Player.update(
                 {
-                    model.Player.goals: model.Player.goals + stat["goals"],
-                    model.Player.assists: model.Player.assists + stat["assists"],
-                    model.Player.wins: model.Player.wins + wins,
-                    model.Player.losses: model.Player.losses + losses,
-                    model.Player.ties: model.Player.ties + ties,
+                    model.Player.goals: model.Player.goals + stat.goals,
+                    model.Player.assists: model.Player.assists + stat.assists,
+                    getattr(model.Player, stat.result): getattr(model.Player, stat.result) + 1,
                 }
             )
-            .where(model.Player.id == stat["player"])
+            .where(model.Player.id == stat.player)
             .execute()
             != 1
         ):
-            raise PlayerNotUpdatedError("Couldn't update the player goals or assists")
+            raise DbPlayerNotUpdatedError("Couldn't update the player goals or assists")
 
     update_players_skill()
     check_inconsistencies()
@@ -158,7 +172,7 @@ def add_match_result_from_dict_list(match_result: MatchResultType) -> None:
 def update_players_skill() -> None:
     """Update the skill of all the players in the database.
 
-    :raises PlayerNotUpdatedError: if no skill is updated.
+    :raises DbPlayerNotUpdatedError: if no skill is updated.
 
     """
     goals = model.Player.select(
@@ -175,16 +189,16 @@ def update_players_skill() -> None:
             .where(model.Player.id == player.id)
             .execute()
         ) != 1:
-            raise PlayerNotUpdatedError("Could not update the player skill")
+            raise DbPlayerNotUpdatedError("Could not update the player skill")
 
 
 def check_inconsistencies() -> None:
     """Check inconsistencies in the database related to goals, assists, wins, losses and ties.
 
-    :raises ScoreInconsistencyError: When the sum of the score in all the matches is different to
+    :raises DbScoreInconsistencyError: When the sum of the score in all the matches is different to
         the one in the player statistics.
-    :raises MatchesCountInconsistencyError: When the sum of wins, losses or ties is different than
-        the one found in the match statistics table.
+    :raises DbMatchesCountInconsistencyError: When the sum of wins, losses or ties is different
+        than the one found in the match statistics table.
 
     """
     for p in model.Player.select():
@@ -198,7 +212,7 @@ def check_inconsistencies() -> None:
         )
 
         if stats and (stats.goals != p.goals or stats.assists != p.assists):
-            raise ScoreInconsistencyError(
+            raise DbScoreInconsistencyError(
                 f"DB incosistency ({p.name}): match statistics ({stats.goals}, {stats.assists})"
                 f" are different from the player ones ({p.goals}, {p.assists})"
             )
@@ -207,7 +221,7 @@ def check_inconsistencies() -> None:
         matches = model.MatchStatistic.select().where(model.MatchStatistic.player == p).count()
         player_stats = p.wins + p.losses + p.ties
         if matches != player_stats:
-            raise MatchesCountInconsistencyError(
+            raise DbMatchesCountInconsistencyError(
                 f"DB incosistency ({p.name}): the number of match statistics ({matches}) is"
                 f" different to the sum of won, lost and tied games ({player_stats})"
             )
@@ -217,7 +231,7 @@ def fix_inconsistencies() -> None:
     """Fix inconsistencies related to the sum of win, lost and tied maches and scores."""
 
     def default_stat() -> Dict[str, int]:
-        """Base statistic for all player."""
+        """Get the base statistic for all player."""
         return {"wins": 0, "losses": 0, "ties": 0}
 
     dates = [
@@ -227,7 +241,7 @@ def fix_inconsistencies() -> None:
         )
     ]
 
-    player_stats = defaultdict(default_stat)
+    player_stats: DefaultDict[str, int] = defaultdict(default_stat)
     for d in dates:
         orange_players = model.MatchStatistic.select(model.MatchStatistic.player).where(
             model.MatchStatistic.date == d, model.MatchStatistic.team == "Naranja"
@@ -256,8 +270,8 @@ def fix_inconsistencies() -> None:
 
     for p, stats in player_stats.items():
         if model.Player.update(stats).where(model.Player.id == p.id).execute() != 1:
-            raise PlayerNotUpdatedError(
-                f"There was an error updating player `{player.name} when fixing the match count"
+            raise DbPlayerNotUpdatedError(
+                f"There was an error updating player `{p.name} when fixing the match count"
             )
 
     for stat in (
@@ -271,6 +285,6 @@ def fix_inconsistencies() -> None:
     ):
         player = stat.pop("player")
         if model.Player.update(stat).where(model.Player.id == player).execute() != 1:
-            raise PlayerNotUpdatedError(
+            raise DbPlayerNotUpdatedError(
                 f"There was an error updating player `{player.name} when fixing the scores"
             )

@@ -21,7 +21,6 @@
 """Database models."""
 
 from peewee import (
-    AutoField,
     BooleanField,
     CharField,
     CompositeKey,
@@ -40,13 +39,22 @@ class BaseModel(Model):
     """Base table model."""
 
     class Meta:
-        """Meta for all the child models."""
+        """Set general table configuration."""
+
+        def __pascal_to_snake(model_class: type) -> str:
+            """Change the model_class name to snake_case.
+
+            :param model_class: The class object.
+            :returns: The transformed name.
+
+            """
+            return "".join(
+                [f"_{i.lower()}" if i.isupper() else i for i in model_class.__name__]
+            ).lstrip("_")
 
         database = database
         # Convert PascalCase to snake_case
-        table_function = lambda model_class: "".join(
-            [f"_{i.lower()}" if i.isupper() else i for i in model_class.__name__]
-        ).lstrip("_")
+        table_function = __pascal_to_snake
 
 
 class Player(BaseModel):
@@ -74,4 +82,6 @@ class MatchStatistic(BaseModel):
     assists = IntegerField(default=0)
 
     class Meta:
+        """Set table specific configuration."""
+
         primary_key = CompositeKey("date", "player")

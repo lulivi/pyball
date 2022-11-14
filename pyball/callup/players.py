@@ -23,14 +23,13 @@
 import functools
 import locale
 
-from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Union
 
 from pyball.callup.errors import (
-    PlayerAlreadyCalledUpError,
-    PlayerDoesNotExistError,
-    PlayerNotCalledUpError,
+    CallUpPlayerAlreadyCalledUpError,
+    CallUpPlayerDoesNotExistError,
+    CallUpPlayerNotCalledUpError,
 )
 from pyball.db import model, wrapper
 from pyball.db.utils import find_player
@@ -73,8 +72,8 @@ class Players:
         """Join the call-up.
 
         :param player: The player identifier or name.
-        :raises PlayerDoesNotExistError: If the player is not found in the database.
-        :raises PlayerAlreadyCalledUpError: If the player is already in the call-up list.
+        :raises CallUpPlayerDoesNotExistError: If the player is not found in the database.
+        :raises CallUpPlayerAlreadyCalledUpError: If the player is already in the call-up list.
 
         """
         PYBALL_LOGGER.debug(f"Trying to add the player `{player}`")
@@ -85,13 +84,13 @@ class Players:
             PYBALL_LOGGER.error(
                 f"Could not add the player as it was not found in the database: {error}"
             )
-            raise PlayerDoesNotExistError(
+            raise CallUpPlayerDoesNotExistError(
                 f"Could not find player `{player}` in the database."
             ) from error
 
         if player in self.__players:
-            PYBALL_LOGGER.debug(f"The player is already in the list")
-            raise PlayerAlreadyCalledUpError(
+            PYBALL_LOGGER.debug(f"The player {player} is already in the list")
+            raise CallUpPlayerAlreadyCalledUpError(
                 f"El jugador `{player}` ya está apuntado a esta convocatoria"
             )
 
@@ -102,8 +101,8 @@ class Players:
         """Leave the call-up.
 
         :param player: The player identifier or name.
-        :raises PlayerDoesNotExistError: If the player is not found in the database.
-        :raises PlayerNotCalledUpError: If the player is hasn't been called-up.
+        :raises CallUpPlayerDoesNotExistError: If the player is not found in the database.
+        :raises CallUpPlayerNotCalledUpError: If the player is hasn't been called-up.
 
         """
         PYBALL_LOGGER.debug(f"Trying to remove the player `{player}`")
@@ -114,15 +113,15 @@ class Players:
             PYBALL_LOGGER.error(
                 f"Could not add the player as it was not found in the database: {error}"
             )
-            raise PlayerDoesNotExistError(
+            raise CallUpPlayerDoesNotExistError(
                 f"Could not find player `{player}` in the database."
             ) from error
 
         try:
             self.__players.remove(player)
         except ValueError:
-            PYBALL_LOGGER.debug(f"The player is not in the list")
-            raise PlayerNotCalledUpError(
+            PYBALL_LOGGER.debug(f"The player `{player}` is not in the list")
+            raise CallUpPlayerNotCalledUpError(
                 f"El jugador `{player}` no está apuntado a esta convocatoria"
             )
 
@@ -161,5 +160,5 @@ class Players:
         )
         sorted_players.extend(["?????"] * (self.__maximum - len(self.__players)))
         return "\n".join(
-            [f"{index + 1} - `{player}`" for index, player in enumerate(sorted_players)]
+            [f"{index + 1:02} - `{player}`" for index, player in enumerate(sorted_players)]
         )

@@ -22,26 +22,28 @@
 
 import datetime
 
+from typing import Optional
+
 
 class PyBallDbError(Exception):
     """Base error for PyBall database transactions."""
 
 
-class PlayerNotUpdatedError(PyBallDbError):
+class DbPlayerNotUpdatedError(PyBallDbError):
     """The player was not updated."""
 
 
-class PlayerAlreadyExistentError(PyBallDbError):
+class DbPlayerAlreadyExistentError(PyBallDbError):
     """The player is already in the database."""
 
-    def __init__(self, name: str, id: int) -> None:
+    def __init__(self, name: str, id: Optional[int]) -> None:
         self.name = name
         self.id = id
         self.message = f"Player `{self.name}` already in the database (with id: `{self.id}`)"
         super().__init__(self.message)
 
 
-class StatisticForPlayerInMatchAlreadyExistent(PyBallDbError):
+class DbStatisticForPlayerInMatchAlreadyExistent(PyBallDbError):
     """The statistic for that player in that match is already in the database."""
 
     def __init__(self, date: datetime.datetime, player: str) -> None:
@@ -51,13 +53,13 @@ class StatisticForPlayerInMatchAlreadyExistent(PyBallDbError):
         super().__init__(self.message)
 
 
-class InconsistencyError(PyBallDbError):
+class DbInconsistencyError(PyBallDbError):
     """There is an inconsistency in the database."""
 
 
-class ScoreInconsistencyError(InconsistencyError):
+class DbScoreInconsistencyError(DbInconsistencyError):
     """There is an inconsitency error related to the goals or assis."""
 
 
-class MatchesCountInconsistencyError(InconsistencyError):
+class DbMatchesCountInconsistencyError(DbInconsistencyError):
     """There is an inconsitency error related to the number of wins, losses and ties."""

@@ -18,24 +18,32 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Error, error!"""
+"""Errors related to the bot."""
 
 
 class PyBallBotError(Exception):
     """Base class for the PyBall bot errors."""
 
 
-class NotAdminError(PyBallBotError):
+class BotNotAdminError(PyBallBotError):
     """The user is not in the admin list."""
 
 
-class NoCallUpError(PyBallBotError):
+class BotNoCallUpError(PyBallBotError):
     """There is no created call-up."""
 
 
-class ExpectedMessageIdError(PyBallBotError):
+class BotExpectedMessageIdError(PyBallBotError):
     """When the message identifier is not the expected one."""
 
 
-class CommandError(PyBallBotError):
+class BotMachError(PyBallBotError):
+    """Errors related with the matches at the bot level."""
+
+
+class BotPlayerError(PyBallBotError):
+    """Errors related with the players at the bot level."""
+
+
+class BotCommandError(PyBallBotError):
     """The argument was not specified."""

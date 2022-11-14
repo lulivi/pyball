@@ -24,21 +24,35 @@ import itertools
 
 from typing import Dict, List, Optional, Tuple
 
-from pyball.callup.errors import MatchWrongPlayersNumberError, StatisticOfNonPlayers
+from pyball.callup.errors import CallUpMatchWrongPlayersNumberError, CallUpStatisticOfNonPlayers
 from pyball.callup.players import Players
 from pyball.db import wrapper
-from pyball.db.utils import MatchResultType, add_match_result_from_dict_list, get_results_names
+from pyball.db.utils import add_match_result_from_dict_list, get_results_names
 from pyball.logger import PYBALL_LOGGER
 
 
 class MatchStats:
+    """Player match stats."""
+
     def __init__(self):
         self.__result: Dict[str, int] = {}
 
-    def as_dict(self) -> MatchResultType:
+    def as_dict(self) -> Dict[str, int]:
+        """Return the result dictionary.
+
+        :returns: Player stats dictionary.
+
+        """
         return self.__result
 
-    def add_stat(self, player: str, goals: int = 0, assists: int = 0):
+    def add_stat(self, player: str, goals: int = 0, assists: int = 0) -> None:
+        """Add a new player statistic of the match.
+
+        :param player: Player name.
+        :param goals: Number of goals scored by the player.
+        :param assists: Number of assists the player made in the match.
+
+        """
         self.__result[player] = {"goals": goals, "assists": assists}
 
     def __len__(self) -> int:
@@ -67,11 +81,10 @@ class Match:
         :param teams_number: Number of team to create.
 
         """
-
         teams_number = teams_number or self.__guess_teams_number(players)
 
         if 0 >= teams_number or teams_number > len(players) or len(players) % teams_number != 0:
-            error = MatchWrongPlayersNumberError(len(players))
+            error = CallUpMatchWrongPlayersNumberError(len(players))
             PYBALL_LOGGER.error(str(error))
             raise error
 
@@ -81,6 +94,12 @@ class Match:
         self.__balance_teams()
 
     def __guess_teams_number(self, players: Players) -> int:
+        """Guess the number of teams that the match will have.
+
+        :param players: List of players.
+        :returns: The guessed number.
+
+        """
         maximum = len(players)
 
         for teams_number in [2, 3]:
@@ -161,24 +180,22 @@ class Match:
         current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
         unplayed_players = set(match_results_dict) - (current_players)
         if unplayed_players:
-            raise StatisticOfNonPlayers(list(unplayed_players))
+            raise CallUpStatisticOfNonPlayers(list(unplayed_players))
 
-        db_results = []
+        match_statistics = []
         for team_index, team in enumerate(self.__teams):
             team_score = 0
             for player in team:
                 goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
                 team_score += goals_and_assists["goals"]
-                db_results.append(
-                    {
-                        "date": date,
-                        "team": self.__team_names[team_index],
-                        "player": player.id,
-                        **goals_and_assists,
-                        "wins": 0,
-                        "losses": 0,
-                        "ties": 0,
-                    }
+                match_statistics.append(
+                    wrapper.MatchStatistic(
+                        date=date,
+                        team=self.__team_names[team_index],
+                        player=player.id,
+                        goals=goals_and_assists["goals"],
+                        assists=goals_and_assists["assists"],
+                    )
                 )
             self.__score[team_index] = team_score
 
@@ -186,17 +203,17 @@ class Match:
             team_0_names = [p.id for p in self.__teams[0]]
             team_0_result, team_1_result = get_results_names(*self.__score)
             [
-                stat.update({team_0_result: 1})
-                for stat in db_results
-                if stat["player"] in team_0_names
+                stat.set_result(team_0_result)
+                for stat in match_statistics
+                if stat.player in team_0_names
             ]
             [
-                stat.update({team_1_result: 1})
-                for stat in db_results
-                if stat["player"] not in team_0_names
+                stat.set_result(team_1_result)
+                for stat in match_statistics
+                if stat.player not in team_0_names
             ]
 
-        add_match_result_from_dict_list(db_results)
+        add_match_result_from_dict_list(match_statistics)
 
     def __str__(self) -> str:
         if self.__teams is None:

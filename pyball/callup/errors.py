@@ -22,23 +22,23 @@
 from typing import List
 
 
-class PyBallError(Exception):
+class PyBallCallUpError(Exception):
     """Base error for PyBall bot."""
 
 
-class PlayerDoesNotExistError(PyBallError):
+class CallUpPlayerDoesNotExistError(PyBallCallUpError):
     """The player is not found in the database."""
 
 
-class PlayerAlreadyCalledUpError(PyBallError):
+class CallUpPlayerAlreadyCalledUpError(PyBallCallUpError):
     """The player is already in the call-up."""
 
 
-class PlayerNotCalledUpError(PyBallError):
+class CallUpPlayerNotCalledUpError(PyBallCallUpError):
     """The player hasn't been called-up."""
 
 
-class MatchWrongPlayersNumberError(PyBallError):
+class CallUpMatchWrongPlayersNumberError(PyBallCallUpError):
     """The number of player for the match is wrong."""
 
     def __init__(self, current_players: int) -> None:
@@ -49,11 +49,11 @@ class MatchWrongPlayersNumberError(PyBallError):
         super().__init__(self.message)
 
 
-class MatchNotYetCreatedError(PyBallError):
+class CallUpMatchNotYetCreatedError(PyBallCallUpError):
     """The match hasn't been created yet."""
 
 
-class StatisticOfNonPlayers(PyBallError):
+class CallUpStatisticOfNonPlayers(PyBallCallUpError):
     """There are statistics of players that are not in any of the teams."""
 
     def __init__(self, non_players: List[str]) -> None:

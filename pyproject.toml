@@ -22,11 +22,15 @@ packages = [{ include = "pyball" }]
 pyball = "pyball.__main__:main"
 
 [tool.poetry.dev-dependencies]
-black = "22.3.0"
-isort = "5.9.3"
+black = "22.*"
+isort = "5.*"
 tox = "*"
 tox-poetry = "*"
-mypy = "0.982"
+mypy = "*"
+pylama = "7.7.1"
+flake8 = "*"
+pylint = "*"
+types-peewee = "*"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
@@ -43,6 +47,15 @@ profile = "black"
 line_length = 99
 lines_between_types = 1
 
+[tool.mypy]
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = [
+  "decouple",
+]
+
+
 [tool.tox]
 legacy_tox_ini = """
 [tox]
@@ -53,4 +66,8 @@ skip_missing_interpreters = true
 commands =
     black --check --diff {toxinidir}/pyball/
     isort --check --diff {toxinidir}/pyball/
+    pydocstyle {toxinidir}/pyball/ --add-ignore D105,D107
+    flake8 {toxinidir}/pyball/ --count --max-line-length 99
+    mypy {toxinidir}/pyball/
+    pylint {toxinidir}/pyball/
 """
