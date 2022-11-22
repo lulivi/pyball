@@ -25,7 +25,7 @@ from typing import Tuple
 
 from decouple import Csv, config
 
-REPOSITORY_ROOT_DIR: Path = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT_DIR: Path = Path.cwd()
 LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 BOT_TOKEN: str = config("BOT_TOKEN")
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
@@ -35,11 +35,13 @@ LOGS_DIRECTORY_PATH: Path = config(
     cast=Path,
     default=REPOSITORY_ROOT_DIR.joinpath("logs"),
 )
+LOGS_DIRECTORY_PATH.mkdir(exist_ok=True)
 DATA_DIRECTORY_PATH: Path = config(
     "DATA_DIRECTORY_PATH",
     cast=Path,
     default=REPOSITORY_ROOT_DIR.joinpath("data"),
 )
+DATA_DIRECTORY_PATH.mkdir(exist_ok=True)
 DATABASE_FILE_PATH: Path = config(
     "DATABASE_FILE_PATH",
     cast=Path,

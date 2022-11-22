@@ -198,6 +198,7 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                 ),
                 SubCommand(
                     ["rank", "r"],
+                    [CommandArgument("-points", action="store_true")],
                     callable=player_rank,
                 ),
                 SubCommand(

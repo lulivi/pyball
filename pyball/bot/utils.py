@@ -381,14 +381,29 @@ def player_list() -> str:
 
 
 @log_func
-def player_rank() -> str:
-    """Retrieve the list of players in the database ordered by their rank.
+def player_rank(points: bool) -> str:
+    """Retrieve the list of players in the database ordered.
 
+    :param points: `True` to obtain a point-oriented order (3 for each win, 1 for each tie).
     :returns: The ordered list of players.
 
     """
-    ranking = sorted(get_player_list(), key=lambda player: player.skill, reverse=True)
-    return "\n".join(f"{idx + 1:02} - `{player.name}`" for idx, player in enumerate(ranking))
+    if points:
+        ranking = [
+            f"`{player_tuple[0]}` ({player_tuple[1]})"
+            for player_tuple in sorted(
+                ((player.name, player.wins * 3 + player.ties) for player in get_player_list()),
+                key=lambda player_tuple: player_tuple[1],
+                reverse=True,
+            )
+        ]
+    else:
+        ranking = [
+            f"`{player.name}`"
+            for player in sorted(get_player_list(), key=lambda player: player.skill, reverse=True)
+        ]
+
+    return "\n".join(f"{idx + 1:02} - {player_name}" for idx, player_name in enumerate(ranking))
 
 
 @log_func
