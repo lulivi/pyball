@@ -36,10 +36,12 @@ class DbPlayerNotUpdatedError(PyBallDbError):
 class DbPlayerAlreadyExistentError(PyBallDbError):
     """The player is already in the database."""
 
-    def __init__(self, name: str, id: Optional[int]) -> None:
+    def __init__(self, name: str, identifier: Optional[int]) -> None:
         self.name = name
-        self.id = id
-        self.message = f"Player `{self.name}` already in the database (with id: `{self.id}`)"
+        self.identifier = identifier
+        self.message = (
+            f"Player `{self.name}` already in the database (with id: `{self.identifier}`)"
+        )
         super().__init__(self.message)
 
 
@@ -63,3 +65,14 @@ class DbScoreInconsistencyError(DbInconsistencyError):
 
 class DbMatchesCountInconsistencyError(DbInconsistencyError):
     """There is an inconsitency error related to the number of wins, losses and ties."""
+
+
+class DbUnknownResultError(PyBallDbError):
+    """The result provided is not correct."""
+
+    def __init__(self, result: str) -> None:
+        self.result = result
+        self.message = (
+            f"The result provided (`{self.result}`) is not one of `wins`, `losses` and `ties`"
+        )
+        super().__init__(self.message)

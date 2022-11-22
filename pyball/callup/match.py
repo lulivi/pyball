@@ -22,22 +22,26 @@
 import datetime
 import itertools
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-from pyball.callup.errors import CallUpMatchWrongPlayersNumberError, CallUpStatisticOfNonPlayers
+from pyball.callup.errors import (
+    CallUpMatchWrongPlayersNumberError,
+    CallUpPlayerDoesNotExistError,
+    CallUpPlayersNotInMatch,
+)
 from pyball.callup.players import Players
-from pyball.db import wrapper
-from pyball.db.utils import add_match_result_from_dict_list, get_results_names
+from pyball.db import model, wrapper
+from pyball.db.utils import add_match_results, find_player, get_results_names
 from pyball.logger import PYBALL_LOGGER
 
 
-class MatchStats:
+class PlayersStatInput:
     """Player match stats."""
 
-    def __init__(self):
-        self.__result: Dict[str, int] = {}
+    def __init__(self) -> None:
+        self.__result: Dict[str, Dict[str, int]] = {}
 
-    def as_dict(self) -> Dict[str, int]:
+    def as_dict(self) -> Dict[str, Dict[str, int]]:
         """Return the result dictionary.
 
         :returns: Player stats dictionary.
@@ -62,18 +66,18 @@ class MatchStats:
 class Match:
     """Necessary information involving a match.
 
-    :cvar __team_names: Common team names to mach for each team.
+    :cvar __team_names: Common team names to match for each team.
     :ivar __teams: Resulting teams.
 
     """
 
     __slots__ = ["__teams", "__score"]
-    __team_names: Tuple[str] = ("Verde", "Naranja", "Sin peto")
+    __team_names: Tuple[str, str, str] = ("Verde", "Naranja", "Sin peto")
 
     def __init__(self, players: Players, teams_number: Optional[int] = None) -> None:
-        self.__teams: Optional[List[List[wrapper.Player]]] = None
+        self.__teams: List[List[wrapper.Player]]
         self.__create_teams(players, teams_number)
-        self.__score: List[int] = [""] * len(self.__teams)
+        self.__score: List[int] = [0] * len(self.__teams)
 
     def __create_teams(self, players: Players, teams_number: Optional[int] = None) -> None:
         """Generate two balanced teams.
@@ -93,7 +97,8 @@ class Match:
         self.__generate_teams(players, teams_number)
         self.__balance_teams()
 
-    def __guess_teams_number(self, players: Players) -> int:
+    @staticmethod
+    def __guess_teams_number(players: Players) -> int:
         """Guess the number of teams that the match will have.
 
         :param players: List of players.
@@ -118,10 +123,10 @@ class Match:
         zip_iters = [iterator] * teams_number
 
         for player_batch in zip(*zip_iters):
-            self.__teams.sort(key=lambda t: Match.__skill_sum(t))
+            self.__teams.sort(key=Match.__skill_sum)
 
-            for i in range(len(self.__teams)):
-                self.__teams[i].append(player_batch[i])
+            for index, team in enumerate(self.__teams):
+                team.append(player_batch[index])
 
     @staticmethod
     def __skill_sum(players: List[wrapper.Player]) -> float:
@@ -164,7 +169,48 @@ class Match:
         """
         return abs(Match.__skill_sum(team_a) - Match.__skill_sum(team_b))
 
-    def set_results(self, match_results: MatchStats, date: datetime.datetime) -> None:
+    def swap_players(self, first_player: Union[str, int], second_player: Union[str, int]) -> None:
+        """Exange the two players between their teams.
+
+        :param first_player: First player name or identifier.
+        :param second_player: The other player name or identifier.
+
+        """
+        try:
+            first_player_object: wrapper.Player = find_player(first_player)
+        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+            raise CallUpPlayerDoesNotExistError(first_player) from error
+        try:
+            second_player_object = find_player(second_player)
+        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+            raise CallUpPlayerDoesNotExistError(second_player) from error
+
+        first_player_index_tuple = self.__get_player_team(first_player_object)
+        second_player_index_tuple = self.__get_player_team(second_player_object)
+
+        self.__teams[first_player_index_tuple[0]].remove(first_player_object)
+        self.__teams[first_player_index_tuple[0]].insert(
+            first_player_index_tuple[1], second_player_object
+        )
+        self.__teams[second_player_index_tuple[0]].remove(second_player_object)
+        self.__teams[second_player_index_tuple[0]].insert(
+            second_player_index_tuple[1], first_player_object
+        )
+
+    def __get_player_team(self, player: wrapper.Player) -> Tuple[int, int]:
+        """Obtain the team in which the player will play.
+
+        :param player: The player object to search for.
+        :raises CallUpPlayersNotInMatch: If the player wasn't found in any of the teams.
+        :returns: The team index.
+
+        """
+        for index, team in enumerate(self.__teams):
+            if player in team:
+                return index, team.index(player)
+        raise CallUpPlayersNotInMatch([player.name])
+
+    def set_results(self, match_results: PlayersStatInput, date: datetime.datetime) -> None:
         """Calculate and pass the necessary information to the database.
 
         This function will prepare a list of dictionaries containing the date, player id, team,
@@ -180,14 +226,14 @@ class Match:
         current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
         unplayed_players = set(match_results_dict) - (current_players)
         if unplayed_players:
-            raise CallUpStatisticOfNonPlayers(list(unplayed_players))
+            raise CallUpPlayersNotInMatch(list(unplayed_players))
 
-        match_statistics = []
+        match_statistics: List[wrapper.MatchStatistic] = []
         for team_index, team in enumerate(self.__teams):
-            team_score = 0
+            self.__score[team_index] = 0
             for player in team:
                 goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
-                team_score += goals_and_assists["goals"]
+                self.__score[team_index] += goals_and_assists["goals"]
                 match_statistics.append(
                     wrapper.MatchStatistic(
                         date=date,
@@ -197,23 +243,14 @@ class Match:
                         assists=goals_and_assists["assists"],
                     )
                 )
-            self.__score[team_index] = team_score
 
         if len(self.__teams) == 2:
             team_0_names = [p.id for p in self.__teams[0]]
             team_0_result, team_1_result = get_results_names(*self.__score)
-            [
-                stat.set_result(team_0_result)
-                for stat in match_statistics
-                if stat.player in team_0_names
-            ]
-            [
-                stat.set_result(team_1_result)
-                for stat in match_statistics
-                if stat.player not in team_0_names
-            ]
+            for stat in match_statistics:
+                stat.set_result(team_0_result if stat.player in team_0_names else team_1_result)
 
-        add_match_result_from_dict_list(match_statistics)
+        add_match_results(match_statistics)
 
     def __str__(self) -> str:
         if self.__teams is None:

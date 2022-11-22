@@ -28,7 +28,7 @@ from decouple import Csv, config
 REPOSITORY_ROOT_DIR: Path = Path(__file__).resolve().parents[1]
 LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 BOT_TOKEN: str = config("BOT_TOKEN")
-SUBSTITUTES_ID: str = config("SUBSTITUTES_ID", cast=int)
+SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
 ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",

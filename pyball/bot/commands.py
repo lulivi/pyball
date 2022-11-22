@@ -22,17 +22,16 @@
 
 import datetime
 import functools
-import time
-
-from typing import Optional
 
 from telegram import Update
-from telegram.ext import CallbackContext, ContextTypes
+from telegram.ext import ContextTypes
 
 from pyball.bot.errors import (
     BotCommandError,
     BotExpectedMessageIdError,
+    BotMatchError,
     BotNoCallUpError,
+    BotNotAdminError,
     BotPlayerError,
 )
 from pyball.bot.utils import (
@@ -43,13 +42,15 @@ from pyball.bot.utils import (
     bot_call_message_function_with_keyboard,
     callup_add,
     callup_del,
+    callup_lock,
     callup_new,
     callup_results,
     callup_search,
     callup_teams,
+    callup_unlock,
+    command_ensure_admin,
     ensure_admin,
     get_call_up,
-    get_command_argument,
     match_list,
     parse_command,
     player_add,
@@ -64,10 +65,11 @@ from pyball.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
-from pyball.logger import PYBALL_LOGGER
+from pyball.logger import PYBALL_LOGGER, log_func
 
 
-async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@log_func
+async def command_help(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Provide information about the bot usage.
 
     :param update: The event that caused the bot petition.
@@ -83,6 +85,7 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+@log_func
 async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Manage the player actions of joning and leaving the call-up.
 
@@ -100,8 +103,11 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
 
+    if update.effective_user is None:
+        return
+
     player = update.effective_user.id
-    answer: Optional[str] = None
+    answer: str = ""
 
     try:
         call_up.act(query.data, player)
@@ -115,7 +121,10 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     finally:
         await query.answer(answer)
 
-    await bot_call_message_function_with_keyboard(query.edit_message_text, str(call_up))
+    await bot_call_message_function_with_keyboard(
+        bot_message_function=query.edit_message_text,
+        text=str(call_up),
+    )
     await search_substitutes(
         call_up=call_up,
         reply_function=query.message.reply_text,
@@ -123,8 +132,8 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
-@ensure_admin
-async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@log_func
+async def command_match(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Match actions.
 
     :param update: The event that caused the bot petition.
@@ -135,47 +144,10 @@ async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         args = parse_command(
             command="/match",
             subcommands=[
-                SubCommand(["list", "l"], [CommandArgument("-v")], callable=match_list),
-            ],
-            text=update.message.text,
-        )
-    except BotCommandError as error:
-        await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
-            text=str(error),
-        )
-        return
-
-    output = args.pop("func")(**args)
-
-    if output:
-        await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
-            text=output,
-        )
-
-
-@ensure_admin
-async def command_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Player actions.
-
-    :param update: The event that caused the bot petition.
-    :param context: The information related to the update.
-
-    """
-    try:
-        args = parse_command(
-            command="/player",
-            subcommands=[
-                SubCommand(["list", "l"], callable=player_list),
-                SubCommand(["rank", "r"], callable=player_rank),
                 SubCommand(
-                    ["add", "a"],
-                    [
-                        CommandArgument("name", '"<nombre jugador>"'),
-                        CommandArgument("-id", "<identifier>"),
-                    ],
-                    callable=player_add,
+                    ["list", "l"],
+                    [CommandArgument("-v", dest="verbose")],
+                    callable=match_list,
                 ),
             ],
             text=update.message.text,
@@ -189,11 +161,12 @@ async def command_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         output = args.pop("func")(**args)
-    except BotPlayerError as error:
+    except BotNotAdminError as error:
         await bot_call_message_function(
             bot_message_function=update.message.reply_text,
             text=str(error),
         )
+        return
 
     if output:
         await bot_call_message_function(
@@ -202,7 +175,66 @@ async def command_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
 
-@ensure_admin
+@log_func
+async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    """Player actions.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    if update.effective_user is None:
+        PYBALL_LOGGER.error("No `effective_user` object in the command_player update")
+        return
+
+    try:
+        args = parse_command(
+            command="/player",
+            subcommands=[
+                SubCommand(
+                    ["list", "l"],
+                    callable=player_list,
+                ),
+                SubCommand(
+                    ["rank", "r"],
+                    callable=player_rank,
+                ),
+                SubCommand(
+                    ["add", "a"],
+                    [
+                        CommandArgument("name", '"<nombre jugador>"'),
+                        CommandArgument("-id", "<identifier>", dest="identifier"),
+                    ],
+                    callable=ensure_admin(update.effective_user.id, player_add),
+                ),
+            ],
+            text=update.message.text,
+        )
+    except BotCommandError as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=str(error),
+        )
+        return
+
+    try:
+        output = args.pop("func")(**args)
+    except (BotPlayerError, BotNotAdminError) as error:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=str(error),
+        )
+        return
+
+    if output:
+        await bot_call_message_function(
+            bot_message_function=update.message.reply_text,
+            text=output,
+        )
+
+
+@log_func
+@command_ensure_admin
 async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Call-up actions.
 
@@ -220,6 +252,20 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     callable=functools.partial(
                         callup_new,
                         chat_id=update.message.chat_id,
+                        context=context,
+                    ),
+                ),
+                SubCommand(
+                    ["lock", "l"],
+                    callable=functools.partial(
+                        callup_lock,
+                        context=context,
+                    ),
+                ),
+                SubCommand(
+                    ["unlock", "u"],
+                    callable=functools.partial(
+                        callup_unlock,
                         context=context,
                     ),
                 ),
@@ -252,6 +298,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ),
                 SubCommand(
                     ["teams", "t"],
+                    [CommandArgument("-swap", metavar=('"<jugador a>"', '"<jugador b>'), nargs=2)],
                     callable=functools.partial(
                         callup_teams,
                         context=context,
@@ -270,6 +317,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     callable=functools.partial(
                         callup_results,
                         context=context,
+                        reply_function=update.message.reply_text,
                     ),
                 ),
             ],
@@ -297,102 +345,8 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await args.pop("func")(**args)
     except (CallUpPlayerAlreadyCalledUpError, CallUpPlayerNotCalledUpError):
         return
-    except (BotPlayerError, BotNoCallUpError) as error:
+    except (BotPlayerError, BotMatchError, BotNoCallUpError, BotNotAdminError) as error:
         await bot_call_message_function(
             bot_message_function=update.message.reply_text,
             text=str(error),
         )
-        return
-
-
-@ensure_admin
-async def command_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Call the new method periodically.
-
-    :param update: The event that caused the bot petition.
-    :param context: The information related to the update.
-
-    """
-
-    def parse_next_date(day_hour: str) -> datetime.datetime:
-        """Calculate the date for the first new command call.
-
-        :param day_hour: A string containing the weekday and the time of the event.
-        :returns: The date in which the callback will be called.
-
-        """
-        parsed_time: time.struct_time = time.strptime(day_hour.strip(), "%A %H:%M")
-        today: datetime.datetime = datetime.datetime.today().astimezone()
-        first_time: datetime.datetime = today.replace(
-            hour=parsed_time.tm_hour,
-            minute=parsed_time.tm_min,
-            second=0,
-            microsecond=0,
-        ) + datetime.timedelta(days=parsed_time.tm_wday - today.weekday())
-
-        if today > first_time:
-            first_time += datetime.timedelta(weeks=1)
-
-        PYBALL_LOGGER.debug(f"The first repeated call-up will be sent {first_time}")
-        return first_time
-
-    async def autonew(context: CallbackContext) -> None:
-        """Create a new call-up with the given title.
-
-        :param context: The information related to the update.
-
-        """
-        title = datetime.datetime.today().strftime(context.job.data["title"])
-        PYBALL_LOGGER.debug(f"Creating an automated call-up: {title}")
-        await callup_new(
-            title=title,
-            chat_id=context.job.data["chat_id"],
-            context=context,
-        )
-
-    command_name = "repeat"
-    argument_name = r"<día> <hora>: <título>"
-    argument_example = r"Miércoles 21:00 - %A %Y/%m/%d"
-
-    try:
-        day_hour_title = get_command_argument(
-            update_message_text=update.message.text,
-            command_name=command_name,
-            argument_name=argument_name,
-            argument_example=argument_example,
-            required=True,
-        )
-    except BotCommandError as error:
-        await update.message.reply_text(str(error))
-        return
-
-    try:
-        day_hour, title = day_hour_title.split("-", maxsplit=1)
-        first_time: datetime.datetime = parse_next_date(day_hour)
-        clean_title: str = title.strip()
-    except ValueError:
-        await update.message.reply_text(
-            str(BotCommandError(command_name, argument_name, argument_example))
-        )
-        return
-
-    context.job_queue.run_repeating(
-        callback=autonew,
-        interval=datetime.timedelta(days=7),
-        first=first_time,
-        data={"title": clean_title, "chat_id": str(update.message.chat_id)},
-        name="Weekly call-up",
-        chat_id=str(update.message.chat_id),
-    )
-
-
-@ensure_admin
-async def command_stop_repeat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Stop the regular job.
-
-    :param update: The event that caused the bot petition.
-    :param context: The information related to the update.
-
-    """
-    for job in context.job_queue.jobs():
-        job.schedule_removal()

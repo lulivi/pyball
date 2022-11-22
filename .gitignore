@@ -163,3 +163,5 @@ cython_debug/
 *.persistence
 *.log.*
 *.db
+data/
+logs/

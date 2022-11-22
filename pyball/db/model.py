@@ -1,3 +1,4 @@
+# pylint: disable=too-few-public-methods
 # Copyright (c) 2022 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -41,7 +42,10 @@ class BaseModel(Model):
     class Meta:
         """Set general table configuration."""
 
-        def __pascal_to_snake(model_class: type) -> str:
+        # pylint: disable=no-self-argument,no-member
+        def __pascal_to_snake(  # type: ignore [misc]  # pylint: disable=no-self-argument
+            model_class: type,
+        ) -> str:  # type: ignore [misc]
             """Change the model_class name to snake_case.
 
             :param model_class: The class object.

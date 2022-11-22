@@ -53,7 +53,7 @@ class Players:
 
     __slots__ = ["__players", "__maximum"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the object."""
         self.__players: List[wrapper.Player] = []
         self.__maximum: int
@@ -79,22 +79,20 @@ class Players:
         PYBALL_LOGGER.debug(f"Trying to add the player `{player}`")
 
         try:
-            player = find_player(player)
-        except model.Player.DoesNotExist as error:
+            player_object = find_player(player)
+        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
             PYBALL_LOGGER.error(
                 f"Could not add the player as it was not found in the database: {error}"
             )
-            raise CallUpPlayerDoesNotExistError(
-                f"Could not find player `{player}` in the database."
-            ) from error
+            raise CallUpPlayerDoesNotExistError(player) from error
 
-        if player in self.__players:
-            PYBALL_LOGGER.debug(f"The player {player} is already in the list")
+        if player_object in self.__players:
+            PYBALL_LOGGER.debug(f"The player {player_object} is already in the list")
             raise CallUpPlayerAlreadyCalledUpError(
-                f"El jugador `{player}` ya está apuntado a esta convocatoria"
+                f"El jugador `{player_object}` ya está apuntado a esta convocatoria"
             )
 
-        self.__players.append(player)
+        self.__players.append(player_object)
         self.__compute_maximum()
 
     def leave(self, player: Union[str, int]) -> None:
@@ -108,22 +106,20 @@ class Players:
         PYBALL_LOGGER.debug(f"Trying to remove the player `{player}`")
 
         try:
-            player = find_player(player)
-        except model.Player.DoesNotExist as error:
+            player_object = find_player(player)
+        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
             PYBALL_LOGGER.error(
                 f"Could not add the player as it was not found in the database: {error}"
             )
-            raise CallUpPlayerDoesNotExistError(
-                f"Could not find player `{player}` in the database."
-            ) from error
+            raise CallUpPlayerDoesNotExistError(player) from error
 
         try:
-            self.__players.remove(player)
-        except ValueError:
-            PYBALL_LOGGER.debug(f"The player `{player}` is not in the list")
+            self.__players.remove(player_object)
+        except ValueError as error:
+            PYBALL_LOGGER.debug(f"The player `{player_object}` is not in the list")
             raise CallUpPlayerNotCalledUpError(
-                f"El jugador `{player}` no está apuntado a esta convocatoria"
-            )
+                f"El jugador `{player_object}` no está apuntado a esta convocatoria"
+            ) from error
 
         self.__compute_maximum()
 

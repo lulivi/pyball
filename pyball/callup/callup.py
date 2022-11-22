@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Union
 
 from pyball.callup.errors import CallUpMatchNotYetCreatedError
-from pyball.callup.match import Match, MatchStats
+from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
@@ -113,7 +113,9 @@ class CallUp:
 
         """
         if not self.__match:
-            self.create_match()
+            raise CallUpMatchNotYetCreatedError(
+                "The match hasn't been created yet, so no results can be set"
+            )
 
         return self.__match
 
@@ -144,7 +146,7 @@ class CallUp:
         """
         self.__actions[action](player)
 
-    def set_subs_message_id(self, message_id: Optional[str]) -> None:
+    def set_subs_message_id(self, message_id: Optional[int]) -> None:
         """Set the substitutes chat message identifier.
 
         :param message_id: The identifier of the substitutes search message or None.
@@ -160,7 +162,7 @@ class CallUp:
         """
         return self.__players.remaining()
 
-    def validate_message_id(self, request_message_id: str) -> bool:
+    def validate_message_id(self, request_message_id: int) -> bool:
         """Check if the requester message identifier matches with the main chat message id.
 
         :param request_message_id: The incomming message identifier.
@@ -199,7 +201,7 @@ class CallUp:
         """Create a new match."""
         self.__match = Match(self.__players)
 
-    def set_results(self, results: MatchStats) -> None:
+    def set_results(self, results: PlayersStatInput) -> None:
         """Introduce the results of the match.
 
         :param results: The results object.

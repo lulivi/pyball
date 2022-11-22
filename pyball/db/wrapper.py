@@ -23,13 +23,14 @@
 import datetime
 
 from dataclasses import dataclass
-from typing import cast
+from typing import Optional, cast
 
 from pyball.db import model
+from pyball.db.errors import DbUnknownResultError
 
 
 @dataclass
-class Player:
+class Player:  # pylint: disable=too-many-instance-attributes
     """Player related information.
 
     :ivar id: Player unique identifier.
@@ -45,7 +46,7 @@ class Player:
 
     """
 
-    id: int
+    id: int  # pylint: disable=invalid-name
     name: str
     main: bool
     goals: int = 0
@@ -60,7 +61,7 @@ class Player:
     def match_count(self) -> int:
         """Retrieve the number of matches played by the player.
 
-        :returns: The sum of won, lost and tied maches.
+        :returns: The sum of won, lost and tied matches.
 
         """
         return self.wins + self.losses + self.ties
@@ -128,7 +129,7 @@ class MatchStatistic:
     team: str
     goals: int
     assists: int
-    result: str = ""
+    result: Optional[str] = None
 
     def db_dict(self) -> dict:
         """Return the database necessary information.
@@ -150,4 +151,6 @@ class MatchStatistic:
         :param result: A representation of the result.
 
         """
+        if result not in ("wins", "losses", "ties"):
+            raise DbUnknownResultError(result)
         self.result = result

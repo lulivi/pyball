@@ -21,12 +21,15 @@
 """Loging module."""
 
 import datetime
+import functools
 import logging
 import logging.handlers
 
+from typing import Callable
+
 from pyball.settings import LOGS_DIRECTORY_PATH
 
-basic_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+BASIC_FMT = "{asctime} - {name} - {levelname} - {message}"
 
 stream_log = logging.StreamHandler()
 stream_log.setLevel(logging.INFO)
@@ -36,7 +39,7 @@ full_log = logging.handlers.RotatingFileHandler(
     maxBytes=1024 * 1024,
     backupCount=5,
 )
-full_log.setFormatter(logging.Formatter(basic_fmt))
+full_log.setFormatter(logging.Formatter(BASIC_FMT, style="{"))
 full_log.setLevel(logging.DEBUG)
 
 pyball_log = logging.handlers.TimedRotatingFileHandler(
@@ -47,16 +50,30 @@ pyball_log = logging.handlers.TimedRotatingFileHandler(
 )
 pyball_log.addFilter(logging.Filter("pyball"))
 pyball_log.setFormatter(
-    logging.Formatter(
-        "%(asctime)s - %(name)s:%(lineno)d(%(funcName)s) - %(levelname)s - %(message)s"
-    )
+    logging.Formatter("{asctime} - {name}:{lineno} - {levelname} - {message}", style="{")
 )
 pyball_log.setLevel(logging.DEBUG)
 
 logging.basicConfig(
-    format=basic_fmt,
+    format=BASIC_FMT,
     level=logging.DEBUG,
     handlers=(stream_log, full_log, pyball_log),
+    style="{",
 )
 
 PYBALL_LOGGER = logging.getLogger(__name__)
+
+
+def log_func(func: Callable):
+    """Log the function ussage."""
+    logger = logging.getLogger(func.__module__)
+
+    @functools.wraps(func)
+    async def decorator(*args, **kwargs):
+        """Wrap the function."""
+        logger.debug(f">>>>> Entering {func.__name__} function")
+        ret_val = await func(*args, **kwargs)
+        logger.debug(f"<<<<< Exiting {func.__name__} function")
+        return ret_val
+
+    return decorator

@@ -48,13 +48,16 @@ line_length = 99
 lines_between_types = 1
 
 [tool.mypy]
+show_error_codes = true
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
-module = [
-  "decouple",
-]
+module = ["decouple"]
 
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+  "logging-fstring-interpolation"
+]
 
 [tool.tox]
 legacy_tox_ini = """

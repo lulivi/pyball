@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 """Call-up related errors."""
-from typing import List
+from typing import List, Union
 
 
 class PyBallCallUpError(Exception):
@@ -28,6 +28,11 @@ class PyBallCallUpError(Exception):
 
 class CallUpPlayerDoesNotExistError(PyBallCallUpError):
     """The player is not found in the database."""
+
+    def __init__(self, player: Union[str, int]) -> None:
+        self.player = player
+        self.message = f"Could not find player `{self.player}` in the database."
+        super().__init__(self.message)
 
 
 class CallUpPlayerAlreadyCalledUpError(PyBallCallUpError):
@@ -53,7 +58,7 @@ class CallUpMatchNotYetCreatedError(PyBallCallUpError):
     """The match hasn't been created yet."""
 
 
-class CallUpStatisticOfNonPlayers(PyBallCallUpError):
+class CallUpPlayersNotInMatch(PyBallCallUpError):
     """There are statistics of players that are not in any of the teams."""
 
     def __init__(self, non_players: List[str]) -> None:
