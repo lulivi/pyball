@@ -30,7 +30,7 @@ from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
-
+from pyball.__version__ import __version__
 
 @dataclass
 class ChatInfo:
@@ -219,5 +219,7 @@ class CallUp:
 
         if self.__match is not None:
             output = f"{output}\n{str(self.__match)}"
+
+        output = f"{output}\n\nVersion: `{__version__}`"
 
         return output

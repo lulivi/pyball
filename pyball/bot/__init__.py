@@ -25,6 +25,7 @@ import locale
 import peewee
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, PicklePersistence
+from telegram.ext.filters import UpdateType
 
 from pyball.bot.commands import (
     button_game,
@@ -50,11 +51,18 @@ def build_application() -> Application:
     database.initialize(peewee.SqliteDatabase(DATABASE_FILE_PATH))
 
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()
-
-    application.add_handler(CommandHandler(("start", "help"), command_help))
-    application.add_handler(CommandHandler(("m", "match"), command_match))
-    application.add_handler(CommandHandler(("p", "player"), command_player))
-    application.add_handler(CommandHandler(("c", "callup"), command_callup))
+    application.add_handler(
+        CommandHandler(("start", "help"), command_help, ~UpdateType.EDITED_MESSAGE)
+    )
+    application.add_handler(
+        CommandHandler(("m", "match"), command_match, ~UpdateType.EDITED_MESSAGE)
+    )
+    application.add_handler(
+        CommandHandler(("p", "player"), command_player, ~UpdateType.EDITED_MESSAGE)
+    )
+    application.add_handler(
+        CommandHandler(("c", "callup"), command_callup, ~UpdateType.EDITED_MESSAGE)
+    )
     application.add_handler(CallbackQueryHandler(button_game))
 
     return application

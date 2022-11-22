@@ -26,6 +26,7 @@ import functools
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from pyball.__version__ import __version__
 from pyball.bot.errors import (
     BotCommandError,
     BotExpectedMessageIdError,
@@ -81,7 +82,7 @@ async def command_help(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         "¡Hola! Este bot puede ayudarte a organizar tu convocatoria.\n\n- Utiliza el comando"
         " `/callup` para crear o interaccionar con la convocatoria.\n\n- Usa el comando `/player`"
         " para listar o añádir jugadores de la base de datos.\n\n- El comando `/match` te permite"
-        " obtener informacion acerca de los partidos.",
+        f" obtener informacion acerca de los partidos.\n\nVersion: `{__version__}`",
     )
 
 
@@ -248,7 +249,10 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             subcommands=[
                 SubCommand(
                     ["new", "n"],
-                    [CommandArgument("date", metavar='"<fecha>"')],
+                    [
+                        CommandArgument("date", metavar="YYYY/MM/DD"),
+                        CommandArgument("time", metavar="HH:MM"),
+                    ],
                     callable=functools.partial(
                         callup_new,
                         chat_id=update.message.chat_id,
@@ -324,7 +328,10 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=update.message.text,
         )
         if "date" in args:
-            args["date"] = datetime.datetime.strptime(args["date"], "%Y/%m/%d %H:%M")
+            parsed_time = datetime.datetime.strptime(args.pop("time"), "%H:%M")
+            args["date"] = datetime.datetime.strptime(args["date"], "%Y/%m/%d").replace(
+                hour=parsed_time.hour, minute=parsed_time.minute
+            )
     except BotCommandError as error:
         await bot_call_message_function(
             bot_message_function=update.message.reply_text,

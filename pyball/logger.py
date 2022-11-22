@@ -69,10 +69,10 @@ def log_func(func: Callable):
     logger = logging.getLogger(func.__module__)
 
     @functools.wraps(func)
-    async def decorator(*args, **kwargs):
+    def decorator(*args, **kwargs):
         """Wrap the function."""
         logger.debug(f">>>>> Entering {func.__name__} function")
-        ret_val = await func(*args, **kwargs)
+        ret_val = func(*args, **kwargs)
         logger.debug(f"<<<<< Exiting {func.__name__} function")
         return ret_val
 
