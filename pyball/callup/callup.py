@@ -53,6 +53,7 @@ class ChatInfo:
 class CallUp:
     """Necessary information involving a match call-up.
 
+    :ivar __date: Call-up date.
     :ivar __title: Summary of the call-up.
     :ivar __main_chat: Info about the main chat post.
     :ivar __subs_chat: Info about the substitutes chat post.

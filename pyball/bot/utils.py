@@ -48,7 +48,7 @@ from pyball.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayersNotInMatch,
 )
-from pyball.callup.match import PlayersStatInput
+from pyball.callup.match import MatchStat, PlayersStatInput
 from pyball.db.errors import (
     DbPlayerAlreadyExistentError,
     DbStatisticForPlayerInMatchAlreadyExistent,
@@ -58,10 +58,20 @@ from pyball.logger import PYBALL_LOGGER, log_func
 from pyball.settings import ADMINS_IDS
 
 
+def __md_monospace_items(items: List[str]) -> str:
+    """Transform a list of elements into a string of comma separated monospaced strings.
+
+    :returns: The result string.
+
+    """
+    return f"`{'`, `'.join(items)}`"
+
+
 class CommandArgument(NamedTuple):
     """Parser simple argument."""
 
     name: str
+    help: Optional[str] = None
     metavar: Optional[Union[str, tuple]] = None
     action: Union[str, Type[argparse.Action]] = "store"
     nargs: Optional[Union[int, str]] = None
@@ -77,17 +87,32 @@ class SubCommand(NamedTuple):
     check_admin_rights: Optional[int] = None
 
 
-class MatchStatValidator(argparse.Action):  # pylint: disable=too-few-public-methods
-    """Validate a result entry."""
+class MatchStatsAction(argparse.Action):  # pylint: disable=too-few-public-methods
+    """Parse the match statistics."""
 
     def __call__(self, _, namespace, values, __=None) -> None:
         """Add new values to the match stats object."""
-        stats: PlayersStatInput = getattr(namespace, self.dest, None) or PlayersStatInput()
+        stats: PlayersStatInput = PlayersStatInput()
 
-        try:
-            stats.add_stat(values[0], int(values[1]), int(values[2]))
-        except ValueError as error:
-            raise argparse.ArgumentError(self, f"Stats: {values} are not valid") from error
+        # Ensure there is at least one space before the first `g` for the proper splitting
+        raw_stats_str = f" {' '.join(values)}"
+        print(raw_stats_str)
+        # The first item will be empty since there is nothing at the left of the first `g`
+        for raw_stat in raw_stats_str.split(" g ")[1:]:
+            stat = MatchStat(*raw_stat.split(" a "))
+            try:
+                stats.add_goal(stat.scorer)
+                if stat.assistant:
+                    stats.add_assist(stat.assistant)
+            except CallUpPlayerDoesNotExistError as error:
+                raise BotPlayerError(
+                    f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+                ) from error
+            except CallUpMultiplePlayersFoundError as error:
+                raise BotPlayerError(
+                    f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+                    f" {__md_monospace_items(error.players)}. Por favor, concreta"
+                ) from error
 
         setattr(namespace, self.dest, stats)
 
@@ -130,6 +155,8 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
 
         for argument in subcommand.arguments:
             extra_args: Dict[str, Union[str, tuple, int]] = {}
+            if argument.help is not None:
+                extra_args["help"] = argument.help
             if argument.metavar is not None:
                 extra_args["metavar"] = argument.metavar
             if argument.nargs is not None:
@@ -165,15 +192,6 @@ def __split_without_splitting_quotes(text: str) -> List[str]:
 
     """
     return [word.strip('"') for word in __RE_NO_QUOTES_SPLIT.findall(text)]
-
-
-def __md_monospace_items(items: List[str]) -> str:
-    """Transform a list of elements into a string of comma separated monospaced strings.
-
-    :returns: The result string.
-
-    """
-    return f"`{'`, `'.join(items)}`"
 
 
 @log_func
@@ -670,7 +688,7 @@ async def callup_teams(swap: Optional[List[str]], context: ContextTypes.DEFAULT_
 
 @log_func
 async def callup_results(
-    res: PlayersStatInput, context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
+    stats: PlayersStatInput, context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
 ) -> None:
     """Set the match results.
 
@@ -683,7 +701,7 @@ async def callup_results(
     call_up: CallUp = get_call_up(context.chat_data)
 
     try:
-        call_up.set_results(res)
+        call_up.set_results(stats)
     except CallUpMatchNotYetCreatedError as error:
         raise BotMatchError(
             "Aún no se han creado equipos para el partido actual. Envía /teams primero.",

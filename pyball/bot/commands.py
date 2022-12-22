@@ -37,7 +37,7 @@ from pyball.bot.errors import (
 )
 from pyball.bot.utils import (
     CommandArgument,
-    MatchStatValidator,
+    MatchStatsAction,
     PlayerNameAction,
     SubCommand,
     bot_call_message_function,
@@ -287,7 +287,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     [
                         CommandArgument(
                             "name",
-                            metavar='"<nombre jugador>"',
+                            metavar="<nombre jugador>",
                             action=PlayerNameAction,
                             nargs="+",
                         )
@@ -303,7 +303,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     [
                         CommandArgument(
                             "name",
-                            metavar='"<nombre jugador>"',
+                            metavar="<nombre jugador>",
                             action=PlayerNameAction,
                             nargs="+",
                         )
@@ -335,10 +335,11 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     ["results", "r"],
                     [
                         CommandArgument(
-                            "-res",
-                            metavar=('"<nombre jugador>"', "<goles>", "<asistencias>"),
-                            action=MatchStatValidator,
-                            nargs=3,
+                            "stats",
+                            help="g <nombre jugador 1> [a <nombre jugador 2>]",
+                            metavar="<match statistic>",
+                            action=MatchStatsAction,
+                            nargs="+",
                         )
                     ],
                     callable=functools.partial(
@@ -366,7 +367,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             bot_message_function=update.message.reply_text,
             text=(
                 "La fecha de la nueva convocatoria no es correcta. Por favor, indícala en formato"
-                ' `"YYYY/MM/DD HH:MM"`.'
+                " YYYY/MM/DD HH:MM."
             ),
         )
         return

@@ -115,7 +115,7 @@ def get_player_list() -> List[wrapper.Player]:
     :returns: All the players.
 
     """
-    return list(model.Player.select().objects(wrapper.Player))
+    return list(model.Player.select().order_by(model.Player.name).objects(wrapper.Player))
 
 
 @log_func

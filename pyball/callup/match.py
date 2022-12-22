@@ -22,7 +22,8 @@
 import datetime
 import itertools
 
-from typing import Dict, List, Optional, Tuple, Union
+from collections import defaultdict
+from typing import DefaultDict, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from pyball import db
 from pyball.callup.errors import (
@@ -36,13 +37,26 @@ from pyball.db.utils import add_match_results, find_player, get_results_names
 from pyball.logger import PYBALL_LOGGER
 
 
+class MatchStat:
+    """Simple class for each stat."""
+
+    def __init__(self, scorer: str, assistant: str = "") -> None:
+        self.scorer = scorer.strip()
+        self.assistant = assistant.strip()
+
+
 class PlayersStatInput:
     """Player match stats."""
 
     def __init__(self) -> None:
-        self.__result: Dict[str, Dict[str, int]] = {}
+        self.__result: DefaultDict[str, Dict[str, int]] = defaultdict(self.__default_stat)
 
-    def as_dict(self) -> Dict[str, Dict[str, int]]:
+    @staticmethod
+    def __default_stat() -> Dict[str, int]:
+        """Get the base statistic for all player."""
+        return {"goals": 0, "assists": 0}
+
+    def as_dict(self) -> DefaultDict[str, Dict[str, int]]:
         """Return the result dictionary.
 
         :returns: Player stats dictionary.
@@ -50,15 +64,38 @@ class PlayersStatInput:
         """
         return self.__result
 
-    def add_stat(self, player: str, goals: int = 0, assists: int = 0) -> None:
-        """Add a new player statistic of the match.
+    def add_goal(self, player: str) -> None:
+        """Add a goal to the player match statistics.
 
         :param player: Player name.
-        :param goals: Number of goals scored by the player.
-        :param assists: Number of assists the player made in the match.
 
         """
-        self.__result[player] = {"goals": goals, "assists": assists}
+        self.__result[self.__player_correct_name(player)]["goals"] += 1
+
+    def add_assist(self, player: str) -> None:
+        """Add an assist to the player match statistics.
+
+        :param player: Player name.
+
+        """
+        self.__result[self.__player_correct_name(player)]["assists"] += 1
+
+    @staticmethod
+    def __player_correct_name(player_name: str) -> str:
+        """Find the player name in the database.
+
+        :param player_name: The input player name.
+        :returns: The full player name if found in the database.
+
+        """
+        try:
+            real_player_name: db.wrapper.Player = find_player(player_name)
+        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+            raise CallUpPlayerDoesNotExistError(player_name) from error
+        except db.errors.DbMultiplePlayersFoundError as error:
+            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
+
+        return real_player_name.name
 
     def __len__(self) -> int:
         return len(self.__result)
@@ -227,7 +264,7 @@ class Match:
         :param date: Date of the match.
 
         """
-        match_results_dict = self.__find_players_correct_names(match_results)
+        match_results_dict = match_results.as_dict()
         current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
         unplayed_players = set(match_results_dict) - (current_players)
         if unplayed_players:
@@ -256,30 +293,6 @@ class Match:
                 stat.set_result(team_0_result if stat.player in team_0_names else team_1_result)
 
         add_match_results(match_statistics)
-
-    @staticmethod
-    def __find_players_correct_names(match_results: PlayersStatInput) -> Dict[str, Dict[str, int]]:
-        """Iterate over the match results players and find their real name in the database.
-
-        :raises CallUpPlayerDoesNotExistError: When the player could not be found.
-        :raises CallUpMultiplePlayersFoundError: When the player name is found in multiple players.
-        :returns: The match_results with the correct player names.
-
-        """
-        match_results_dict = match_results.as_dict()
-        corrected_match_results: Dict[str, Dict[str, int]] = {}
-
-        for raw_player in match_results_dict.keys():
-            try:
-                real_player_name: db.wrapper.Player = find_player(raw_player)
-            except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
-                raise CallUpPlayerDoesNotExistError(raw_player) from error
-            except db.errors.DbMultiplePlayersFoundError as error:
-                raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
-
-            corrected_match_results[real_player_name.name] = match_results_dict[raw_player].copy()
-
-        return corrected_match_results
 
     def __str__(self) -> str:
         if self.__teams is None:
