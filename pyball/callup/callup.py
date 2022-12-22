@@ -25,12 +25,13 @@ import datetime
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Union
 
+from pyball.__version__ import __version__
 from pyball.callup.errors import CallUpMatchNotYetCreatedError
 from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
 from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
-from pyball.__version__ import __version__
+
 
 @dataclass
 class ChatInfo:

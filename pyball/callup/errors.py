@@ -35,6 +35,19 @@ class CallUpPlayerDoesNotExistError(PyBallCallUpError):
         super().__init__(self.message)
 
 
+class CallUpMultiplePlayersFoundError(PyBallCallUpError):
+    """When the wildcard search of a player is general enough to find more than one."""
+
+    def __init__(self, player_names: List[str], wild_card: str) -> None:
+        self.players = player_names
+        self.wild_card = wild_card
+        self.message = (
+            f"Multiple players found when searching for the wild-card `{self.wild_card}`:"
+            f" `{'`, `'.join(self.players)}`"
+        )
+        super().__init__(self.message)
+
+
 class CallUpPlayerAlreadyCalledUpError(PyBallCallUpError):
     """The player is already in the call-up."""
 
@@ -63,5 +76,5 @@ class CallUpPlayersNotInMatch(PyBallCallUpError):
 
     def __init__(self, non_players: List[str]) -> None:
         self.non_players = non_players
-        self.message = f"Players `{self.non_players}` are not in any of the teams"
+        self.message = f"Players `{'`, `'.join(self.non_players)}` are not in any of the teams"
         super().__init__(self.message)

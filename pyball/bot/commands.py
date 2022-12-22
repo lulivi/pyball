@@ -38,6 +38,7 @@ from pyball.bot.errors import (
 from pyball.bot.utils import (
     CommandArgument,
     MatchStatValidator,
+    PlayerNameAction,
     SubCommand,
     bot_call_message_function,
     bot_call_message_function_with_keyboard,
@@ -62,6 +63,7 @@ from pyball.bot.utils import (
 )
 from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
+    CallUpMultiplePlayersFoundError,
     CallUpPlayerAlreadyCalledUpError,
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
@@ -79,10 +81,13 @@ async def command_help(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """
     await bot_call_message_function(
         update.message.reply_text,
-        "¡Hola! Este bot puede ayudarte a organizar tu convocatoria.\n\n- Utiliza el comando"
-        " `/callup` para crear o interaccionar con la convocatoria.\n\n- Usa el comando `/player`"
-        " para listar o añádir jugadores de la base de datos.\n\n- El comando `/match` te permite"
-        f" obtener informacion acerca de los partidos.\n\nVersion: `{__version__}`",
+        (
+            "¡Hola! Este bot puede ayudarte a organizar tu convocatoria.\n\n- Utiliza el comando"
+            " `/callup` para crear o interaccionar con la convocatoria.\n\n- Usa el comando"
+            " `/player` para listar o añádir jugadores de la base de datos.\n\n- El comando"
+            " `/match` te permite obtener informacion acerca de los partidos.\n\nVersion:"
+            f" `{__version__}`"
+        ),
     )
 
 
@@ -113,9 +118,10 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         call_up.act(query.data, player)
     except (
+        CallUpMultiplePlayersFoundError,
         CallUpPlayerAlreadyCalledUpError,
-        CallUpPlayerNotCalledUpError,
         CallUpPlayerDoesNotExistError,
+        CallUpPlayerNotCalledUpError,
     ) as error:
         answer = str(error)
         return
@@ -204,7 +210,9 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                 SubCommand(
                     ["add", "a"],
                     [
-                        CommandArgument("name", '"<nombre jugador>"'),
+                        CommandArgument(
+                            "name", "<nombre jugador>", action=PlayerNameAction, nargs="+"
+                        ),
                         CommandArgument("-id", "<identifier>", dest="identifier"),
                     ],
                     callable=ensure_admin(update.effective_user.id, player_add),
@@ -276,7 +284,14 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ),
                 SubCommand(
                     ["add", "a"],
-                    [CommandArgument("name", metavar='"<nombre jugador>"')],
+                    [
+                        CommandArgument(
+                            "name",
+                            metavar='"<nombre jugador>"',
+                            action=PlayerNameAction,
+                            nargs="+",
+                        )
+                    ],
                     callable=functools.partial(
                         callup_add,
                         context=context,
@@ -285,7 +300,14 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ),
                 SubCommand(
                     ["del", "d"],
-                    [CommandArgument("name", metavar='"<nombre jugador>"')],
+                    [
+                        CommandArgument(
+                            "name",
+                            metavar='"<nombre jugador>"',
+                            action=PlayerNameAction,
+                            nargs="+",
+                        )
+                    ],
                     callable=functools.partial(
                         callup_del,
                         context=context,

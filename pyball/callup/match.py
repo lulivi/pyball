@@ -24,13 +24,14 @@ import itertools
 
 from typing import Dict, List, Optional, Tuple, Union
 
+from pyball import db
 from pyball.callup.errors import (
     CallUpMatchWrongPlayersNumberError,
+    CallUpMultiplePlayersFoundError,
     CallUpPlayerDoesNotExistError,
     CallUpPlayersNotInMatch,
 )
 from pyball.callup.players import Players
-from pyball.db import model, wrapper
 from pyball.db.utils import add_match_results, find_player, get_results_names
 from pyball.logger import PYBALL_LOGGER
 
@@ -75,7 +76,7 @@ class Match:
     __team_names: Tuple[str, str, str] = ("Verde", "Naranja", "Sin peto")
 
     def __init__(self, players: Players, teams_number: Optional[int] = None) -> None:
-        self.__teams: List[List[wrapper.Player]]
+        self.__teams: List[List[db.wrapper.Player]]
         self.__create_teams(players, teams_number)
         self.__score: List[int] = [0] * len(self.__teams)
 
@@ -129,7 +130,7 @@ class Match:
                 team.append(player_batch[index])
 
     @staticmethod
-    def __skill_sum(players: List[wrapper.Player]) -> float:
+    def __skill_sum(players: List[db.wrapper.Player]) -> float:
         """Compute the total skill sum of the player list.
 
         :param players: List of players to compute the total sum.
@@ -159,7 +160,7 @@ class Match:
                 )
 
     @staticmethod
-    def __skill_diff(team_a: List[wrapper.Player], team_b: List[wrapper.Player]) -> float:
+    def __skill_diff(team_a: List[db.wrapper.Player], team_b: List[db.wrapper.Player]) -> float:
         """Compute the difference between the two teams skill sum.
 
         :param team_a: First team to calculate the sum.
@@ -177,13 +178,17 @@ class Match:
 
         """
         try:
-            first_player_object: wrapper.Player = find_player(first_player)
-        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+            first_player_object: db.wrapper.Player = find_player(first_player)
+        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
             raise CallUpPlayerDoesNotExistError(first_player) from error
+        except db.errors.DbMultiplePlayersFoundError as error:
+            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
         try:
-            second_player_object = find_player(second_player)
-        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+            second_player_object: db.wrapper.Player = find_player(second_player)
+        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
             raise CallUpPlayerDoesNotExistError(second_player) from error
+        except db.errors.DbMultiplePlayersFoundError as error:
+            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
         first_player_index_tuple = self.__get_player_team(first_player_object)
         second_player_index_tuple = self.__get_player_team(second_player_object)
@@ -197,7 +202,7 @@ class Match:
             second_player_index_tuple[1], first_player_object
         )
 
-    def __get_player_team(self, player: wrapper.Player) -> Tuple[int, int]:
+    def __get_player_team(self, player: db.wrapper.Player) -> Tuple[int, int]:
         """Obtain the team in which the player will play.
 
         :param player: The player object to search for.
@@ -222,20 +227,20 @@ class Match:
         :param date: Date of the match.
 
         """
-        match_results_dict = match_results.as_dict()
+        match_results_dict = self.__find_players_correct_names(match_results)
         current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
         unplayed_players = set(match_results_dict) - (current_players)
         if unplayed_players:
             raise CallUpPlayersNotInMatch(list(unplayed_players))
 
-        match_statistics: List[wrapper.MatchStatistic] = []
+        match_statistics: List[db.wrapper.MatchStatistic] = []
         for team_index, team in enumerate(self.__teams):
             self.__score[team_index] = 0
             for player in team:
                 goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
                 self.__score[team_index] += goals_and_assists["goals"]
                 match_statistics.append(
-                    wrapper.MatchStatistic(
+                    db.wrapper.MatchStatistic(
                         date=date,
                         team=self.__team_names[team_index],
                         player=player.id,
@@ -251,6 +256,30 @@ class Match:
                 stat.set_result(team_0_result if stat.player in team_0_names else team_1_result)
 
         add_match_results(match_statistics)
+
+    @staticmethod
+    def __find_players_correct_names(match_results: PlayersStatInput) -> Dict[str, Dict[str, int]]:
+        """Iterate over the match results players and find their real name in the database.
+
+        :raises CallUpPlayerDoesNotExistError: When the player could not be found.
+        :raises CallUpMultiplePlayersFoundError: When the player name is found in multiple players.
+        :returns: The match_results with the correct player names.
+
+        """
+        match_results_dict = match_results.as_dict()
+        corrected_match_results: Dict[str, Dict[str, int]] = {}
+
+        for raw_player in match_results_dict.keys():
+            try:
+                real_player_name: db.wrapper.Player = find_player(raw_player)
+            except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+                raise CallUpPlayerDoesNotExistError(raw_player) from error
+            except db.errors.DbMultiplePlayersFoundError as error:
+                raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
+
+            corrected_match_results[real_player_name.name] = match_results_dict[raw_player].copy()
+
+        return corrected_match_results
 
     def __str__(self) -> str:
         if self.__teams is None:

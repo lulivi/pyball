@@ -24,11 +24,12 @@ pyball = "pyball.__main__:main"
 [tool.poetry.dev-dependencies]
 black = "22.*"
 isort = "5.*"
-tox = "*"
+tox = "<4.0.0"
 tox-poetry = "*"
 mypy = "*"
 pylama = "7.7.1"
-flake8 = "*"
+pycodestyle = "*"
+pydocstyle = "*"
 pylint = "*"
 types-peewee = "*"
 
@@ -37,6 +38,17 @@ python = ">=3.7,<4.0"
 python-telegram-bot = "20.0a4"
 python-decouple = "3.6"
 peewee = "3.15.3"
+# testenv
+pytest = { version = "*", optional = true }
+pytest-cov = { version = "*", optional = true }
+pytest-emoji = { version = "*", optional = true }
+
+[tool.poetry.extras]
+tox-test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-emoji",
+]
 
 [tool.black]
 line-length = 99
@@ -64,13 +76,19 @@ legacy_tox_ini = """
 [tox]
 isolated_build = True
 skip_missing_interpreters = true
+envlist = py38,lint
+
+[testenv]
+extras = tox-test
+commands =
+    pytest -x {toxinidir}/tests/ --cov={toxinidir}/pyball/ --cov-report=term-missing -vvv
 
 [testenv:lint]
 commands =
-    black --check --diff {toxinidir}/pyball/
-    isort --check --diff {toxinidir}/pyball/
-    pydocstyle {toxinidir}/pyball/ --add-ignore D105,D107
-    flake8 {toxinidir}/pyball/ --count --max-line-length 99
-    mypy {toxinidir}/pyball/
-    pylint {toxinidir}/pyball/
+    black --check --diff {toxinidir}/pyball/ {toxinidir}/tests
+    isort --check --diff {toxinidir}/pyball/ {toxinidir}/tests
+    pydocstyle {toxinidir}/pyball/ {toxinidir}/tests --add-ignore D105,D107
+    pycodestyle {toxinidir}/pyball/ {toxinidir}/tests --max-line-length 99
+    mypy {toxinidir}/pyball/ {toxinidir}/tests
+    pylint {toxinidir}/pyball/ {toxinidir}/tests
 """

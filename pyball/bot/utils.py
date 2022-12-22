@@ -44,6 +44,7 @@ from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
     CallUpMatchNotYetCreatedError,
     CallUpMatchWrongPlayersNumberError,
+    CallUpMultiplePlayersFoundError,
     CallUpPlayerDoesNotExistError,
     CallUpPlayersNotInMatch,
 )
@@ -79,7 +80,7 @@ class SubCommand(NamedTuple):
 class MatchStatValidator(argparse.Action):  # pylint: disable=too-few-public-methods
     """Validate a result entry."""
 
-    def __call__(self, _, namespace, values, option_string=None) -> None:
+    def __call__(self, _, namespace, values, __=None) -> None:
         """Add new values to the match stats object."""
         stats: PlayersStatInput = getattr(namespace, self.dest, None) or PlayersStatInput()
 
@@ -89,6 +90,14 @@ class MatchStatValidator(argparse.Action):  # pylint: disable=too-few-public-met
             raise argparse.ArgumentError(self, f"Stats: {values} are not valid") from error
 
         setattr(namespace, self.dest, stats)
+
+
+class PlayerNameAction(argparse.Action):  # pylint: disable=too-few-public-methods
+    """Transform a list of string into a name."""
+
+    def __call__(self, _, namespace, values, __=None) -> None:
+        """Set the player name."""
+        setattr(namespace, self.dest, " ".join(values))
 
 
 class CommandParser(argparse.ArgumentParser):
@@ -121,11 +130,11 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
 
         for argument in subcommand.arguments:
             extra_args: Dict[str, Union[str, tuple, int]] = {}
-            if argument.metavar:
+            if argument.metavar is not None:
                 extra_args["metavar"] = argument.metavar
-            if argument.nargs:
+            if argument.nargs is not None:
                 extra_args["nargs"] = argument.nargs
-            if argument.dest:
+            if argument.dest is not None:
                 extra_args["dest"] = argument.dest
             subparser.add_argument(
                 argument.name,
@@ -156,6 +165,15 @@ def __split_without_splitting_quotes(text: str) -> List[str]:
 
     """
     return [word.strip('"') for word in __RE_NO_QUOTES_SPLIT.findall(text)]
+
+
+def __md_monospace_items(items: List[str]) -> str:
+    """Transform a list of elements into a string of comma separated monospaced strings.
+
+    :returns: The result string.
+
+    """
+    return f"`{'`, `'.join(items)}`"
 
 
 @log_func
@@ -365,7 +383,7 @@ def match_list(verbose: bool = False) -> str:
     :returns: The formatted string.
 
     """
-    return format_match_list()
+    return format_match_list(verbose)
 
 
 @log_func
@@ -501,7 +519,12 @@ async def callup_add(
         call_up.add_player(name)
     except CallUpPlayerDoesNotExistError as error:
         raise BotPlayerError(
-            f"No se ha encontrado al jugador `{name}` en la base de datos."
+            f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+        ) from error
+    except CallUpMultiplePlayersFoundError as error:
+        raise BotPlayerError(
+            f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+            f" {__md_monospace_items(error.players)}. Por favor, concreta"
         ) from error
 
     await bot_call_message_function_with_keyboard(
@@ -533,7 +556,12 @@ async def callup_del(
         call_up.del_player(name)
     except CallUpPlayerDoesNotExistError as error:
         raise BotPlayerError(
-            f"No se ha encontrado al jugador `{name}` en la base de datos."
+            f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+        ) from error
+    except CallUpMultiplePlayersFoundError as error:
+        raise BotPlayerError(
+            f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+            f" {__md_monospace_items(error.players)}. Por favor, concreta"
         ) from error
 
     await bot_call_message_function_with_keyboard(
@@ -562,15 +590,26 @@ async def callup_search(
 
     if call_up.is_searching() and stop:
         try:
-            await context.bot.delete_message(
-                **call_up.subs_chat.as_dict()  # type: ignore [arg-type]
+            await bot_call_message_function(
+                bot_message_function=context.bot.edit_message_text,
+                text="Partido concluido.",
+                **call_up.subs_chat.as_dict(),
             )
         except Forbidden as error:
             await reply_function(
-                "El bot no tiene los permisos suficientes para eliminar el mensaje del chat de"
-                f" suplentes:\n\t{str(error)}",
+                (
+                    "El bot no tiene los permisos suficientes para actualizar el mensaje del chat"
+                    f" de suplentes:\n\t{str(error)}"
+                ),
             )
             return
+        except BadRequest as error:
+            await reply_function(
+                (
+                    "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
+                    f"\n\t{str(error)}"
+                ),
+            )
 
         call_up.set_subs_message_id(None)
         await reply_function("Se ha detenido la búsqueda de suplentes.")
@@ -612,6 +651,11 @@ async def callup_teams(swap: Optional[List[str]], context: ContextTypes.DEFAULT_
             raise BotPlayerError(
                 f"El jugador `{error.player}` no ha sido encontrado en la base de datos"
             ) from error
+        except CallUpMultiplePlayersFoundError as error:
+            raise BotPlayerError(
+                f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+                f" {__md_monospace_items(error.players)}. Por favor, concreta"
+            ) from error
         except CallUpPlayersNotInMatch as error:
             raise BotMatchError(
                 f"El jugador `{error.non_players[0]}` no está convocado"
@@ -645,9 +689,18 @@ async def callup_results(
             "Aún no se han creado equipos para el partido actual. Envía /teams primero.",
         ) from error
     except CallUpPlayersNotInMatch as error:
-        __player_list = "\n".join(f"· {player}" for player in error.non_players)
         raise BotMatchError(
-            f"Ninguno de estos jugadores está apuntado en el partido:\n{__player_list}"
+            "Ninguno de estos jugadores está apuntado en el partido:"
+            f" {__md_monospace_items(error.non_players)}"
+        ) from error
+    except CallUpPlayerDoesNotExistError as error:
+        raise BotPlayerError(
+            f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+        ) from error
+    except CallUpMultiplePlayersFoundError as error:
+        raise BotPlayerError(
+            f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+            f" {__md_monospace_items(error.players)}. Por favor, concreta"
         ) from error
     except DbStatisticForPlayerInMatchAlreadyExistent as error:
         raise BotMatchError(

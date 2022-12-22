@@ -31,11 +31,13 @@ from peewee import IntegrityError, fn
 from pyball.db import model, wrapper
 from pyball.db.errors import (
     DbMatchesCountInconsistencyError,
+    DbMultiplePlayersFoundError,
     DbPlayerAlreadyExistentError,
     DbPlayerNotUpdatedError,
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
+from pyball.logger import log_func
 
 
 def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
@@ -53,10 +55,15 @@ def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
     return ("ties", "ties")
 
 
+@log_func
 def find_player(player: Union[str, int]) -> wrapper.Player:
     """Obtain a player by it's name or id.
 
-    :param player: The id or the name of the player
+    If the player was not found, search for a wild-card of the name.
+
+    :param player: The id or the name of the player.
+    :raises DbMultiplePlayersFoundError: When the name search retrieves multiple users.
+    :raises model.Player.DoesNotExist: When the player or wild-card is not found in the database.
     :returns: The player.
 
     """
@@ -65,9 +72,20 @@ def find_player(player: Union[str, int]) -> wrapper.Player:
     except ValueError:
         operation = model.Player.name == player
 
-    return wrapper.Player.from_db(model.Player.get(operation))
+    player_list = model.Player.select().where(operation)
+
+    if not player_list:
+        player_list = model.Player.select().where(model.Player.name.contains(player))
+
+        if len(player_list) > 1:
+            raise DbMultiplePlayersFoundError(
+                player_names=[p.name for p in player_list], wild_card=str(player)
+            )
+
+    return wrapper.Player.from_db(player_list.get())
 
 
+@log_func
 def create_player(
     player_name: str, player_id: Optional[int] = None, main_player: bool = False
 ) -> None:
@@ -90,15 +108,17 @@ def create_player(
         raise DbPlayerAlreadyExistentError(player_name, player_id) from error
 
 
+@log_func
 def get_player_list() -> List[wrapper.Player]:
     """Get the list of existing players int he database.
 
     :returns: All the players.
 
     """
-    return model.Player.select().objects(wrapper.Player)
+    return list(model.Player.select().objects(wrapper.Player))
 
 
+@log_func
 def get_match_dict() -> Dict[datetime.datetime, Dict[str, int]]:
     """Get a list of the matches.
 
@@ -124,9 +144,11 @@ def get_match_dict() -> Dict[datetime.datetime, Dict[str, int]]:
     return matches
 
 
-def format_match_list() -> str:
+@log_func
+def format_match_list(verbose: bool) -> str:
     """Get the list of matches.
 
+    :param verbose: Whether to print verbose information with each team members
     :returns: All the matches with their result.
 
     """
@@ -137,9 +159,12 @@ def format_match_list() -> str:
             f"{match_list}{date.strftime('%Y/%m/%d %H:%M')}: Naranja {match['Naranja']} -"
             f" {match['Verde']} Verde\n"
         )
+        if verbose:
+            pass
     return match_list
 
 
+@log_func
 def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
     """Insert the new smatch statistics into the database and update the players.
 
@@ -151,6 +176,8 @@ def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
         try:
             model.MatchStatistic.insert(stat.db_dict()).execute()
         except IntegrityError as error:
+            # Ensure the already created records are deleted after the error
+            model.MatchStatistic.delete().where(model.MatchStatistic.date == stat.date).execute()
             player = find_player(stat.player)
             raise DbStatisticForPlayerInMatchAlreadyExistent(stat.date, player.name) from error
         player_update = {
@@ -165,9 +192,13 @@ def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
             raise DbPlayerNotUpdatedError("Couldn't update the player goals or assists")
 
     update_players_skill()
-    check_inconsistencies()
+    try:
+        check_inconsistencies()
+    except (DbScoreInconsistencyError, DbMatchesCountInconsistencyError):
+        fix_inconsistencies()
 
 
+@log_func
 def update_players_skill() -> None:
     """Update the skill of all the players in the database.
 
@@ -191,6 +222,7 @@ def update_players_skill() -> None:
             raise DbPlayerNotUpdatedError("Could not update the player skill")
 
 
+@log_func
 def check_inconsistencies() -> None:
     """Check inconsistencies in the database related to goals, assists, wins, losses and ties.
 
@@ -229,6 +261,7 @@ def check_inconsistencies() -> None:
             )
 
 
+@log_func
 def fix_inconsistencies() -> None:
     """Fix inconsistencies related to the sum of win, lost and tied matches and scores."""
 

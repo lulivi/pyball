@@ -22,7 +22,7 @@
 
 import datetime
 
-from typing import Optional
+from typing import List, Optional
 
 
 class PyBallDbError(Exception):
@@ -41,6 +41,19 @@ class DbPlayerAlreadyExistentError(PyBallDbError):
         self.identifier = identifier
         self.message = (
             f"Player `{self.name}` already in the database (with id: `{self.identifier}`)"
+        )
+        super().__init__(self.message)
+
+
+class DbMultiplePlayersFoundError(PyBallDbError):
+    """When the wildcard search of a player is general enough to find more than one."""
+
+    def __init__(self, player_names: List[str], wild_card: str) -> None:
+        self.players = player_names
+        self.wild_card = wild_card
+        self.message = (
+            f"Multiple players found when searching for the wild-card `{self.wild_card}`:"
+            f" `{'`, `'.join(self.players)}`"
         )
         super().__init__(self.message)
 

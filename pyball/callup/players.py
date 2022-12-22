@@ -26,12 +26,13 @@ import locale
 from enum import Enum, auto
 from typing import List, Union
 
+from pyball import db
 from pyball.callup.errors import (
+    CallUpMultiplePlayersFoundError,
     CallUpPlayerAlreadyCalledUpError,
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
-from pyball.db import model, wrapper
 from pyball.db.utils import find_player
 from pyball.logger import PYBALL_LOGGER
 
@@ -55,12 +56,12 @@ class Players:
 
     def __init__(self) -> None:
         """Initialize the object."""
-        self.__players: List[wrapper.Player] = []
+        self.__players: List[db.wrapper.Player] = []
         self.__maximum: int
         self.__compute_maximum()
 
     @property
-    def players(self) -> List[wrapper.Player]:
+    def players(self) -> List[db.wrapper.Player]:
         """Obtain the list of players.
 
         :returns: All the called-up players.
@@ -80,11 +81,13 @@ class Players:
 
         try:
             player_object = find_player(player)
-        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
             PYBALL_LOGGER.error(
                 f"Could not add the player as it was not found in the database: {error}"
             )
             raise CallUpPlayerDoesNotExistError(player) from error
+        except db.errors.DbMultiplePlayersFoundError as error:
+            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
         if player_object in self.__players:
             PYBALL_LOGGER.debug(f"The player {player_object} is already in the list")
@@ -107,11 +110,13 @@ class Players:
 
         try:
             player_object = find_player(player)
-        except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
             PYBALL_LOGGER.error(
                 f"Could not add the player as it was not found in the database: {error}"
             )
             raise CallUpPlayerDoesNotExistError(player) from error
+        except db.errors.DbMultiplePlayersFoundError as error:
+            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
         try:
             self.__players.remove(player_object)
