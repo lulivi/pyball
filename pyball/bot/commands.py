@@ -27,6 +27,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from pyball.__version__ import __version__
+from pyball.bot.argument_parser import (
+    CommandArgument,
+    MatchStatsAction,
+    PlayerNameAction,
+    SubCommand,
+    parse_command,
+)
 from pyball.bot.errors import (
     BotCommandError,
     BotExpectedMessageIdError,
@@ -36,10 +43,6 @@ from pyball.bot.errors import (
     BotPlayerError,
 )
 from pyball.bot.utils import (
-    CommandArgument,
-    MatchStatsAction,
-    PlayerNameAction,
-    SubCommand,
     bot_call_message_function,
     bot_call_message_function_with_keyboard,
     callup_add,
@@ -54,7 +57,6 @@ from pyball.bot.utils import (
     ensure_admin,
     get_call_up,
     match_list,
-    parse_command,
     player_add,
     player_list,
     player_rank,
@@ -204,7 +206,14 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                 ),
                 SubCommand(
                     ["rank", "r"],
-                    [CommandArgument("-points", action="store_true")],
+                    [
+                        CommandArgument(
+                            "order",
+                            choices=["points", "goals", "skill"],
+                            help="Order by skill, points or goals. Default skill.",
+                            default="skill",
+                        ),
+                    ],
                     callable=player_rank,
                 ),
                 SubCommand(
