@@ -209,7 +209,7 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                     [
                         CommandArgument(
                             "order",
-                            choices=["skill", "points", "goals", "assists"],
+                            choices=["skill", "s", "points", "p", "goals", "g", "assists", "a"],
                             help="Order by [s]kill, [p]oints, [g]oals or [a]sists. Default goals.",
                             default="goals",
                         ),

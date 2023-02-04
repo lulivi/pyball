@@ -332,7 +332,7 @@ def player_rank(order: str) -> str:
         "p": order_by_points,
         "goals": order_by_goals,
         "g": order_by_goals,
-        "asists": order_by_assists,
+        "assists": order_by_assists,
         "a": order_by_assists,
     }
 
