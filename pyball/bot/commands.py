@@ -209,9 +209,9 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                     [
                         CommandArgument(
                             "order",
-                            choices=["points", "goals", "skill"],
-                            help="Order by skill, points or goals. Default skill.",
-                            default="skill",
+                            choices=["skill", "points", "goals", "assists"],
+                            help="Order by [s]kill, [p]oints, [g]oals or [a]sists. Default goals.",
+                            default="goals",
                         ),
                     ],
                     callable=player_rank,

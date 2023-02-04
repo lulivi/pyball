@@ -53,6 +53,7 @@ from pyball.db.errors import (
 from pyball.db.utils import create_player, format_match_list, get_player_list
 from pyball.logger import PYBALL_LOGGER, log_func
 from pyball.settings import ADMINS_IDS
+from pyball.db import wrapper
 
 
 def md_monospace_items(items: List[str]) -> str:
@@ -295,13 +296,13 @@ def player_rank(order: str) -> str:
 
     """
 
-    def order_by_skill(player_list) -> List[str]:
+    def order_by_skill(player_list: List[wrapper.Player]) -> List[str]:
         return [
             f"`{player.name}`"
             for player in sorted(player_list, key=lambda player: player.skill, reverse=True)
         ]
 
-    def order_by_points(player_list) -> List[str]:
+    def order_by_points(player_list: List[wrapper.Player]) -> List[str]:
         return [
             f"`{player_tuple[0]}` ({player_tuple[1]})"
             for player_tuple in sorted(
@@ -311,14 +312,29 @@ def player_rank(order: str) -> str:
             )
         ]
 
-    def order_by_goals(player_list) -> List[str]:
+    def order_by_goals(player_list: List[wrapper.Player]) -> List[str]:
         return [
             f"`{player.name}` ({player.goals})"
             for player in sorted(player_list, key=lambda player: player.goals, reverse=True)
         ]
 
+    def order_by_assists(player_list: List[wrapper.Player]) -> List[str]:
+        return [
+            f"`{player.name}` ({player.assists})"
+            for player in sorted(player_list, key=lambda player: player.assists, reverse=True)
+        ]
+
     player_list = get_player_list()
-    rank_players_by = {"skill": order_by_skill, "points": order_by_points, "goals": order_by_goals}
+    rank_players_by = {
+        "skill": order_by_skill,
+        "s": order_by_skill,
+        "points": order_by_points,
+        "p": order_by_points,
+        "goals": order_by_goals,
+        "g": order_by_goals,
+        "asists": order_by_assists,
+        "a": order_by_assists,
+    }
 
     return "\n".join(
         f"{idx + 1:02} - {player_name}"

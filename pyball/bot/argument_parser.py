@@ -121,7 +121,7 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
         subparser = subparsers.add_parser(subcommand.names[0], aliases=subcommand.names[1:])
 
         for argument in subcommand.arguments:
-            extra_args: Dict[str, Union[str, tuple, int]] = {}
+            extra_args: Dict[str, Union[str, tuple, int, List[str]]] = {}
             if argument.help is not None:
                 extra_args["help"] = argument.help
             if argument.metavar is not None:
@@ -132,6 +132,8 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
                 extra_args["nargs"] = argument.nargs
             if argument.dest is not None:
                 extra_args["dest"] = argument.dest
+            if argument.choices is not None:
+                extra_args["choices"] = argument.choices
             subparser.add_argument(
                 argument.name,
                 action=argument.action,
