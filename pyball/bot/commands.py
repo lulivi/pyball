@@ -365,7 +365,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             args["date"] = datetime.datetime.strptime(args["date"], "%Y/%m/%d").replace(
                 hour=parsed_time.hour, minute=parsed_time.minute
             )
-    except BotCommandError as error:
+    except (BotCommandError, BotPlayerError) as error:
         await bot_call_message_function(
             bot_message_function=update.message.reply_text,
             text=str(error),

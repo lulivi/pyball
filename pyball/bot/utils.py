@@ -237,6 +237,7 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
         f" {call_up.title}\nJugadores restantes: {remaining_players}"
     )
     call_up_reply_message = "Mensaje de búsqueda actualizado."
+    search_is_finished = False
     if remaining_players < 1:
         substitutes_message_text = (
             "¡Hola compas! Ya hemos llegado al cupo de personas convocadas, ¡muchas gracias!"
@@ -244,6 +245,7 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
         call_up_reply_message = (
             "Se han alcanzado las plazas necesarias. No se buscará más suplentes."
         )
+        search_is_finished = True
 
     if call_up.is_searching():
         await bot_call_message_function(
@@ -251,6 +253,8 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
             text=substitutes_message_text,
             **call_up.subs_chat.as_dict(),
         )
+        if search_is_finished:
+            call_up.reset_subs_message_id()
         return call_up_reply_message
 
     call_up.set_subs_message_id(

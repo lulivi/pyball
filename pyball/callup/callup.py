@@ -156,6 +156,10 @@ class CallUp:
         """
         self.__subs_chat.message_id = message_id
 
+    def reset_subs_message_id(self) -> None:
+        """Reset the substitutes chat message identifier."""
+        self.__subs_chat.message_id = None
+
     def remaining_players(self) -> int:
         """Return the number of remaining players for the call-up.
 
