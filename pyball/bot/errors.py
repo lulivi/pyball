@@ -37,6 +37,10 @@ class BotExpectedMessageIdError(PyBallBotError):
     """When the message identifier is not the expected one."""
 
 
+class BotDatabaseError(PyBallBotError):
+    """There was a problem with he database."""
+
+
 class BotMatchError(PyBallBotError):
     """Errors related with the matches at the bot level."""
 

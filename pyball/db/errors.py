@@ -89,3 +89,7 @@ class DbUnknownResultError(PyBallDbError):
             f"The result provided (`{self.result}`) is not one of `wins`, `losses` and `ties`"
         )
         super().__init__(self.message)
+
+
+class DbNoBackUpError(PyBallDbError):
+    """There is no backup database."""

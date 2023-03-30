@@ -33,6 +33,7 @@ from pyball.bot.commands import (
     command_help,
     command_match,
     command_player,
+    command_version,
 )
 from pyball.db.model import database
 from pyball.settings import BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, PERSISTENCE_FILE_PATH
@@ -53,6 +54,9 @@ def build_application() -> Application:
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()
     application.add_handler(
         CommandHandler(("start", "help"), command_help, ~UpdateType.EDITED_MESSAGE)
+    )
+    application.add_handler(
+        CommandHandler(("v", "version"), command_version, ~UpdateType.EDITED_MESSAGE)
     )
     application.add_handler(
         CommandHandler(("m", "match"), command_match, ~UpdateType.EDITED_MESSAGE)

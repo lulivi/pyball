@@ -30,6 +30,7 @@ from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
 from pyball.bot.errors import (
+    BotDatabaseError,
     BotExpectedMessageIdError,
     BotMatchError,
     BotNoCallUpError,
@@ -46,14 +47,15 @@ from pyball.callup.errors import (
     CallUpPlayersNotInMatch,
 )
 from pyball.callup.match import PlayersStatInput
+from pyball.db import wrapper
 from pyball.db.errors import (
+    DbNoBackUpError,
     DbPlayerAlreadyExistentError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
-from pyball.db.utils import create_player, format_match_list, get_player_list
+from pyball.db.utils import create_player, format_match_list, get_player_list, rollback_database
 from pyball.logger import PYBALL_LOGGER, log_func
 from pyball.settings import ADMINS_IDS
-from pyball.db import wrapper
 
 
 def md_monospace_items(items: List[str]) -> str:
@@ -269,14 +271,70 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
 
 
 @log_func
-def match_list(verbose: bool = False) -> str:
+async def match_list(
+    verbose: bool,
+    chat_id: int,
+    user_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
+    reply_function=Callable,
+) -> None:
     """Retrieve the list of matches.
 
     :param verbose: Add verbose to the string.
-    :returns: The formatted string.
+    :param chat_id: Chat ID in which the command was used.
+    :param user_id: The requester user ID.
+    :param context: Context of the update.
+    :param reply_function: Function used to send messages within this method.
 
     """
-    return format_match_list(verbose)
+    target_chat_id: int = chat_id
+
+    if verbose:
+        target_chat_id = user_id
+        await reply_function(
+            text="Enviando resultados a la conversacion privada con el bot.",
+        )
+
+    if chat_id != user_id:
+        try:
+            await bot_call_message_function(
+                bot_message_function=context.bot.send_message,
+                text="Lista de partidos concluidos:",
+                chat_id=target_chat_id,
+            )
+        except Forbidden:
+            await reply_function(
+                text=(
+                    "Por favor, inicia primero una conversacion con el bot y asegúrate de tenerlo"
+                    " desbloqueado."
+                ),
+            )
+            return
+
+    for message in format_match_list(verbose):
+        await bot_call_message_function(
+            bot_message_function=context.bot.send_message,
+            text=message,
+            chat_id=target_chat_id,
+        )
+
+
+@log_func
+async def match_rollback() -> str:
+    """Rollback to the last database state.
+
+    :raises BotDatabaseError: When no database backup is found.
+    :returns: A successfull message.
+
+    """
+    try:
+        rollback_database()
+    except DbNoBackUpError as error:
+        raise BotDatabaseError(
+            "No se ha encontrado una copia de seguridad de la base de datos."
+        ) from error
+
+    return "Recuperado último estado de la base de datos."
 
 
 @log_func
@@ -597,6 +655,7 @@ async def callup_results(
     """Set the match results.
 
     :param context: The information related to the update.
+    :param reply_function: Function used to send messages within this method.
 
     """
     if context.chat_data is None:

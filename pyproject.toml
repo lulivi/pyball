@@ -5,7 +5,7 @@ requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 [tool.poetry-dynamic-versioning]
 dirty = true
 enable = true
-format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}+{{ distance }}.{{ commit }}{% endif %}"
+format-jinja = "{% if distance == 0 %}{{ base }}{% if stage %}.{{ stage }}{% endif %}{% else %}{{ base }}+{{ distance }}.{{ commit }}{% endif %}"
 latest-tag = true
 vcs = "git"
 
@@ -76,17 +76,20 @@ legacy_tox_ini = """
 [tox]
 isolated_build = True
 skip_missing_interpreters = true
-envlist = py38,lint
+envlist = format,py38,lint
 
 [testenv]
 extras = tox-test
 commands =
     pytest -x {toxinidir}/tests/ --cov={toxinidir}/pyball/ --cov-report=term-missing -vvv
 
-[testenv:lint]
+[testenv:format]
 commands =
     black --check --diff {toxinidir}/pyball/ {toxinidir}/tests
     isort --check --diff {toxinidir}/pyball/ {toxinidir}/tests
+
+[testenv:lint]
+commands =
     pydocstyle {toxinidir}/pyball/ {toxinidir}/tests --add-ignore D105,D107
     pycodestyle {toxinidir}/pyball/ {toxinidir}/tests --max-line-length 99
     mypy {toxinidir}/pyball/ {toxinidir}/tests

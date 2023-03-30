@@ -22,8 +22,10 @@
 """Database utils."""
 
 import datetime
+import shutil
 
 from collections import defaultdict
+from pathlib import Path
 from typing import DefaultDict, Dict, List, Optional, Tuple, Union
 
 from peewee import IntegrityError, fn
@@ -32,12 +34,13 @@ from pyball.db import model, wrapper
 from pyball.db.errors import (
     DbMatchesCountInconsistencyError,
     DbMultiplePlayersFoundError,
+    DbNoBackUpError,
     DbPlayerAlreadyExistentError,
     DbPlayerNotUpdatedError,
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
-from pyball.logger import log_func
+from pyball.logger import PYBALL_LOGGER, log_func
 
 
 def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
@@ -119,13 +122,13 @@ def get_player_list() -> List[wrapper.Player]:
 
 
 @log_func
-def get_match_dict() -> Dict[datetime.datetime, Dict[str, int]]:
+def get_match_dict() -> Dict[datetime.datetime, Dict[str, Union[int, List[str]]]]:
     """Get a list of the matches.
 
     :returns: The matches with their score.
 
     """
-    matches = {}
+    matches: Dict[datetime.datetime, Dict[str, Union[int, List[str]]]] = {}
 
     for match in (
         model.MatchStatistic.select(model.MatchStatistic.date)
@@ -139,29 +142,68 @@ def get_match_dict() -> Dict[datetime.datetime, Dict[str, int]]:
             .where(model.MatchStatistic.date == match.date)
             .group_by(model.MatchStatistic.team)
         )
-        matches[match.date] = {k.team: k.goals for k in teams}
+        players = list(
+            model.MatchStatistic.select(
+                model.MatchStatistic.player, model.MatchStatistic.team
+            ).where(model.MatchStatistic.date == match.date)
+        )
+        matches[match.date] = {
+            k.team: {
+                "score": k.goals,
+                "players": [p.player.name for p in players if p.team == k.team],
+            }
+            for k in teams
+        }
 
     return matches
 
 
 @log_func
-def format_match_list(verbose: bool) -> str:
+def format_match_list(verbose: bool) -> List[str]:
     """Get the list of matches.
 
     :param verbose: Whether to print verbose information with each team members
     :returns: All the matches with their result.
 
     """
-    match_list = ""
+    match_list: List[str] = []
 
     for date, match in get_match_dict().items():
-        match_list = (
-            f"{match_list}{date.strftime('%Y/%m/%d %H:%M')}: Naranja {match['Naranja']} -"
-            f" {match['Verde']} Verde\n"
+        current_match = (
+            f"*{date.strftime('%Y/%m/%d %H:%M')}:*{format_match_result(match, verbose)}"
         )
-        if verbose:
-            pass
+
+        if verbose or not match_list:
+            match_list.append(current_match)
+            continue
+
+        match_list[0] = f"{match_list[0]}\n{current_match}"
+
     return match_list
+
+
+def format_match_result(match, verbose: bool) -> str:
+    """Get a match formatted as string with its results and players.
+
+    :param match: A dictionary containing the match teams, the scores and players.
+    :param verbose: Whether to expand match information or not.
+    :returns: The match string.
+
+    """
+    current_match_team_results = (
+        f"\n    Verde `{match['Verde']['score']}` - `{match['Naranja']['score']}` Naranja"
+    )
+
+    if verbose:
+        current_match_team_results = ""
+        for team, data in match.items():
+            current_match_team_results = (
+                f"{current_match_team_results}\n\n· {team}: `{data['score']}`"
+            )
+            player_list = "\n  - ".join(f"`{player}`" for player in data["players"])
+            current_match_team_results = f"{current_match_team_results}\n  - {player_list}"
+
+    return current_match_team_results
 
 
 @log_func
@@ -172,6 +214,8 @@ def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
     :raises DbPlayerNotUpdatedError: If a player is not updated with the match result.
 
     """
+    backup_database()
+
     for stat in match_statistics:
         try:
             model.MatchStatistic.insert(stat.db_dict()).execute()
@@ -196,6 +240,27 @@ def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
         check_inconsistencies()
     except (DbScoreInconsistencyError, DbMatchesCountInconsistencyError):
         fix_inconsistencies()
+
+
+@log_func
+def backup_database() -> None:
+    """Create a backup of the database."""
+    database_file: Path = Path(model.database.database).resolve()
+    backup_database_file: Path = database_file.with_name(f"{database_file.name}.bck")
+    shutil.copy(str(database_file), str(backup_database_file))
+
+
+@log_func
+def rollback_database() -> None:
+    """Restore the last backup of the database."""
+    database_file: Path = Path(model.database.database).resolve()
+    backup_database_file: Path = database_file.with_name(f"{database_file.name}.bck")
+
+    if not backup_database_file.exists():
+        PYBALL_LOGGER.info("No database backup to restore")
+        raise DbNoBackUpError()
+
+    shutil.copy(str(backup_database_file), str(database_file))
 
 
 @log_func

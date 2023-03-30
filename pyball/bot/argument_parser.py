@@ -63,7 +63,7 @@ class MatchStatsAction(argparse.Action):  # pylint: disable=too-few-public-metho
 
         # Ensure there is at least one space before the first `g` for the proper splitting
         raw_stats_str = f" {' '.join(values)}"
-        print(raw_stats_str)
+
         # The first item will be empty since there is nothing at the left of the first `g`
         for raw_stat in raw_stats_str.split(" g ")[1:]:
             stat = MatchStat(*raw_stat.split(" a "))

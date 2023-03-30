@@ -36,6 +36,7 @@ from pyball.bot.argument_parser import (
 )
 from pyball.bot.errors import (
     BotCommandError,
+    BotDatabaseError,
     BotExpectedMessageIdError,
     BotMatchError,
     BotNoCallUpError,
@@ -57,6 +58,7 @@ from pyball.bot.utils import (
     ensure_admin,
     get_call_up,
     match_list,
+    match_rollback,
     player_add,
     player_list,
     player_rank,
@@ -71,6 +73,17 @@ from pyball.callup.errors import (
     CallUpPlayerNotCalledUpError,
 )
 from pyball.logger import PYBALL_LOGGER, log_func
+
+
+@log_func
+async def command_version(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show version of the application.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    await bot_call_message_function(update.message.reply_text, f"Pyball `v{__version__}`")
 
 
 @log_func
@@ -142,21 +155,38 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 @log_func
-async def command_match(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Match actions.
 
     :param update: The event that caused the bot petition.
     :param context: The information related to the update.
 
     """
+    if update.effective_user is None:
+        PYBALL_LOGGER.error("No `effective_user` object in the command_match update")
+        return
+
+    if update.effective_chat is None:
+        PYBALL_LOGGER.error("No `effective_chat` object in the command_match update")
+        return
+
     try:
         args = parse_command(
             command="/match",
             subcommands=[
                 SubCommand(
                     ["list", "l"],
-                    [CommandArgument("-v", dest="verbose")],
-                    callable=match_list,
+                    [CommandArgument("-v", dest="verbose", action="store_true")],
+                    callable=functools.partial(
+                        match_list,
+                        chat_id=update.effective_chat.id,
+                        user_id=update.effective_user.id,
+                        context=context,
+                        reply_function=update.message.reply_text,
+                    ),
+                ),
+                SubCommand(
+                    ["rollback"], callable=ensure_admin(update.effective_user.id, match_rollback)
                 ),
             ],
             text=update.message.text,
@@ -169,8 +199,8 @@ async def command_match(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
-        output = args.pop("func")(**args)
-    except BotNotAdminError as error:
+        output = await args.pop("func")(**args)
+    except (BotNotAdminError, BotDatabaseError) as error:
         await bot_call_message_function(
             bot_message_function=update.message.reply_text,
             text=str(error),
