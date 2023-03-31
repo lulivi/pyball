@@ -83,7 +83,7 @@ async def command_version(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     :param context: The information related to the update.
 
     """
-    await bot_call_message_function(update.message.reply_text, f"Pyball `v{__version__}`")
+    await bot_call_message_function(update.message.reply_text, f"Pyball `{__version__}`")
 
 
 @log_func

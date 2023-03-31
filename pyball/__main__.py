@@ -24,11 +24,13 @@ from argparse import ArgumentParser
 
 from pyball.bot import build_application
 from pyball.logger import PYBALL_LOGGER
+from pyball.__version__ import __version__
 
 
 def main() -> None:
     """Start the bot."""
     parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
+    parser.add_argument("-v", "--version", action="version", version=f"Pyball {__version__}")
     parser.parse_args()
 
     PYBALL_LOGGER.warning("**********************************************************")
