@@ -21,6 +21,7 @@
 """Utility functions."""
 import datetime
 import functools
+import logging
 
 from typing import Callable, List, Optional, Union, cast
 
@@ -54,8 +55,10 @@ from pyball.db.errors import (
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
 from pyball.db.utils import create_player, format_match_list, get_player_list, rollback_database
-from pyball.logger import PYBALL_LOGGER, log_func
+from pyball.logger import log_func
 from pyball.settings import ADMINS_IDS
+
+logger = logging.getLogger(__name__)
 
 
 def md_monospace_items(items: List[str]) -> str:
@@ -143,16 +146,16 @@ def validate_call_up_message_id(call_up: CallUp, reply_to_message: Message):
         call-up.
 
     """
-    PYBALL_LOGGER.debug("Checking if the call-up message id is valid...")
+    logger.debug("Checking if the call-up message id is valid...")
     if reply_to_message is None or not call_up.validate_message_id(reply_to_message.message_id):
-        PYBALL_LOGGER.error(
+        logger.error(
             f"The current call-up id (`{call_up.main_chat.message_id}`) does not match the button"
             f" press (`{reply_to_message.message_id}`)"
         )
         raise BotExpectedMessageIdError(
             "Responde al mensaje de la última convocatoria con el comando elegido."
         )
-    PYBALL_LOGGER.debug("Checking if the call-up message id is valid... OK")
+    logger.debug("Checking if the call-up message id is valid... OK")
 
 
 def command_ensure_admin(func):
@@ -164,11 +167,11 @@ def command_ensure_admin(func):
         user_id = update.message.from_user.id
 
         if ADMINS_IDS and user_id not in ADMINS_IDS:
-            PYBALL_LOGGER.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
+            logger.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
             await update.message.reply_text("No tienes permisos para ejecutar este comando.")
             return
 
-        PYBALL_LOGGER.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
+        logger.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
 
         return await func(update, context)
 
@@ -182,9 +185,9 @@ def ensure_admin(user_id: int, func: Callable):
     def wrapper(*args, **kwargs):
         """Check the user executing the command is admin."""
         if ADMINS_IDS and user_id not in ADMINS_IDS:
-            PYBALL_LOGGER.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
+            logger.debug(f"User {user_id} is not an admin ({ADMINS_IDS})")
             raise BotNotAdminError("No tienes permisos para ejecutar este comando.")
-        PYBALL_LOGGER.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
+        logger.debug(f"User {user_id} is an admin ({ADMINS_IDS})")
 
         return func(*args, **kwargs)
 
@@ -212,7 +215,7 @@ async def search_substitutes(
         return
 
     try:
-        PYBALL_LOGGER.debug(f"Sending search message {call_up}")
+        logger.debug(f"Sending search message {call_up}")
         search_message = await update_substitutes_search(call_up, bot)
     except Forbidden as error:
         reply_function(

@@ -21,6 +21,7 @@
 """Call-up object."""
 
 import datetime
+import logging
 
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Union
@@ -29,8 +30,9 @@ from pyball.__version__ import __version__
 from pyball.callup.errors import CallUpMatchNotYetCreatedError
 from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
-from pyball.logger import PYBALL_LOGGER
 from pyball.settings import SUBSTITUTES_ID
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -85,7 +87,7 @@ class CallUp:
             PlayerAction.LEAVE.name: self.del_player,
         }
         self.__match: Optional[Match] = None
-        PYBALL_LOGGER.debug(f"Creating a new call-up: {self.__title}")
+        logger.debug(f"Creating a new call-up: {self.__title}")
 
     @property
     def title(self) -> str:

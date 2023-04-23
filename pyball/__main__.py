@@ -20,11 +20,14 @@
 # SOFTWARE.
 """Bot main file."""
 
+import logging
+
 from argparse import ArgumentParser
 
-from pyball.bot import build_application
-from pyball.logger import PYBALL_LOGGER
 from pyball.__version__ import __version__
+from pyball.bot import build_application
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -33,9 +36,9 @@ def main() -> None:
     parser.add_argument("-v", "--version", action="version", version=f"Pyball {__version__}")
     parser.parse_args()
 
-    PYBALL_LOGGER.warning("**********************************************************")
-    PYBALL_LOGGER.warning("*********************** Booting up!! *********************")
-    PYBALL_LOGGER.warning("**********************************************************")
+    logger.warning("**********************************************************")
+    logger.warning("*********************** Booting up!! *********************")
+    logger.warning("**********************************************************")
 
     # Create the pickle persistence
     application = build_application()

@@ -22,6 +22,7 @@
 
 import functools
 import locale
+import logging
 
 from enum import Enum, auto
 from typing import List, Union
@@ -33,8 +34,10 @@ from pyball.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
+from pyball.db import wrapper
 from pyball.db.utils import find_player
-from pyball.logger import PYBALL_LOGGER
+
+logger = logging.getLogger(__name__)
 
 
 class PlayerAction(Enum):
@@ -59,6 +62,7 @@ class Players:
         self.__players: List[db.wrapper.Player] = []
         self.__maximum: int
         self.__compute_maximum()
+        logger.debug("Created the Players object")
 
     @property
     def players(self) -> List[db.wrapper.Player]:
@@ -77,24 +81,24 @@ class Players:
         :raises CallUpPlayerAlreadyCalledUpError: If the player is already in the call-up list.
 
         """
-        PYBALL_LOGGER.debug(f"Trying to add the player `{player}`")
+        logger.debug(f"Adding player `{player}`")
 
         try:
-            player_object = find_player(player)
+            player_object: wrapper.Player = find_player(player)
         except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
-            PYBALL_LOGGER.error(
-                f"Could not add the player as it was not found in the database: {error}"
-            )
+            logger.error(f"Adding player `{player}`: Player not found in the database")
             raise CallUpPlayerDoesNotExistError(player) from error
         except db.errors.DbMultiplePlayersFoundError as error:
+            logger.error(f"Adding player `{player}`: Multiple players found in the database")
             raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
         if player_object in self.__players:
-            PYBALL_LOGGER.debug(f"The player {player_object} is already in the list")
+            logger.error(f"Adding player `{player}`: Already in `{player_object.name}`")
             raise CallUpPlayerAlreadyCalledUpError(
                 f"El jugador `{player_object}` ya está apuntado a esta convocatoria"
             )
 
+        logger.debug(f"Adding player `{player}`: Added `{player_object.name}`")
         self.__players.append(player_object)
         self.__compute_maximum()
 
@@ -106,22 +110,22 @@ class Players:
         :raises CallUpPlayerNotCalledUpError: If the player is hasn't been called-up.
 
         """
-        PYBALL_LOGGER.debug(f"Trying to remove the player `{player}`")
+        logger.debug(f"Removing player `{player}`")
 
         try:
-            player_object = find_player(player)
+            player_object: wrapper.Player = find_player(player)
         except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
-            PYBALL_LOGGER.error(
-                f"Could not add the player as it was not found in the database: {error}"
-            )
+            logger.error(f"Removing player `{player}`: Player not found in the database")
             raise CallUpPlayerDoesNotExistError(player) from error
         except db.errors.DbMultiplePlayersFoundError as error:
+            logger.error(f"Removing player `{player}`: Multiple players found in the database")
             raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
         try:
             self.__players.remove(player_object)
+            logger.debug(f"Removing player `{player}`: Removed `{player_object.name}`")
         except ValueError as error:
-            PYBALL_LOGGER.debug(f"The player `{player_object}` is not in the list")
+            logger.debug(f"Removing player `{player}`: Not in `{player_object}`")
             raise CallUpPlayerNotCalledUpError(
                 f"El jugador `{player_object}` no está apuntado a esta convocatoria"
             ) from error

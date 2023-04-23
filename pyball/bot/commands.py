@@ -22,6 +22,7 @@
 
 import datetime
 import functools
+import logging
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -72,7 +73,9 @@ from pyball.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
-from pyball.logger import PYBALL_LOGGER, log_func
+from pyball.logger import log_func
+
+logger = logging.getLogger(__name__)
 
 
 @log_func
@@ -163,11 +166,11 @@ async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     """
     if update.effective_user is None:
-        PYBALL_LOGGER.error("No `effective_user` object in the command_match update")
+        logger.error("No `effective_user` object in the command_match update")
         return
 
     if update.effective_chat is None:
-        PYBALL_LOGGER.error("No `effective_chat` object in the command_match update")
+        logger.error("No `effective_chat` object in the command_match update")
         return
 
     try:
@@ -223,7 +226,7 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
     """
     if update.effective_user is None:
-        PYBALL_LOGGER.error("No `effective_user` object in the command_player update")
+        logger.error("No `effective_user` object in the command_player update")
         return
 
     try:

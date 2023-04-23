@@ -21,6 +21,7 @@
 """Match object."""
 import datetime
 import itertools
+import logging
 
 from collections import defaultdict
 from typing import DefaultDict, Dict, List, NamedTuple, Optional, Tuple, Union
@@ -34,7 +35,8 @@ from pyball.callup.errors import (
 )
 from pyball.callup.players import Players
 from pyball.db.utils import add_match_results, find_player, get_results_names
-from pyball.logger import PYBALL_LOGGER
+
+logger = logging.getLogger(__name__)
 
 
 class MatchStat:
@@ -127,10 +129,10 @@ class Match:
 
         if 0 >= teams_number or teams_number > len(players) or len(players) % teams_number != 0:
             error = CallUpMatchWrongPlayersNumberError(len(players))
-            PYBALL_LOGGER.error(str(error))
+            logger.error(str(error))
             raise error
 
-        PYBALL_LOGGER.debug(f"Creating {teams_number} teams from the player list: {players}")
+        logger.debug(f"Creating {teams_number} teams from the player list: {players}")
         self.__teams = [[] for _ in range(teams_number)]
         self.__generate_teams(players, teams_number)
         self.__balance_teams()
@@ -305,7 +307,7 @@ class Match:
         ):
             team_list = "\n· ".join(map(lambda p: f"`{p.name}`", team))
             team_sum = Match.__skill_sum(team)
-            PYBALL_LOGGER.debug(f"Team {team_name} ({team_sum}): {team}")
+            logger.debug(f"Team {team_name} ({team_sum}): {team}")
             if self.__score:
                 team_goals = str(self.__score[team_index])
             str_output = f"{str_output}\nTeam {team_name}: {team_goals}\n· {team_list}\n"

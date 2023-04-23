@@ -29,18 +29,19 @@ from typing import Callable
 
 from pyball.settings import LOGS_DIRECTORY_PATH
 
-BASIC_FMT = "{asctime} - {name} - {levelname} - {message}"
+ADVANCED_FMT = "{asctime}|{levelname}|{name}:{lineno: 4d}| {message}"
+ADVANCED_FORMATTER = logging.Formatter(fmt=ADVANCED_FMT, datefmt="%Y/%m/%d-%H:%M", style="{")
 
 stream_log = logging.StreamHandler()
 stream_log.setLevel(logging.INFO)
 
+
 full_log = logging.handlers.RotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("bot.log"),
+    LOGS_DIRECTORY_PATH.joinpath("full.log"),
     maxBytes=1024 * 1024,
     backupCount=5,
 )
-full_log.setFormatter(logging.Formatter(BASIC_FMT, style="{"))
-full_log.setLevel(logging.DEBUG)
+
 
 pyball_log = logging.handlers.TimedRotatingFileHandler(
     LOGS_DIRECTORY_PATH.joinpath("pyball.log"),
@@ -49,19 +50,49 @@ pyball_log = logging.handlers.TimedRotatingFileHandler(
     atTime=datetime.time(hour=23, minute=59),
 )
 pyball_log.addFilter(logging.Filter("pyball"))
-pyball_log.setFormatter(
-    logging.Formatter("{asctime} - {name}:{lineno} - {levelname} - {message}", style="{")
+
+
+bot_log = logging.handlers.TimedRotatingFileHandler(
+    LOGS_DIRECTORY_PATH.joinpath("bot.log"),
+    when="W2",
+    backupCount=5,
+    atTime=datetime.time(hour=23, minute=59),
 )
-pyball_log.setLevel(logging.DEBUG)
+bot_log.addFilter(logging.Filter("pyball.bot"))
+
+
+players_log = logging.handlers.TimedRotatingFileHandler(
+    LOGS_DIRECTORY_PATH.joinpath("players.log"),
+    when="W2",
+    backupCount=2,
+    atTime=datetime.time(hour=23, minute=59),
+)
+players_log.addFilter(logging.Filter("pyball.callup.players"))
+
+
+db_log = logging.handlers.TimedRotatingFileHandler(
+    LOGS_DIRECTORY_PATH.joinpath("db.log"),
+    when="W2",
+    backupCount=5,
+    atTime=datetime.time(hour=23, minute=59),
+)
+db_log.addFilter(logging.Filter("pyball.db"))
+
 
 logging.basicConfig(
-    format=BASIC_FMT,
-    level=logging.DEBUG,
-    handlers=(stream_log, full_log, pyball_log),
+    format=ADVANCED_FMT,
+    datefmt="%Y/%m/%d-%H:%M",
     style="{",
+    level=logging.DEBUG,
+    handlers=(
+        stream_log,
+        full_log,
+        pyball_log,
+        bot_log,
+        players_log,
+        db_log,
+    ),
 )
-
-PYBALL_LOGGER = logging.getLogger(__name__)
 
 
 def log_func(func: Callable):

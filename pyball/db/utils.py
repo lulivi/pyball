@@ -22,6 +22,7 @@
 """Database utils."""
 
 import datetime
+import logging
 import shutil
 
 from collections import defaultdict
@@ -40,7 +41,9 @@ from pyball.db.errors import (
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
-from pyball.logger import PYBALL_LOGGER, log_func
+from pyball.logger import log_func
+
+logger = logging.getLogger(__name__)
 
 
 def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
@@ -257,7 +260,7 @@ def rollback_database() -> None:
     backup_database_file: Path = database_file.with_name(f"{database_file.name}.bck")
 
     if not backup_database_file.exists():
-        PYBALL_LOGGER.info("No database backup to restore")
+        logger.info("No database backup to restore")
         raise DbNoBackUpError()
 
     shutil.copy(str(backup_database_file), str(database_file))
