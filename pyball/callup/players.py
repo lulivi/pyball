@@ -149,6 +149,14 @@ class Players:
         """
         return self.__maximum - len(self)
 
+    def are_ready(self) -> bool:
+        """Find if the players are ready to play.
+
+        :returns: If there are no remaining players to search and the match can be created.
+
+        """
+        return self.remaining() == 0
+
     def __len__(self) -> int:
         """Obtain the number of players signed up for the call-up.
 

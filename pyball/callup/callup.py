@@ -196,6 +196,9 @@ class CallUp:
         self.__players.join(player)
         self.__match = None
 
+        if self.__players.are_ready():
+            self.create_match()
+
     def del_player(self, player: Union[str, int]) -> None:
         """Remove a player from the call-up.
 
@@ -204,6 +207,9 @@ class CallUp:
         """
         self.__players.leave(player)
         self.__match = None
+
+        if self.__players.are_ready():
+            self.create_match()
 
     def create_match(self) -> None:
         """Create a new match."""
