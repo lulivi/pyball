@@ -55,39 +55,40 @@ class ChatInfo:
 class CallUp:
     """Necessary information involving a match call-up.
 
-    :ivar __date: Call-up date.
-    :ivar __title: Summary of the call-up.
-    :ivar __main_chat: Info about the main chat post.
-    :ivar __subs_chat: Info about the substitutes chat post.
-    :ivar __players: Object containing the list of players.
-    :cvar __actions: Dictionary containing the two actions for a player to do in
+    :ivar _date: Call-up date.
+    :ivar _title: Summary of the call-up.
+    :ivar _main_chat: Info about the main chat post.
+    :ivar _subs_chat: Info about the substitutes chat post.
+    :ivar _players: Object containing the list of players.
+    :cvar _actions: Dictionary containing the two actions for a player to do in
         a call-up.
+    :ivar _match: Object containing the teams of the call-up.
 
     """
 
     __slots__ = [
-        "__date",
-        "__title",
-        "__main_chat",
-        "__subs_chat",
-        "__players",
-        "__actions",
-        "__match",
+        "_date",
+        "_title",
+        "_main_chat",
+        "_subs_chat",
+        "_players",
+        "_actions",
+        "_match",
     ]
-    __actions: Dict[str, Callable]
+    _actions: Dict[str, Callable]
 
     def __init__(self, date: datetime.datetime, main_chat_id: int, main_chat_msg: int) -> None:
-        self.__date: datetime.datetime = date
-        self.__title: str = datetime.datetime.strftime(date, "%A %Y/%m/%d %H:%M")
-        self.__main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
-        self.__subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
-        self.__players: Players = Players()
-        self.__actions = {
+        self._date: datetime.datetime = date
+        self._title: str = datetime.datetime.strftime(date, "%A %Y/%m/%d %H:%M")
+        self._main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
+        self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
+        self._players: Players = Players()
+        self._actions = {
             PlayerAction.JOIN.name: self.add_player,
             PlayerAction.LEAVE.name: self.del_player,
         }
-        self.__match: Optional[Match] = None
-        logger.debug(f"Creating a new call-up: {self.__title}")
+        self._match: Optional[Match] = None
+        logger.debug(f"Creating a new call-up: {self._title}")
 
     @property
     def title(self) -> str:
@@ -96,7 +97,7 @@ class CallUp:
         :returns: The title string.
 
         """
-        return self.__title
+        return self._title
 
     @property
     def players(self) -> Players:
@@ -105,7 +106,7 @@ class CallUp:
         :returns: The player object for this call-up.
 
         """
-        return self.__players
+        return self._players
 
     @property
     def match(self) -> Match:
@@ -116,12 +117,12 @@ class CallUp:
         :returns: The match.
 
         """
-        if not self.__match:
+        if not self._match:
             raise CallUpMatchNotYetCreatedError(
                 "The match hasn't been created yet, so no results can be set"
             )
 
-        return self.__match
+        return self._match
 
     @property
     def main_chat(self) -> ChatInfo:
@@ -130,7 +131,7 @@ class CallUp:
         :returns: Main chat id and message id.
 
         """
-        return self.__main_chat
+        return self._main_chat
 
     @property
     def subs_chat(self) -> ChatInfo:
@@ -139,7 +140,7 @@ class CallUp:
         :returns: Substitutes chat id and message id.
 
         """
-        return self.__subs_chat
+        return self._subs_chat
 
     def act(self, action: str, player: Union[str, int]) -> None:
         """Act depending on the player action.
@@ -148,7 +149,7 @@ class CallUp:
         :param player: Name of the player.
 
         """
-        self.__actions[action](player)
+        self._actions[action](player)
 
     def set_subs_message_id(self, message_id: Optional[int]) -> None:
         """Set the substitutes chat message identifier.
@@ -156,11 +157,11 @@ class CallUp:
         :param message_id: The identifier of the substitutes search message or None.
 
         """
-        self.__subs_chat.message_id = message_id
+        self._subs_chat.message_id = message_id
 
     def reset_subs_message_id(self) -> None:
         """Reset the substitutes chat message identifier."""
-        self.__subs_chat.message_id = None
+        self._subs_chat.message_id = None
 
     def remaining_players(self) -> int:
         """Return the number of remaining players for the call-up.
@@ -168,7 +169,7 @@ class CallUp:
         :returns: Missing players.
 
         """
-        return self.__players.remaining()
+        return self._players.remaining()
 
     def validate_message_id(self, request_message_id: int) -> bool:
         """Check if the requester message identifier matches with the main chat message id.
@@ -177,7 +178,7 @@ class CallUp:
         :returns: Whether the incomming message id is the same as the call-up message id.
 
         """
-        return self.__main_chat.message_id == request_message_id
+        return self._main_chat.message_id == request_message_id
 
     def is_searching(self) -> bool:
         """Check if the current call-up is searching for substitutes.
@@ -185,7 +186,7 @@ class CallUp:
         :returns: Whether the call-up needs substitutes.
 
         """
-        return self.__subs_chat.message_id is not None
+        return self._subs_chat.message_id is not None
 
     def add_player(self, player: Union[str, int]) -> None:
         """Add player to the call-up.
@@ -193,10 +194,10 @@ class CallUp:
         :param player_name: Name of the player who wants to join.
 
         """
-        self.__players.join(player)
-        self.__match = None
+        self._players.join(player)
+        self._match = None
 
-        if self.__players.are_ready():
+        if self._players.are_ready():
             self.create_match()
 
     def del_player(self, player: Union[str, int]) -> None:
@@ -205,15 +206,15 @@ class CallUp:
         :param player_name: Name of the player who wants to leave.
 
         """
-        self.__players.leave(player)
-        self.__match = None
+        self._players.leave(player)
+        self._match = None
 
-        if self.__players.are_ready():
+        if self._players.are_ready():
             self.create_match()
 
     def create_match(self) -> None:
         """Create a new match."""
-        self.__match = Match(self.__players)
+        self._match = Match(self._players)
 
     def set_results(self, results: PlayersStatInput) -> None:
         """Introduce the results of the match.
@@ -221,18 +222,18 @@ class CallUp:
         :param results: The results object.
 
         """
-        if self.__match is None:
+        if self._match is None:
             raise CallUpMatchNotYetCreatedError(
                 "The match hasn't been created yet, so no results can be set"
             )
 
-        self.__match.set_results(results, self.__date)
+        self._match.set_results(results, self._date)
 
     def __str__(self) -> str:
-        output = f"Convocatoria: *{self.__title}*\n\n{str(self.__players)}"
+        output = f"Convocatoria: *{self._title}*\n\n{str(self._players)}"
 
-        if self.__match is not None:
-            output = f"{output}\n{str(self.__match)}"
+        if self._match is not None:
+            output = f"{output}\n{str(self._match)}"
 
         output = f"{output}\n\nVersion: `{__version__}`"
 

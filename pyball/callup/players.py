@@ -50,18 +50,18 @@ class PlayerAction(Enum):
 class Players:
     """Simple class to manage the called players for a game.
 
-    :ivar __players: The list of players.
+    :ivar _players: The list of players.
     :ivar _maximum: The max number to search player for.
 
     """
 
-    __slots__ = ["__players", "__maximum"]
+    __slots__ = ["_players", "_maximum"]
 
     def __init__(self) -> None:
         """Initialize the object."""
-        self.__players: List[db.wrapper.Player] = []
-        self.__maximum: int
-        self.__compute_maximum()
+        self._players: List[db.wrapper.Player] = []
+        self._maximum: int
+        self._compute_maximum()
         logger.debug("Created the Players object")
 
     @property
@@ -71,7 +71,7 @@ class Players:
         :returns: All the called-up players.
 
         """
-        return self.__players
+        return self._players
 
     def join(self, player: Union[str, int]) -> None:
         """Join the call-up.
@@ -92,15 +92,15 @@ class Players:
             logger.error(f"Adding player `{player}`: Multiple players found in the database")
             raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
-        if player_object in self.__players:
+        if player_object in self._players:
             logger.error(f"Adding player `{player}`: Already in `{player_object.name}`")
             raise CallUpPlayerAlreadyCalledUpError(
                 f"El jugador `{player_object}` ya está apuntado a esta convocatoria"
             )
 
         logger.debug(f"Adding player `{player}`: Added `{player_object.name}`")
-        self.__players.append(player_object)
-        self.__compute_maximum()
+        self._players.append(player_object)
+        self._compute_maximum()
 
     def leave(self, player: Union[str, int]) -> None:
         """Leave the call-up.
@@ -122,7 +122,7 @@ class Players:
             raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
         try:
-            self.__players.remove(player_object)
+            self._players.remove(player_object)
             logger.debug(f"Removing player `{player}`: Removed `{player_object.name}`")
         except ValueError as error:
             logger.debug(f"Removing player `{player}`: Not in `{player_object}`")
@@ -130,16 +130,16 @@ class Players:
                 f"El jugador `{player_object}` no está apuntado a esta convocatoria"
             ) from error
 
-        self.__compute_maximum()
+        self._compute_maximum()
 
-    def __compute_maximum(self) -> None:
+    def _compute_maximum(self) -> None:
         """Guess the maximum number of player based on the current one.
 
-        :param n_signed__players: Number of signed players.
+        :param n_signed_players: Number of signed players.
         :returns: The maximum number of players to search for.
 
         """
-        self.__maximum = min(filter(lambda x: len(self) <= x, (10, 12, 15, 20, 25)), default=100)
+        self._maximum = min(filter(lambda x: len(self) <= x, (10, 12, 15, 20, 25)), default=100)
 
     def remaining(self) -> int:
         """Get the remaining number of player necessary for the call-up.
@@ -147,7 +147,7 @@ class Players:
         :returns: The difference between the maximum and the current number of players.
 
         """
-        return self.__maximum - len(self)
+        return self._maximum - len(self)
 
     def are_ready(self) -> bool:
         """Find if the players are ready to play.
@@ -163,15 +163,15 @@ class Players:
         :returns: The number of players signed up.
 
         """
-        return len(self.__players)
+        return len(self._players)
 
     def __str__(self) -> str:
         # Since we don't want UTF-8 characters to mess up the sorting, we use the
         # :func:`functools.cmp_to_key` function with the chosen locale.
         sorted_players = sorted(
-            [p.name for p in self.__players], key=functools.cmp_to_key(locale.strcoll)
+            [p.name for p in self._players], key=functools.cmp_to_key(locale.strcoll)
         )
-        sorted_players.extend(["?????"] * (self.__maximum - len(self.__players)))
+        sorted_players.extend(["?????"] * (self._maximum - len(self._players)))
         return "\n".join(
             [f"{index + 1:02} - `{player}`" for index, player in enumerate(sorted_players)]
         )

@@ -32,3 +32,5 @@ CALL_UP_KEYBOARD: Final[InlineKeyboardMarkup] = InlineKeyboardMarkup(
         [InlineKeyboardButton("Me borro :(", callback_data=PlayerAction.LEAVE.name)],
     ]
 )
+
+CALL_UP_DICT_KEY: Final[str] = "call-up"

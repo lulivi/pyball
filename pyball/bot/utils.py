@@ -38,7 +38,7 @@ from pyball.bot.errors import (
     BotNotAdminError,
     BotPlayerError,
 )
-from pyball.bot.globals import CALL_UP_KEYBOARD
+from pyball.bot.globals import CALL_UP_KEYBOARD, CALL_UP_DICT_KEY
 from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
     CallUpMatchNotYetCreatedError,
@@ -127,14 +127,12 @@ def get_call_up(chat_data: Optional[dict]) -> CallUp:  # skip the optional check
     :raise BotNoCallUpError: If no CallUp object has been found in the dictionary.
 
     """
-    call_up = chat_data.get("call-up")  # type: ignore [union-attr]
-
-    if call_up is None:
+    if chat_data is None or CALL_UP_DICT_KEY not in chat_data:
         raise BotNoCallUpError(
             "Inicia una convocatoria antes de nada. No existe registro de la anterior."
         )
 
-    return call_up
+    return chat_data[CALL_UP_DICT_KEY]
 
 
 def validate_call_up_message_id(call_up: CallUp, reply_to_message: Message):
@@ -450,7 +448,7 @@ async def callup_new(
         ),
     ).message_id
 
-    context.chat_data["call-up"] = CallUp(date, chat_id, chat_message_id)
+    context.chat_data[CALL_UP_DICT_KEY] = CallUp(date, chat_id, chat_message_id)
 
 
 @log_func
@@ -661,9 +659,6 @@ async def callup_results(
     :param reply_function: Function used to send messages within this method.
 
     """
-    if context.chat_data is None:
-        return
-
     call_up: CallUp = get_call_up(context.chat_data)
 
     try:
@@ -711,4 +706,4 @@ async def callup_results(
         reply_function=reply_function,
     )
 
-    del context.chat_data["call-up"]
+    del context.chat_data[CALL_UP_DICT_KEY]

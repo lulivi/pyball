@@ -51,10 +51,10 @@ class PlayersStatInput:
     """Player match stats."""
 
     def __init__(self) -> None:
-        self.__result: DefaultDict[str, Dict[str, int]] = defaultdict(self.__default_stat)
+        self._result: DefaultDict[str, Dict[str, int]] = defaultdict(self._default_stat)
 
     @staticmethod
-    def __default_stat() -> Dict[str, int]:
+    def _default_stat() -> Dict[str, int]:
         """Get the base statistic for all player."""
         return {"goals": 0, "assists": 0}
 
@@ -64,7 +64,7 @@ class PlayersStatInput:
         :returns: Player stats dictionary.
 
         """
-        return self.__result
+        return self._result
 
     def add_goal(self, player: str) -> None:
         """Add a goal to the player match statistics.
@@ -72,7 +72,7 @@ class PlayersStatInput:
         :param player: Player name.
 
         """
-        self.__result[self.__player_correct_name(player)]["goals"] += 1
+        self._result[self._player_correct_name(player)]["goals"] += 1
 
     def add_assist(self, player: str) -> None:
         """Add an assist to the player match statistics.
@@ -80,10 +80,10 @@ class PlayersStatInput:
         :param player: Player name.
 
         """
-        self.__result[self.__player_correct_name(player)]["assists"] += 1
+        self._result[self._player_correct_name(player)]["assists"] += 1
 
     @staticmethod
-    def __player_correct_name(player_name: str) -> str:
+    def _player_correct_name(player_name: str) -> str:
         """Find the player name in the database.
 
         :param player_name: The input player name.
@@ -100,32 +100,32 @@ class PlayersStatInput:
         return real_player_name.name
 
     def __len__(self) -> int:
-        return len(self.__result)
+        return len(self._result)
 
 
 class Match:
     """Necessary information involving a match.
 
-    :cvar __team_names: Common team names to match for each team.
-    :ivar __teams: Resulting teams.
+    :cvar _team_names: Common team names to match for each team.
+    :ivar _teams: Resulting teams.
 
     """
 
-    __slots__ = ["__teams", "__score"]
-    __team_names: Tuple[str, str, str] = ("Verde", "Naranja", "Sin peto")
+    __slots__ = ["_teams", "_score"]
+    _team_names: Tuple[str, str] = ("Verde", "Naranja")
 
     def __init__(self, players: Players, teams_number: Optional[int] = None) -> None:
-        self.__teams: List[List[db.wrapper.Player]]
-        self.__create_teams(players, teams_number)
-        self.__score: List[int] = [0] * len(self.__teams)
+        self._teams: List[List[db.wrapper.Player]]
+        self._create_teams(players, teams_number)
+        self._score: List[int] = [0] * len(self._teams)
 
-    def __create_teams(self, players: Players, teams_number: Optional[int] = None) -> None:
+    def _create_teams(self, players: Players, teams_number: Optional[int] = None) -> None:
         """Generate two balanced teams.
 
         :param teams_number: Number of team to create.
 
         """
-        teams_number = teams_number or self.__guess_teams_number(players)
+        teams_number = teams_number or self._guess_teams_number(players)
 
         if 0 >= teams_number or teams_number > len(players) or len(players) % teams_number != 0:
             error = CallUpMatchWrongPlayersNumberError(len(players))
@@ -133,12 +133,12 @@ class Match:
             raise error
 
         logger.debug(f"Creating {teams_number} teams from the player list: {players}")
-        self.__teams = [[] for _ in range(teams_number)]
-        self.__generate_teams(players, teams_number)
-        self.__balance_teams()
+        self._teams = [[] for _ in range(teams_number)]
+        self._generate_teams(players, teams_number)
+        self._balance_teams()
 
     @staticmethod
-    def __guess_teams_number(players: Players) -> int:
+    def _guess_teams_number(players: Players) -> int:
         """Guess the number of teams that the match will have.
 
         :param players: List of players.
@@ -153,7 +153,7 @@ class Match:
 
         return 0
 
-    def __generate_teams(self, players: Players, teams_number: int):
+    def _generate_teams(self, players: Players, teams_number: int):
         """Divide the player list in teams.
 
         :param teams_number: Number of times to create.
@@ -163,13 +163,13 @@ class Match:
         zip_iters = [iterator] * teams_number
 
         for player_batch in zip(*zip_iters):
-            self.__teams.sort(key=Match.__skill_sum)
+            self._teams.sort(key=Match._skill_sum)
 
-            for index, team in enumerate(self.__teams):
+            for index, team in enumerate(self._teams):
                 team.append(player_batch[index])
 
     @staticmethod
-    def __skill_sum(players: List[db.wrapper.Player]) -> float:
+    def _skill_sum(players: List[db.wrapper.Player]) -> float:
         """Compute the total skill sum of the player list.
 
         :param players: List of players to compute the total sum.
@@ -178,28 +178,28 @@ class Match:
         """
         return sum([p.skill for p in players])
 
-    def __balance_teams(self):
+    def _balance_teams(self):
         """Perform a team balance.
 
         The algorithm consists in iteratin over the two lists at the same time and checking, after
         swapping the ``i`` item between the two lists, if the skill sum of each team is closser.
 
         """
-        for index in range(len(self.__teams[0])):
-            team_1, team_2 = self.__teams[0][:], self.__teams[-1][:]
+        for index in range(len(self._teams[0])):
+            team_1, team_2 = self._teams[0][:], self._teams[-1][:]
 
-            diff1 = Match.__skill_diff(team_1, team_2)
+            diff1 = Match._skill_diff(team_1, team_2)
             team_1[index], team_2[index] = team_2[index], team_1[index]
-            diff2 = Match.__skill_diff(team_1, team_2)
+            diff2 = Match._skill_diff(team_1, team_2)
 
             if diff2 < diff1:
-                self.__teams[0][index], self.__teams[-1][index] = (
-                    self.__teams[-1][index],
-                    self.__teams[0][index],
+                self._teams[0][index], self._teams[-1][index] = (
+                    self._teams[-1][index],
+                    self._teams[0][index],
                 )
 
     @staticmethod
-    def __skill_diff(team_a: List[db.wrapper.Player], team_b: List[db.wrapper.Player]) -> float:
+    def _skill_diff(team_a: List[db.wrapper.Player], team_b: List[db.wrapper.Player]) -> float:
         """Compute the difference between the two teams skill sum.
 
         :param team_a: First team to calculate the sum.
@@ -207,7 +207,7 @@ class Match:
         :returns: The difference.
 
         """
-        return abs(Match.__skill_sum(team_a) - Match.__skill_sum(team_b))
+        return abs(Match._skill_sum(team_a) - Match._skill_sum(team_b))
 
     def swap_players(self, first_player: Union[str, int], second_player: Union[str, int]) -> None:
         """Exange the two players between their teams.
@@ -229,19 +229,19 @@ class Match:
         except db.errors.DbMultiplePlayersFoundError as error:
             raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
 
-        first_player_index_tuple = self.__get_player_team(first_player_object)
-        second_player_index_tuple = self.__get_player_team(second_player_object)
+        first_player_index_tuple = self._get_player_team(first_player_object)
+        second_player_index_tuple = self._get_player_team(second_player_object)
 
-        self.__teams[first_player_index_tuple[0]].remove(first_player_object)
-        self.__teams[first_player_index_tuple[0]].insert(
+        self._teams[first_player_index_tuple[0]].remove(first_player_object)
+        self._teams[first_player_index_tuple[0]].insert(
             first_player_index_tuple[1], second_player_object
         )
-        self.__teams[second_player_index_tuple[0]].remove(second_player_object)
-        self.__teams[second_player_index_tuple[0]].insert(
+        self._teams[second_player_index_tuple[0]].remove(second_player_object)
+        self._teams[second_player_index_tuple[0]].insert(
             second_player_index_tuple[1], first_player_object
         )
 
-    def __get_player_team(self, player: db.wrapper.Player) -> Tuple[int, int]:
+    def _get_player_team(self, player: db.wrapper.Player) -> Tuple[int, int]:
         """Obtain the team in which the player will play.
 
         :param player: The player object to search for.
@@ -249,7 +249,7 @@ class Match:
         :returns: The team index.
 
         """
-        for index, team in enumerate(self.__teams):
+        for index, team in enumerate(self._teams):
             if player in team:
                 return index, team.index(player)
         raise CallUpPlayersNotInMatch([player.name])
@@ -267,48 +267,48 @@ class Match:
 
         """
         match_results_dict = match_results.as_dict()
-        current_players = set(map(lambda p: p.name, itertools.chain(*self.__teams)))
+        current_players = set(map(lambda p: p.name, itertools.chain(*self._teams)))
         unplayed_players = set(match_results_dict) - (current_players)
         if unplayed_players:
             raise CallUpPlayersNotInMatch(list(unplayed_players))
 
         match_statistics: List[db.wrapper.MatchStatistic] = []
-        for team_index, team in enumerate(self.__teams):
-            self.__score[team_index] = 0
+        for team_index, team in enumerate(self._teams):
+            self._score[team_index] = 0
             for player in team:
                 goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
-                self.__score[team_index] += goals_and_assists["goals"]
+                self._score[team_index] += goals_and_assists["goals"]
                 match_statistics.append(
                     db.wrapper.MatchStatistic(
                         date=date,
-                        team=self.__team_names[team_index],
+                        team=self._team_names[team_index],
                         player=player.id,
                         goals=goals_and_assists["goals"],
                         assists=goals_and_assists["assists"],
                     )
                 )
 
-        if len(self.__teams) == 2:
-            team_0_names = [p.id for p in self.__teams[0]]
-            team_0_result, team_1_result = get_results_names(*self.__score)
+        if len(self._teams) == 2:
+            team_0_names = [p.id for p in self._teams[0]]
+            team_0_result, team_1_result = get_results_names(*self._score)
             for stat in match_statistics:
                 stat.set_result(team_0_result if stat.player in team_0_names else team_1_result)
 
         add_match_results(match_statistics)
 
     def __str__(self) -> str:
-        if self.__teams is None:
+        if self._teams is None:
             return "No teams created yet."
 
         str_output = ""
         team_goals: str = ""
         for team_index, (team_name, team) in enumerate(
-            zip(self.__team_names[: len(self.__teams)], self.__teams)
+            zip(self._team_names[: len(self._teams)], self._teams)
         ):
             team_list = "\n· ".join(map(lambda p: f"`{p.name}`", team))
-            team_sum = Match.__skill_sum(team)
+            team_sum = Match._skill_sum(team)
             logger.debug(f"Team {team_name} ({team_sum}): {team}")
-            if self.__score:
-                team_goals = str(self.__score[team_index])
+            if self._score:
+                team_goals = str(self._score[team_index])
             str_output = f"{str_output}\nTeam {team_name}: {team_goals}\n· {team_list}\n"
         return str_output
