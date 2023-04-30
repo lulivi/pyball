@@ -32,6 +32,7 @@ from pyball.bot.argument_parser import (
     CommandArgument,
     MatchStatsAction,
     PlayerNameAction,
+    PlayerNamesAction,
     SubCommand,
     parse_command,
 )
@@ -253,7 +254,10 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                     ["add", "a"],
                     [
                         CommandArgument(
-                            "name", "<nombre jugador>", action=PlayerNameAction, nargs="+"
+                            "name",
+                            "<nombre jugador>",
+                            action=PlayerNameAction,
+                            nargs="+",
                         ),
                         CommandArgument("-id", "<identifier>", dest="identifier"),
                     ],
@@ -328,9 +332,9 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     ["add", "a"],
                     [
                         CommandArgument(
-                            "name",
-                            metavar="<nombre jugador>",
-                            action=PlayerNameAction,
+                            "names",
+                            metavar="<nombre jugador>[, <nombre jugador>[, ...]]",
+                            action=PlayerNamesAction,
                             nargs="+",
                         )
                     ],
@@ -344,9 +348,9 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     ["del", "d"],
                     [
                         CommandArgument(
-                            "name",
-                            metavar="<nombre jugador>",
-                            action=PlayerNameAction,
+                            "names",
+                            metavar="<nombre jugador>[, <nombre jugador>[, ...]]",
+                            action=PlayerNamesAction,
                             nargs="+",
                         )
                     ],

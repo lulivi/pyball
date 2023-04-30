@@ -24,7 +24,13 @@ import locale
 
 import peewee
 
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, PicklePersistence
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    PersistenceInput,
+    PicklePersistence,
+)
 from telegram.ext.filters import UpdateType
 
 from pyball.bot.commands import (
@@ -48,7 +54,9 @@ def build_application() -> Application:
     :returns: The built application.
 
     """
-    my_persistence = PicklePersistence(filepath=PERSISTENCE_FILE_PATH)
+    my_persistence = PicklePersistence(
+        filepath=PERSISTENCE_FILE_PATH, store_data=PersistenceInput(False, True, False, False)
+    )
     database.initialize(peewee.SqliteDatabase(DATABASE_FILE_PATH))
 
     application = Application.builder().token(BOT_TOKEN).persistence(my_persistence).build()

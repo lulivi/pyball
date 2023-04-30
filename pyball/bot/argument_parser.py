@@ -92,6 +92,15 @@ class PlayerNameAction(argparse.Action):  # pylint: disable=too-few-public-metho
         setattr(namespace, self.dest, " ".join(values))
 
 
+class PlayerNamesAction(argparse.Action):  # pylint: disable=too-few-public-methods
+    """Transform a list of palyer names separed by coma into a list of players."""
+
+    def __call__(self, _, namespace, values, __=None) -> None:
+        """Set the player name."""
+        players = " ".join(values).split(",")
+        setattr(namespace, self.dest, [player.strip() for player in players])
+
+
 class CommandParser(argparse.ArgumentParser):
     """ArgumentParser class to avoid printing help, just raise an error with the usage."""
 

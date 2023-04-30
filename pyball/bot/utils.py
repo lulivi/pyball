@@ -38,13 +38,15 @@ from pyball.bot.errors import (
     BotNotAdminError,
     BotPlayerError,
 )
-from pyball.bot.globals import CALL_UP_KEYBOARD, CALL_UP_DICT_KEY
+from pyball.bot.globals import CALL_UP_DICT_KEY, CALL_UP_KEYBOARD
 from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
     CallUpMatchNotYetCreatedError,
     CallUpMatchWrongPlayersNumberError,
     CallUpMultiplePlayersFoundError,
+    CallUpPlayerAlreadyCalledUpError,
     CallUpPlayerDoesNotExistError,
+    CallUpPlayerNotCalledUpError,
     CallUpPlayersNotInMatch,
 )
 from pyball.callup.match import PlayersStatInput
@@ -485,28 +487,31 @@ async def callup_unlock(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @log_func
 async def callup_add(
-    name: str, context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
+    names: List[str], context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
 ) -> None:
-    """Add a new player to the call-up.
+    """Add new players to the call-up.
 
-    :param name: Player name.
+    :param names: List of player names to add to the call-up.
     :param context: Information related to the bot and the chat.
     :param reply_function: Function used to send messages within this method.
 
     """
     call_up: CallUp = get_call_up(context.chat_data)
 
-    try:
-        call_up.add_player(name)
-    except CallUpPlayerDoesNotExistError as error:
-        raise BotPlayerError(
-            f"No se ha encontrado al jugador `{error.player}` en la base de datos."
-        ) from error
-    except CallUpMultiplePlayersFoundError as error:
-        raise BotPlayerError(
-            f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
-            f" {md_monospace_items(error.players)}. Por favor, concreta"
-        ) from error
+    for name in names:
+        try:
+            call_up.add_player(name)
+        except CallUpPlayerDoesNotExistError as error:
+            raise BotPlayerError(
+                f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+            ) from error
+        except CallUpMultiplePlayersFoundError as error:
+            raise BotPlayerError(
+                f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+                f" {md_monospace_items(error.players)}. Por favor, concreta"
+            ) from error
+        except CallUpPlayerAlreadyCalledUpError:
+            pass
 
     await bot_call_message_function_with_keyboard(
         bot_message_function=context.bot.edit_message_text,
@@ -522,28 +527,31 @@ async def callup_add(
 
 @log_func
 async def callup_del(
-    name: str, context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
+    names: List[str], context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
 ) -> None:
-    """Remove a player from the call-up.
+    """Remove players from the call-up.
 
-    :param name: Player name.
+    :param names: List of player names to remove from the call-up.
     :param context: The information related to the update.
     :param reply_function: Function used to send messages within this method.
 
     """
     call_up: CallUp = get_call_up(context.chat_data)
 
-    try:
-        call_up.del_player(name)
-    except CallUpPlayerDoesNotExistError as error:
-        raise BotPlayerError(
-            f"No se ha encontrado al jugador `{error.player}` en la base de datos."
-        ) from error
-    except CallUpMultiplePlayersFoundError as error:
-        raise BotPlayerError(
-            f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
-            f" {md_monospace_items(error.players)}. Por favor, concreta"
-        ) from error
+    for name in names:
+        try:
+            call_up.del_player(name)
+        except CallUpPlayerDoesNotExistError as error:
+            raise BotPlayerError(
+                f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+            ) from error
+        except CallUpMultiplePlayersFoundError as error:
+            raise BotPlayerError(
+                f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+                f" {md_monospace_items(error.players)}. Por favor, concreta"
+            ) from error
+        except CallUpPlayerNotCalledUpError:
+            pass
 
     await bot_call_message_function_with_keyboard(
         bot_message_function=context.bot.edit_message_text,
