@@ -19,18 +19,15 @@
 # SOFTWARE.
 
 """Global bot variables."""
-
-from typing import Final
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from pyball.callup.players import PlayerAction
 
-CALL_UP_KEYBOARD: Final[InlineKeyboardMarkup] = InlineKeyboardMarkup(
+CALL_UP_KEYBOARD: InlineKeyboardMarkup = InlineKeyboardMarkup(
     [
         [InlineKeyboardButton("Me apunto!!! :)", callback_data=PlayerAction.JOIN.name)],
         [InlineKeyboardButton("Me borro :(", callback_data=PlayerAction.LEAVE.name)],
     ]
 )
 
-CALL_UP_DICT_KEY: Final[str] = "call-up"
+CALL_UP_DICT_KEY: str = "call-up"

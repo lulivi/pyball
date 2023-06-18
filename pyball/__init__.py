@@ -19,3 +19,5 @@
 # SOFTWARE.
 
 """PyBall module."""
+
+from .__version__ import __version__

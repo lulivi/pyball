@@ -24,7 +24,7 @@ import logging
 
 from argparse import ArgumentParser
 
-from pyball.__version__ import __version__
+from pyball import __version__
 from pyball.bot import build_application
 
 logger = logging.getLogger(__name__)

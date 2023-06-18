@@ -71,6 +71,10 @@ class CallUpMatchNotYetCreatedError(PyBallCallUpError):
     """The match hasn't been created yet."""
 
 
+class CallUpMatchTooManyTeamsForResults(PyBallCallUpError):
+    """There are more than two teams when setting the results."""
+
+
 class CallUpPlayersNotInMatch(PyBallCallUpError):
     """There are statistics of players that are not in any of the teams."""
 

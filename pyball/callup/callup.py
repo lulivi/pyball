@@ -26,7 +26,7 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Union
 
-from pyball.__version__ import __version__
+from pyball import __version__
 from pyball.callup.errors import CallUpMatchNotYetCreatedError
 from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
@@ -214,7 +214,7 @@ class CallUp:
 
     def create_match(self) -> None:
         """Create a new match."""
-        self._match = Match(self._players)
+        self._match = Match.auto_create(self._players)
 
     def set_results(self, results: PlayersStatInput) -> None:
         """Introduce the results of the match.

@@ -34,8 +34,6 @@ from pyball.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
-from pyball.db import wrapper
-from pyball.db.utils import find_player
 
 logger = logging.getLogger(__name__)
 
@@ -82,15 +80,7 @@ class Players:
 
         """
         logger.debug(f"Adding player `{player}`")
-
-        try:
-            player_object: wrapper.Player = find_player(player)
-        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
-            logger.error(f"Adding player `{player}`: Player not found in the database")
-            raise CallUpPlayerDoesNotExistError(player) from error
-        except db.errors.DbMultiplePlayersFoundError as error:
-            logger.error(f"Adding player `{player}`: Multiple players found in the database")
-            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
+        player_object: db.wrapper.Player = find_player(player)
 
         if player_object in self._players:
             logger.error(f"Adding player `{player}`: Already in `{player_object.name}`")
@@ -111,15 +101,7 @@ class Players:
 
         """
         logger.debug(f"Removing player `{player}`")
-
-        try:
-            player_object: wrapper.Player = find_player(player)
-        except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
-            logger.error(f"Removing player `{player}`: Player not found in the database")
-            raise CallUpPlayerDoesNotExistError(player) from error
-        except db.errors.DbMultiplePlayersFoundError as error:
-            logger.error(f"Removing player `{player}`: Multiple players found in the database")
-            raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error
+        player_object: db.wrapper.Player = find_player(player)
 
         try:
             self._players.remove(player_object)
@@ -139,7 +121,9 @@ class Players:
         :returns: The maximum number of players to search for.
 
         """
-        self._maximum = min(filter(lambda x: len(self) <= x, (10, 12, 15, 20, 25)), default=100)
+        self._maximum = min(
+            filter(lambda x: len(self) <= x, (10, 12, 14, 15, 20, 25)), default=100
+        )
 
     def remaining(self) -> int:
         """Get the remaining number of player necessary for the call-up.
@@ -175,3 +159,30 @@ class Players:
         return "\n".join(
             [f"{index + 1:02} - `{player}`" for index, player in enumerate(sorted_players)]
         )
+
+    def __repr__(self) -> str:
+        # Since we don't want UTF-8 characters to mess up the sorting, we use the
+        # :func:`functools.cmp_to_key` function with the chosen locale.
+        sorted_players = sorted(
+            [p.name for p in self._players], key=functools.cmp_to_key(locale.strcoll)
+        )
+        sorted_players.extend(["?????"] * (self._maximum - len(self._players)))
+        player_list = ",".join(sorted_players)
+        return f"Players({player_list})"
+
+
+def find_player(player: Union[str, int]) -> db.wrapper.Player:
+    """Wrap db.utils.find_player and raise proper errors.
+
+    :param player: The name or id of the player to get.
+    :returns: The player object.
+
+    """
+    try:
+        return db.utils.find_player(player)
+    except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+        logger.error(f"Player `{player}` not found in the database")
+        raise CallUpPlayerDoesNotExistError(player) from error
+    except db.errors.DbMultiplePlayersFoundError as error:
+        logger.error(f"Multiple players found in the database for the search `{player}`")
+        raise CallUpMultiplePlayersFoundError(error.players, error.wild_card) from error

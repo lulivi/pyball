@@ -401,10 +401,11 @@ def player_rank(order: str) -> str:
         "a": order_by_assists,
     }
 
-    return "\n".join(
+    player_ranking = "\n".join(
         f"{idx + 1:02} - {player_name}"
         for idx, player_name in enumerate(rank_players_by[order](player_list))
     )
+    return f"Rank by {order}:\n{player_ranking}"
 
 
 @log_func
@@ -586,18 +587,14 @@ async def callup_search(
             )
         except Forbidden as error:
             await reply_function(
-                (
-                    "El bot no tiene los permisos suficientes para actualizar el mensaje del chat"
-                    f" de suplentes:\n\t{str(error)}"
-                ),
+                "El bot no tiene los permisos suficientes para actualizar el mensaje del chat"
+                f" de suplentes:\n\t{str(error)}",
             )
             return
         except BadRequest as error:
             await reply_function(
-                (
-                    "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
-                    f"\n\t{str(error)}"
-                ),
+                "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
+                f"\n\t{str(error)}",
             )
 
         call_up.set_subs_message_id(None)
