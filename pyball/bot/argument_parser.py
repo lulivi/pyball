@@ -40,6 +40,7 @@ class CommandArgument(NamedTuple):
     metavar: Optional[Union[str, tuple]] = None
     action: Union[str, Type[argparse.Action]] = "store"
     default: Optional[Any] = None
+    type: Optional[Any] = None
     choices: Optional[List[str]] = None
     nargs: Optional[Union[int, str]] = None
     dest: Optional[str] = None
@@ -141,6 +142,8 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
                 extra_args["nargs"] = argument.nargs
             if argument.dest is not None:
                 extra_args["dest"] = argument.dest
+            if argument.type is not None:
+                extra_args["type"] = argument.type
             if argument.choices is not None:
                 extra_args["choices"] = argument.choices
             subparser.add_argument(

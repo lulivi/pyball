@@ -30,7 +30,7 @@ from pyball import __version__
 from pyball.callup.errors import CallUpMatchNotYetCreatedError
 from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
-from pyball.settings import SUBSTITUTES_ID
+from pyball.settings import DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class CallUp:
     """Necessary information involving a match call-up.
 
     :ivar _date: Call-up date.
+    :ivar _location: Call-up location.
     :ivar _title: Summary of the call-up.
     :ivar _main_chat: Info about the main chat post.
     :ivar _subs_chat: Info about the substitutes chat post.
@@ -68,6 +69,7 @@ class CallUp:
 
     __slots__ = [
         "_date",
+        "_location",
         "_title",
         "_main_chat",
         "_subs_chat",
@@ -77,12 +79,22 @@ class CallUp:
     ]
     _actions: Dict[str, Callable]
 
-    def __init__(self, date: datetime.datetime, main_chat_id: int, main_chat_msg: int) -> None:
+    def __init__(
+        self,
+        date: datetime.datetime,
+        main_chat_id: int,
+        main_chat_msg: int,
+        location: Optional[str],
+        max_players: Optional[int] = None,
+    ) -> None:
         self._date: datetime.datetime = date
-        self._title: str = datetime.datetime.strftime(date, "%A %Y/%m/%d %H:%M")
+        self._location: str = location or DEFAULT_MATCH_LOCATION
+        self._title: str = datetime.datetime.strftime(
+            date, f"%A %Y/%m/%d %H:%M en {self._location}"
+        )
         self._main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
         self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
-        self._players: Players = Players()
+        self._players: Players = Players(max_players)
         self._actions = {
             PlayerAction.JOIN.name: self.add_player,
             PlayerAction.LEAVE.name: self.del_player,
@@ -211,6 +223,14 @@ class CallUp:
 
         if self._players.are_ready():
             self.create_match()
+
+    def set_maximum(self, maximum: Optional[int]) -> None:
+        """Set the maximum number of players.
+
+        :param maximum: The number of players.
+
+        """
+        self._players.maximum = maximum
 
     def create_match(self) -> None:
         """Create a new match."""

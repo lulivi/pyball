@@ -29,6 +29,7 @@ REPOSITORY_ROOT_DIR: Path = Path.cwd()
 LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 BOT_TOKEN: str = config("BOT_TOKEN")
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
+DEFAULT_MATCH_LOCATION: str = config("DEFAULT_MATCH_LOCATION")
 ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",

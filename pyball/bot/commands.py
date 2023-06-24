@@ -51,6 +51,7 @@ from pyball.bot.utils import (
     callup_add,
     callup_del,
     callup_lock,
+    callup_maximum,
     callup_new,
     callup_results,
     callup_search,
@@ -305,12 +306,38 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 SubCommand(
                     ["new", "n"],
                     [
+                        CommandArgument(
+                            "-p",
+                            metavar="<max players>",
+                            type=int,
+                            default=None,
+                            dest="max_players",
+                        ),
+                        CommandArgument(
+                            "-l",
+                            metavar="<location>",
+                            default=None,
+                            dest="location",
+                        ),
                         CommandArgument("date", metavar="YYYY/MM/DD"),
                         CommandArgument("time", metavar="HH:MM"),
                     ],
                     callable=functools.partial(
                         callup_new,
                         chat_id=update.message.chat_id,
+                        context=context,
+                    ),
+                ),
+                SubCommand(
+                    ["maximum", "m"],
+                    [
+                        CommandArgument(
+                            "maximum",
+                            metavar="<maximum> | auto",
+                        )
+                    ],
+                    callable=functools.partial(
+                        callup_maximum,
                         context=context,
                     ),
                 ),

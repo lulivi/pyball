@@ -25,7 +25,7 @@ import locale
 import logging
 
 from enum import Enum, auto
-from typing import List, Union
+from typing import List, Optional, Union
 
 from pyball import db
 from pyball.callup.errors import (
@@ -55,12 +55,45 @@ class Players:
 
     __slots__ = ["_players", "_maximum"]
 
-    def __init__(self) -> None:
+    def __init__(self, maximum: Optional[int] = None) -> None:
         """Initialize the object."""
         self._players: List[db.wrapper.Player] = []
-        self._maximum: int
-        self._compute_maximum()
+        self._maximum: Optional[int] = maximum
         logger.debug("Created the Players object")
+
+    @property
+    def maximum(self) -> int:
+        """Get the fixed maximum number of players or calculate a dynamic one.
+
+        When the `_maximum` attribute is None, the maximum number of players will be selected
+        dynamically by the :func:`_compute_maximum` function. If it is defined, the fixed value
+        will be returned.
+
+        :returns: The maximum number of players.
+
+        """
+        if self._maximum is None:
+            return self._compute_maximum()
+
+        return self._maximum
+
+    @maximum.setter
+    def maximum(self, new_maximum: Optional[int]) -> None:
+        """Set the maximum players.
+
+        :param new_maximum: The new `_maximum` value.
+
+        """
+        self._maximum = new_maximum
+
+    def _compute_maximum(self) -> int:
+        """Guess the maximum number of player based on the current one.
+
+        :param n_signed_players: Number of signed players.
+        :returns: The maximum number of players to search for.
+
+        """
+        return min(filter(lambda x: len(self) <= x, (10, 12, 14, 15, 20, 25)), default=100)
 
     @property
     def players(self) -> List[db.wrapper.Player]:
@@ -90,7 +123,6 @@ class Players:
 
         logger.debug(f"Adding player `{player}`: Added `{player_object.name}`")
         self._players.append(player_object)
-        self._compute_maximum()
 
     def leave(self, player: Union[str, int]) -> None:
         """Leave the call-up.
@@ -112,26 +144,13 @@ class Players:
                 f"El jugador `{player_object}` no está apuntado a esta convocatoria"
             ) from error
 
-        self._compute_maximum()
-
-    def _compute_maximum(self) -> None:
-        """Guess the maximum number of player based on the current one.
-
-        :param n_signed_players: Number of signed players.
-        :returns: The maximum number of players to search for.
-
-        """
-        self._maximum = min(
-            filter(lambda x: len(self) <= x, (10, 12, 14, 15, 20, 25)), default=100
-        )
-
     def remaining(self) -> int:
         """Get the remaining number of player necessary for the call-up.
 
         :returns: The difference between the maximum and the current number of players.
 
         """
-        return self._maximum - len(self)
+        return self.maximum - len(self)
 
     def are_ready(self) -> bool:
         """Find if the players are ready to play.
@@ -155,7 +174,7 @@ class Players:
         sorted_players = sorted(
             [p.name for p in self._players], key=functools.cmp_to_key(locale.strcoll)
         )
-        sorted_players.extend(["?????"] * (self._maximum - len(self._players)))
+        sorted_players.extend(["?????"] * (self.maximum - len(self._players)))
         return "\n".join(
             [f"{index + 1:02} - `{player}`" for index, player in enumerate(sorted_players)]
         )
@@ -166,7 +185,7 @@ class Players:
         sorted_players = sorted(
             [p.name for p in self._players], key=functools.cmp_to_key(locale.strcoll)
         )
-        sorted_players.extend(["?????"] * (self._maximum - len(self._players)))
+        sorted_players.extend(["?????"] * (self.maximum - len(self._players)))
         player_list = ",".join(sorted_players)
         return f"Players({player_list})"
 

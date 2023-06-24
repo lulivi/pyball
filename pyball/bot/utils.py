@@ -428,10 +428,16 @@ def player_add(name: str, identifier: Optional[int]) -> str:
 
 @log_func
 async def callup_new(
-    date: datetime.datetime, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+    max_players: Optional[int],
+    location: Optional[str],
+    date: datetime.datetime,
+    chat_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Create a new call-up.
 
+    :param max_players: Max number of players by default in the call-up.
+    :param location: The call-up location.
     :param date: Call-up date:
     :param chat_id: Chat identifier in which to send the call-up message.
     :param context: Information related to the bot and the chat.
@@ -444,14 +450,51 @@ async def callup_new(
         Message,
         (
             await bot_call_message_function_with_keyboard(
-                context.bot.send_message,
+                bot_message_function=context.bot.send_message,
                 text=f"Convocatoria: *{date.strftime('%A %Y/%m/%d %H:%M')}*",
                 chat_id=chat_id,
             )
         ),
     ).message_id
 
-    context.chat_data[CALL_UP_DICT_KEY] = CallUp(date, chat_id, chat_message_id)
+    call_up = CallUp(
+        date=date,
+        main_chat_id=chat_id,
+        main_chat_msg=chat_message_id,
+        location=location,
+        max_players=max_players,
+    )
+
+    context.chat_data[CALL_UP_DICT_KEY] = call_up
+
+    await bot_call_message_function_with_keyboard(
+        bot_message_function=context.bot.edit_message_text,
+        text=str(call_up),
+        **call_up.main_chat.as_dict(),
+    )
+
+
+@log_func
+async def callup_maximum(maximum: str, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Set the maximum call-up players to search.
+
+    :param maximum: The maximum number of players to search. It can be `auto` or a number.
+    :param context: Information related to the bot and the chat.
+
+    """
+    call_up: CallUp = get_call_up(context.chat_data)
+    parsed_maximum: Optional[int] = None
+
+    if maximum != "auto" and maximum.isnumeric():
+        parsed_maximum = int(maximum)
+
+    call_up.set_maximum(parsed_maximum)
+
+    await bot_call_message_function_with_keyboard(
+        bot_message_function=context.bot.edit_message_text,
+        text=str(call_up),
+        **call_up.main_chat.as_dict(),
+    )
 
 
 @log_func
@@ -587,14 +630,18 @@ async def callup_search(
             )
         except Forbidden as error:
             await reply_function(
-                "El bot no tiene los permisos suficientes para actualizar el mensaje del chat"
-                f" de suplentes:\n\t{str(error)}",
+                (
+                    "El bot no tiene los permisos suficientes para actualizar el mensaje del chat"
+                    f" de suplentes:\n\t{str(error)}"
+                ),
             )
             return
         except BadRequest as error:
             await reply_function(
-                "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
-                f"\n\t{str(error)}",
+                (
+                    "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
+                    f"\n\t{str(error)}"
+                ),
             )
 
         call_up.set_subs_message_id(None)
