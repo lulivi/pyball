@@ -339,6 +339,7 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     callable=functools.partial(
                         callup_maximum,
                         context=context,
+                        reply_function=update.message.reply_text,
                     ),
                 ),
                 SubCommand(

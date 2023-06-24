@@ -57,7 +57,6 @@ class CallUp:
 
     :ivar _date: Call-up date.
     :ivar _location: Call-up location.
-    :ivar _title: Summary of the call-up.
     :ivar _main_chat: Info about the main chat post.
     :ivar _subs_chat: Info about the substitutes chat post.
     :ivar _players: Object containing the list of players.
@@ -70,7 +69,6 @@ class CallUp:
     __slots__ = [
         "_date",
         "_location",
-        "_title",
         "_main_chat",
         "_subs_chat",
         "_players",
@@ -89,9 +87,6 @@ class CallUp:
     ) -> None:
         self._date: datetime.datetime = date
         self._location: str = location or DEFAULT_MATCH_LOCATION
-        self._title: str = datetime.datetime.strftime(
-            date, f"%A %Y/%m/%d %H:%M en {self._location}"
-        )
         self._main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
         self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
         self._players: Players = Players(max_players)
@@ -100,7 +95,22 @@ class CallUp:
             PlayerAction.LEAVE.name: self.del_player,
         }
         self._match: Optional[Match] = None
-        logger.debug(f"Creating a new call-up: {self._title}")
+        logger.debug(f"Creating a new call-up: {self.title}")
+
+    @property
+    def date(self) -> str:
+        """Obtain the date string."""
+        return datetime.datetime.strftime(self._date, "%A %d/%b/%Y")
+
+    @property
+    def time(self) -> str:
+        """Obtain the time string."""
+        return datetime.datetime.strftime(self._date, "%H:%M")
+
+    @property
+    def location(self) -> str:
+        """Obtain the location."""
+        return self._location
 
     @property
     def title(self) -> str:
@@ -109,7 +119,9 @@ class CallUp:
         :returns: The title string.
 
         """
-        return self._title
+        return (
+            f"*Convocatoria*\nFecha *{self.date}*\nHora: *{self.time}*\nLugar: *{self.location}*"
+        )
 
     @property
     def players(self) -> Players:
@@ -250,7 +262,7 @@ class CallUp:
         self._match.set_results(results, self._date)
 
     def __str__(self) -> str:
-        output = f"Convocatoria: *{self._title}*\n\n{str(self._players)}"
+        output = f"{self.title}\n\n{str(self._players)}"
 
         if self._match is not None:
             output = f"{output}\n{str(self._match)}"

@@ -238,8 +238,8 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
     remaining_players = call_up.remaining_players()
 
     substitutes_message_text = (
-        "¡Hola compas! Estamos buscando suplentes para este partido.\n\nConvocatoria:"
-        f" {call_up.title}\nJugadores restantes: {remaining_players}"
+        "¡Hola compas! Estamos buscando suplentes para este"
+        f" partido.\n\n{call_up.title}\nJugadores restantes: *{remaining_players}*"
     )
     call_up_reply_message = "Mensaje de búsqueda actualizado."
     search_is_finished = False
@@ -475,11 +475,14 @@ async def callup_new(
 
 
 @log_func
-async def callup_maximum(maximum: str, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def callup_maximum(
+    maximum: str, context: ContextTypes.DEFAULT_TYPE, reply_function=Callable
+) -> None:
     """Set the maximum call-up players to search.
 
     :param maximum: The maximum number of players to search. It can be `auto` or a number.
     :param context: Information related to the bot and the chat.
+    :param reply_function: Function used to send messages within this method.
 
     """
     call_up: CallUp = get_call_up(context.chat_data)
@@ -494,6 +497,11 @@ async def callup_maximum(maximum: str, context: ContextTypes.DEFAULT_TYPE) -> No
         bot_message_function=context.bot.edit_message_text,
         text=str(call_up),
         **call_up.main_chat.as_dict(),
+    )
+    await search_substitutes(
+        call_up=call_up,
+        reply_function=reply_function,
+        bot=context.bot,
     )
 
 
