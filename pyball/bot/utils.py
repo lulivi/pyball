@@ -269,7 +269,8 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
 
     call_up.set_subs_message_id(
         (
-            await bot.send_message(
+            await bot_call_message_function(
+                message_function=bot.send_message,
                 text=substitutes_message_text,
                 chat_id=call_up.subs_chat.chat_id,
             )
@@ -596,15 +597,15 @@ async def callup_maximum(
 
     call_up.set_maximum(parsed_maximum)
 
-    await update_call_up_message(
-        call_up=call_up,
-        context=context,
-        old_call_up_yaml=old_call_up_yaml,
-    )
     await search_substitutes(
         call_up=call_up,
         reply_function=reply_function,
         bot=context.bot,
+    )
+    await update_call_up_message(
+        call_up=call_up,
+        context=context,
+        old_call_up_yaml=old_call_up_yaml,
     )
 
 
@@ -663,15 +664,15 @@ async def callup_add(
         except CallUpPlayerAlreadyCalledUpError:
             return
 
-    await update_call_up_message(
-        call_up=call_up,
-        context=context,
-        old_call_up_yaml=old_call_up_yaml,
-    )
     await search_substitutes(
         call_up=call_up,
         reply_function=reply_function,
         bot=context.bot,
+    )
+    await update_call_up_message(
+        call_up=call_up,
+        context=context,
+        old_call_up_yaml=old_call_up_yaml,
     )
 
 
@@ -706,15 +707,15 @@ async def callup_del(
         except CallUpPlayerNotCalledUpError:
             pass
 
-    await update_call_up_message(
-        call_up=call_up,
-        context=context,
-        old_call_up_yaml=old_call_up_yaml,
-    )
     await search_substitutes(
         call_up=call_up,
         reply_function=reply_function,
         bot=context.bot,
+    )
+    await update_call_up_message(
+        call_up=call_up,
+        context=context,
+        old_call_up_yaml=old_call_up_yaml,
     )
 
 
@@ -757,7 +758,6 @@ async def callup_search(
 
         call_up.reset_subs_message_id()
         await reply_function("Se ha detenido la búsqueda de suplentes.")
-        return
 
     if not stop:
         await search_substitutes(
