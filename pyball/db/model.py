@@ -22,6 +22,8 @@
 """Database models."""
 
 from peewee import (
+    SQL,
+    AutoField,
     BooleanField,
     CharField,
     CompositeKey,
@@ -64,8 +66,9 @@ class BaseModel(Model):
 class Player(BaseModel):
     """Player statistics and information."""
 
-    id = IntegerField(primary_key=True)
-    name = CharField(null=False, unique=True)
+    id = AutoField()
+    telegram_id = IntegerField(null=False)
+    name = CharField(null=False)
     main = BooleanField(null=False)
     goals = IntegerField(default=0)
     assists = IntegerField(default=0)
@@ -75,12 +78,17 @@ class Player(BaseModel):
     rank = IntegerField(default=0)
     skill = FloatField(default=0.0)
 
+    class Meta:
+        """Set table specific configuration."""
+
+        constraints = [SQL("UNIQUE (telegram_id), UNIQUE (name)")]
+
 
 class MatchStatistic(BaseModel):
     """Statiscics of players in matches."""
 
     date = DateTimeField(null=False)
-    player = ForeignKeyField(Player)
+    player = ForeignKeyField(Player, field=Player.telegram_id)
     team = CharField(null=False)
     goals = IntegerField(default=0)
     assists = IntegerField(default=0)

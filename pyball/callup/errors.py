@@ -19,11 +19,22 @@
 # SOFTWARE.
 
 """Call-up related errors."""
-from typing import List, Union
+from typing import List, Optional, Union
 
 
 class PyBallCallUpError(Exception):
     """Base error for PyBall bot."""
+
+
+class CallUpWrongFormatError(PyBallCallUpError):
+    """The message does not contains a call-up."""
+
+    def __init__(self, missing_key: Optional[str]) -> None:
+        self.missing_key = missing_key
+        self.message = "There was an error parsing the call-up yaml"
+        if self.missing_key is not None:
+            self.message = f"{self.message}: missing {self.missing_key} key"
+        super().__init__(self.message)
 
 
 class CallUpPlayerDoesNotExistError(PyBallCallUpError):
@@ -82,3 +93,7 @@ class CallUpPlayersNotInMatch(PyBallCallUpError):
         self.non_players = non_players
         self.message = f"Players `{'`, `'.join(self.non_players)}` are not in any of the teams"
         super().__init__(self.message)
+
+
+class CallUpMatchAlreadyFinishedError(PyBallCallUpError):
+    """The match has already finished."""

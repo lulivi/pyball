@@ -20,12 +20,16 @@
 
 """Match object."""
 import datetime
+import functools
 import itertools
+import locale
 import logging
 
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict, Dict, List, Optional, Tuple, Union
+
+import yaml
 
 from pyball import db
 from pyball.callup.errors import (
@@ -39,14 +43,6 @@ from pyball.db.utils import add_match_results, get_results_names
 logger = logging.getLogger(__name__)
 
 
-class MatchStat:
-    """Simple class for each stat."""
-
-    def __init__(self, scorer: str, assistant: str = "") -> None:
-        self.scorer = scorer.strip()
-        self.assistant = assistant.strip()
-
-
 class PlayersStatInput:
     """Player match stats."""
 
@@ -58,7 +54,8 @@ class PlayersStatInput:
         """Get the base statistic for all player."""
         return {"goals": 0, "assists": 0}
 
-    def as_dict(self) -> DefaultDict[str, Dict[str, int]]:
+    @property
+    def result(self) -> DefaultDict[str, Dict[str, int]]:
         """Return the result dictionary.
 
         :returns: Player stats dictionary.
@@ -66,21 +63,17 @@ class PlayersStatInput:
         """
         return self._result
 
-    def add_goal(self, player: str) -> None:
+    def add_stat(self, scorer: str, assistant: str = "") -> None:
         """Add a goal to the player match statistics.
 
-        :param player: Player name.
+        :param scorer: Scorer name.
+        :param assistant: Assistant name.
 
         """
-        self._result[self._player_correct_name(player)]["goals"] += 1
+        self._result[self._player_correct_name(scorer)]["goals"] += 1
 
-    def add_assist(self, player: str) -> None:
-        """Add an assist to the player match statistics.
-
-        :param player: Player name.
-
-        """
-        self._result[self._player_correct_name(player)]["assists"] += 1
+        if assistant:
+            self._result[self._player_correct_name(assistant)]["assists"] += 1
 
     @staticmethod
     def _player_correct_name(player_name: str) -> str:
@@ -101,7 +94,7 @@ class Team:
     """A team of the match."""
 
     players: List[db.wrapper.Player] = field(default_factory=list)
-    score: int = 0
+    score: Optional[int] = None
 
     @property
     def skill(self) -> float:
@@ -132,27 +125,51 @@ class Team:
     def __iter__(self):
         return iter(self.players)
 
-    def __str__(self) -> str:
-        player_join = "\n· ".join(map(lambda p: f"`{p.name}`", self.players))
-        return f"· {player_join}"
+    def __repr__(self) -> str:
+        players = ", ".join(
+            sorted(
+                [f"{p.name}" for p in self.players],
+                key=functools.cmp_to_key(locale.strcoll),
+            )
+        )
+        return f"{self.__class__.__name__}({players})"
+
+    def as_yaml(self, team_name: str) -> str:
+        """Obtain the YAML representation of the team.
+
+        :returns: The YAML string.
+
+        """
+        team_info: dict = {
+            "jugadores": sorted(
+                [f"`{p.name}`" for p in self.players],
+                key=functools.cmp_to_key(locale.strcoll),
+            ),
+        }
+
+        if self.score is not None:
+            team_info["goles"] = self.score
+
+        return yaml.dump({team_name: team_info}, allow_unicode=True, indent=4, sort_keys=True)
 
 
 class Match:
     """Necessary information involving a match.
 
-    :cvar _team_names: Common team names to match for each team.
+    :cvar team_names: Common team names to match for each team.
     :ivar _teams: Resulting teams.
 
     """
 
-    __slots__ = ["_teams"]
-    _team_names: Tuple[str, str, str] = ("Verde", "Naranja", "Sin Peto")
+    __slots__ = ["_teams", "_finished"]
+    team_names: Tuple[str, str, str] = ("Verde", "Naranja", "Sin Peto")
 
     def __init__(self) -> None:
-        self._teams: List[Team] = []
+        self._teams: Dict[str, Team] = {}
+        self._finished: bool = False
 
     @property
-    def teams(self) -> List[Team]:
+    def teams(self) -> Dict[str, Team]:
         """Get the team list.
 
         :returns: The team list.
@@ -161,7 +178,7 @@ class Match:
         return self._teams
 
     @teams.setter
-    def teams(self, teams: List[Team]) -> None:
+    def teams(self, teams: Dict[str, Team]) -> None:
         """Set the team list.
 
         :param teams: The team list.
@@ -181,12 +198,14 @@ class Match:
         :returns: The new Match object.
 
         """
+        if teams_number is not None and teams_number == 3:
+            raise CallUpMatchTooManyTeamsForResults()
         match = Match()
         match._create_teams(players, teams_number)
         return match
 
     @staticmethod
-    def manual_create(teams: List[Team]) -> "Match":
+    def manual_create(teams: Dict[str, Team]) -> "Match":
         """Create the Match manually.
 
         :param teams: The team list.
@@ -212,7 +231,6 @@ class Match:
             raise error
 
         logger.debug(f"Creating {teams_number} teams from the player list: {players!r}")
-        self._teams = [Team() for _ in range(teams_number)]
         self._generate_teams(players, teams_number)
         self._balance_teams()
 
@@ -235,17 +253,19 @@ class Match:
     def _generate_teams(self, players: Players, teams_number: int):
         """Divide the player list in teams.
 
-        :param teams_number: Number of times to create.
+        :param teams_number: Number of teams to create.
 
         """
-        self._teams = [Team() for _ in range(teams_number)]
+        self._teams = {team_name: Team() for team_name in self.team_names[:teams_number]}
         iterator = iter(sorted(players.players, key=lambda p: p.skill, reverse=True))
         zip_iters = [iterator] * teams_number
 
         for player_batch in zip(*zip_iters):
-            self._teams.sort(key=lambda t: t.skill)
+            teams = [
+                team for _, team in sorted(self._teams.items(), key=lambda team: team[1].skill)
+            ]
 
-            for index, team in enumerate(self._teams):
+            for index, team in enumerate(teams):
                 team.append(player_batch[index])
 
     def _balance_teams(self):
@@ -255,17 +275,20 @@ class Match:
         swapping the ``i`` item between the two lists, if the skill sum of each team is closser.
 
         """
-        for index in range(len(self._teams[0])):
-            team_1, team_2 = self._teams[0], self._teams[-1]
+        for index in range(len(self._teams[self.team_names[0]])):
+            team_1, team_2 = self._teams[self.team_names[0]], self._teams[self.team_names[1]]
 
             diff1 = abs(team_1.skill - team_2.skill)
             team_1[index], team_2[index] = team_2[index], team_1[index]
             diff2 = abs(team_1.skill - team_2.skill)
 
             if diff2 < diff1:
-                self._teams[0][index], self._teams[-1][index] = (
-                    self._teams[-1][index],
-                    self._teams[0][index],
+                (
+                    self._teams[self.team_names[0]][index],
+                    self._teams[self.team_names[1]][index],
+                ) = (
+                    self._teams[self.team_names[1]][index],
+                    self._teams[self.team_names[0]][index],
                 )
 
     def swap_players(self, first_player: Union[str, int], second_player: Union[str, int]) -> None:
@@ -290,7 +313,7 @@ class Match:
             second_player_index_tuple[1], first_player_object
         )
 
-    def _get_player_team(self, player: db.wrapper.Player) -> Tuple[int, int]:
+    def _get_player_team(self, player: db.wrapper.Player) -> Tuple[str, int]:
         """Obtain the team in which the player will play.
 
         :param player: The player object to search for.
@@ -298,9 +321,10 @@ class Match:
         :returns: The team index.
 
         """
-        for index, team in enumerate(self._teams):
+        for team_name, team in self._teams.items():
             if player in team.players:
-                return index, team.players.index(player)
+                return team_name, team.players.index(player)
+
         raise CallUpPlayersNotInMatch([player.name])
 
     def set_results(self, match_results: PlayersStatInput, date: datetime.datetime) -> None:
@@ -318,12 +342,12 @@ class Match:
         if len(self._teams) > 2:
             raise CallUpMatchTooManyTeamsForResults
 
-        match_results_dict = match_results.as_dict()
+        match_results_dict = match_results.result
         current_players = set(
             [
                 player.name
                 for player in itertools.chain(
-                    *[team.players for team in self._teams],
+                    *[team.players for _, team in self._teams.items()],
                 )
             ]
         )
@@ -332,7 +356,7 @@ class Match:
             raise CallUpPlayersNotInMatch(list(unplayed_players))
 
         match_statistics: List[db.wrapper.MatchStatistic] = []
-        for team_index, team in enumerate(self._teams):
+        for team_name, team in self._teams.items():
             team.score = 0
             for player in team.players:
                 goals_and_assists = match_results_dict.get(player.name, {"goals": 0, "assists": 0})
@@ -340,26 +364,68 @@ class Match:
                 match_statistics.append(
                     db.wrapper.MatchStatistic(
                         date=date,
-                        team=self._team_names[team_index],
-                        player=player.id,
+                        team=team_name,
+                        player=player.telegram_id,
                         goals=goals_and_assists["goals"],
                         assists=goals_and_assists["assists"],
                     )
                 )
 
-        team_0_names = [p.id for p in self._teams[0].players]
-        team_0_result, team_1_result = get_results_names(*map(lambda x: x.score, self._teams))
+        team_0_names = [p.telegram_id for p in self._teams[self.team_names[0]].players]
+        team_0_result, team_1_result = get_results_names(
+            self._teams[self.team_names[0]].score or 0, self._teams[self.team_names[1]].score or 0
+        )
         for stat in match_statistics:
             stat.set_result(team_0_result if stat.player in team_0_names else team_1_result)
 
         add_match_results(match_statistics)
+        self._finished = True
 
-    def __str__(self) -> str:
-        if self._teams is None:
+    def __repr__(self) -> str:
+        if not self._teams:
             return "No teams created yet."
 
         str_output = ""
-        for team_name, team in zip(self._team_names[: len(self._teams)], self._teams):
+        for team_name, team in self._teams.items():
             logger.debug(f"Team {team_name} ({team.skill}): {team}")
-            str_output = f"{str_output}\nTeam {team_name}: {str(team.score)}\n{str(team)}\n"
+            str_output = f"{str_output}\nTeam {team_name}: {str(team.score or '')}\n{str(team)}\n"
+
         return str_output
+
+    def as_yaml(self) -> str:
+        """Obtain the YAML representation of the match.
+
+        :returns: The YAML string.
+
+        """
+        match_info: str = "\n"
+
+        for team_name, team in self._teams.items():
+            match_info = f"{match_info}{team.as_yaml(team_name)}\n"
+
+        finished_info = ""
+        if self._finished:
+            finished_info = yaml.dump(
+                {"finalizado": "🎉"},
+                allow_unicode=True,
+                indent=4,
+            )
+
+        return f"{match_info}{finished_info}"
+
+    @staticmethod
+    def from_dict(teams_info: Dict[str, dict]) -> "Match":
+        """Recreate a Match object from a dictionary of teams.
+
+        :param teams_info: The dictionary with the necessary information.
+
+        """
+        teams: Dict[str, Team] = {}
+
+        for team_name, team_info in teams_info.items():
+            teams[team_name] = Team(
+                [find_player(player_name) for player_name in team_info["jugadores"]],
+                team_info.get("goles"),
+            )
+
+        return Match.manual_create(teams)

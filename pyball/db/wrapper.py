@@ -33,7 +33,8 @@ from pyball.db.errors import DbUnknownResultError
 class Player:  # pylint: disable=too-many-instance-attributes
     """Player related information.
 
-    :ivar id: Player unique identifier.
+    :ivar id: The database identifier of the player.
+    :ivar telegram_id: Player unique telegram identifier.
     :ivar name: Common name.
     :ivar main: Whether if the player is main player in the club.
     :ivar goals: Number of goals.
@@ -46,7 +47,8 @@ class Player:  # pylint: disable=too-many-instance-attributes
 
     """
 
-    id: int  # pylint: disable=invalid-name
+    id: int
+    telegram_id: int
     name: str
     main: bool
     goals: int = 0
@@ -80,12 +82,22 @@ class Player:  # pylint: disable=too-many-instance-attributes
         win_perc = (
             ((self.wins + 0.5 * self.ties) / self.match_count) * 100 if self.match_count > 0 else 0
         )
-        goals_perc = (self.goals - min_goals) / (max_goals - min_goals) * 100
-        assists_perc = (self.assists - min_assists) / (max_assists - min_assists) * 100
+        goals_perc = (
+            (self.goals - min_goals) / (max_goals - min_goals) * 100
+            if (max_goals - min_goals)
+            else 0
+        )
+        assists_perc = (
+            (self.assists - min_assists) / (max_assists - min_assists) * 100
+            if (max_assists - min_assists)
+            else 0
+        )
         statistics = 0.6 * win_perc + 0.25 * goals_perc + 0.15 * assists_perc
+
         if self.rank:
             statistics = 0.7 * statistics + 0.3 * self.rank
-        self.skill = statistics
+
+        self.skill = round(statistics, 5)
 
     @staticmethod
     def from_db(player: model.Player) -> "Player":
@@ -97,6 +109,7 @@ class Player:  # pylint: disable=too-many-instance-attributes
         """
         return Player(
             id=cast(int, player.id),
+            telegram_id=cast(int, player.telegram_id),
             name=cast(str, player.name),
             main=cast(bool, player.main),
             goals=cast(int, player.goals),

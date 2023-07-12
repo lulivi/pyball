@@ -27,7 +27,11 @@ from decouple import Csv, config
 
 REPOSITORY_ROOT_DIR: Path = Path.cwd()
 LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
+DATE_FORMAT: str = config("DATE_FORMAT", default="%d/%b/%Y")
+TIME_FORMAT: str = config("TIME_FORMAT", default="%H:%M")
+DATETIME_FORMAT: str = config("DATETIME_FORMAT", default=f"{DATE_FORMAT} {TIME_FORMAT}")
 BOT_TOKEN: str = config("BOT_TOKEN")
+REGULARS_ID: int = config("REGULARS_ID", cast=int)
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
 DEFAULT_MATCH_LOCATION: str = config("DEFAULT_MATCH_LOCATION")
 ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")

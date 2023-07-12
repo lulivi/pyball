@@ -23,11 +23,18 @@
 import datetime
 import logging
 
+from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
+
+import yaml
 
 from pyball import __version__
-from pyball.callup.errors import CallUpMatchNotYetCreatedError
+from pyball.callup.errors import (
+    CallUpMatchAlreadyFinishedError,
+    CallUpMatchNotYetCreatedError,
+    CallUpWrongFormatError,
+)
 from pyball.callup.match import Match, PlayersStatInput
 from pyball.callup.players import PlayerAction, Players
 from pyball.settings import DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
@@ -46,10 +53,6 @@ class ChatInfo:
 
     chat_id: int
     message_id: Optional[int] = None
-
-    def as_dict(self) -> Dict[str, int]:
-        """Return the instance variables as a dictionary."""
-        return vars(self)
 
 
 class CallUp:
@@ -82,30 +85,33 @@ class CallUp:
         date: datetime.datetime,
         main_chat_id: int,
         main_chat_msg: int,
-        location: Optional[str],
-        max_players: Optional[int] = None,
+        subs_chat_msg: Optional[int] = None,
+        location: Optional[str] = None,
+        fixed_player_number: Optional[int] = None,
+        players: Optional[Players] = None,
+        match: Optional[Match] = None,
     ) -> None:
         self._date: datetime.datetime = date
         self._location: str = location or DEFAULT_MATCH_LOCATION
         self._main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
-        self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID)
-        self._players: Players = Players(max_players)
+        self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID, subs_chat_msg)
+        self._players: Players = players or Players(maximum=fixed_player_number)
         self._actions = {
             PlayerAction.JOIN.name: self.add_player,
             PlayerAction.LEAVE.name: self.del_player,
         }
-        self._match: Optional[Match] = None
+        self._match: Optional[Match] = match
         logger.debug(f"Creating a new call-up: {self.title}")
 
     @property
     def date(self) -> str:
         """Obtain the date string."""
-        return datetime.datetime.strftime(self._date, "%A %d/%b/%Y")
+        return self._date.strftime("%A %d/%b/%Y")
 
     @property
     def time(self) -> str:
         """Obtain the time string."""
-        return datetime.datetime.strftime(self._date, "%H:%M")
+        return self._date.strftime("%H:%M")
 
     @property
     def location(self) -> str:
@@ -262,11 +268,80 @@ class CallUp:
         self._match.set_results(results, self._date)
 
     def __str__(self) -> str:
-        output = f"{self.title}\n\n{str(self._players)}"
+        return self.as_yaml()
 
+    def as_yaml(self) -> str:
+        """Obtain the YAML representation of the call-up.
+
+        :returns: The YAML string.
+
+        """
+        call_up_info = yaml.dump(
+            {
+                "convocatoria": f"*{self._date.strftime('%A %d/%b/%Y %H:%M')}*",
+                "localización": f"*{self._location}*",
+            },
+            allow_unicode=True,
+            indent=4,
+            sort_keys=False,
+        )
+
+        search_info: str = ""
+        if self.is_searching():
+            search_info = yaml.dump(
+                {"búsqueda": self.subs_chat.message_id},
+                allow_unicode=True,
+                indent=4,
+            )
+            search_info = f"\n{search_info}"
+
+        match_info: str = ""
         if self._match is not None:
-            output = f"{output}\n{str(self._match)}"
+            match_info = self.match.as_yaml()
 
-        output = f"{output}\n\nVersion: `{__version__}`"
+        version_info = yaml.dump(
+            {"versión": __version__},
+            allow_unicode=True,
+            indent=4,
+        )
 
-        return output
+        return f"{call_up_info}{self.players.as_yaml()}{search_info}{match_info}{version_info}"
+
+    @staticmethod
+    def from_yaml(yaml_str: str, main_chat_id: int, main_chat_msg: int) -> "CallUp":
+        """Create a CallUp object from a yaml string and the chat and messaages ids.
+
+        :param yaml_str: The text containing the yaml call-up.
+        :param main_chat_id: The call-up chat.
+        :param main_chat_msg: The call-up message.
+        :returns: The newly created object.
+
+        """
+        call_up_info: dict = yaml.safe_load(yaml_str)
+
+        if "finalizado" in call_up_info:
+            raise CallUpMatchAlreadyFinishedError()
+
+        try:
+            del call_up_info["versión"]
+            date = datetime.datetime.strptime(
+                call_up_info.pop("convocatoria"), "%A %d/%b/%Y %H:%M"
+            )
+            subs_chat_msg = call_up_info.pop("búsqueda", None)
+            location = call_up_info.pop("localización")
+            players = Players.from_list(call_up_info.pop("jugadores"))
+            match: Optional[Match] = None
+            if len(call_up_info) >= 2:
+                match = Match.from_dict(call_up_info)
+
+            return CallUp(
+                date=date,
+                main_chat_id=main_chat_id,
+                main_chat_msg=main_chat_msg,
+                subs_chat_msg=subs_chat_msg,
+                location=location,
+                players=players,
+                match=match,
+            )
+        except KeyError as error:
+            raise CallUpWrongFormatError(error.args[0])

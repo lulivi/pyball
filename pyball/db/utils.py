@@ -34,9 +34,11 @@ from peewee import IntegrityError, fn
 from pyball.db import model, wrapper
 from pyball.db.errors import (
     DbMatchesCountInconsistencyError,
+    DbMatchStatisticsNotFoundError,
     DbMultiplePlayersFoundError,
     DbNoBackUpError,
     DbPlayerAlreadyExistentError,
+    DbPlayerNotFoundError,
     DbPlayerNotUpdatedError,
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
@@ -69,26 +71,30 @@ def find_player(player: Union[str, int]) -> wrapper.Player:
 
     :param player: The id or the name of the player.
     :raises DbMultiplePlayersFoundError: When the name search retrieves multiple users.
-    :raises model.Player.DoesNotExist: When the player or wild-card is not found in the database.
+    :raises DbPlayerNotFoundError: When the player or wild-card is not found in the database.
     :returns: The player.
 
     """
+    player_is_str: bool = False
     try:
-        operation = model.Player.id == int(player)
+        operation = model.Player.telegram_id == int(player)
     except ValueError:
         operation = model.Player.name == player
+        player_is_str = True
 
     player_list = model.Player.select().where(operation)
 
-    if not player_list:
+    if not player_list and player_is_str:
         player_list = model.Player.select().where(model.Player.name.contains(player))
 
         if len(player_list) > 1:
             raise DbMultiplePlayersFoundError(
                 player_names=[p.name for p in player_list], wild_card=str(player)
             )
-
-    return wrapper.Player.from_db(player_list.get())
+    try:
+        return wrapper.Player.from_db(player_list.get())
+    except model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+        raise DbPlayerNotFoundError(str(player)) from error
 
 
 @log_func
@@ -105,8 +111,11 @@ def create_player(
     """
     table_info = {"name": player_name, "main": main_player}
 
-    if player_id is not None:
-        table_info["id"] = player_id
+    table_info["telegram_id"] = (
+        player_id
+        if player_id is not None
+        else model.Player.select(fn.Max(model.Player.telegram_id)).scalar() + 1
+    )
 
     try:
         model.Player.insert(**table_info).execute()
@@ -115,8 +124,59 @@ def create_player(
 
 
 @log_func
+def rename_player(player: Union[str, int], new_name: str) -> None:
+    """Rename a player in the database.
+
+    :param player: The id or the name of the player.
+    :param new_name: The new name for the chosen player.
+    :raises DbPlayerNotUpdatedError: If no player was modified.
+    :raises DbPlayerAlreadyExistentError: If a player with the same name already exists.
+
+    """
+    player_wrapper = find_player(player)
+
+    try:
+        if (
+            model.Player.update({"name": new_name})
+            .where(model.Player.telegram_id == player_wrapper.telegram_id)
+            .execute()
+        ) != 1:
+            raise DbPlayerNotUpdatedError()
+    except IntegrityError as error:
+        player_error_wrapped = find_player(new_name)
+        raise DbPlayerAlreadyExistentError(new_name, player_error_wrapped.telegram_id) from error
+
+
+@log_func
+def reid_player(player: Union[str, int], new_identifier: int) -> None:
+    """Change the ID of a player in the database.
+
+    :param player: The id or the name of the player.
+    :param new_identifier: The new ID for the chosen player.
+    :raises DbPlayerNotUpdatedError: If no player was modified.
+    :raises DbPlayerAlreadyExistentError: If a player with the same ID already exists.
+
+    """
+    player_wrapper = find_player(player)
+
+    try:
+        if (
+            model.Player.update({"telegram_id": new_identifier})
+            .where(model.Player.telegram_id == player_wrapper.telegram_id)
+            .execute()
+        ) != 1:
+            raise DbPlayerNotUpdatedError()
+        model.MatchStatistic.update({"player": new_identifier}).where(
+            model.MatchStatistic.player == player_wrapper.telegram_id
+        ).execute()
+    except IntegrityError as error:
+        player_error_wrapped = find_player(new_identifier)
+        raise DbPlayerAlreadyExistentError(player_error_wrapped.name, new_identifier) from error
+
+
+@log_func
 def get_player_list() -> List[wrapper.Player]:
-    """Get the list of existing players int he database.
+    """Get the list of existing players in the database.
 
     :returns: All the players.
 
@@ -125,88 +185,61 @@ def get_player_list() -> List[wrapper.Player]:
 
 
 @log_func
-def get_match_dict() -> Dict[datetime.datetime, Dict[str, Union[int, List[str]]]]:
-    """Get a list of the matches.
+def get_player_id_list() -> List[wrapper.Player]:
+    """Get the list of existing players telegram ids in the database.
 
-    :returns: The matches with their score.
+    :returns: All the players ids.
 
     """
-    matches: Dict[datetime.datetime, Dict[str, Union[int, List[str]]]] = {}
-
-    for match in (
-        model.MatchStatistic.select(model.MatchStatistic.date)
-        .group_by(model.MatchStatistic.date)
-        .order_by(model.MatchStatistic.date)
-    ):
-        teams = list(
-            model.MatchStatistic.select(
-                model.MatchStatistic.team, fn.SUM(model.MatchStatistic.goals)
-            )
-            .where(model.MatchStatistic.date == match.date)
-            .group_by(model.MatchStatistic.team)
-        )
-        players = list(
-            model.MatchStatistic.select(
-                model.MatchStatistic.player, model.MatchStatistic.team
-            ).where(model.MatchStatistic.date == match.date)
-        )
-        matches[match.date] = {
-            k.team: {
-                "score": k.goals,
-                "players": [p.player.name for p in players if p.team == k.team],
-            }
-            for k in teams
-        }
-
-    return matches
+    return [player.telegram_id for player in get_player_list()]
 
 
 @log_func
-def format_match_list(verbose: bool) -> List[str]:
-    """Get the list of matches.
+def get_matches_date_list() -> List[datetime.datetime]:
+    """Obtain a list of the past matches date.
 
-    :param verbose: Whether to print verbose information with each team members
-    :returns: All the matches with their result.
+    :returns: The list of dates.
 
     """
-    match_list: List[str] = []
+    return [
+        match_date.date
+        for match_date in model.MatchStatistic.select(model.MatchStatistic.date)
+        .group_by(model.MatchStatistic.date)
+        .order_by(model.MatchStatistic.date)
+    ]
 
-    for date, match in get_match_dict().items():
-        current_match = (
-            f"*{date.strftime('%Y/%m/%d %H:%M')}:*{format_match_result(match, verbose)}"
+
+@log_func
+def get_match(date: datetime.datetime) -> Dict[str, dict]:
+    """Obtain a match dictionary containing the teams and the players and scores.
+
+    :param date: The match to find.
+    :returns: The dictionary of the match.
+
+    """
+    teams = list(
+        model.MatchStatistic.select(model.MatchStatistic.team, fn.SUM(model.MatchStatistic.goals))
+        .where(model.MatchStatistic.date == date)
+        .group_by(model.MatchStatistic.team)
+    )
+    players = list(
+        model.MatchStatistic.select(model.MatchStatistic.player, model.MatchStatistic.team).where(
+            model.MatchStatistic.date == date
         )
-
-        if verbose or not match_list:
-            match_list.append(current_match)
-            continue
-
-        match_list[0] = f"{match_list[0]}\n{current_match}"
-
-    return match_list
-
-
-def format_match_result(match, verbose: bool) -> str:
-    """Get a match formatted as string with its results and players.
-
-    :param match: A dictionary containing the match teams, the scores and players.
-    :param verbose: Whether to expand match information or not.
-    :returns: The match string.
-
-    """
-    current_match_team_results = (
-        f"\n    Verde `{match['Verde']['score']}` - `{match['Naranja']['score']}` Naranja"
     )
 
-    if verbose:
-        current_match_team_results = ""
-        for team, data in match.items():
-            current_match_team_results = (
-                f"{current_match_team_results}\n\n· {team}: `{data['score']}`"
-            )
-            player_list = "\n  - ".join(f"`{player}`" for player in data["players"])
-            current_match_team_results = f"{current_match_team_results}\n  - {player_list}"
+    if not players or not teams:
+        raise DbMatchStatisticsNotFoundError(date)
 
-    return current_match_team_results
+    match_info = {
+        k.team: {
+            "goles": k.goals,
+            "jugadores": [p.player.name for p in players if p.team == k.team],
+        }
+        for k in teams
+    }
+
+    return match_info
 
 
 @log_func
@@ -218,13 +251,18 @@ def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
 
     """
     backup_database()
-
+    already_inserted_stats = []
     for stat in match_statistics:
         try:
             model.MatchStatistic.insert(stat.db_dict()).execute()
+            already_inserted_stats.append(stat)
         except IntegrityError as error:
             # Ensure the already created records are deleted after the error
-            model.MatchStatistic.delete().where(model.MatchStatistic.date == stat.date).execute()
+            for inserted_stat in already_inserted_stats:
+                model.MatchStatistic.delete().where(
+                    model.MatchStatistic.date == stat.date,
+                    model.MatchStatistic.player == inserted_stat.player,
+                ).execute()
             player = find_player(stat.player)
             raise DbStatisticForPlayerInMatchAlreadyExistent(stat.date, player.name) from error
         player_update = {
@@ -235,7 +273,12 @@ def add_match_results(match_statistics: List[wrapper.MatchStatistic]) -> None:
             player_update[getattr(model.Player, stat.result)] = (
                 getattr(model.Player, stat.result) + 1
             )
-        if model.Player.update(player_update).where(model.Player.id == stat.player).execute() != 1:
+        if (
+            model.Player.update(player_update)
+            .where(model.Player.telegram_id == stat.player)
+            .execute()
+            != 1
+        ):
             raise DbPlayerNotUpdatedError("Couldn't update the player goals or assists")
 
     update_players_skill()
@@ -284,7 +327,7 @@ def update_players_skill() -> None:
         player.compute_skill(goals.min, goals.max, assists.min, assists.max)
         if (
             model.Player.update({model.Player.skill: player.skill})
-            .where(model.Player.id == player.id)
+            .where(model.Player.telegram_id == player.telegram_id)
             .execute()
         ) != 1:
             raise DbPlayerNotUpdatedError("Could not update the player skill")
@@ -317,11 +360,11 @@ def check_inconsistencies() -> None:
                 f" {player.assists})"
             )
 
-    for player in model.Player.select():
         matches = (
             model.MatchStatistic.select().where(model.MatchStatistic.player == player).count()
         )
         player_stats = player.wins + player.losses + player.ties
+
         if matches != player_stats:
             raise DbMatchesCountInconsistencyError(
                 f"DB incosistency ({player.name}): the number of match statistics ({matches}) is"
@@ -372,7 +415,12 @@ def fix_inconsistencies() -> None:
             player_stats[player.player][green_stat] += 1
 
     for player, stats in player_stats.items():
-        if model.Player.update(stats).where(model.Player.id == player.id).execute() != 1:
+        if (
+            model.Player.update(stats)
+            .where(model.Player.telegram_id == player.telegram_id)
+            .execute()
+            != 1
+        ):
             raise DbPlayerNotUpdatedError(
                 f"There was an error updating player `{player.name} when fixing the match count"
             )
@@ -387,7 +435,7 @@ def fix_inconsistencies() -> None:
         .dicts()
     ):
         player = stat.pop("player")
-        if model.Player.update(stat).where(model.Player.id == player).execute() != 1:
+        if model.Player.update(stat).where(model.Player.telegram_id == player).execute() != 1:
             raise DbPlayerNotUpdatedError(
                 f"There was an error updating player `{player.name} when fixing the scores"
             )

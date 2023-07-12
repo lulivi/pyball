@@ -1,0 +1,11 @@
+jugadores:
+- '`${player_0}`'
+- '`${player_1}`'
+- '`${player_2}`'
+- '`${player_3}`'
+- '`${player_4}`'
+- '`${player_5}`'
+- '`${player_6}`'
+- '`${player_7}`'
+- '`${player_8}`'
+- '`${player_9}`'

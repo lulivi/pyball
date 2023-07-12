@@ -29,6 +29,24 @@ class PyBallDbError(Exception):
     """Base error for PyBall database transactions."""
 
 
+class DbPlayerNotFoundError(PyBallDbError):
+    """The player was not found."""
+
+    def __init__(self, wild_card: str) -> None:
+        self.wild_card = wild_card
+        self.message = f"The search of `{self.wild_card}` gave no results"
+        super().__init__(self.message)
+
+
+class DbMatchStatisticsNotFoundError(PyBallDbError):
+    """The match date didn't give any results."""
+
+    def __init__(self, date: datetime.datetime) -> None:
+        self.date = date
+        self.message = f"Could not find any match statistic for the date `{self.date}`"
+        super().__init__(self.message)
+
+
 class DbPlayerNotUpdatedError(PyBallDbError):
     """The player was not updated."""
 

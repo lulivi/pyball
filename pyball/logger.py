@@ -17,7 +17,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 """Loging module."""
 
 import datetime
@@ -93,6 +92,9 @@ logging.basicConfig(
         db_log,
     ),
 )
+
+# Third-party loggers
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 
 def log_func(func: Callable):

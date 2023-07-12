@@ -28,8 +28,26 @@ from typing import Any, Callable, Dict, List, NamedTuple, NoReturn, Optional, Ty
 from pyball.bot.errors import BotCommandError, BotPlayerError
 from pyball.bot.utils import md_monospace_items
 from pyball.callup.errors import CallUpMultiplePlayersFoundError, CallUpPlayerDoesNotExistError
-from pyball.callup.match import MatchStat, PlayersStatInput
+from pyball.callup.match import PlayersStatInput
 from pyball.logger import log_func
+
+
+class CustomHelpFormatter(argparse.HelpFormatter):  # pylint: disable=too-few-public-methods
+    def format_help(self):
+        formated_ussage = super().format_help()
+
+        if "[<nombre jugador> ...]" in formated_ussage:
+            formated_ussage = formated_ussage.replace("[<nombre jugador> ...]", "")
+
+        if "[<nombre jugador>[, <nombre jugador>[, ...]] ...]" in formated_ussage:
+            formated_ussage = formated_ussage.replace(
+                "[<nombre jugador>[, <nombre jugador>[, ...]] ...]", ""
+            )
+
+        if "[<jugador a>, <jugador b> ...]" in formated_ussage:
+            formated_ussage = formated_ussage.replace("[<jugador a>, <jugador b> ...]", "")
+
+        return formated_ussage
 
 
 class CommandArgument(NamedTuple):
@@ -67,11 +85,8 @@ class MatchStatsAction(argparse.Action):  # pylint: disable=too-few-public-metho
 
         # The first item will be empty since there is nothing at the left of the first `g`
         for raw_stat in raw_stats_str.split(" g ")[1:]:
-            stat = MatchStat(*raw_stat.split(" a "))
             try:
-                stats.add_goal(stat.scorer)
-                if stat.assistant:
-                    stats.add_assist(stat.assistant)
+                stats.add_stat(*raw_stat.split(" a "))
             except CallUpPlayerDoesNotExistError as error:
                 raise BotPlayerError(
                     f"No se ha encontrado al jugador `{error.player}` en la base de datos."
@@ -93,13 +108,15 @@ class PlayerNameAction(argparse.Action):  # pylint: disable=too-few-public-metho
         setattr(namespace, self.dest, " ".join(values))
 
 
-class PlayerNamesAction(argparse.Action):  # pylint: disable=too-few-public-methods
-    """Transform a list of palyer names separed by coma into a list of players."""
+class ComaSeparatedMultiWordStringsAction(
+    argparse.Action
+):  # pylint: disable=too-few-public-methods
+    """Transform a list coma separated word groups list strings."""
 
     def __call__(self, _, namespace, values, __=None) -> None:
         """Set the player name."""
         players = " ".join(values).split(",")
-        setattr(namespace, self.dest, [player.strip() for player in players])
+        setattr(namespace, self.dest, list(filter(None, [player.strip() for player in players])))
 
 
 class CommandParser(argparse.ArgumentParser):
@@ -128,7 +145,11 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
     subparsers = parser.add_subparsers()
 
     for subcommand in subcommands:
-        subparser = subparsers.add_parser(subcommand.names[0], aliases=subcommand.names[1:])
+        subparser = subparsers.add_parser(
+            subcommand.names[0],
+            aliases=subcommand.names[1:],
+            formatter_class=CustomHelpFormatter,
+        )
 
         for argument in subcommand.arguments:
             extra_args: Dict[str, Union[str, tuple, int, List[str]]] = {}

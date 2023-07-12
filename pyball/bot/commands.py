@@ -24,24 +24,25 @@ import datetime
 import functools
 import logging
 
+from typing import Optional
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from pyball.__version__ import __version__
 from pyball.bot.argument_parser import (
+    ComaSeparatedMultiWordStringsAction,
     CommandArgument,
     MatchStatsAction,
     PlayerNameAction,
-    PlayerNamesAction,
     SubCommand,
     parse_command,
 )
 from pyball.bot.errors import (
+    BotCallUpError,
     BotCommandError,
     BotDatabaseError,
-    BotExpectedMessageIdError,
     BotMatchError,
-    BotNoCallUpError,
     BotNotAdminError,
     BotPlayerError,
 )
@@ -62,11 +63,14 @@ from pyball.bot.utils import (
     get_call_up,
     match_list,
     match_rollback,
+    match_show,
     player_add,
     player_list,
     player_rank,
+    player_reid,
+    player_rename,
     search_substitutes,
-    validate_call_up_message_id,
+    update_call_up_message,
 )
 from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
@@ -76,6 +80,7 @@ from pyball.callup.errors import (
     CallUpPlayerNotCalledUpError,
 )
 from pyball.logger import log_func
+from pyball.settings import ADMINS_IDS, DATE_FORMAT, TIME_FORMAT
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +93,9 @@ async def command_version(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     :param context: The information related to the update.
 
     """
+    if update.message is None:
+        return
+
     await bot_call_message_function(update.message.reply_text, f"Pyball `{__version__}`")
 
 
@@ -99,6 +107,9 @@ async def command_help(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     :param context: The information related to the update.
 
     """
+    if update.message is None:
+        return
+
     await bot_call_message_function(
         update.message.reply_text,
         (
@@ -120,13 +131,14 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     """
     query = update.callback_query
+
+    if query is None or query.data is None or query.message is None:
+        return
+
     try:
-        call_up: CallUp = get_call_up(context.chat_data)
-        validate_call_up_message_id(call_up, query.message)
-    except (BotNoCallUpError, BotExpectedMessageIdError):
-        await query.answer(
-            text="Por favor, utiliza sólamente la última convocatoria. Ésta está ya cerrada.",
-        )
+        call_up: CallUp = get_call_up(query.message)
+    except BotCallUpError as error:
+        await query.answer(text=str(error))
         return
 
     if update.effective_user is None:
@@ -134,6 +146,8 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     player = update.effective_user.id
     answer: str = ""
+
+    old_call_up_yaml = call_up.as_yaml()
 
     try:
         call_up.act(query.data, player)
@@ -148,9 +162,10 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     finally:
         await query.answer(answer)
 
-    await bot_call_message_function_with_keyboard(
-        bot_message_function=query.edit_message_text,
-        text=str(call_up),
+    await update_call_up_message(
+        call_up=call_up,
+        context=context,
+        old_call_up_yaml=old_call_up_yaml,
     )
     await search_substitutes(
         call_up=call_up,
@@ -171,8 +186,7 @@ async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.error("No `effective_user` object in the command_match update")
         return
 
-    if update.effective_chat is None:
-        logger.error("No `effective_chat` object in the command_match update")
+    if update.message is None:
         return
 
     try:
@@ -181,14 +195,24 @@ async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             subcommands=[
                 SubCommand(
                     ["list", "l"],
-                    [CommandArgument("-v", dest="verbose", action="store_true")],
                     callable=functools.partial(
                         match_list,
-                        chat_id=update.effective_chat.id,
-                        user_id=update.effective_user.id,
-                        context=context,
                         reply_function=update.message.reply_text,
                     ),
+                ),
+                SubCommand(
+                    ["show", "s"],
+                    [
+                        CommandArgument(
+                            "date",
+                            metavar="DD/MMM/YYY",
+                            help="Date of the match. E.g.: 10/oct/2023",
+                        ),
+                        CommandArgument(
+                            "time", metavar="HH:MM", help="Time of the match. E.g.: 22:00"
+                        ),
+                    ],
+                    callable=match_show,
                 ),
                 SubCommand(
                     ["rollback"], callable=ensure_admin(update.effective_user.id, match_rollback)
@@ -196,25 +220,41 @@ async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             ],
             text=update.message.text,
         )
+        if "date" in args:
+            parsed_time = datetime.datetime.strptime(args.pop("time"), TIME_FORMAT)
+            args["date"] = datetime.datetime.strptime(args["date"], DATE_FORMAT).replace(
+                hour=parsed_time.hour, minute=parsed_time.minute
+            )
     except BotCommandError as error:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=str(error),
         )
         return
+    except ValueError:
+        await bot_call_message_function(
+            message_function=update.message.reply_text,
+            text=(
+                "La fecha del partido no es correcta. Por favor, indícala en formato"
+                " DD/MMM/YYYY HH:MM."
+            ),
+        )
+        return
+
+    args["reply_function"] = update.message.reply_text
 
     try:
         output = await args.pop("func")(**args)
     except (BotNotAdminError, BotDatabaseError) as error:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=str(error),
         )
         return
 
     if output:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=output,
         )
 
@@ -229,6 +269,9 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """
     if update.effective_user is None:
         logger.error("No `effective_user` object in the command_player update")
+        return
+
+    if update.message is None:
         return
 
     try:
@@ -256,7 +299,8 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                     [
                         CommandArgument(
                             "name",
-                            "<nombre jugador>",
+                            metavar="<nombre jugador>",
+                            help="Player name",
                             action=PlayerNameAction,
                             nargs="+",
                         ),
@@ -264,12 +308,36 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                     ],
                     callable=ensure_admin(update.effective_user.id, player_add),
                 ),
+                SubCommand(
+                    ["rename"],
+                    [
+                        CommandArgument(
+                            "rename_list",
+                            "<nombre jugador|id jugador>, <nuevo nombre>",
+                            action=ComaSeparatedMultiWordStringsAction,
+                            nargs="+",
+                        ),
+                    ],
+                    callable=ensure_admin(update.effective_user.id, player_rename),
+                ),
+                SubCommand(
+                    ["reid"],
+                    [
+                        CommandArgument(
+                            "reid_list",
+                            "<nombre jugador|id jugador>, <nuevo id>",
+                            action=ComaSeparatedMultiWordStringsAction,
+                            nargs="+",
+                        ),
+                    ],
+                    callable=ensure_admin(update.effective_user.id, player_reid),
+                ),
             ],
             text=update.message.text,
         )
     except BotCommandError as error:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=str(error),
         )
         return
@@ -278,14 +346,14 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         output = args.pop("func")(**args)
     except (BotPlayerError, BotNotAdminError) as error:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=str(error),
         )
         return
 
     if output:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=output,
         )
 
@@ -299,6 +367,9 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     :param context: The information related to the update.
 
     """
+    if update.message is None:
+        return
+
     try:
         args = parse_command(
             command="/callup",
@@ -319,13 +390,18 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                             default=None,
                             dest="location",
                         ),
-                        CommandArgument("date", metavar="YYYY/MM/DD"),
-                        CommandArgument("time", metavar="HH:MM"),
+                        CommandArgument(
+                            "date",
+                            metavar="DD/MMM/YYY",
+                            help="Date of the match. E.g.: 10/oct/2023",
+                        ),
+                        CommandArgument(
+                            "time", metavar="HH:MM", help="Time of the match. E.g.: 22:00"
+                        ),
                     ],
                     callable=functools.partial(
                         callup_new,
                         chat_id=update.message.chat_id,
-                        context=context,
                     ),
                 ),
                 SubCommand(
@@ -336,41 +412,22 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                             metavar="<maximum> | auto",
                         )
                     ],
-                    callable=functools.partial(
-                        callup_maximum,
-                        context=context,
-                        reply_function=update.message.reply_text,
-                    ),
+                    callable=callup_maximum,
                 ),
-                SubCommand(
-                    ["lock", "l"],
-                    callable=functools.partial(
-                        callup_lock,
-                        context=context,
-                    ),
-                ),
-                SubCommand(
-                    ["unlock", "u"],
-                    callable=functools.partial(
-                        callup_unlock,
-                        context=context,
-                    ),
-                ),
+                SubCommand(["lock", "l"], callable=callup_lock),
+                SubCommand(["unlock", "u"], callable=callup_unlock),
                 SubCommand(
                     ["add", "a"],
                     [
                         CommandArgument(
                             "names",
                             metavar="<nombre jugador>[, <nombre jugador>[, ...]]",
-                            action=PlayerNamesAction,
+                            help="A coma separated list of player names",
+                            action=ComaSeparatedMultiWordStringsAction,
                             nargs="+",
                         )
                     ],
-                    callable=functools.partial(
-                        callup_add,
-                        context=context,
-                        reply_function=update.message.reply_text,
-                    ),
+                    callable=callup_add,
                 ),
                 SubCommand(
                     ["del", "d"],
@@ -378,80 +435,119 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         CommandArgument(
                             "names",
                             metavar="<nombre jugador>[, <nombre jugador>[, ...]]",
-                            action=PlayerNamesAction,
+                            help="A coma separated list of player names",
+                            action=ComaSeparatedMultiWordStringsAction,
                             nargs="+",
                         )
                     ],
-                    callable=functools.partial(
-                        callup_del,
-                        context=context,
-                        reply_function=update.message.reply_text,
-                    ),
+                    callable=callup_del,
                 ),
                 SubCommand(
                     ["search", "s"],
                     [CommandArgument("-stop", action="store_true")],
-                    callable=functools.partial(
-                        callup_search,
-                        context=context,
-                        reply_function=update.message.reply_text,
-                    ),
+                    callable=callup_search,
                 ),
                 SubCommand(
                     ["teams", "t"],
-                    [CommandArgument("-swap", metavar=('"<jugador a>"', '"<jugador b>'), nargs=2)],
-                    callable=functools.partial(
-                        callup_teams,
-                        context=context,
-                    ),
+                    [
+                        CommandArgument(
+                            "-swap",
+                            metavar="<jugador a>, <jugador b>",
+                            help="The two player names separated by coma",
+                            action=ComaSeparatedMultiWordStringsAction,
+                            nargs="+",
+                        )
+                    ],
+                    callable=callup_teams,
                 ),
                 SubCommand(
                     ["results", "r"],
                     [
                         CommandArgument(
                             "stats",
-                            help="g <nombre jugador 1> [a <nombre jugador 2>]",
-                            metavar="<match statistic>",
+                            help="Sucession of [g]oals and [assits] of the match",
+                            metavar="g <nombre jugador 1> [a <nombre jugador 2>]",
                             action=MatchStatsAction,
                             nargs="+",
                         )
                     ],
-                    callable=functools.partial(
-                        callup_results,
-                        context=context,
-                        reply_function=update.message.reply_text,
-                    ),
+                    callable=callup_results,
                 ),
             ],
             text=update.message.text,
         )
         if "date" in args:
-            parsed_time = datetime.datetime.strptime(args.pop("time"), "%H:%M")
-            args["date"] = datetime.datetime.strptime(args["date"], "%Y/%m/%d").replace(
+            parsed_time = datetime.datetime.strptime(args.pop("time"), TIME_FORMAT)
+            args["date"] = datetime.datetime.strptime(args["date"], DATE_FORMAT).replace(
                 hour=parsed_time.hour, minute=parsed_time.minute
             )
     except (BotCommandError, BotPlayerError) as error:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=str(error),
         )
         return
     except ValueError:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=(
                 "La fecha de la nueva convocatoria no es correcta. Por favor, indícala en formato"
-                " YYYY/MM/DD HH:MM."
+                " DD/MMM/YYYY HH:MM."
             ),
         )
         return
 
     try:
+        args["call_up"] = get_call_up(update.message.reply_to_message)
+    except BotCallUpError as error:
+        await bot_call_message_function(
+            message_function=update.message.reply_text,
+            text=str(error),
+        )
+        return
+
+    args["reply_function"] = update.message.reply_text
+    args["context"] = context
+
+    try:
         await args.pop("func")(**args)
     except (CallUpPlayerAlreadyCalledUpError, CallUpPlayerNotCalledUpError):
         return
-    except (BotPlayerError, BotMatchError, BotNoCallUpError, BotNotAdminError) as error:
+    except (BotPlayerError, BotMatchError, BotCallUpError, BotNotAdminError) as error:
         await bot_call_message_function(
-            bot_message_function=update.message.reply_text,
+            message_function=update.message.reply_text,
             text=str(error),
         )
+        return
+    except TypeError as error:
+        if error.args[0] == "call_up":
+            await bot_call_message_function(
+                message_function=update.message.reply_text,
+                text=(
+                    "No se ha encontrado una convocatoria en el mensaje respondido. Por favor,"
+                    " responde al mensaje con la convocatoria."
+                ),
+            )
+            return
+
+    await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.id)
+
+
+@log_func
+async def message_from_wrong_chat(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    """Message from wrong chat.
+
+    :param update: The event that caused the bot petition.
+    :param context: The information related to the update.
+
+    """
+    if update.message is None:
+        return
+
+    await update.message.reply_markdown_v2(
+        "¡Hola\! Este bot está ejecutando el código alojado en"
+        " [gitlab](https://gitlab.com/lulivi/pyball)\.\nÉchale un vistazo a la [introducción de la"
+        " API]("
+        "https://github.com/python-telegram-bot/python-telegram-bot/wiki/Introduction-to-the-API)"
+        " para crear tu bot\. Lee el README\.md en la raiz del repositorio\."
+    )

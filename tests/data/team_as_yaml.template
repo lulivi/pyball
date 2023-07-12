@@ -1,0 +1,8 @@
+${team_name}:
+    goles: ${score}
+    jugadores:
+    - '`${player_0}`'
+    - '`${player_1}`'
+    - '`${player_2}`'
+    - '`${player_3}`'
+    - '`${player_4}`'

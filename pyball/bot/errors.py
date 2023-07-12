@@ -29,10 +29,6 @@ class BotNotAdminError(PyBallBotError):
     """The user is not in the admin list."""
 
 
-class BotNoCallUpError(PyBallBotError):
-    """There is no created call-up."""
-
-
 class BotExpectedMessageIdError(PyBallBotError):
     """When the message identifier is not the expected one."""
 
@@ -47,6 +43,10 @@ class BotMatchError(PyBallBotError):
 
 class BotPlayerError(PyBallBotError):
     """Errors related with the players at the bot level."""
+
+
+class BotCallUpError(PyBallBotError):
+    """Errors related with the call-up at the bot level."""
 
 
 class BotCommandError(PyBallBotError):

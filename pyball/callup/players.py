@@ -27,6 +27,8 @@ import logging
 from enum import Enum, auto
 from typing import List, Optional, Union
 
+import yaml
+
 from pyball import db
 from pyball.callup.errors import (
     CallUpMultiplePlayersFoundError,
@@ -53,12 +55,16 @@ class Players:
 
     """
 
-    __slots__ = ["_players", "_maximum"]
+    __slots__ = ["_players", "_fixed_player_number"]
 
-    def __init__(self, maximum: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        maximum: Optional[int] = None,
+        players: Optional[List[db.wrapper.Player]] = None,
+    ) -> None:
         """Initialize the object."""
-        self._players: List[db.wrapper.Player] = []
-        self._maximum: Optional[int] = maximum
+        self._players: List[db.wrapper.Player] = players or []
+        self._fixed_player_number: Optional[int] = maximum
         logger.debug("Created the Players object")
 
     @property
@@ -72,10 +78,10 @@ class Players:
         :returns: The maximum number of players.
 
         """
-        if self._maximum is None:
+        if self._fixed_player_number is None:
             return self._compute_maximum()
 
-        return self._maximum
+        return self._fixed_player_number
 
     @maximum.setter
     def maximum(self, new_maximum: Optional[int]) -> None:
@@ -84,7 +90,7 @@ class Players:
         :param new_maximum: The new `_maximum` value.
 
         """
-        self._maximum = new_maximum
+        self._fixed_player_number = new_maximum
 
     def _compute_maximum(self) -> int:
         """Guess the maximum number of player based on the current one.
@@ -93,7 +99,7 @@ class Players:
         :returns: The maximum number of players to search for.
 
         """
-        return min(filter(lambda x: len(self) <= x, (10, 12, 14, 15, 20, 25)), default=100)
+        return min(filter(lambda x: len(self) <= x, (10, 12, 14, 15, 22)), default=100)
 
     @property
     def players(self) -> List[db.wrapper.Player]:
@@ -120,6 +126,9 @@ class Players:
             raise CallUpPlayerAlreadyCalledUpError(
                 f"El jugador `{player_object}` ya está apuntado a esta convocatoria"
             )
+
+        if self.are_ready():
+            self._fixed_player_number = None
 
         logger.debug(f"Adding player `{player}`: Added `{player_object.name}`")
         self._players.append(player_object)
@@ -169,15 +178,7 @@ class Players:
         return len(self._players)
 
     def __str__(self) -> str:
-        # Since we don't want UTF-8 characters to mess up the sorting, we use the
-        # :func:`functools.cmp_to_key` function with the chosen locale.
-        sorted_players = sorted(
-            [p.name for p in self._players], key=functools.cmp_to_key(locale.strcoll)
-        )
-        sorted_players.extend(["?????"] * (self.maximum - len(self._players)))
-        return "\n".join(
-            [f"{index + 1:02} - `{player}`" for index, player in enumerate(sorted_players)]
-        )
+        return self.as_yaml()
 
     def __repr__(self) -> str:
         # Since we don't want UTF-8 characters to mess up the sorting, we use the
@@ -189,6 +190,39 @@ class Players:
         player_list = ",".join(sorted_players)
         return f"Players({player_list})"
 
+    def as_yaml(self) -> str:
+        """Obtain the YAML representation of the players.
+
+        :returns: The YAML string.
+
+        """
+        return yaml.dump(
+            {
+                "jugadores": sorted(
+                    [f"`{p.name}`" for p in self._players],
+                    key=functools.cmp_to_key(locale.strcoll),
+                )
+                + ["`?????`"] * (self.maximum - len(self._players))
+            },
+            allow_unicode=True,
+            indent=4,
+            sort_keys=False,
+        )
+
+    @staticmethod
+    def from_list(players_info: List[str]) -> "Players":
+        """Recreate a Player object from a list of player names.
+
+        :param players_info: The list with all the players.
+
+        """
+        return Players(
+            maximum=len(players_info) if "?????" in players_info else None,
+            players=[
+                find_player(player_name) for player_name in players_info if player_name != "?????"
+            ],
+        )
+
 
 def find_player(player: Union[str, int]) -> db.wrapper.Player:
     """Wrap db.utils.find_player and raise proper errors.
@@ -199,7 +233,7 @@ def find_player(player: Union[str, int]) -> db.wrapper.Player:
     """
     try:
         return db.utils.find_player(player)
-    except db.model.Player.DoesNotExist as error:  # type: ignore  # pylint: disable=E1101
+    except db.errors.DbPlayerNotFoundError as error:
         logger.error(f"Player `{player}` not found in the database")
         raise CallUpPlayerDoesNotExistError(player) from error
     except db.errors.DbMultiplePlayersFoundError as error:
