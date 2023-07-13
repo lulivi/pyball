@@ -66,7 +66,7 @@ class BaseModel(Model):
 class Player(BaseModel):
     """Player statistics and information."""
 
-    id = AutoField()
+    player_id = AutoField()
     telegram_id = IntegerField(null=False)
     name = CharField(null=False)
     main = BooleanField(null=False)

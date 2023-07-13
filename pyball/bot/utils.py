@@ -31,6 +31,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
+from pyball import db
 from pyball.bot.errors import (
     BotCallUpError,
     BotDatabaseError,
@@ -52,7 +53,6 @@ from pyball.callup.errors import (
     CallUpWrongFormatError,
 )
 from pyball.callup.match import Match, PlayersStatInput
-from pyball.db import wrapper
 from pyball.db.errors import (
     DbMatchStatisticsNotFoundError,
     DbMultiplePlayersFoundError,
@@ -157,7 +157,7 @@ def get_call_up(message: Optional[Message]) -> CallUp:
             f"El mensaje de convocatoria necesita el elemento `{error.missing_key}`"
         ) from error
     except CallUpMatchAlreadyFinishedError as error:
-        raise BotCallUpError("El partido seleccionado ha concluido")
+        raise BotCallUpError("El partido seleccionado ha concluido") from error
 
 
 def command_ensure_admin(func):
@@ -406,35 +406,35 @@ def player_rank(order: str, **_: dict) -> str:
 
     """
 
-    def order_by_skill(player_list: List[wrapper.Player]) -> List[str]:
+    def order_by_skill(players: List[db.wrapper.Player]) -> List[str]:
         return [
             f"`{player.name}`"
-            for player in sorted(player_list, key=lambda player: player.skill, reverse=True)
+            for player in sorted(players, key=lambda player: player.skill, reverse=True)
         ]
 
-    def order_by_points(player_list: List[wrapper.Player]) -> List[str]:
+    def order_by_points(players: List[db.wrapper.Player]) -> List[str]:
         return [
             f"`{player_tuple[0]}` ({player_tuple[1]})"
             for player_tuple in sorted(
-                ((player.name, player.wins * 3 + player.ties) for player in player_list),
+                ((player.name, player.wins * 3 + player.ties) for player in players),
                 key=lambda player_tuple: player_tuple[1],
                 reverse=True,
             )
         ]
 
-    def order_by_goals(player_list: List[wrapper.Player]) -> List[str]:
+    def order_by_goals(players: List[db.wrapper.Player]) -> List[str]:
         return [
             f"`{player.name}` ({player.goals})"
-            for player in sorted(player_list, key=lambda player: player.goals, reverse=True)
+            for player in sorted(players, key=lambda player: player.goals, reverse=True)
         ]
 
-    def order_by_assists(player_list: List[wrapper.Player]) -> List[str]:
+    def order_by_assists(players: List[db.wrapper.Player]) -> List[str]:
         return [
             f"`{player.name}` ({player.assists})"
-            for player in sorted(player_list, key=lambda player: player.assists, reverse=True)
+            for player in sorted(players, key=lambda player: player.assists, reverse=True)
         ]
 
-    player_list = get_player_list()
+    players = get_player_list()
     rank_players_by = {
         "skill": order_by_skill,
         "s": order_by_skill,
@@ -448,7 +448,7 @@ def player_rank(order: str, **_: dict) -> str:
 
     player_ranking = "\n".join(
         f"{idx + 1:02} - {player_name}"
-        for idx, player_name in enumerate(rank_players_by[order](player_list))
+        for idx, player_name in enumerate(rank_players_by[order](players))
     )
     return f"Rank by {order}:\n{player_ranking}"
 
@@ -490,7 +490,7 @@ def player_rename(rename_list: List[str], **_: dict) -> str:
     try:
         rename_player(player, new_name)
     except DbPlayerAlreadyExistentError as error:
-        raise BotPlayerError(f"Ya existe el jugador `{error.name}` con ese nombre")
+        raise BotPlayerError(f"Ya existe el jugador `{error.name}` con ese nombre") from error
     except DbPlayerNotFoundError as error:
         raise BotPlayerError(
             f"No se ha encontrado al jugador `{error.wild_card}` en la base de datos."
@@ -522,7 +522,7 @@ def player_reid(reid_list: List[str], **_: dict) -> str:
     try:
         reid_player(player, new_identifier)
     except DbPlayerAlreadyExistentError as error:
-        raise BotPlayerError(f"Ya existe el jugador `{error.name}` con ese ID")
+        raise BotPlayerError(f"Ya existe el jugador `{error.name}` con ese ID") from error
     except DbPlayerNotFoundError as error:
         raise BotPlayerError(
             f"No se ha encontrado al jugador `{error.wild_card}` en la base de datos."
@@ -558,7 +558,7 @@ async def callup_new(
         (
             await bot_call_message_function_with_keyboard(
                 message_function=context.bot.send_message,
-                text=f"Creando convocatoria...",
+                text="Creando convocatoria...",
                 chat_id=chat_id,
             )
         ),
@@ -871,4 +871,5 @@ async def callup_results(
         stop=True,
         context=context,
         reply_function=reply_function,
+        call_up=call_up,
     )

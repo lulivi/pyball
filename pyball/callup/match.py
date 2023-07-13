@@ -201,7 +201,7 @@ class Match:
         if teams_number is not None and teams_number == 3:
             raise CallUpMatchTooManyTeamsForResults()
         match = Match()
-        match._create_teams(players, teams_number)
+        match.create_teams(players, teams_number)
         return match
 
     @staticmethod
@@ -216,7 +216,7 @@ class Match:
         match.teams = teams
         return match
 
-    def _create_teams(self, players: Players, teams_number: Optional[int] = None) -> None:
+    def create_teams(self, players: Players, teams_number: Optional[int] = None) -> None:
         """Generate two balanced teams.
 
         :param players: The player list.
@@ -343,14 +343,12 @@ class Match:
             raise CallUpMatchTooManyTeamsForResults
 
         match_results_dict = match_results.result
-        current_players = set(
-            [
-                player.name
-                for player in itertools.chain(
-                    *[team.players for _, team in self._teams.items()],
-                )
-            ]
-        )
+        current_players = {
+            player.name
+            for player in itertools.chain(
+                *[team.players for _, team in self._teams.items()],
+            )
+        }
         unplayed_players = set(match_results_dict) - (current_players)
         if unplayed_players:
             raise CallUpPlayersNotInMatch(list(unplayed_players))

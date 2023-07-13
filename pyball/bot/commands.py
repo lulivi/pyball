@@ -50,7 +50,6 @@ from pyball.bot.errors import (
 )
 from pyball.bot.utils import (
     bot_call_message_function,
-    bot_call_message_function_with_keyboard,
     callup_add,
     callup_del,
     callup_lock,
@@ -177,7 +176,7 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 @log_func
-async def command_match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def command_match(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Match actions.
 
     :param update: The event that caused the bot petition.
@@ -362,7 +361,9 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 @log_func
 @command_ensure_admin
-async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def command_callup(  # pylint: disable=too-many-return-statements
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Call-up actions.
 
     :param update: The event that caused the bot petition.
@@ -550,11 +551,11 @@ async def message_from_wrong_chat(update: Update, _: ContextTypes.DEFAULT_TYPE) 
         return
 
     await update.message.reply_markdown_v2(
-        "¡Hola\! Este bot está ejecutando el código alojado en"
-        " [gitlab](https://gitlab.com/lulivi/pyball)\.\nÉchale un vistazo a la [introducción de la"
-        " API]("
+        r"¡Hola\! Este bot está ejecutando el código alojado en"
+        r" [gitlab](https://gitlab.com/lulivi/pyball)\.\nÉchale un vistazo a la [introducción"
+        " de la API]("
         "https://github.com/python-telegram-bot/python-telegram-bot/wiki/Introduction-to-the-API)"
-        " para crear tu bot\. Lee el README\.md en la raiz del repositorio\."
+        r" para crear tu bot\. Lee el README\.md en la raiz del repositorio\."
     )
 
 

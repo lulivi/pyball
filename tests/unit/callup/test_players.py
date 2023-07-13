@@ -2,11 +2,9 @@ import random
 
 from pathlib import Path
 from string import Template
-from typing import List
 from unittest import TestCase, mock
 
 import faker
-import peewee
 
 from pyball import db
 from pyball.callup.errors import (
@@ -17,6 +15,7 @@ from pyball.callup.errors import (
 )
 from pyball.callup.players import Players, find_player
 from pyball.db.errors import DbMultiplePlayersFoundError, DbPlayerNotFoundError
+from tests.utils import create_wrapped_player
 
 fake: faker.Faker = faker.Faker()
 TEMPLATE_DIR = Path(__file__).resolve().parents[2].joinpath("data")
@@ -26,14 +25,7 @@ class TestPlayers(TestCase):
     def test_maximum_auto_calculated_less_than_ten(self):
         players = []
         for _ in range(8):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
 
         players_object = Players(players=players)
 
@@ -43,14 +35,7 @@ class TestPlayers(TestCase):
     def test_maximum_auto_calculated_equal_to_ten(self):
         players = []
         for _ in range(10):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
 
         players_object = Players(players=players)
 
@@ -61,14 +46,7 @@ class TestPlayers(TestCase):
         players = []
         maximum = 14
         for _ in range(10):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
 
         players_object = Players(maximum=maximum, players=players)
 
@@ -78,21 +56,14 @@ class TestPlayers(TestCase):
     def test_maximum_fix(self):
         players = []
         for _ in range(10):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
 
         players_object = Players(players=players)
 
         self.assertTrue(players_object.are_ready())
         self.assertEqual(players_object.maximum, 10)
 
-        players_object.maximum = 14
+        players_object.set_maximum(14)
 
         self.assertFalse(players_object.are_ready())
         self.assertEqual(players_object.maximum, 14)
@@ -108,12 +79,7 @@ class TestPlayers(TestCase):
 
     @mock.patch("pyball.callup.players.find_player")
     def test_player_join_already_called_up(self, mock_find_player):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
         mock_find_player.return_value = player_a
         players_object = Players(players=[player_a])
 
@@ -124,24 +90,9 @@ class TestPlayers(TestCase):
 
     @mock.patch("pyball.callup.players.find_player")
     def test_player_join_when_aready_ready_should_set_automatic_maximum(self, _):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_b = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_c = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
+        player_b = create_wrapped_player()
+        player_c = create_wrapped_player()
 
         players_object = Players(maximum=2, players=[player_a, player_b])
 
@@ -155,18 +106,8 @@ class TestPlayers(TestCase):
 
     @mock.patch("pyball.callup.players.find_player")
     def test_player_leave(self, mock_find_player):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_b = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
+        player_b = create_wrapped_player()
         mock_find_player.return_value = player_b
 
         players_object = Players(players=[player_a, player_b])
@@ -179,12 +120,7 @@ class TestPlayers(TestCase):
 
     @mock.patch("pyball.callup.players.find_player")
     def test_player_leave_not_called_up(self, mock_find_player):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
         mock_find_player.return_value = player_a
         players_object = Players()
 
@@ -194,72 +130,32 @@ class TestPlayers(TestCase):
         mock_find_player.assert_called_once()
 
     def test_remaining_players_when_eight_are_missing(self):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_b = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
+        player_b = create_wrapped_player()
 
         players_object = Players(maximum=10, players=[player_a, player_b])
 
         self.assertEqual(players_object.remaining(), 10 - len(players_object))
 
     def test_remaining_players_when_no_players_are_missing(self):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_b = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
+        player_b = create_wrapped_player()
 
         players_object = Players(maximum=2, players=[player_a, player_b])
 
         self.assertEqual(players_object.remaining(), 0)
 
     def test_are_ready_when_there_are_missing_players(self):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_b = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
+        player_b = create_wrapped_player()
 
         players_object = Players(maximum=4, players=[player_a, player_b])
 
         self.assertFalse(players_object.are_ready())
 
     def test_are_ready_when_there_are_no_missing_players(self):
-        player_a = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
-        player_b = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.unique.name(),
-            main=True,
-        )
+        player_a = create_wrapped_player()
+        player_b = create_wrapped_player()
 
         players_object = Players(maximum=2, players=[player_a, player_b])
 
@@ -268,14 +164,7 @@ class TestPlayers(TestCase):
     def test_as_yaml(self):
         players = []
         for _ in range(10):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
         players.sort(key=lambda player: player.name)
         expected_output = Template(
             TEMPLATE_DIR.joinpath("players_as_yaml.template").read_text()
@@ -299,14 +188,7 @@ class TestPlayers(TestCase):
     def test_str_should_return_a_yaml(self):
         players = []
         for _ in range(10):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
         players.sort(key=lambda player: player.name)
         expected_output = Template(
             TEMPLATE_DIR.joinpath("players_as_yaml.template").read_text()
@@ -330,14 +212,7 @@ class TestPlayers(TestCase):
     def test_as_yaml_when_there_are_missing_players(self):
         players = []
         for _ in range(8):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
         players.sort(key=lambda player: player.name)
         expected_output = Template(
             TEMPLATE_DIR.joinpath("players_as_yaml.template").read_text()
@@ -362,14 +237,7 @@ class TestPlayers(TestCase):
     def test_from_list(self, mock_find_player):
         players = []
         for _ in range(10):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
         players.sort(key=lambda player: player.name)
 
         mock_find_player.side_effect = players
@@ -386,14 +254,7 @@ class TestPlayers(TestCase):
     def test_from_list_when_there_are_missing_players(self, mock_find_player):
         players = []
         for _ in range(8):
-            players.append(
-                db.wrapper.Player(
-                    id=fake.random_int(),
-                    telegram_id=fake.random_int(),
-                    name=fake.unique.name(),
-                    main=True,
-                )
-            )
+            players.append(create_wrapped_player())
         players.sort(key=lambda player: player.name)
 
         mock_find_player.side_effect = players
@@ -411,12 +272,7 @@ class TestPlayers(TestCase):
 class TestFindPlayer(TestCase):
     @mock.patch("pyball.callup.players.db.utils.find_player")
     def test_find_player_when_exists(self, mock_find_player):
-        expected_player = db.wrapper.Player(
-            id=fake.random_int(),
-            telegram_id=fake.random_int(),
-            name=fake.name(),
-            main=True,
-        )
+        expected_player = create_wrapped_player()
         mock_find_player.return_value = expected_player
 
         obtained_player = find_player("test")

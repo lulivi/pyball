@@ -30,6 +30,8 @@ pylama = "7.7.1"
 pycodestyle = "*"
 pydocstyle = "*"
 pylint = "*"
+Faker = "18.*"
+typing_extensions = "*"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
@@ -48,7 +50,6 @@ pytest = "*"
 pytest-cov = "*"
 pytest-emoji = "*"
 pytest-timeout = "*"
-Faker = "14.*"
 
 [tool.black]
 line-length = 99
@@ -65,6 +66,7 @@ show_error_codes = true
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 module = ["decouple"]
+[misc]
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
@@ -82,7 +84,7 @@ envlist = format,py38,lint
 skip_install = True
 whitelist_externals = poetry
 commands_pre =
-    poetry install --with test --without dev
+    poetry install --with test
 commands =
     pytest {posargs:{toxinidir}/tests/ --cov={toxinidir}/pyball/ --cov-report=term-missing} \
         -vvv
@@ -105,7 +107,7 @@ commands =
     black --check --diff {toxinidir}/pyball/ {toxinidir}/tests
     isort --check --diff {toxinidir}/pyball/ {toxinidir}/tests
     pydocstyle {toxinidir}/pyball/ {toxinidir}/tests --add-ignore D104,D105,D107
-    pycodestyle {toxinidir}/pyball/ {toxinidir}/tests --max-line-length 99
-    mypy {toxinidir}/pyball/ {toxinidir}/tests
+    pycodestyle {toxinidir}/pyball/ {toxinidir}/tests --max-line-length 99 --ignore W605,W503
+    mypy {toxinidir}/pyball/ {toxinidir}/tests --enable-incomplete-feature=Unpack
     pylint {toxinidir}/pyball/ {toxinidir}/tests
 """

@@ -29,6 +29,7 @@ from pyball.db.utils import (
     rename_player,
     update_players_skill,
 )
+from tests.utils import create_dict_player
 
 fake: faker.Faker = faker.Faker()
 
@@ -307,30 +308,10 @@ class TestGetMatchAndMatchesDateList(TestCase):
         # given
         fake.unique.clear()
         self._players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "skill": 6,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "skill": 5,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "skill": 4,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "skill": 3,
-            },
+            create_dict_player(skill=6),
+            create_dict_player(skill=5),
+            create_dict_player(skill=4),
+            create_dict_player(skill=3),
         ]
         self._dates = [fake.unique.date_time(), fake.unique.date_time()]
         self._match_statistics = [
@@ -484,36 +465,12 @@ class TestAddMatchResults(TestCase):
         # given
         fake.unique.clear()
         self._players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-            },
+            create_dict_player(),
+            create_dict_player(),
+            create_dict_player(),
+            create_dict_player(),
+            create_dict_player(),
+            create_dict_player(),
         ]
         self._date = fake.unique.date_time()
         self._match_statistics = [
@@ -559,36 +516,27 @@ class TestAddMatchResults(TestCase):
 class TestUpdatePlayerSkill(TestCase):
     def test_update_player_skill(self):
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 5,
-                "assists": 2,
-                "wins": 3,
-                "losses": 0,
-                "ties": 1,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 2,
-                "assists": 1,
-                "wins": 2,
-                "losses": 1,
-                "ties": 1,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 1,
-                "assists": 0,
-                "wins": 0,
-                "losses": 3,
-                "ties": 1,
-            },
+            create_dict_player(
+                goals=5,
+                assists=2,
+                wins=3,
+                losses=0,
+                ties=1,
+            ),
+            create_dict_player(
+                goals=2,
+                assists=1,
+                wins=2,
+                losses=1,
+                ties=1,
+            ),
+            create_dict_player(
+                goals=1,
+                assists=0,
+                wins=0,
+                losses=3,
+                ties=1,
+            ),
         ]
         self.initialize_players(players)
 
@@ -605,36 +553,27 @@ class TestUpdatePlayerSkill(TestCase):
 
     def test_update_player_skill_with_no_goals_or_assists(self):
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 0,
-                "assists": 0,
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 0,
-                "assists": 0,
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 0,
-                "assists": 0,
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-            },
+            create_dict_player(
+                goals=0,
+                assists=0,
+                wins=0,
+                losses=0,
+                ties=0,
+            ),
+            create_dict_player(
+                goals=0,
+                assists=0,
+                wins=0,
+                losses=0,
+                ties=0,
+            ),
+            create_dict_player(
+                goals=0,
+                assists=0,
+                wins=0,
+                losses=0,
+                ties=0,
+            ),
         ]
         self.initialize_players(players)
 
@@ -661,26 +600,20 @@ class TestCheckInconsistencies(TestCase):
     def test_db_is_consistent(self):
         fake.unique.clear()
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 3,
-                "assists": 1,
-                "wins": 2,
-                "losses": 0,
-                "ties": 0,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 1,
-                "assists": 1,
-                "wins": 0,
-                "losses": 2,
-                "ties": 0,
-            },
+            create_dict_player(
+                goals=3,
+                assists=1,
+                wins=2,
+                losses=0,
+                ties=0,
+            ),
+            create_dict_player(
+                goals=1,
+                assists=1,
+                wins=0,
+                losses=2,
+                ties=0,
+            ),
         ]
         dates = [fake.unique.date_time(), fake.unique.date_time()]
         match_statistics = [
@@ -720,26 +653,20 @@ class TestCheckInconsistencies(TestCase):
     def test_db_has_inconsistent_score(self):
         fake.unique.clear()
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 5,
-                "assists": 1,
-                "wins": 2,
-                "losses": 0,
-                "ties": 0,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 1,
-                "assists": 1,
-                "wins": 0,
-                "losses": 2,
-                "ties": 0,
-            },
+            create_dict_player(
+                goals=5,
+                assists=1,
+                wins=2,
+                losses=0,
+                ties=0,
+            ),
+            create_dict_player(
+                goals=1,
+                assists=1,
+                wins=0,
+                losses=2,
+                ties=0,
+            ),
         ]
         dates = [fake.unique.date_time(), fake.unique.date_time()]
         match_statistics = [
@@ -780,26 +707,20 @@ class TestCheckInconsistencies(TestCase):
     def test_db_has_inconsistent_wins(self):
         fake.unique.clear()
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 3,
-                "assists": 1,
-                "wins": 2,
-                "losses": 2,
-                "ties": 0,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 1,
-                "assists": 1,
-                "wins": 0,
-                "losses": 2,
-                "ties": 0,
-            },
+            create_dict_player(
+                goals=3,
+                assists=1,
+                wins=2,
+                losses=2,
+                ties=0,
+            ),
+            create_dict_player(
+                goals=1,
+                assists=1,
+                wins=0,
+                losses=2,
+                ties=0,
+            ),
         ]
         dates = [fake.unique.date_time(), fake.unique.date_time()]
         match_statistics = [
@@ -852,26 +773,20 @@ class TestFixInconsistencies(TestCase):
     def test_inconsistent_score_db_is_properly_fixed(self):
         fake.unique.clear()
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 5,
-                "assists": 1,
-                "wins": 2,
-                "losses": 0,
-                "ties": 0,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 1,
-                "assists": 1,
-                "wins": 0,
-                "losses": 2,
-                "ties": 0,
-            },
+            create_dict_player(
+                goals=5,
+                assists=1,
+                wins=2,
+                losses=0,
+                ties=0,
+            ),
+            create_dict_player(
+                goals=1,
+                assists=1,
+                wins=0,
+                losses=2,
+                ties=0,
+            ),
         ]
         dates = [fake.unique.date_time(), fake.unique.date_time()]
         match_statistics = [
@@ -917,26 +832,20 @@ class TestFixInconsistencies(TestCase):
     def test_inconsistent_games_db_is_properly_fixed(self):
         fake.unique.clear()
         players = [
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 3,
-                "assists": 1,
-                "wins": 2,
-                "losses": 0,
-                "ties": 1,
-            },
-            {
-                "telegram_id": fake.unique.random_int(),
-                "name": fake.unique.name(),
-                "main": True,
-                "goals": 1,
-                "assists": 1,
-                "wins": 0,
-                "losses": 2,
-                "ties": 0,
-            },
+            create_dict_player(
+                goals=3,
+                assists=1,
+                wins=2,
+                losses=0,
+                ties=1,
+            ),
+            create_dict_player(
+                goals=1,
+                assists=1,
+                wins=0,
+                losses=2,
+                ties=0,
+            ),
         ]
         dates = [fake.unique.date_time(), fake.unique.date_time()]
         match_statistics = [

@@ -83,11 +83,11 @@ class Players:
 
         return self._fixed_player_number
 
-    @maximum.setter
-    def maximum(self, new_maximum: Optional[int]) -> None:
-        """Set the maximum players.
+    def set_maximum(self, new_maximum: Optional[int]) -> None:
+        """Set the maximum value to a new maximum, or to an automatic one.
 
-        :param new_maximum: The new `_maximum` value.
+        :param new_maximum: A number to represent the new maximum or `None` to calculate depending
+            on the current players.
 
         """
         self._fixed_player_number = new_maximum

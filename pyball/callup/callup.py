@@ -23,11 +23,12 @@
 import datetime
 import logging
 
-from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import yaml
+
+from typing_extensions import NotRequired, TypedDict, Unpack
 
 from pyball import __version__
 from pyball.callup.errors import (
@@ -55,7 +56,20 @@ class ChatInfo:
     message_id: Optional[int] = None
 
 
-class CallUp:
+class CallUpParams(TypedDict):  # pylint: disable=too-few-public-methods
+    """All call-up parametters."""
+
+    date: datetime.datetime
+    main_chat_id: int
+    main_chat_msg: int
+    subs_chat_msg: NotRequired[Optional[int]]
+    location: NotRequired[Optional[str]]
+    fixed_player_number: NotRequired[Optional[int]]
+    players: NotRequired[Optional[Players]]
+    match: NotRequired[Optional[Match]]
+
+
+class CallUp:  # pylint: disable=too-many-public-methods
     """Necessary information involving a match call-up.
 
     :ivar _date: Call-up date.
@@ -80,27 +94,19 @@ class CallUp:
     ]
     _actions: Dict[str, Callable]
 
-    def __init__(
-        self,
-        date: datetime.datetime,
-        main_chat_id: int,
-        main_chat_msg: int,
-        subs_chat_msg: Optional[int] = None,
-        location: Optional[str] = None,
-        fixed_player_number: Optional[int] = None,
-        players: Optional[Players] = None,
-        match: Optional[Match] = None,
-    ) -> None:
-        self._date: datetime.datetime = date
-        self._location: str = location or DEFAULT_MATCH_LOCATION
-        self._main_chat: ChatInfo = ChatInfo(main_chat_id, main_chat_msg)
-        self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID, subs_chat_msg)
-        self._players: Players = players or Players(maximum=fixed_player_number)
+    def __init__(self, **kwargs: Unpack[CallUpParams]) -> None:
+        self._date: datetime.datetime = kwargs["date"]
+        self._main_chat: ChatInfo = ChatInfo(kwargs["main_chat_id"], kwargs["main_chat_msg"])
+        self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID, kwargs.get("subs_chat_msg"))
+        self._location: str = kwargs.get("location") or DEFAULT_MATCH_LOCATION
+        self._players: Players = kwargs.get("players") or Players(
+            maximum=kwargs.get("fixed_player_number")
+        )
         self._actions = {
             PlayerAction.JOIN.name: self.add_player,
             PlayerAction.LEAVE.name: self.del_player,
         }
-        self._match: Optional[Match] = match
+        self._match: Optional[Match] = kwargs.get("match")
         logger.debug(f"Creating a new call-up: {self.title}")
 
     @property
@@ -248,7 +254,7 @@ class CallUp:
         :param maximum: The number of players.
 
         """
-        self._players.maximum = maximum
+        self._players.set_maximum(maximum)
 
     def create_match(self) -> None:
         """Create a new match."""
@@ -344,4 +350,4 @@ class CallUp:
                 match=match,
             )
         except KeyError as error:
-            raise CallUpWrongFormatError(error.args[0])
+            raise CallUpWrongFormatError(error.args[0]) from error

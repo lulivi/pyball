@@ -32,8 +32,11 @@ from pyball.callup.match import PlayersStatInput
 from pyball.logger import log_func
 
 
-class CustomHelpFormatter(argparse.HelpFormatter):  # pylint: disable=too-few-public-methods
+class CustomHelpFormatter(argparse.HelpFormatter):
+    """Ensure the help message arguments are properly formatted."""
+
     def format_help(self):
+        """Format argument parser help."""
         formated_ussage = super().format_help()
 
         if "[<nombre jugador> ...]" in formated_ussage:

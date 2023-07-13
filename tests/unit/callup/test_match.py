@@ -2,33 +2,16 @@ import random
 
 from pathlib import Path
 from string import Template
-from typing import List
 from unittest import TestCase, mock
 
 import faker
-import peewee
 
 from pyball import db
-from pyball.callup.errors import (
-    CallUpMultiplePlayersFoundError,
-    CallUpPlayerAlreadyCalledUpError,
-    CallUpPlayerDoesNotExistError,
-    CallUpPlayerNotCalledUpError,
-)
 from pyball.callup.match import Match, PlayersStatInput, Team
-from pyball.db.errors import DbMultiplePlayersFoundError, DbPlayerNotFoundError
+from tests.utils import create_wrapped_player
 
 fake: faker.Faker = faker.Faker()
 TEMPLATE_DIR = Path(__file__).resolve().parents[2].joinpath("data")
-
-
-def create_wrapped_player() -> db.wrapper.Player:
-    return db.wrapper.Player(
-        id=fake.unique.random_int(),
-        telegram_id=fake.unique.random_int(),
-        name=fake.unique.name(),
-        main=True,
-    )
 
 
 class TestPlayersStatInput(TestCase):

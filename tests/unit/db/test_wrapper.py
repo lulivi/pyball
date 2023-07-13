@@ -1,34 +1,11 @@
-from unittest import TestCase, mock
+from unittest import TestCase
 
 import faker
 import peewee
 
 from pyball import db
-from pyball.db.errors import (
-    DbMatchesCountInconsistencyError,
-    DbMatchStatisticsNotFoundError,
-    DbMultiplePlayersFoundError,
-    DbPlayerAlreadyExistentError,
-    DbPlayerNotFoundError,
-    DbScoreInconsistencyError,
-    DbStatisticForPlayerInMatchAlreadyExistent,
-    DbUnknownResultError,
-)
-from pyball.db.utils import (
-    add_match_results,
-    check_inconsistencies,
-    create_player,
-    find_player,
-    fix_inconsistencies,
-    get_match,
-    get_matches_date_list,
-    get_player_id_list,
-    get_player_list,
-    get_results_names,
-    reid_player,
-    rename_player,
-    update_players_skill,
-)
+from pyball.db.errors import DbUnknownResultError
+from pyball.db.utils import find_player
 
 fake: faker.Faker = faker.Faker()
 
