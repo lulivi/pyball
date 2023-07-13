@@ -29,7 +29,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Mess
 from pyball.bot.commands import (
     button_game,
     command_callup,
-    command_help,
+    command_error,
     command_match,
     command_player,
     command_version,
@@ -103,5 +103,6 @@ def build_application() -> Application:
             filters=~included_chats_filter,
         )
     )
+    application.add_error_handler(command_error)
 
     return application

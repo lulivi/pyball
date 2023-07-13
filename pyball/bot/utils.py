@@ -38,7 +38,7 @@ from pyball.bot.errors import (
     BotNotAdminError,
     BotPlayerError,
 )
-from pyball.bot.globals import CALL_UP_DICT_KEY, CALL_UP_KEYBOARD
+from pyball.bot.globals import CALL_UP_KEYBOARD
 from pyball.callup.callup import CallUp
 from pyball.callup.errors import (
     CallUpMatchAlreadyFinishedError,
@@ -52,7 +52,7 @@ from pyball.callup.errors import (
     CallUpWrongFormatError,
 )
 from pyball.callup.match import Match, PlayersStatInput
-from pyball.db import model, wrapper
+from pyball.db import wrapper
 from pyball.db.errors import (
     DbMatchStatisticsNotFoundError,
     DbMultiplePlayersFoundError,
@@ -617,11 +617,7 @@ async def callup_lock(context: ContextTypes.DEFAULT_TYPE, call_up: CallUp, **_: 
     :param context: Information related to the bot and the chat.
 
     """
-    await update_call_up_message(
-        call_up=call_up,
-        context=context,
-        with_keyboard=False,
-    )
+    await update_call_up_message(call_up=call_up, context=context, with_keyboard=False)
 
 
 @log_func
