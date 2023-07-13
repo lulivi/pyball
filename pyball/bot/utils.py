@@ -330,7 +330,7 @@ async def update_call_up_message(
 
 
 @log_func
-async def match_list(reply_function=Callable) -> None:
+async def match_list(reply_function=Callable, **_: dict) -> None:
     """Retrieve the list of matches.
 
     :param reply_function: Function used to send messages within this method.
@@ -348,6 +348,7 @@ async def match_list(reply_function=Callable) -> None:
 async def match_show(
     date: datetime.datetime,
     reply_function=Callable,
+    **_: dict,
 ) -> None:
     """Retrieve the list of matches.
 
@@ -385,7 +386,7 @@ async def match_rollback(**_: dict) -> str:
 
 
 @log_func
-def player_list() -> str:
+def player_list(**_: dict) -> str:
     """Retrieve the list of players in the database.
 
     :returns: A formatted string containing the list.
@@ -397,7 +398,7 @@ def player_list() -> str:
 
 
 @log_func
-def player_rank(order: str) -> str:
+def player_rank(order: str, **_: dict) -> str:
     """Retrieve the list of players in the database ordered.
 
     :param order: The order to rank the players.
@@ -453,7 +454,7 @@ def player_rank(order: str) -> str:
 
 
 @log_func
-def player_add(name: str, identifier: Optional[int]) -> str:
+def player_add(name: str, identifier: Optional[int], **_: dict) -> str:
     """Create a new player in the database.
 
     :param name: Name of the new player.
@@ -471,7 +472,7 @@ def player_add(name: str, identifier: Optional[int]) -> str:
 
 
 @log_func
-def player_rename(rename_list: List[str]) -> str:
+def player_rename(rename_list: List[str], **_: dict) -> str:
     """Rename a player.
 
     :param player: Name or identifier of the player.
@@ -503,7 +504,7 @@ def player_rename(rename_list: List[str]) -> str:
 
 
 @log_func
-def player_reid(reid_list: List[str]) -> str:
+def player_reid(reid_list: List[str], **_: dict) -> str:
     """Change a player ID.
 
     :param name: Name of the new player.

@@ -20,4 +20,4 @@
 
 """Database models, errors, wrappers and utils."""
 
-from . import errors, model, old_model, utils, wrapper
+from . import errors, model, utils, wrapper

@@ -141,8 +141,8 @@ def parse_command(command: str, subcommands: List[SubCommand], text: str) -> Dic
     :returns: The parsed namespace.
 
     """
-    parser = CommandParser(command)
-    subparsers = parser.add_subparsers()
+    parser = CommandParser(command, allow_abbrev=False)
+    subparsers = parser.add_subparsers(dest="subcommand")
 
     for subcommand in subcommands:
         subparser = subparsers.add_parser(

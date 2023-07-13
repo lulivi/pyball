@@ -370,12 +370,14 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.message is None:
         return
 
+    new_subcommand_names = ["new", "n"]
+
     try:
         args = parse_command(
             command="/callup",
             subcommands=[
                 SubCommand(
-                    ["new", "n"],
+                    new_subcommand_names,
                     [
                         CommandArgument(
                             "-p",
@@ -497,14 +499,15 @@ async def command_callup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
 
-    try:
-        args["call_up"] = get_call_up(update.message.reply_to_message)
-    except BotCallUpError as error:
-        await bot_call_message_function(
-            message_function=update.message.reply_text,
-            text=str(error),
-        )
-        return
+    if args["subcommand"] not in new_subcommand_names:
+        try:
+            args["call_up"] = get_call_up(update.message.reply_to_message)
+        except BotCallUpError as error:
+            await bot_call_message_function(
+                message_function=update.message.reply_text,
+                text=str(error),
+            )
+            return
 
     args["reply_function"] = update.message.reply_text
     args["context"] = context
