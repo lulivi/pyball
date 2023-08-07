@@ -46,17 +46,17 @@ def main() -> None:
         players, stats = list(Player.select().dicts()), list(MatchStatistic.select().dicts())
         with open(
             DATABASE_FILE_PATH.with_name(
-                f"{datetime.datetime.now().strftime(time_format)}_players"
+                f"{datetime.datetime.now().strftime(time_format)}_players.py"
             ),
             "w",
         ) as f_players, open(
             DATABASE_FILE_PATH.with_name(
-                f"{datetime.datetime.now().strftime(time_format)}_stats"
+                f"{datetime.datetime.now().strftime(time_format)}_stats.py"
             ),
             "w",
         ) as f_stats:
-            f_players.write(str(players))
-            f_stats.write(str(stats))
+            f_players.write(f"db.model.Player.insert_many({str(players)})")
+            f_stats.write(f"db.model.MatchStatistic.insert_many({str(stats)})")
     else:
         print("No hay tablas creadas en la base de datos.")
     database.close()
