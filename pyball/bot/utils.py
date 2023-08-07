@@ -321,12 +321,13 @@ async def update_call_up_message(
 
         call_up_diff = diff_call_ups(old_call_up_yaml, call_up.as_yaml())
 
-        for admin_id in ADMINS_IDS:
-            await bot_call_message_function(
-                message_function=context.bot.send_message,
-                chat_id=admin_id,
-                text=f"```{call_up_diff}```",
-            )
+        if call_up_diff:
+            for admin_id in ADMINS_IDS:
+                await bot_call_message_function(
+                    message_function=context.bot.send_message,
+                    chat_id=admin_id,
+                    text=f"```{call_up_diff}```",
+                )
 
 
 @log_func

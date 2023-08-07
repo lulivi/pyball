@@ -31,7 +31,6 @@ pycodestyle = "*"
 pydocstyle = "*"
 pylint = "*"
 Faker = "18.*"
-typing_extensions = "*"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
@@ -41,6 +40,7 @@ peewee = "3.15.3"
 types-peewee = "*"
 pyyaml = "6.0"
 types-PyYAML = "^6.0.12.10"
+typing_extensions = "*"
 
 [tool.poetry.group.test]
 optional = true
@@ -66,7 +66,6 @@ show_error_codes = true
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 module = ["decouple"]
-[misc]
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [

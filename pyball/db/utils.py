@@ -353,7 +353,12 @@ def check_inconsistencies() -> None:
             .get_or_none()
         )
 
-        if stats and (stats.goals != player.goals or stats.assists != player.assists):
+        if stats is None and (player.goals != 0 or player.assists != 0):
+            raise DbScoreInconsistencyError(
+                f"DB incosistency ({player.name}): there are no match statistics but player goals"
+                f" ({player.goals}) or assists ({player.assists}) are not zero"
+            )
+        elif stats and (stats.goals != player.goals or stats.assists != player.assists):
             raise DbScoreInconsistencyError(
                 f"DB incosistency ({player.name}): match statistics ({stats.goals},"
                 f" {stats.assists}) are different from the player ones ({player.goals},"
@@ -376,9 +381,13 @@ def check_inconsistencies() -> None:
 def fix_inconsistencies() -> None:
     """Fix inconsistencies related to the sum of win, lost and tied matches and scores."""
 
-    def default_stat() -> Dict[str, int]:
+    def default_match_result_stat() -> Dict[str, int]:
         """Get the base statistic for all player."""
         return {"wins": 0, "losses": 0, "ties": 0}
+
+    def default_match_interaction_stat() -> Dict[str, int]:
+        """Get the base statistic for all player."""
+        return {"goals": 0, "assists": 0}
 
     dates = [
         s.date
@@ -387,7 +396,9 @@ def fix_inconsistencies() -> None:
         )
     ]
 
-    player_stats: DefaultDict[str, Dict[str, int]] = defaultdict(default_stat)
+    player_match_result_stats: DefaultDict[str, Dict[str, int]] = defaultdict(
+        default_match_result_stat
+    )
     for date in dates:
         orange_players = model.MatchStatistic.select(model.MatchStatistic.player).where(
             model.MatchStatistic.date == date, model.MatchStatistic.team == "Naranja"
@@ -410,32 +421,36 @@ def fix_inconsistencies() -> None:
         orange_stat, green_stat = get_results_names(goals_orange, goals_green)
 
         for player in orange_players:
-            player_stats[player.player][orange_stat] += 1
+            player_match_result_stats[player.player.name][orange_stat] += 1
         for player in green_players:
-            player_stats[player.player][green_stat] += 1
+            player_match_result_stats[player.player.name][green_stat] += 1
 
-    for player, stats in player_stats.items():
+    for player in model.Player.select():
         if (
-            model.Player.update(stats)
+            model.Player.update(player_match_result_stats[player.name])
             .where(model.Player.telegram_id == player.telegram_id)
             .execute()
             != 1
         ):
-            raise DbPlayerNotUpdatedError(
-                f"There was an error updating player `{player.name} when fixing the match count"
+            logger.warning(
+                f"Player {player.name} ({player.telegram_id})'s stats where not updated"
             )
 
-    for stat in (
-        model.MatchStatistic.select(
-            model.MatchStatistic.player,
-            fn.SUM(model.MatchStatistic.goals),
-            fn.SUM(model.MatchStatistic.assists),
+        stats = (
+            model.MatchStatistic.select(
+                fn.SUM(model.MatchStatistic.goals),
+                fn.SUM(model.MatchStatistic.assists),
+            )
+            .where(model.MatchStatistic.player == player)
+            .get_or_none()
         )
-        .group_by(model.MatchStatistic.player)
-        .dicts()
-    ):
-        player = stat.pop("player")
-        if model.Player.update(stat).where(model.Player.telegram_id == player).execute() != 1:
-            raise DbPlayerNotUpdatedError(
-                f"There was an error updating player `{player.name} when fixing the scores"
+
+        if (
+            model.Player.update({"goals": stats.goals or 0, "assists": stats.assists or 0})
+            .where(model.Player.telegram_id == player.telegram_id)
+            .execute()
+            != 1
+        ):
+            logger.warning(
+                f"Player {player.name} ({player.telegram_id})'s scores where not updated"
             )

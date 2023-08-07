@@ -887,6 +887,7 @@ class TestFixInconsistencies(TestCase):
 
         self.assertEqual(find_player(players[0]["telegram_id"]).ties, 0)
         self.assertNotEqual(find_player(players[0]["telegram_id"]).ties, players[0]["ties"])
+        self.assertIsNone(check_inconsistencies())
 
     def initialize_database(self, players: List[dict], statistics: List[dict]) -> None:
         db.model.database.initialize(peewee.SqliteDatabase(":memory:"))

@@ -33,7 +33,7 @@ from pyball.db.errors import DbUnknownResultError
 class Player:  # pylint: disable=too-many-instance-attributes
     """Player related information.
 
-    :ivar player_id: The database identifier of the player.
+    :ivar _id: The database identifier of the player.
     :ivar telegram_id: Player unique telegram identifier.
     :ivar name: Common name.
     :ivar main: Whether if the player is main player in the club.
@@ -47,7 +47,7 @@ class Player:  # pylint: disable=too-many-instance-attributes
 
     """
 
-    player_id: int
+    _id: int
     telegram_id: int
     name: str
     main: bool
@@ -108,7 +108,7 @@ class Player:  # pylint: disable=too-many-instance-attributes
 
         """
         return Player(
-            player_id=cast(int, player.player_id),
+            _id=cast(int, player._id),
             telegram_id=cast(int, player.telegram_id),
             name=cast(str, player.name),
             main=cast(bool, player.main),
