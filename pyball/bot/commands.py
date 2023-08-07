@@ -187,7 +187,7 @@ async def command_match(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error("No `effective_user` object in the command_match update")
         return
 
-    if update.message is None:
+    if update.message is None or update.message.text is None:
         return
 
     try:
@@ -272,7 +272,7 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error("No `effective_user` object in the command_player update")
         return
 
-    if update.message is None:
+    if update.message is None or update.message.text is None:
         return
 
     try:
@@ -370,7 +370,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
     :param context: The information related to the update.
 
     """
-    if update.message is None:
+    if update.message is None or update.message.text is None:
         return
 
     new_subcommand_names = ["new", "n"]

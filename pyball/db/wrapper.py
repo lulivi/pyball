@@ -108,7 +108,7 @@ class Player:  # pylint: disable=too-many-instance-attributes
 
         """
         return Player(
-            _id=cast(int, player._id),
+            _id=cast(int, player._id),  # pylint: disable=protected-access
             telegram_id=cast(int, player.telegram_id),
             name=cast(str, player.name),
             main=cast(bool, player.main),

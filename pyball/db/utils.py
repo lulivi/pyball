@@ -185,7 +185,7 @@ def get_player_list() -> List[wrapper.Player]:
 
 
 @log_func
-def get_player_id_list() -> List[wrapper.Player]:
+def get_player_id_list() -> List[int]:
     """Get the list of existing players telegram ids in the database.
 
     :returns: All the players ids.
@@ -358,7 +358,8 @@ def check_inconsistencies() -> None:
                 f"DB incosistency ({player.name}): there are no match statistics but player goals"
                 f" ({player.goals}) or assists ({player.assists}) are not zero"
             )
-        elif stats and (stats.goals != player.goals or stats.assists != player.assists):
+
+        if stats and (stats.goals != player.goals or stats.assists != player.assists):
             raise DbScoreInconsistencyError(
                 f"DB incosistency ({player.name}): match statistics ({stats.goals},"
                 f" {stats.assists}) are different from the player ones ({player.goals},"

@@ -24,7 +24,7 @@ import functools
 import logging
 import logging.handlers
 
-from typing import Callable
+from typing import Any, Callable, TypeVar, cast
 
 from pyball.settings import LOGS_DIRECTORY_PATH
 
@@ -96,8 +96,11 @@ logging.basicConfig(
 # Third-party loggers
 logging.getLogger("httpx").setLevel(logging.ERROR)
 
+# Function type definition to preserve typing of the wrapped function
+F = TypeVar("F", bound=Callable[..., Any])
 
-def log_func(func: Callable):
+
+def log_func(func: F) -> F:
     """Log the function ussage."""
     logger = logging.getLogger(func.__module__)
 
@@ -109,4 +112,4 @@ def log_func(func: Callable):
         logger.debug(f"<<<<< Exiting {func.__name__} function")
         return ret_val
 
-    return decorator
+    return cast(F, decorator)

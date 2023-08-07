@@ -24,7 +24,7 @@ import difflib
 import functools
 import logging
 
-from typing import Callable, List, Optional, Union, cast
+from typing import Callable, List, Optional, cast
 
 from telegram import Bot, Message, Update
 from telegram.constants import ParseMode
@@ -86,35 +86,13 @@ def md_monospace_items(items: List[str]) -> str:
 
 
 @log_func
-async def bot_call_message_function_with_keyboard(
-    message_function: Callable,
-    text: str,
-    *args,
-    **kwargs,
-) -> Union[bool, Message]:
-    """Call bot function with desired args and the call-up buttons.
-
-    :param message_function: Bot method that will be called to send or update a message.
-    :param text: The string to send.
-    :returns: The message sent or edited.
-
-    """
-    return await bot_call_message_function(
-        message_function,
-        text,
-        reply_markup=CALL_UP_KEYBOARD,
-        *args,
-        **kwargs,
-    )
-
-
-@log_func
 async def bot_call_message_function(
     message_function: Callable,
     text: str,
     *args,
+    with_keyboard: bool = False,
     **kwargs,
-) -> Union[bool, Message]:
+) -> Message:
     """Call bot function with desired args.
 
     :param message_function: Bot method that will be called to send or update a message.
@@ -122,17 +100,17 @@ async def bot_call_message_function(
     :returns: The message sent or edited.
 
     """
-    try:
-        return await message_function(
-            text=text,
-            parse_mode=ParseMode.MARKDOWN,
-            *args,
-            **kwargs,
-        )
-    except BadRequest as error:
-        if "Message is not modified" in str(error):
-            return False
-        raise
+    reply_markup = None
+    if with_keyboard:
+        reply_markup = CALL_UP_KEYBOARD
+
+    return await message_function(
+        text=text,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=reply_markup,
+        *args,
+        **kwargs,
+    )
 
 
 def get_call_up(message: Optional[Message]) -> CallUp:
@@ -258,11 +236,15 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
         search_is_finished = True
 
     if call_up.is_searching():
-        await bot_call_message_function(
-            message_function=bot.edit_message_text,
-            text=substitutes_message_text,
-            **vars(call_up.subs_chat),
-        )
+        try:
+            await bot_call_message_function(
+                message_function=bot.edit_message_text,
+                text=substitutes_message_text,
+                **vars(call_up.subs_chat),
+            )
+        except BadRequest as error:
+            if "Message is not modified" in str(error):
+                pass
         if search_is_finished:
             call_up.reset_subs_message_id()
         return call_up_reply_message
@@ -294,14 +276,17 @@ async def update_call_up_message(
         diff is sent to all the admins.
 
     """
-    bot_function = (
-        bot_call_message_function_with_keyboard if with_keyboard else bot_call_message_function
-    )
-    await bot_function(
-        message_function=context.bot.edit_message_text,
-        text=str(call_up),
-        **vars(call_up.main_chat),
-    )
+    try:
+        await bot_call_message_function(
+            message_function=context.bot.edit_message_text,
+            text=str(call_up),
+            with_keyboard=with_keyboard,
+            **vars(call_up.main_chat),
+        )
+    except BadRequest as error:
+        if "Message is not modified" in str(error):
+            pass
+
     if old_call_up_yaml is not None:
 
         def diff_call_ups(old_call_up: str, new_call_up: str) -> str:
@@ -521,7 +506,7 @@ def player_reid(reid_list: List[str], **_: dict) -> str:
     player, new_identifier = reid_list
 
     try:
-        reid_player(player, new_identifier)
+        reid_player(player, int(new_identifier))
     except DbPlayerAlreadyExistentError as error:
         raise BotPlayerError(f"Ya existe el jugador `{error.name}` con ese ID") from error
     except DbPlayerNotFoundError as error:
@@ -557,10 +542,11 @@ async def callup_new(
     chat_message_id = cast(
         Message,
         (
-            await bot_call_message_function_with_keyboard(
+            await bot_call_message_function(
                 message_function=context.bot.send_message,
                 text="Creando convocatoria...",
                 chat_id=chat_id,
+                with_keyboard=True,
             )
         ),
     ).message_id
@@ -747,12 +733,13 @@ async def callup_search(
             )
             return
         except BadRequest as error:
-            await reply_function(
-                (
-                    "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
-                    f"\n\t{str(error)}"
-                ),
-            )
+            if "Message is not modified" not in str(error):
+                await reply_function(
+                    (
+                        "Ocurrió un error intentando actualizar el mensaje del chat de suplentes:"
+                        f"\n\t{str(error)}"
+                    ),
+                )
 
         call_up.reset_subs_message_id()
         await reply_function("Se ha detenido la búsqueda de suplentes.")
