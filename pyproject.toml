@@ -24,7 +24,7 @@ pyball = "pyball.__main__:main"
 [tool.poetry.dev-dependencies]
 black = "22.*"
 isort = "5.*"
-tox = "*"
+nox = "*"
 mypy = "*"
 pylama = "7.7.1"
 pycodestyle = "*"
@@ -71,42 +71,3 @@ module = ["decouple"]
 disable = [
   "logging-fstring-interpolation"
 ]
-
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-isolated_build = True
-skip_missing_interpreters = true
-envlist = format,py38,lint
-
-[testenv]
-skip_install = True
-whitelist_externals = poetry
-commands_pre =
-    poetry install --with test
-commands =
-    pytest {posargs:{toxinidir}/tests/ --cov={toxinidir}/pyball/ --cov-report=term-missing} \
-        -vvv
-
-[testenv:format]
-skip_install = True
-whitelist_externals = poetry
-commands_pre =
-    poetry install --only dev
-commands =
-    black {toxinidir}/pyball/ {toxinidir}/tests/
-    isort {toxinidir}/pyball/ {toxinidir}/tests/
-
-[testenv:lint]
-skip_install = True
-whitelist_externals = poetry
-commands_pre =
-    poetry install
-commands =
-    black --check --diff {toxinidir}/pyball/ {toxinidir}/tests
-    isort --check --diff {toxinidir}/pyball/ {toxinidir}/tests
-    pydocstyle {toxinidir}/pyball/ {toxinidir}/tests --add-ignore D104,D105,D107
-    pycodestyle {toxinidir}/pyball/ {toxinidir}/tests --max-line-length 99 --ignore W605,W503
-    mypy {toxinidir}/pyball/ {toxinidir}/tests --enable-incomplete-feature=Unpack
-    pylint {toxinidir}/pyball/ {toxinidir}/tests
-"""
