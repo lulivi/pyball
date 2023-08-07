@@ -385,10 +385,6 @@ def fix_inconsistencies() -> None:
         """Get the base statistic for all player."""
         return {"wins": 0, "losses": 0, "ties": 0}
 
-    def default_match_interaction_stat() -> Dict[str, int]:
-        """Get the base statistic for all player."""
-        return {"goals": 0, "assists": 0}
-
     dates = [
         s.date
         for s in model.MatchStatistic.select(model.MatchStatistic.date).group_by(
