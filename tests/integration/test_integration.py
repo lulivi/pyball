@@ -117,7 +117,7 @@ class TestCallUpProcess(TestCase):
         # then
         match_info = db.utils.get_match(self._date)
 
-        self.assertTrue(self._date in db.utils.get_matches_date_list())
+        self.assertTrue(self._date in db.utils.get_matches_date_list(all_seasons=True))
         self.assertEqual(match_info["Verde"]["goles"], 3)
         self.assertEqual(match_info["Naranja"]["goles"], 1)
 

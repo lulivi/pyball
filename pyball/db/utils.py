@@ -63,6 +63,21 @@ def get_results_names(score_0: int, score_1: int) -> Tuple[str, str]:
     return ("ties", "ties")
 
 
+def get_last_end_of_august() -> datetime.datetime:
+    """Obtain the last day of August previous to the current date (same year or the previous one).
+
+    :returns: The 31th day of the last August that occurred.
+
+    """
+    today = datetime.datetime.today()
+    last_august = datetime.datetime(today.year, 8, 31)
+
+    if today < last_august:
+        last_august = last_august.replace(year=last_august.year - 1)
+
+    return last_august
+
+
 @log_func
 def find_player(player: Union[str, int]) -> wrapper.Player:
     """Obtain a player by it's name or id.
@@ -175,13 +190,19 @@ def reid_player(player: Union[str, int], new_identifier: int) -> None:
 
 
 @log_func
-def get_player_list() -> List[wrapper.Player]:
+def get_player_list(all_seasons: bool = False) -> List[wrapper.Player]:
     """Get the list of existing players in the database.
 
+    :param all_seasons: Whether to get the statistics from all the seasons.
     :returns: All the players.
 
     """
-    return list(model.Player.select().order_by(model.Player.name).objects(wrapper.Player))
+    players = list(model.Player.select().order_by(model.Player.name).objects(wrapper.Player))
+    if all_seasons:
+        return players
+
+    # TODO: filter this season stats
+    return players
 
 
 @log_func
@@ -195,15 +216,21 @@ def get_player_id_list() -> List[int]:
 
 
 @log_func
-def get_matches_date_list() -> List[datetime.datetime]:
+def get_matches_date_list(all_seasons: bool = False) -> List[datetime.datetime]:
     """Obtain a list of the past matches date.
 
+    :param all_seasons: Whether to show the matches from the begining.
     :returns: The list of dates.
 
     """
+    where_clause = True
+    if not all_seasons:
+        where_clause = model.MatchStatistic.date > get_last_end_of_august()
+
     return [
         match_date.date
         for match_date in model.MatchStatistic.select(model.MatchStatistic.date)
+        .where(where_clause)
         .group_by(model.MatchStatistic.date)
         .order_by(model.MatchStatistic.date)
     ]

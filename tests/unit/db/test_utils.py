@@ -1,8 +1,12 @@
+import datetime
+
 from typing import List
 from unittest import TestCase, mock
 
 import faker
 import peewee
+
+from freezegun import freeze_time
 
 from pyball import db
 from pyball.db.errors import (
@@ -20,6 +24,7 @@ from pyball.db.utils import (
     create_player,
     find_player,
     fix_inconsistencies,
+    get_last_end_of_august,
     get_match,
     get_matches_date_list,
     get_player_id_list,
@@ -52,6 +57,32 @@ class TestGetResultsNames(TestCase):
         results = get_results_names(0, 0)
 
         self.assertTupleEqual(results, expected_results)
+
+
+class TestGetLastEndOfAugust(TestCase):
+    @freeze_time(fake.date_time().replace(month=9))
+    def test_get_last_end_of_august_on_september(self):
+        current_fake_date = datetime.datetime.today()
+
+        expected_august = current_fake_date.replace(month=8, day=31)
+        obtained_august = get_last_end_of_august()
+
+        self.assertEqual(expected_august.year, obtained_august.year)
+        self.assertEqual(expected_august.month, obtained_august.month)
+        self.assertEqual(expected_august.day, obtained_august.day)
+
+    @freeze_time(fake.date_time().replace(month=5))
+    def test_get_last_end_of_august_on_may(self):
+        current_fake_date = datetime.datetime.today()
+
+        expected_august = current_fake_date.replace(
+            year=current_fake_date.year - 1, month=8, day=31
+        )
+        obtained_august = get_last_end_of_august()
+
+        self.assertEqual(expected_august.year, obtained_august.year)
+        self.assertEqual(expected_august.month, obtained_august.month)
+        self.assertEqual(expected_august.day, obtained_august.day)
 
 
 class TestFindPlayer(TestCase):
@@ -287,9 +318,18 @@ class TestGetPlayerList(TestCase):
 
 
 class TestGetMatchAndMatchesDateList(TestCase):
-    def test_get_matches_date_list(self):
+    def test_get_matches_date_list_all_seasons(self):
         expected_list = self._dates
-        obtained_list = get_matches_date_list()
+        obtained_list = get_matches_date_list(all_seasons=True)
+
+        self.assertEqual(len(expected_list), len(obtained_list))
+
+        for expected_date in expected_list:
+            self.assertIn(expected_date, obtained_list)
+
+    def test_get_matches_date_list_this_season(self):
+        expected_list = self._dates[:0]
+        obtained_list = get_matches_date_list(all_seasons=False)
 
         self.assertEqual(len(expected_list), len(obtained_list))
 
@@ -313,7 +353,17 @@ class TestGetMatchAndMatchesDateList(TestCase):
             create_dict_player(skill=4),
             create_dict_player(skill=3),
         ]
-        self._dates = [fake.unique.date_time(), fake.unique.date_time()]
+        faker_date = fake.unique.date_time()
+        self._dates = [
+            fake.unique.date_time_between_dates(
+                datetime_start=faker_date.replace(month=1),
+                datetime_end=faker_date.replace(month=7),
+            ),
+            fake.unique.date_time_between_dates(
+                datetime_start=faker_date.replace(month=9),
+                datetime_end=faker_date.replace(month=12),
+            ),
+        ]
         self._match_statistics = [
             {
                 "date": self._dates[0],
@@ -423,7 +473,7 @@ class TestAddMatchResults(TestCase):
 
         add_match_results(new_match_results)
         obtained_match = get_match(new_match_date)
-        matches_date_list = get_matches_date_list()
+        matches_date_list = get_matches_date_list(all_seasons=True)
 
         self.assertEqual(obtained_match["Verde"]["goles"], 3)
         self.assertEqual(obtained_match["Naranja"]["goles"], 1)
@@ -458,7 +508,7 @@ class TestAddMatchResults(TestCase):
         with self.assertRaises(DbStatisticForPlayerInMatchAlreadyExistent):
             add_match_results(new_match_results)
 
-        matches_date_list = get_matches_date_list()
+        matches_date_list = get_matches_date_list(all_seasons=True)
         self.assertEqual(len(matches_date_list), 1)
 
     def setUp(self):

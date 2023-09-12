@@ -316,17 +316,20 @@ async def update_call_up_message(
 
 
 @log_func
-async def match_list(reply_function=Callable, **_: dict) -> None:
+async def match_list(all_seasons: bool = False, reply_function=Callable, **_: dict) -> None:
     """Retrieve the list of matches.
 
+    :param all_seasons: Whether to show the matches from the begining.
     :param reply_function: Function used to send messages within this method.
 
     """
+    message = "\n".join(
+        f"`{match.strftime(DATETIME_FORMAT)}`" for match in get_matches_date_list(all_seasons)
+    )
+
     await bot_call_message_function(
         message_function=reply_function,
-        text="\n".join(
-            f"`{match.strftime(DATETIME_FORMAT)}`" for match in get_matches_date_list()
-        ),
+        text=message or "No se encontraron partidos esta temporada.",
     )
 
 
@@ -384,9 +387,10 @@ def player_list(**_: dict) -> str:
 
 
 @log_func
-def player_rank(order: str, **_: dict) -> str:
+def player_rank(order: str, all_seasons: bool = False, **_: dict) -> str:
     """Retrieve the list of players in the database ordered.
 
+    :param all_seasons: Whether to show the statistics from all the seasons.
     :param order: The order to rank the players.
     :returns: The ordered list of players.
 
@@ -420,7 +424,7 @@ def player_rank(order: str, **_: dict) -> str:
             for player in sorted(players, key=lambda player: player.assists, reverse=True)
         ]
 
-    players = get_player_list()
+    players = get_player_list(all_seasons)
     rank_players_by = {
         "skill": order_by_skill,
         "s": order_by_skill,

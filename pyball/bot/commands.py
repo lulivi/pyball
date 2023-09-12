@@ -196,6 +196,11 @@ async def command_match(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
             subcommands=[
                 SubCommand(
                     ["list", "l"],
+                    [
+                        CommandArgument(
+                            "--all-seasons", action="store_true", help="Show all-time matches"
+                        )
+                    ],
                     callable=functools.partial(
                         match_list,
                         reply_function=update.message.reply_text,
@@ -291,6 +296,9 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                             choices=["skill", "s", "points", "p", "goals", "g", "assists", "a"],
                             help="Order by [s]kill, [p]oints, [g]oals or [a]sists. Default goals.",
                             default="goals",
+                        ),
+                        CommandArgument(
+                            "--all-seasons", action="store_true", help="Show all-time matches"
                         ),
                     ],
                     callable=player_rank,
