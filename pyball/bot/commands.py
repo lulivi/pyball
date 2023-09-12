@@ -31,7 +31,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from pyball.__version__ import __version__
+from pyball import __version__
 from pyball.bot.argument_parser import (
     ComaSeparatedMultiWordStringsAction,
     CommandArgument,
