@@ -34,6 +34,7 @@ except ModuleNotFoundError:
     import sys
 
     sys.path.insert(0, str(REPOSITORY_ROOT))
+    from pyball.db.model import MatchStatistic, Player, database
 
 from pyball.settings import DATABASE_FILE_PATH
 
