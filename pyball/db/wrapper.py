@@ -23,7 +23,7 @@
 import datetime
 
 from dataclasses import dataclass
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 from pyball.db import model
 from pyball.db.errors import DbUnknownResultError
@@ -47,16 +47,16 @@ class Player:  # pylint: disable=too-many-instance-attributes
 
     """
 
-    _id: int
+    id: int  # pylint disable=invalid_name
     telegram_id: int
     name: str
     main: bool
+    rank: int = 0
     goals: int = 0
     assists: int = 0
     wins: int = 0
     losses: int = 0
     ties: int = 0
-    rank: int = 0
     skill: float = 0.0
 
     @property
@@ -100,26 +100,36 @@ class Player:  # pylint: disable=too-many-instance-attributes
         self.skill = round(statistics, 5)
 
     @staticmethod
-    def from_db(player: model.Player) -> "Player":
+    def from_db(
+        player: model.Player,
+        stats: Optional[Union[model.CurrentSeason, model.AllSeasons]] = None,
+    ) -> "Player":
         """Create a Player object from the database Player class.
 
         :param player: The database Player object.
         :returns: The new Player instance.
 
         """
-        return Player(
-            _id=cast(int, player._id),  # pylint: disable=protected-access
-            telegram_id=cast(int, player.telegram_id),
-            name=cast(str, player.name),
-            main=cast(bool, player.main),
-            goals=cast(int, player.goals),
-            assists=cast(int, player.assists),
-            wins=cast(int, player.wins),
-            losses=cast(int, player.losses),
-            ties=cast(int, player.ties),
-            rank=cast(int, player.rank),
-            skill=cast(float, player.skill),
-        )
+        stat_information: dict = {
+            "id": cast(int, player.id),
+            "telegram_id": cast(int, player.telegram_id),
+            "name": cast(str, player.name),
+            "main": cast(bool, player.main),
+            "rank": cast(int, player.rank),
+        }
+        if stats is not None:
+            stat_information.update(
+                {
+                    "goals": cast(int, stats.goals),
+                    "assists": cast(int, stats.assists),
+                    "wins": cast(int, stats.wins),
+                    "losses": cast(int, stats.losses),
+                    "ties": cast(int, stats.ties),
+                    "skill": cast(float, stats.skill),
+                }
+            )
+
+        return Player(**stat_information)
 
     def __str__(self) -> str:
         return self.name

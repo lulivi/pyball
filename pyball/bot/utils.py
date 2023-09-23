@@ -22,6 +22,7 @@
 import datetime
 import difflib
 import functools
+import locale
 import logging
 
 from typing import Callable, List, Optional, cast
@@ -382,7 +383,10 @@ def player_list(**_: dict) -> str:
 
     """
     return "\n".join(
-        f"· `{player.name}`" for player in get_player_list()  # pylint: disable=not-an-iterable
+        f"· `{name}`"
+        for name in sorted(
+            [player.name for player in get_player_list()], key=functools.cmp_to_key(locale.strcoll)
+        )
     )
 
 

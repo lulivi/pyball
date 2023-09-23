@@ -38,6 +38,17 @@ class DbPlayerNotFoundError(PyBallDbError):
         super().__init__(self.message)
 
 
+class DbPlayerStatisticsNotFoundError(PyBallDbError):
+    """The player statistics were not found."""
+
+    def __init__(self, wild_card: str) -> None:
+        self.wild_card = wild_card
+        self.message = (
+            f"The search of `{self.wild_card}` gave no results for the player statistics"
+        )
+        super().__init__(self.message)
+
+
 class DbMatchStatisticsNotFoundError(PyBallDbError):
     """The match date didn't give any results."""
 
@@ -60,6 +71,16 @@ class DbPlayerAlreadyExistentError(PyBallDbError):
         self.message = (
             f"Player `{self.name}` already in the database (with id: `{self.identifier}`)"
         )
+        super().__init__(self.message)
+
+
+class DbPlayerStatsAlreadyExistentError(PyBallDbError):
+    """The player stats table already contains a row for the player."""
+
+    def __init__(self, name: str, table: str) -> None:
+        self.name = name
+        self.table = table
+        self.message = f"Player `{self.name}` already in the stats table `{self.table}`"
         super().__init__(self.message)
 
 

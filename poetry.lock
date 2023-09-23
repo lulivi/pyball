@@ -246,6 +246,17 @@ files = [
 ]
 
 [[package]]
+name = "event-bus"
+version = "1.0.2"
+description = "A simple python event bus."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "event-bus-1.0.2.tar.gz", hash = "sha256:0a04385cca50e7cf4e1bccde288bf95bbe64cd81144b4d32c86448d946180c5c"},
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.1.3"
 description = "Backport of PEP 654 (exception groups)"
@@ -1185,4 +1196,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<4.0"
-content-hash = "2995a6b404192aa15c19e0f2f47e2399a2b11c40f46d6f68a6583290f16afd72"
+content-hash = "838bb29272a452939f6a5ad7d8dafbfa898d851e21798f5681d265dc796b4f6e"

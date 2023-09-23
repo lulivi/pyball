@@ -26,6 +26,7 @@ from argparse import ArgumentParser
 
 from pyball import __version__
 from pyball.bot import build_application
+from pyball.db.write_events import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 logger = logging.getLogger(__name__)
 

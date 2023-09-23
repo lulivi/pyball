@@ -232,7 +232,7 @@ def find_player(player: Union[str, int]) -> db.wrapper.Player:
 
     """
     try:
-        return db.utils.find_player(player)
+        return db.utils.find_player(player, all_seasons=True)
     except db.errors.DbPlayerNotFoundError as error:
         logger.error(f"Player `{player}` not found in the database")
         raise CallUpPlayerDoesNotExistError(player) from error

@@ -66,17 +66,11 @@ class BaseModel(Model):
 class Player(BaseModel):
     """Player statistics and information."""
 
-    _id = AutoField()
+    id = AutoField()
     telegram_id = IntegerField(null=False)
     name = CharField(null=False)
     main = BooleanField(null=False)
-    goals = IntegerField(default=0)
-    assists = IntegerField(default=0)
-    wins = IntegerField(default=0)
-    losses = IntegerField(default=0)
-    ties = IntegerField(default=0)
     rank = IntegerField(default=0)
-    skill = FloatField(default=0.0)
 
     class Meta:
         """Set table specific configuration."""
@@ -84,11 +78,35 @@ class Player(BaseModel):
         constraints = [SQL("UNIQUE (telegram_id), UNIQUE (name)")]
 
 
+class CurrentSeason(BaseModel):
+    """Player statistics for current season."""
+
+    player = ForeignKeyField(Player, field=Player.id, primary_key=True)
+    goals = IntegerField(default=0)
+    assists = IntegerField(default=0)
+    wins = IntegerField(default=0)
+    losses = IntegerField(default=0)
+    ties = IntegerField(default=0)
+    skill = FloatField(default=0.0)
+
+
+class AllSeasons(BaseModel):
+    """Player statistics for current season."""
+
+    player = ForeignKeyField(Player, field=Player.id, primary_key=True)
+    goals = IntegerField(default=0)
+    assists = IntegerField(default=0)
+    wins = IntegerField(default=0)
+    losses = IntegerField(default=0)
+    ties = IntegerField(default=0)
+    skill = FloatField(default=0.0)
+
+
 class MatchStatistic(BaseModel):
     """Statiscics of players in matches."""
 
     date = DateTimeField(null=False)
-    player = ForeignKeyField(Player, field=Player.telegram_id)
+    player = ForeignKeyField(Player, field=Player.id)
     team = CharField(null=False)
     goals = IntegerField(default=0)
     assists = IntegerField(default=0)

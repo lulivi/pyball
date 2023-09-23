@@ -363,13 +363,13 @@ class Match:
                     db.wrapper.MatchStatistic(
                         date=date,
                         team=team_name,
-                        player=player.telegram_id,
+                        player=player.id,
                         goals=goals_and_assists["goals"],
                         assists=goals_and_assists["assists"],
                     )
                 )
 
-        team_0_names = [p.telegram_id for p in self._teams[self.team_names[0]].players]
+        team_0_names = [p.id for p in self._teams[self.team_names[0]].players]
         team_0_result, team_1_result = get_results_names(
             self._teams[self.team_names[0]].score or 0, self._teams[self.team_names[1]].score or 0
         )

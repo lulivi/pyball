@@ -30,6 +30,7 @@ nox.options.sessions = ["test", "lint"]
 nox.options.stop_on_first_error = False
 nox.options.error_on_missing_interpreters = False
 
+
 @nox.session
 def lint(session):
     """Lint the code."""
@@ -79,17 +80,17 @@ def test(session):
     """Test the code."""
     session.run("poetry", "install", "--with", "test", external=True)
 
-    pytest_arguments = [
-        ROOT_DIRECTORY.joinpath("tests"),
-        f"--cov={ROOT_DIRECTORY.joinpath('pyball')}",
-        "--cov-report=term-missing",
-    ]
+    target_dir = ROOT_DIRECTORY.joinpath("tests")
+    cov_dir = ROOT_DIRECTORY.joinpath("pyball")
+
     if session.posargs:
-        pytest_arguments = session.posargs
+        target_dir = session.posargs[0]
 
     session.run(
         "pytest",
-        *pytest_arguments,
+        target_dir,
+        "--cov-report=term-missing",
+        f"--cov={cov_dir}",
         "-vvv",
     )
 
@@ -101,43 +102,3 @@ def format(session):
 
     session.run("black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
     session.run("isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
-
-
-# [tool.tox]
-# legacy_tox_ini = """
-# [tox]
-# isolated_build = True
-# skip_missing_interpreters = true
-# envlist = format,py38,lint
-
-# [testenv]
-# skip_install = True
-# whitelist_externals = poetry
-# commands_pre =
-#     poetry install --with test
-# commands =
-#     pytest {posargsROOT_DIRECTORY.joinpath(/tests/ --covROOT_DIRECTORY.joinpath(/pyball/ --cov-report=term-missing} \
-#         -vvv
-
-# [testenv:format]
-# skip_install = True
-# whitelist_externals = poetry
-# commands_pre =
-#     poetry install --only dev
-# commands =
-#     blackROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests/
-#     isortROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests/
-
-# [testenv:lint]
-# skip_install = True
-# whitelist_externals = poetry
-# commands_pre =
-#     poetry install
-# commands =
-#     black --check --diffROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests
-#     isort --check --diffROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests
-#     pydocstyleROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests --add-ignore D104,D105,D107
-#     pycodestyleROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests --max-line-length 99 --ignore W605,W503
-#     mypyROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests --enable-incomplete-feature=Unpack
-#     pylintROOT_DIRECTORY.joinpath(/pyball/ROOT_DIRECTORY.joinpath(/tests
-# """
