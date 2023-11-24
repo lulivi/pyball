@@ -2,6 +2,7 @@ import datetime
 
 from abc import ABC, abstractmethod
 from typing import Optional
+import uuid
 
 from pyball.greenfield.match.domain.model.match import Match
 
@@ -12,7 +13,7 @@ class Matches(ABC):
         pass
 
     @abstractmethod
-    def get(self, id) -> Optional[Match]:
+    def get(self, id: uuid.UUID) -> Optional[Match]:
         pass
 
     @abstractmethod
