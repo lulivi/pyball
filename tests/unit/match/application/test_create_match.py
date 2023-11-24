@@ -6,10 +6,10 @@ from unittest import TestCase
 
 import faker
 
-from pyball.match.application.create_match import CreateMatch
-from pyball.match.domain.errors import DateAlreadyUsedError, MatchAlreadyExistentError
-from pyball.match.domain.matches import Matches
-from pyball.match.domain.model.match import Match
+from pyball.greenfield.match.application.create_match import CreateMatch
+from pyball.greenfield.match.domain.errors import DateAlreadyUsedError, MatchAlreadyExistentError
+from pyball.greenfield.match.domain.matches import Matches
+from pyball.greenfield.match.domain.model.match import Match
 
 fake: faker.Faker = faker.Faker()
 
