@@ -2,10 +2,6 @@ import datetime
 import uuid
 
 
-class MatchNotFoundError(Exception):
-    """The match was not found in the repository."""
-
-
 class MatchAlreadyExistentError(Exception):
     """There is a match with the same UUID or date in the repository."""
 

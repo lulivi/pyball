@@ -1,8 +1,8 @@
 import datetime
+import uuid
 
 from abc import ABC, abstractmethod
 from typing import Optional
-import uuid
 
 from pyball.greenfield.match.domain.model.match import Match
 

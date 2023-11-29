@@ -1,49 +1,26 @@
-import datetime
 import uuid
 
-from typing import Optional
 from unittest import TestCase
 
 import faker
 
 from pyball.greenfield.match.application.create_match import CreateMatch
 from pyball.greenfield.match.domain.errors import DateAlreadyUsedError, MatchAlreadyExistentError
-from pyball.greenfield.match.domain.matches import Matches
-from pyball.greenfield.match.domain.model.match import Match
+from tests.unit.match.application.fake_match_repository import FakeMatchRepository
 
 fake: faker.Faker = faker.Faker()
-
-
-class FakeMatchRepository(Matches):
-    def __init__(self) -> None:
-        self.matches = {}
-
-    def save(self, match: Match) -> None:
-        self.matches[match.id] = match
-
-    def get(self, id: uuid.UUID) -> Optional[Match]:
-        return self.matches.get(id)
-
-    def get_by_date(self, date: datetime.datetime) -> Optional[Match]:
-        for match in self.matches.values():
-            if match.date == date:
-                return match
-
-        return None
-
 
 
 class TestCreateMatch(TestCase):
     def test_match_is_created(self) -> None:
         # Arrange
         fake_match_respository = FakeMatchRepository()
-        create_match = CreateMatch(fake_match_respository)
         fake_uuid = uuid.uuid4()
         fake_date = fake.unique.date_time()
         fake_location = fake.unique.user_name()
 
         # Act
-        create_match.create(id=fake_uuid, date=fake_date, location=fake_location)
+        CreateMatch(fake_match_respository).create(id=fake_uuid, date=fake_date, location=fake_location)
 
         # Assert
         obtained_match = fake_match_respository.get(fake_uuid)
