@@ -82,16 +82,21 @@ def test(session):
 
     target_dir = ROOT_DIRECTORY.joinpath("tests")
     cov_dir = ROOT_DIRECTORY.joinpath("pyball")
+    cov_parameters = [
+        "--cov-report=term-missing",
+        f"--cov={cov_dir}",
+    ]
 
     if session.posargs:
         target_dir = session.posargs[0]
+        cov_parameters = []
+
 
     session.run(
         "pytest",
-        target_dir,
-        "--cov-report=term-missing",
-        f"--cov={cov_dir}",
         "-vvv",
+        *cov_parameters,
+        target_dir,
     )
 
 
