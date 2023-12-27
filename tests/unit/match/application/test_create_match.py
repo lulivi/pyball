@@ -20,7 +20,9 @@ class TestCreateMatch(TestCase):
         fake_location = fake.unique.user_name()
 
         # Act
-        CreateMatch(fake_match_respository).create(id=fake_uuid, date=fake_date, location=fake_location)
+        CreateMatch(fake_match_respository).create(
+            id=fake_uuid, date=fake_date, location=fake_location
+        )
 
         # Assert
         obtained_match = fake_match_respository.get(fake_uuid)
@@ -50,9 +52,7 @@ class TestCreateMatch(TestCase):
         # Arrange
         create_match = CreateMatch(FakeMatchRepository())
         fake_date = fake.unique.date_time()
-        create_match.create(
-            id=uuid.uuid4(), date=fake_date, location=fake.unique.user_name()
-        )
+        create_match.create(id=uuid.uuid4(), date=fake_date, location=fake.unique.user_name())
 
         # Assert
         with self.assertRaises(DateAlreadyUsedError) as cm:
