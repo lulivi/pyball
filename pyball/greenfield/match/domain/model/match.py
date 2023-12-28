@@ -27,11 +27,11 @@ from typing import List
 
 
 class Match:
-    def __init__(self, id: uuid.UUID, date: datetime.datetime, location: str):
+    def __init__(self, id: uuid.UUID, date_time: datetime.datetime, location: str):
         if not isinstance(id, uuid.UUID):
             raise AttributeError("The uuid is not a UUID object")
         self._id: uuid.UUID = id
-        self._date: datetime.datetime = date
+        self._date_time: datetime.datetime = date_time
         self._location: str = location
         self._players: List[uuid.UUID] = []
 
@@ -40,8 +40,8 @@ class Match:
         return self._id
 
     @property
-    def date(self) -> datetime.datetime:
-        return self._date
+    def date_time(self) -> datetime.datetime:
+        return self._date_time
 
     @property
     def location(self) -> str:
@@ -54,5 +54,5 @@ class Match:
     def add_player(self, id: uuid.UUID) -> None:
         self._players.append(id)
 
-    def __contains__(self, player: uuid.UUID) -> bool:
-        return player in self._players
+    def __contains__(self, player_id: uuid.UUID) -> bool:
+        return player_id in self._players

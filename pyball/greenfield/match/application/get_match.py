@@ -40,10 +40,10 @@ class GetMatch:
 
         return match
 
-    def by_date(self, date: datetime.datetime) -> Match:
-        match = self._matches.get_by_date(date=date)
+    def by_date(self, date_time: datetime.datetime) -> Match:
+        match = self._matches.get_by_date(date_time=date_time)
 
         if match is None:
-            raise MatchDateNotFound(date=date)
+            raise MatchDateNotFound(date_time=date_time)
 
         return match

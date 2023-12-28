@@ -32,12 +32,12 @@ class CreateMatch:
     def __init__(self, match_repository: Matches) -> None:
         self._matches = match_repository
 
-    def create(self, id: uuid.UUID, date: datetime.datetime, location: str) -> None:
+    def create(self, id: uuid.UUID, date_time: datetime.datetime, location: str) -> None:
         if self._matches.get(id=id) is not None:
             raise MatchAlreadyExistentError(id=id)
 
-        if self._matches.get_by_date(date=date) is not None:
-            raise DateAlreadyUsedError(date=date)
+        if self._matches.get_by_date(date_time=date_time) is not None:
+            raise DateAlreadyUsedError(date_time=date_time)
 
-        match = Match(id=id, date=date, location=location)
+        match = Match(id=id, date_time=date_time, location=location)
         self._matches.save(match)

@@ -16,12 +16,12 @@ class TestGetMatch(TestCase):
     def test_it_should_return_a_match_by_id(self) -> None:
         # Arrange
         fake_uuid = uuid.uuid4()
-        fake_date = fake.unique.date_time()
+        fake_date_time = fake.unique.date_time()
         fake_location = fake.unique.user_name()
         fake_match_respository = FakeMatchRepository()
         CreateMatch(fake_match_respository).create(
             id=fake_uuid,
-            date=fake_date,
+            date_time=fake_date_time,
             location=fake_location,
         )
 
@@ -30,7 +30,7 @@ class TestGetMatch(TestCase):
 
         # Assert
         self.assertEqual(obtained_match.id, fake_uuid)
-        self.assertEqual(obtained_match.date, fake_date)
+        self.assertEqual(obtained_match.date_time, fake_date_time)
         self.assertEqual(obtained_match.location, fake_location)
 
     def test_it_should_raise_an_exception_when_match_is_not_found_by_id(self):
@@ -48,31 +48,31 @@ class TestGetMatch(TestCase):
     def test_it_should_return_a_match_by_date(self) -> None:
         # Arrange
         fake_uuid = uuid.uuid4()
-        fake_date = fake.unique.date_time()
+        fake_date_time = fake.unique.date_time()
         fake_location = fake.unique.user_name()
         fake_match_respository = FakeMatchRepository()
         CreateMatch(fake_match_respository).create(
             id=fake_uuid,
-            date=fake_date,
+            date_time=fake_date_time,
             location=fake_location,
         )
 
         # Act
-        obtained_match = GetMatch(fake_match_respository).by_date(fake_date)
+        obtained_match = GetMatch(fake_match_respository).by_date(fake_date_time)
 
         # Assert
         self.assertEqual(obtained_match.id, fake_uuid)
-        self.assertEqual(obtained_match.date, fake_date)
+        self.assertEqual(obtained_match.date_time, fake_date_time)
         self.assertEqual(obtained_match.location, fake_location)
 
     def test_it_should_raise_an_exception_when_match_is_not_found_by_date(self) -> None:
         # Arrange
-        fake_date = fake.unique.date_time()
+        fake_date_time = fake.unique.date_time()
         fake_match_respository = FakeMatchRepository()
 
         # Assert
         with self.assertRaises(MatchDateNotFound) as cm:
             # Act
-            GetMatch(fake_match_respository).by_date(fake_date)
+            GetMatch(fake_match_respository).by_date(fake_date_time)
 
-        self.assertEqual(cm.exception.date, fake_date)
+        self.assertEqual(cm.exception.date_time, fake_date_time)

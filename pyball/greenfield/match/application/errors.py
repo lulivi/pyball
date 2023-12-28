@@ -36,9 +36,9 @@ class MatchIdNotFound(Exception):
 class MatchDateNotFound(Exception):
     """The match was not found."""
 
-    def __init__(self, date: datetime.datetime) -> None:
-        self.date = date
-        self.message = f"There is no match with the date `{date}` does not exist"
+    def __init__(self, date_time: datetime.datetime) -> None:
+        self.date_time = date_time
+        self.message = f"There is no match with the date `{date_time}` does not exist"
         super().__init__(self.message)
 
 

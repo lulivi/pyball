@@ -39,5 +39,5 @@ class Matches(ABC):
         pass
 
     @abstractmethod
-    def get_by_date(self, date: datetime.datetime) -> Optional[Match]:
+    def get_by_date(self, date_time: datetime.datetime) -> Optional[Match]:
         pass

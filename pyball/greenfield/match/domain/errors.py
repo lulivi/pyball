@@ -36,7 +36,7 @@ class MatchAlreadyExistentError(Exception):
 class DateAlreadyUsedError(Exception):
     """There is a match with the same UUID or date in the repository."""
 
-    def __init__(self, date: datetime.datetime) -> None:
-        self.date = date
-        self.message = f"The date `{date}` is already in use"
+    def __init__(self, date_time: datetime.datetime) -> None:
+        self.date_time = date_time
+        self.message = f"The date `{date_time}` is already in use"
         super().__init__(self.message)

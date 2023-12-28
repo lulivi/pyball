@@ -16,19 +16,19 @@ class TestCreateMatch(TestCase):
         # Arrange
         fake_match_respository = FakeMatchRepository()
         fake_uuid = uuid.uuid4()
-        fake_date = fake.unique.date_time()
+        fake_date_time = fake.unique.date_time()
         fake_location = fake.unique.user_name()
 
         # Act
         CreateMatch(fake_match_respository).create(
-            id=fake_uuid, date=fake_date, location=fake_location
+            id=fake_uuid, date_time=fake_date_time, location=fake_location
         )
 
         # Assert
         obtained_match = fake_match_respository.get(fake_uuid)
         self.assertIsNotNone(obtained_match)
         self.assertEqual(fake_uuid, obtained_match.id)
-        self.assertEqual(fake_date, obtained_match.date)
+        self.assertEqual(fake_date_time, obtained_match.date_time)
         self.assertEqual(fake_location, obtained_match.location)
 
     def test_exception_is_raised_when_match_already_exists(self) -> None:
@@ -36,14 +36,14 @@ class TestCreateMatch(TestCase):
         create_match = CreateMatch(FakeMatchRepository())
         fake_uuid = uuid.uuid4()
         create_match.create(
-            id=fake_uuid, date=fake.unique.date_time(), location=fake.unique.user_name()
+            id=fake_uuid, date_time=fake.unique.date_time(), location=fake.unique.user_name()
         )
 
         # Assert
         with self.assertRaises(MatchAlreadyExistentError) as cm:
             # Act
             create_match.create(
-                id=fake_uuid, date=fake.unique.date_time(), location=fake.unique.user_name()
+                id=fake_uuid, date_time=fake.unique.date_time(), location=fake.unique.user_name()
             )
 
         self.assertEqual(cm.exception.id, fake_uuid)
@@ -51,12 +51,16 @@ class TestCreateMatch(TestCase):
     def test_exception_is_raised_when_match_date_already_in_use(self) -> None:
         # Arrange
         create_match = CreateMatch(FakeMatchRepository())
-        fake_date = fake.unique.date_time()
-        create_match.create(id=uuid.uuid4(), date=fake_date, location=fake.unique.user_name())
+        fake_date_time = fake.unique.date_time()
+        create_match.create(
+            id=uuid.uuid4(), date_time=fake_date_time, location=fake.unique.user_name()
+        )
 
         # Assert
         with self.assertRaises(DateAlreadyUsedError) as cm:
             # Act
-            create_match.create(id=uuid.uuid4(), date=fake_date, location=fake.unique.user_name())
+            create_match.create(
+                id=uuid.uuid4(), date_time=fake_date_time, location=fake.unique.user_name()
+            )
 
-        self.assertEqual(cm.exception.date, fake_date)
+        self.assertEqual(cm.exception.date_time, fake_date_time)

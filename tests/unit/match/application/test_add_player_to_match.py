@@ -27,7 +27,7 @@ class TestAddPlayerToMatch(TestCase):
         fake_match_uuid = uuid.uuid4()
         CreateMatch(fake_match_repository).create(
             id=fake_match_uuid,
-            date=fake.unique.date_time(),
+            date_time=fake.unique.date_time(),
             location=fake.unique.user_name(),
         )
 
@@ -73,7 +73,7 @@ class TestAddPlayerToMatch(TestCase):
         fake_match_uuid = uuid.uuid4()
         CreateMatch(fake_match_repository).create(
             id=fake_match_uuid,
-            date=fake.unique.date_time(),
+            date_time=fake.unique.date_time(),
             location=fake.unique.user_name(),
         )
         AddPlayerToMatch(fake_match_repository).add(
