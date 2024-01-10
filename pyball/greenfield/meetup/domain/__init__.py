@@ -18,25 +18,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Match domain errors."""
-
-import datetime
-import uuid
-
-
-class MatchAlreadyExistentError(Exception):
-    """There is a match with the same UUID or date in the repository."""
-
-    def __init__(self, id: uuid.UUID) -> None:
-        self.id = id
-        self.message = f"The match id `{id}` is already in use"
-        super().__init__(self.message)
-
-
-class DateAlreadyUsedError(Exception):
-    """There is a match with the same UUID or date in the repository."""
-
-    def __init__(self, date_time: datetime.datetime) -> None:
-        self.date_time = date_time
-        self.message = f"The date `{date_time}` is already in use"
-        super().__init__(self.message)
+"""Meetup domain layer."""

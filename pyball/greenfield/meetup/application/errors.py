@@ -18,41 +18,35 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Match domain model object."""
+"""Common meetup use case errors."""
 
 import datetime
 import uuid
 
-from typing import List
+
+class MeetupIdNotFound(Exception):
+    """The meetup was not found."""
+
+    def __init__(self, id: uuid.UUID) -> None:
+        self.id = id
+        self.message = f"There is no meetup with the id `{id}` does not exist"
+        super().__init__(self.message)
 
 
-class Match:
-    def __init__(self, id: uuid.UUID, date_time: datetime.datetime, location: str):
-        if not isinstance(id, uuid.UUID):
-            raise AttributeError("The uuid is not a UUID object")
-        self._id: uuid.UUID = id
-        self._date_time: datetime.datetime = date_time
-        self._location: str = location
-        self._players: List[uuid.UUID] = []
+class MeetupDateNotFound(Exception):
+    """The meetup was not found."""
 
-    @property
-    def id(self) -> uuid.UUID:
-        return self._id
+    def __init__(self, date_time: datetime.datetime) -> None:
+        self.date_time = date_time
+        self.message = f"There is no meetup with the date `{date_time}` does not exist"
+        super().__init__(self.message)
 
-    @property
-    def date_time(self) -> datetime.datetime:
-        return self._date_time
 
-    @property
-    def location(self) -> str:
-        return self._location
+class PlayerIsAlreadyInMeetup(Exception):
+    """The player is already in the meetup."""
 
-    @property
-    def players(self) -> List[uuid.UUID]:
-        return self._players
-
-    def add_player(self, id: uuid.UUID) -> None:
-        self._players.append(id)
-
-    def __contains__(self, player_id: uuid.UUID) -> bool:
-        return player_id in self._players
+    def __init__(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
+        self.meetup_id = meetup_id
+        self.player_id = player_id
+        self.message = f"The player `{player_id}` is already in the meetup `{meetup_id}`"
+        super().__init__(self.message)

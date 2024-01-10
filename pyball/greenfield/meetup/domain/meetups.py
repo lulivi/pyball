@@ -18,4 +18,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Match domain layer."""
+"""Meetupes repository interface."""
+
+import datetime
+import uuid
+
+from abc import ABC, abstractmethod
+from typing import Optional
+
+from pyball.greenfield.meetup.domain.model.meetup import Meetup
+
+
+class Meetups(ABC):
+    @abstractmethod
+    def save(self, meetup: Meetup) -> None:
+        pass
+
+    @abstractmethod
+    def get(self, id: uuid.UUID) -> Optional[Meetup]:
+        pass
+
+    @abstractmethod
+    def get_by_date(self, date_time: datetime.datetime) -> Optional[Meetup]:
+        pass

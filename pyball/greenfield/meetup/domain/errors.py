@@ -18,26 +18,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Add a player to a match use case."""
+"""Meetup domain errors."""
 
+import datetime
 import uuid
 
-from pyball.greenfield.match.application.errors import MatchIdNotFound, PlayerIsAlreadyInMatch
-from pyball.greenfield.match.domain.matches import Matches
+
+class MeetupAlreadyExistentError(Exception):
+    """There is a meetup with the same UUID or date in the repository."""
+
+    def __init__(self, id: uuid.UUID) -> None:
+        self.id = id
+        self.message = f"The meetup id `{id}` is already in use"
+        super().__init__(self.message)
 
 
-class AddPlayerToMatch:
-    def __init__(self, match_repository: Matches) -> None:
-        self._matches = match_repository
+class MeetupDateAlreadyUsedError(Exception):
+    """There is a meetup with the same UUID or date in the repository."""
 
-    def add(self, match_id: uuid.UUID, player_id: uuid.UUID) -> None:
-        match = self._matches.get(id=match_id)
-
-        if match is None:
-            raise MatchIdNotFound(id=match_id)
-
-        if player_id in match:
-            raise PlayerIsAlreadyInMatch(match_id=match_id, player_id=player_id)
-
-        match.add_player(id=player_id)
-        self._matches.save(match=match)
+    def __init__(self, date_time: datetime.datetime) -> None:
+        self.date_time = date_time
+        self.message = f"The date `{date_time}` is already in use"
+        super().__init__(self.message)

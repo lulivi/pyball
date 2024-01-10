@@ -18,32 +18,32 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Get an existing match use case."""
+"""Get an existing meetup use case."""
 
 import datetime
 import uuid
 
-from pyball.greenfield.match.application.errors import MatchDateNotFound, MatchIdNotFound
-from pyball.greenfield.match.domain.matches import Matches
-from pyball.greenfield.match.domain.model.match import Match
+from pyball.greenfield.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
+from pyball.greenfield.meetup.domain.meetups import Meetups
+from pyball.greenfield.meetup.domain.model.meetup import Meetup
 
 
-class GetMatch:
-    def __init__(self, match_repository: Matches) -> None:
-        self._matches = match_repository
+class GetMeetup:
+    def __init__(self, meetup_remository: Meetups) -> None:
+        self._meetups = meetup_remository
 
-    def by_id(self, id: uuid.UUID) -> Match:
-        match = self._matches.get(id=id)
+    def by_id(self, id: uuid.UUID) -> Meetup:
+        meetup = self._meetups.get(id=id)
 
-        if match is None:
-            raise MatchIdNotFound(id=id)
+        if meetup is None:
+            raise MeetupIdNotFound(id=id)
 
-        return match
+        return meetup
 
-    def by_date(self, date_time: datetime.datetime) -> Match:
-        match = self._matches.get_by_date(date_time=date_time)
+    def by_date(self, date_time: datetime.datetime) -> Meetup:
+        meetup = self._meetups.get_by_date(date_time=date_time)
 
-        if match is None:
-            raise MatchDateNotFound(date_time=date_time)
+        if meetup is None:
+            raise MeetupDateNotFound(date_time=date_time)
 
-        return match
+        return meetup

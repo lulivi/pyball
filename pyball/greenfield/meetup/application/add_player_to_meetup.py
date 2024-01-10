@@ -18,35 +18,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Common match use case errors."""
+"""Add a player to a meetup use case."""
 
-import datetime
 import uuid
 
-
-class MatchIdNotFound(Exception):
-    """The match was not found."""
-
-    def __init__(self, id: uuid.UUID) -> None:
-        self.id = id
-        self.message = f"There is no match with the id `{id}` does not exist"
-        super().__init__(self.message)
+from pyball.greenfield.meetup.application.errors import MeetupIdNotFound, PlayerIsAlreadyInMeetup
+from pyball.greenfield.meetup.domain.meetups import Meetups
 
 
-class MatchDateNotFound(Exception):
-    """The match was not found."""
+class AddPlayerToMeetup:
+    def __init__(self, meetup_repository: Meetups) -> None:
+        self._meetup = meetup_repository
 
-    def __init__(self, date_time: datetime.datetime) -> None:
-        self.date_time = date_time
-        self.message = f"There is no match with the date `{date_time}` does not exist"
-        super().__init__(self.message)
+    def add(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
+        meetup = self._meetup.get(id=meetup_id)
 
+        if meetup is None:
+            raise MeetupIdNotFound(id=meetup_id)
 
-class PlayerIsAlreadyInMatch(Exception):
-    """The player is already in the match."""
+        if player_id in meetup:
+            raise PlayerIsAlreadyInMeetup(meetup_id=meetup_id, player_id=player_id)
 
-    def __init__(self, match_id: uuid.UUID, player_id: uuid.UUID) -> None:
-        self.match_id = match_id
-        self.player_id = player_id
-        self.message = f"The player `{player_id}` is already in the match `{match_id}`"
-        super().__init__(self.message)
+        meetup.add_player(id=player_id)
+        self._meetup.save(meetup=meetup)

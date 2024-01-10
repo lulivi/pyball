@@ -18,26 +18,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Create a new match use case."""
+"""Create a new meetup use case."""
 
 import datetime
 import uuid
 
-from pyball.greenfield.match.domain.errors import DateAlreadyUsedError, MatchAlreadyExistentError
-from pyball.greenfield.match.domain.matches import Matches
-from pyball.greenfield.match.domain.model.match import Match
+from pyball.greenfield.meetup.domain.errors import (
+    MeetupAlreadyExistentError,
+    MeetupDateAlreadyUsedError,
+)
+from pyball.greenfield.meetup.domain.meetups import Meetups
+from pyball.greenfield.meetup.domain.model.meetup import Meetup
 
 
-class CreateMatch:
-    def __init__(self, match_repository: Matches) -> None:
-        self._matches = match_repository
+class CreateMeetup:
+    def __init__(self, meetup_repository: Meetups) -> None:
+        self._meetups = meetup_repository
 
     def create(self, id: uuid.UUID, date_time: datetime.datetime, location: str) -> None:
-        if self._matches.get(id=id) is not None:
-            raise MatchAlreadyExistentError(id=id)
+        if self._meetups.get(id=id) is not None:
+            raise MeetupAlreadyExistentError(id=id)
 
-        if self._matches.get_by_date(date_time=date_time) is not None:
-            raise DateAlreadyUsedError(date_time=date_time)
+        if self._meetups.get_by_date(date_time=date_time) is not None:
+            raise MeetupDateAlreadyUsedError(date_time=date_time)
 
-        match = Match(id=id, date_time=date_time, location=location)
-        self._matches.save(match)
+        meetup = Meetup(id=id, date_time=date_time, location=location)
+        self._meetups.save(meetup)
