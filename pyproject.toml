@@ -32,6 +32,7 @@ pydocstyle = "*"
 pylint = "*"
 Faker = "18.*"
 freezegun = "*"
+ddt = "^1.7.1"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"

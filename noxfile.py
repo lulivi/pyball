@@ -91,7 +91,6 @@ def test(session):
         target_dir = session.posargs[0]
         cov_parameters = []
 
-
     session.run(
         "pytest",
         "-vvv",

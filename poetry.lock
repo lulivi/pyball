@@ -219,6 +219,18 @@ tomli = {version = "*", optional = true, markers = "extra == \"toml\""}
 toml = ["tomli"]
 
 [[package]]
+name = "ddt"
+version = "1.7.1"
+description = "Data-Driven/Decorated Tests"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ddt-1.7.1-py2.py3-none-any.whl", hash = "sha256:2c4ac421bbdc10d2403b472294500c6f75ca822386c34d9fe82882d7a2ce9682"},
+    {file = "ddt-1.7.1.tar.gz", hash = "sha256:1a4472c477bf766f75f7b1efb628656ff3c35ff3f6c821129ae8e328fff8a9a2"},
+]
+
+[[package]]
 name = "dill"
 version = "0.3.7"
 description = "serialize all of Python"
@@ -1196,4 +1208,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<4.0"
-content-hash = "838bb29272a452939f6a5ad7d8dafbfa898d851e21798f5681d265dc796b4f6e"
+content-hash = "3765e75a3ea48e5ab9da09029c5484dbca579afed1aa84bd7a43f16bbe79d381"
