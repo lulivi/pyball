@@ -30,14 +30,22 @@ Team = List[uuid.UUID]
 
 
 class Meetup:
-    def __init__(self, id: uuid.UUID, date_time: datetime.datetime, location: str):
+    def __init__(
+        self,
+        id: uuid.UUID,
+        date_time: datetime.datetime,
+        location: str,
+        possible_team_sizes: tuple = (5, 6),
+    ):
         if not isinstance(id, uuid.UUID):
             raise AttributeError("The uuid is not a UUID object")
         self._id: uuid.UUID = id
         self._date_time: datetime.datetime = date_time
         self._location: str = location
+        self._possible_team_sizes = possible_team_sizes
         self._players: List[uuid.UUID] = []
         self._teams: Optional[Team] = None
+        self._events: List[str] = []
 
     @property
     def id(self) -> uuid.UUID:
@@ -56,30 +64,34 @@ class Meetup:
         return self._players
 
     @property
+    def team_count(self) -> int:
+        player_count = len(self._players)
+        for team_size in self._possible_team_sizes:
+            if player_count % team_size == 0 and player_count > team_size:
+                return player_count // team_size
+
+        return 0
+
+    @property
     def teams(self) -> Optional[List[Team]]:
         return self._teams
 
     def add_player(self, id: uuid.UUID) -> None:
         self._players.append(id)
 
-        if self.calculate_team_count(len(self._players)) > 0:
+        if self.team_count > 1:
             self.create_teams()
 
-    @staticmethod
-    def calculate_team_count(player_count: int, possible_team_sizes=(5, 6)) -> int:
-        for team_size in possible_team_sizes:
-            if player_count % team_size == 0 and player_count > team_size:
-                return player_count // team_size
-
-        return 0
-
     def create_teams(self) -> None:
-        team_player_count = len(self.players) // 2
-        # TODO: This only contemplates 2 teams, what happens with 3 teams?
-        self._teams = [
-            self._players[:team_player_count],
-            self._players[team_player_count:],
-        ]
+        team_player_count = len(self.players) // self.team_count
+        self._teams = []
+
+        for player_chunk_index in range(0, len(self._players), team_player_count):
+            self._teams.append(
+                self._players[player_chunk_index : player_chunk_index + team_player_count]
+            )
+
+        self._events.append(TeamsWereCreated(self._teams))
 
     def __contains__(self, player_id: uuid.UUID) -> bool:
         return player_id in self._players

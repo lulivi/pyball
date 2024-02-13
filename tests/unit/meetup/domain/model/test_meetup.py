@@ -18,9 +18,12 @@ class TestMeetup(TestCase):
         self, player_count
     ) -> None:
         # Arrange
+        meetup = Meetup(id=uuid.uuid4(), date_time=fake.unique.date_time(), location=fake.word())
+        for _ in range(player_count):
+            meetup.add_player(uuid.uuid4())
 
         # Act
-        obtained_team_count = Meetup.calculate_team_count(player_count)
+        obtained_team_count = meetup.team_count
 
         # Assert
         self.assertEqual(obtained_team_count, 0)
@@ -28,9 +31,30 @@ class TestMeetup(TestCase):
     @data(10, 12)
     def test_it_should_return_2_if_the_number_of_players_is_10_or_12(self, player_count) -> None:
         # Arrange
+        meetup = Meetup(id=uuid.uuid4(), date_time=fake.unique.date_time(), location=fake.word())
+        for _ in range(player_count):
+            meetup.add_player(uuid.uuid4())
 
         # Act
-        obtained_team_count = Meetup.calculate_team_count(player_count)
+        obtained_team_count = meetup.team_count
+
+        # Assert
+        self.assertEqual(obtained_team_count, 2)
+
+    @data(14, 16)
+    def test_it_should_return_2_if_the_number_of_player_is_14_or_16(self, player_count) -> None:
+        # Arrange
+        meetup = Meetup(
+            id=uuid.uuid4(),
+            date_time=fake.unique.date_time(),
+            location=fake.word(),
+            possible_team_sizes=(7, 8),
+        )
+        for _ in range(player_count):
+            meetup.add_player(uuid.uuid4())
+
+        # Act
+        obtained_team_count = meetup.team_count
 
         # Assert
         self.assertEqual(obtained_team_count, 2)
@@ -38,9 +62,12 @@ class TestMeetup(TestCase):
     def test_it_should_return_3_if_the_number_of_players_is_15(self) -> None:
         # Arrange
         player_count = 15
+        meetup = Meetup(id=uuid.uuid4(), date_time=fake.unique.date_time(), location=fake.word())
+        for _ in range(player_count):
+            meetup.add_player(uuid.uuid4())
 
         # Act
-        obtained_team_count = Meetup.calculate_team_count(player_count)
+        obtained_team_count = meetup.team_count
 
         # Assert
         self.assertEqual(obtained_team_count, 3)
