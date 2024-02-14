@@ -29,8 +29,8 @@ from typing import List, Optional, Union
 
 import yaml
 
-from pyball import db
-from pyball.callup.errors import (
+from pyball.legacy import db
+from pyball.legacy.callup.errors import (
     CallUpMultiplePlayersFoundError,
     CallUpPlayerAlreadyCalledUpError,
     CallUpPlayerDoesNotExistError,

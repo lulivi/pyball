@@ -23,9 +23,10 @@
 from pathlib import Path
 from typing import Tuple
 
-from decouple import Csv, config
+from decouple import AutoConfig, Csv
 
-REPOSITORY_ROOT_DIR: Path = Path.cwd()
+APP_ROOT_DIR: Path = Path.cwd()
+config = AutoConfig(search_path=APP_ROOT_DIR)
 LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 DATE_FORMAT: str = config("DATE_FORMAT", default="%d/%b/%Y")
 TIME_FORMAT: str = config("TIME_FORMAT", default="%H:%M")
@@ -38,22 +39,17 @@ ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple),
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",
     cast=Path,
-    default=REPOSITORY_ROOT_DIR.joinpath("logs"),
+    default=APP_ROOT_DIR.joinpath("logs"),
 )
-LOGS_DIRECTORY_PATH.mkdir(exist_ok=True)
+LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
 DATA_DIRECTORY_PATH: Path = config(
     "DATA_DIRECTORY_PATH",
     cast=Path,
-    default=REPOSITORY_ROOT_DIR.joinpath("data"),
+    default=APP_ROOT_DIR.joinpath("data"),
 )
-DATA_DIRECTORY_PATH.mkdir(exist_ok=True)
+DATA_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
 DATABASE_FILE_PATH: Path = config(
     "DATABASE_FILE_PATH",
     cast=Path,
     default=DATA_DIRECTORY_PATH.joinpath("pyball.db"),
-)
-PERSISTENCE_FILE_PATH: Path = config(
-    "PERSISTENCE_FILE_PATH",
-    cast=Path,
-    default=DATA_DIRECTORY_PATH.joinpath("bot.persistence"),
 )

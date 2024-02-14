@@ -32,7 +32,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from pyball import __version__
-from pyball.bot.argument_parser import (
+from pyball.legacy.bot.argument_parser import (
     ComaSeparatedMultiWordStringsAction,
     CommandArgument,
     MatchStatsAction,
@@ -40,7 +40,7 @@ from pyball.bot.argument_parser import (
     SubCommand,
     parse_command,
 )
-from pyball.bot.errors import (
+from pyball.legacy.bot.errors import (
     BotCallUpError,
     BotCommandError,
     BotDatabaseError,
@@ -48,7 +48,7 @@ from pyball.bot.errors import (
     BotNotAdminError,
     BotPlayerError,
 )
-from pyball.bot.utils import (
+from pyball.legacy.bot.utils import (
     bot_call_message_function,
     callup_add,
     callup_del,
@@ -73,8 +73,8 @@ from pyball.bot.utils import (
     search_substitutes,
     update_call_up_message,
 )
-from pyball.callup.callup import CallUp
-from pyball.callup.errors import (
+from pyball.legacy.callup.callup import CallUp
+from pyball.legacy.callup.errors import (
     CallUpMultiplePlayersFoundError,
     CallUpPlayerAlreadyCalledUpError,
     CallUpPlayerDoesNotExistError,

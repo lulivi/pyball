@@ -21,7 +21,7 @@ packages = [{ include = "pyball" }]
 [tool.poetry.scripts]
 pyball = "pyball.__main__:main"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "22.*"
 isort = "5.*"
 nox = "*"

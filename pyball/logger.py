@@ -95,6 +95,7 @@ logging.basicConfig(
 
 # Third-party loggers
 logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("httpcore").setLevel(logging.ERROR)
 
 # Function type definition to preserve typing of the wrapped function
 F = TypeVar("F", bound=Callable[..., Any])

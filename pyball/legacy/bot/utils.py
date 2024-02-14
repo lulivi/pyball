@@ -32,17 +32,17 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
-from pyball import db
-from pyball.bot.errors import (
+from pyball.legacy import db
+from pyball.legacy.bot.errors import (
     BotCallUpError,
     BotDatabaseError,
     BotMatchError,
     BotNotAdminError,
     BotPlayerError,
 )
-from pyball.bot.globals import CALL_UP_KEYBOARD
-from pyball.callup.callup import CallUp
-from pyball.callup.errors import (
+from pyball.legacy.bot.globals import CALL_UP_KEYBOARD
+from pyball.legacy.callup.callup import CallUp
+from pyball.legacy.callup.errors import (
     CallUpMatchAlreadyFinishedError,
     CallUpMatchNotYetCreatedError,
     CallUpMatchWrongPlayersNumberError,
@@ -53,8 +53,8 @@ from pyball.callup.errors import (
     CallUpPlayersNotInMatch,
     CallUpWrongFormatError,
 )
-from pyball.callup.match import Match, PlayersStatInput
-from pyball.db.errors import (
+from pyball.legacy.callup.match import Match, PlayersStatInput
+from pyball.legacy.db.errors import (
     DbMatchStatisticsNotFoundError,
     DbMultiplePlayersFoundError,
     DbNoBackUpError,
@@ -62,7 +62,7 @@ from pyball.db.errors import (
     DbPlayerNotFoundError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
-from pyball.db.utils import (
+from pyball.legacy.db.utils import (
     create_player,
     get_match,
     get_matches_date_list,

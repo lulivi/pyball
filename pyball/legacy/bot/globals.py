@@ -21,7 +21,7 @@
 """Global bot variables."""
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from pyball.callup.players import PlayerAction
+from pyball.legacy.callup.players import PlayerAction
 
 CALL_UP_KEYBOARD: InlineKeyboardMarkup = InlineKeyboardMarkup(
     [

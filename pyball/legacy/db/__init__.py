@@ -20,4 +20,4 @@
 
 """Database models, errors, wrappers and utils."""
 
-from pyball.db import errors, model, utils, wrapper
+from pyball.legacy.db import errors, model, utils, wrapper

@@ -25,10 +25,13 @@ import re
 
 from typing import Any, Callable, Dict, List, NamedTuple, NoReturn, Optional, Type, Union
 
-from pyball.bot.errors import BotCommandError, BotPlayerError
-from pyball.bot.utils import md_monospace_items
-from pyball.callup.errors import CallUpMultiplePlayersFoundError, CallUpPlayerDoesNotExistError
-from pyball.callup.match import PlayersStatInput
+from pyball.legacy.bot.errors import BotCommandError, BotPlayerError
+from pyball.legacy.bot.utils import md_monospace_items
+from pyball.legacy.callup.errors import (
+    CallUpMultiplePlayersFoundError,
+    CallUpPlayerDoesNotExistError,
+)
+from pyball.legacy.callup.match import PlayersStatInput
 from pyball.logger import log_func
 
 

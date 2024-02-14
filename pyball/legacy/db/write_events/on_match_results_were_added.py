@@ -27,11 +27,11 @@ from typing import Dict, Type, Union
 
 from peewee import fn
 
-from pyball.db import model, wrapper
-from pyball.db.errors import DbPlayerNotUpdatedError
-from pyball.db.event_bus import PyBallEventBus
-from pyball.db.events import Events
-from pyball.db.utils import get_last_end_of_august
+from pyball.legacy.db import model, wrapper
+from pyball.legacy.db.errors import DbPlayerNotUpdatedError
+from pyball.legacy.db.event_bus import PyBallEventBus
+from pyball.legacy.db.events import Events
+from pyball.legacy.db.utils import get_last_end_of_august
 from pyball.logger import log_func
 
 logger = logging.getLogger(__name__)

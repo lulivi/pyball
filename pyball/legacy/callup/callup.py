@@ -31,13 +31,13 @@ import yaml
 from typing_extensions import NotRequired, TypedDict, Unpack
 
 from pyball import __version__
-from pyball.callup.errors import (
+from pyball.legacy.callup.errors import (
     CallUpMatchAlreadyFinishedError,
     CallUpMatchNotYetCreatedError,
     CallUpWrongFormatError,
 )
-from pyball.callup.match import Match, PlayersStatInput
-from pyball.callup.players import PlayerAction, Players
+from pyball.legacy.callup.match import Match, PlayersStatInput
+from pyball.legacy.callup.players import PlayerAction, Players
 from pyball.settings import DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
 
 logger = logging.getLogger(__name__)

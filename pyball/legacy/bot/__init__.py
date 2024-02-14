@@ -21,12 +21,13 @@
 """Bot to help organize game call-ups."""
 
 import locale
+import logging
 
 import peewee
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from pyball.bot.commands import (
+from pyball.legacy.bot.commands import (
     button_game,
     command_callup,
     command_error,
@@ -35,18 +36,13 @@ from pyball.bot.commands import (
     command_version,
     message_from_wrong_chat,
 )
-from pyball.db.model import database
-from pyball.db.utils import get_player_id_list
-from pyball.settings import (
-    BOT_TOKEN,
-    DATABASE_FILE_PATH,
-    LOCALE,
-    PERSISTENCE_FILE_PATH,
-    REGULARS_ID,
-)
+from pyball.legacy.db.model import database
+from pyball.legacy.db.utils import get_player_id_list
+from pyball.settings import BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, REGULARS_ID
 
 # Set locale for sorting player names
 locale.setlocale(locale.LC_ALL, LOCALE)
+logger = logging.getLogger(__name__)
 
 
 def build_application() -> Application:
@@ -56,6 +52,7 @@ def build_application() -> Application:
 
     """
     database.initialize(peewee.SqliteDatabase(DATABASE_FILE_PATH))
+    logger.debug(f"Using database file {DATABASE_FILE_PATH}")
 
     included_chats_filter = filters.Chat([REGULARS_ID, *get_player_id_list()])
     update_filters = ~filters.UpdateType.EDITED_MESSAGE & included_chats_filter

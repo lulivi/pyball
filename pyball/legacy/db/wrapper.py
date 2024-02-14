@@ -25,8 +25,8 @@ import datetime
 from dataclasses import dataclass
 from typing import Optional, Union, cast
 
-from pyball.db import model
-from pyball.db.errors import DbUnknownResultError
+from pyball.legacy.db import model
+from pyball.legacy.db.errors import DbUnknownResultError
 
 
 @dataclass

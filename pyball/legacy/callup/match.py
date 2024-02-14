@@ -31,14 +31,14 @@ from typing import DefaultDict, Dict, List, Optional, Tuple, Union
 
 import yaml
 
-from pyball import db
-from pyball.callup.errors import (
+from pyball.legacy import db
+from pyball.legacy.callup.errors import (
     CallUpMatchTooManyTeamsForResults,
     CallUpMatchWrongPlayersNumberError,
     CallUpPlayersNotInMatch,
 )
-from pyball.callup.players import Players, find_player
-from pyball.db.utils import add_match_results, get_results_names
+from pyball.legacy.callup.players import Players, find_player
+from pyball.legacy.db.utils import add_match_results, get_results_names
 
 logger = logging.getLogger(__name__)
 

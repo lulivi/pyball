@@ -22,10 +22,10 @@
 
 from peewee import IntegrityError
 
-from pyball.db import model
-from pyball.db.errors import DbPlayerStatsAlreadyExistentError
-from pyball.db.event_bus import PyBallEventBus
-from pyball.db.events import Events
+from pyball.legacy.db import model
+from pyball.legacy.db.errors import DbPlayerStatsAlreadyExistentError
+from pyball.legacy.db.event_bus import PyBallEventBus
+from pyball.legacy.db.events import Events
 from pyball.logger import log_func
 
 

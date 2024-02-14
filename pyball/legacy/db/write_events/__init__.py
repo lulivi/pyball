@@ -20,11 +20,11 @@
 
 """Database write events."""
 
-from pyball.db.write_events.on_match_results_were_added import (
+from pyball.legacy.db.write_events.on_match_results_were_added import (
     update_all_seasons_player_table,
     update_current_season_player_table,
 )
-from pyball.db.write_events.on_player_was_created import (
+from pyball.legacy.db.write_events.on_player_was_created import (
     create_player_all_seasons_stats,
     create_player_current_season_stats,
 )

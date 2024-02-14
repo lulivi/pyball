@@ -31,8 +31,8 @@ from typing import DefaultDict, Dict, List, Optional, Tuple, Type, Union
 
 from peewee import IntegrityError, fn
 
-from pyball.db import model, wrapper
-from pyball.db.errors import (
+from pyball.legacy.db import model, wrapper
+from pyball.legacy.db.errors import (
     DbMatchesCountInconsistencyError,
     DbMatchStatisticsNotFoundError,
     DbMultiplePlayersFoundError,
@@ -43,8 +43,8 @@ from pyball.db.errors import (
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
-from pyball.db.event_bus import PyBallEventBus
-from pyball.db.events import Events
+from pyball.legacy.db.event_bus import PyBallEventBus
+from pyball.legacy.db.events import Events
 from pyball.logger import log_func
 
 logger = logging.getLogger(__name__)
