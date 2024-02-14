@@ -36,9 +36,10 @@ from pyball.legacy.bot.commands import (
     command_version,
     message_from_wrong_chat,
 )
+from pyball.legacy.db.errors import PyBallDbError
 from pyball.legacy.db.model import database
 from pyball.legacy.db.utils import get_player_id_list
-from pyball.settings import BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, REGULARS_ID
+from pyball.settings import ADMINS_IDS, BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, REGULARS_ID
 
 # Set locale for sorting player names
 locale.setlocale(locale.LC_ALL, LOCALE)
@@ -54,7 +55,12 @@ def build_application() -> Application:
     database.initialize(peewee.SqliteDatabase(DATABASE_FILE_PATH))
     logger.debug(f"Using database file {DATABASE_FILE_PATH}")
 
-    included_chats_filter = filters.Chat([REGULARS_ID, *get_player_id_list()])
+    allowed_chat_ids: set = {REGULARS_ID, *ADMINS_IDS}
+    try:
+        allowed_chat_ids |= set(get_player_id_list())
+    except PyBallDbError as error:
+        logger.error(f"Error getting the player id list: {error}")
+    included_chats_filter = filters.Chat(allowed_chat_ids)
     update_filters = ~filters.UpdateType.EDITED_MESSAGE & included_chats_filter
 
     application = Application.builder().token(BOT_TOKEN).build()

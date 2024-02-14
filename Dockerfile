@@ -16,33 +16,40 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-FROM python:3.10-slim as builder
+FROM python:3-slim as builder
 
-ENV POETRY_VENV=/opt/poetry \
-    PROD_VENV=/opt/venv
+ENV VIRTUAL_ENV=/opt/poetry
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update && apt-get install -y git \
     # Poetry isolated virtual environment
-    && /usr/local/bin/python3 -m venv $POETRY_VENV \
-    && $POETRY_VENV/bin/python3 -m pip install -U pip wheel setuptools \
-    && $POETRY_VENV/bin/python3 -m pip install poetry==1.7.1 poetry-dynamic-versioning \
+    && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
+    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel setuptools \
+    && $VIRTUAL_ENV/bin/python3 -m pip install poetry==1.7.1 poetry-dynamic-versioning
     # Production virtual environment
-    && /usr/local/bin/python3 -m venv $PROD_VENV \
-    && $PROD_VENV/bin/python3 -m pip install -U pip wheel
 
 WORKDIR /builder
 COPY . .
 RUN rm -rf dist/
 
-RUN $POETRY_VENV/bin/poetry build --format wheel \
-    && $PROD_VENV/bin/python3 -m pip install --no-cache dist/*.whl
+RUN $VIRTUAL_ENV/bin/poetry build --format wheel
 
-#==========================
-FROM python:3.10-alpine3.19
+#=======================
+FROM python:3-alpine3.19
 
-COPY --from=builder /opt/venv /opt/venv
-ENV VIRTUAL_ENV=/opt/venv PATH=/opt/venv/bin:${PATH}
+ENV VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:${PATH}
 
+WORKDIR /builder
+COPY --from=builder /builder/dist/*.whl .
+
+RUN echo "cython<3" > constraint.txt \
+    && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
+    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
+    && PIP_CONSTRAINT=./constraint.txt \
+        $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl
 WORKDIR /pyball
+RUN rm -rf /builder
+
 ENTRYPOINT ["pyball"]
+

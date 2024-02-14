@@ -20,10 +20,12 @@
 
 """Populate the configuration variables from the environment."""
 
+import sys
+
 from pathlib import Path
 from typing import Tuple
 
-from decouple import AutoConfig, Csv
+from decouple import AutoConfig, Csv, UndefinedValueError
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
@@ -31,7 +33,10 @@ LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 DATE_FORMAT: str = config("DATE_FORMAT", default="%d/%b/%Y")
 TIME_FORMAT: str = config("TIME_FORMAT", default="%H:%M")
 DATETIME_FORMAT: str = config("DATETIME_FORMAT", default=f"{DATE_FORMAT} {TIME_FORMAT}")
-BOT_TOKEN: str = config("BOT_TOKEN")
+try:
+    BOT_TOKEN: str = config("BOT_TOKEN")
+except UndefinedValueError:
+    sys.exit("`BOT_TOKEN` environment variable is needed to run the application")
 REGULARS_ID: int = config("REGULARS_ID", cast=int)
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
 DEFAULT_MATCH_LOCATION: str = config("DEFAULT_MATCH_LOCATION")

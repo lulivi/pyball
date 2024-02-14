@@ -29,7 +29,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import DefaultDict, Dict, List, Optional, Tuple, Type, Union
 
-from peewee import IntegrityError, fn
+from peewee import IntegrityError, OperationalError, fn
 
 from pyball.legacy.db import model, wrapper
 from pyball.legacy.db.errors import (
@@ -42,6 +42,7 @@ from pyball.legacy.db.errors import (
     DbPlayerStatisticsNotFoundError,
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
+    PyBallDbError,
 )
 from pyball.legacy.db.event_bus import PyBallEventBus
 from pyball.legacy.db.events import Events
@@ -217,25 +218,27 @@ def get_player_list(all_seasons: bool = False) -> List[wrapper.Player]:
     stats_table: Union[Type[model.CurrentSeason], Type[model.AllSeasons]] = model.CurrentSeason
     if all_seasons:
         stats_table = model.AllSeasons
-
-    return list(
-        model.Player.select(
-            model.Player.id,
-            model.Player.telegram_id,
-            model.Player.name,
-            model.Player.main,
-            model.Player.rank,
-            stats_table.goals,
-            stats_table.assists,
-            stats_table.wins,
-            stats_table.losses,
-            stats_table.ties,
-            stats_table.skill,
+    try:
+        return list(
+            model.Player.select(
+                model.Player.id,
+                model.Player.telegram_id,
+                model.Player.name,
+                model.Player.main,
+                model.Player.rank,
+                stats_table.goals,
+                stats_table.assists,
+                stats_table.wins,
+                stats_table.losses,
+                stats_table.ties,
+                stats_table.skill,
+            )
+            .join(stats_table)
+            .order_by(model.Player.name)
+            .objects(wrapper.Player)
         )
-        .join(stats_table)
-        .order_by(model.Player.name)
-        .objects(wrapper.Player)
-    )
+    except OperationalError as error:
+        raise PyBallDbError("One or more tables are not present in the database") from error
 
 
 @log_func
