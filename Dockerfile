@@ -16,26 +16,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-FROM python:3-slim as builder
+FROM python:3.11-slim-bullseye as builder
 
-ENV VIRTUAL_ENV=/opt/poetry
+ENV POETRY_VENV=/opt/poetry
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update && apt-get install -y git \
-    # Poetry isolated virtual environment
-    && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
-    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel setuptools \
-    && $VIRTUAL_ENV/bin/python3 -m pip install poetry==1.7.1 poetry-dynamic-versioning
-    # Production virtual environment
+    && /usr/local/bin/python3 -m venv $POETRY_VENV \
+    && $POETRY_VENV/bin/python3 -m pip install -U pip wheel setuptools \
+    && $POETRY_VENV/bin/python3 -m pip install poetry==1.7.1 poetry-dynamic-versioning
 
 WORKDIR /builder
-COPY . .
+COPY pyproject.toml poetry.lock README.md ./
+COPY .git/ ./.git/
+COPY pyball/ ./pyball/
 RUN rm -rf dist/
 
-RUN $VIRTUAL_ENV/bin/poetry build --format wheel
+RUN $POETRY_VENV/bin/poetry build --format wheel
 
 #=======================
-FROM python:3-alpine3.19
+FROM python:3.11-slim-bullseye
 
 ENV VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:${PATH}
@@ -47,9 +47,12 @@ RUN echo "cython<3" > constraint.txt \
     && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
     && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
     && PIP_CONSTRAINT=./constraint.txt \
-        $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl
+        $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
+    && apt-get update && apt-get install -y locales \
+    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
+    && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
+    && rm -rf /builder
 WORKDIR /pyball
-RUN rm -rf /builder
 
 ENTRYPOINT ["pyball"]
 
