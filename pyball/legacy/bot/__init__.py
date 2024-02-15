@@ -59,7 +59,7 @@ def build_application() -> Application:
     try:
         allowed_chat_ids |= set(get_player_id_list())
     except PyBallDbError as error:
-        logger.error(f"Error getting the player id list: {error}")
+        logger.error(f"Error getting the player id list from `{DATABASE_FILE_PATH}`: {error}")
     included_chats_filter = filters.Chat(allowed_chat_ids)
     update_filters = ~filters.UpdateType.EDITED_MESSAGE & included_chats_filter
 

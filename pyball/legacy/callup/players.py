@@ -40,13 +40,6 @@ from pyball.legacy.callup.errors import (
 logger = logging.getLogger(__name__)
 
 
-class PlayerAction(Enum):
-    """Represents the possible actions of a player."""
-
-    JOIN = auto()
-    LEAVE = auto()
-
-
 class Players:
     """Simple class to manage the called players for a game.
 

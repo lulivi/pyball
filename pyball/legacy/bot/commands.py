@@ -133,7 +133,7 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     query = update.callback_query
 
-    if query is None or query.data is None or query.message is None:
+    if query is None or query.message is None:
         return
 
     try:
@@ -151,10 +151,9 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     old_call_up_yaml = call_up.as_yaml()
 
     try:
-        call_up.act(query.data, player)
+        answer = call_up.act(player)
     except (
         CallUpMultiplePlayersFoundError,
-        CallUpPlayerAlreadyCalledUpError,
         CallUpPlayerDoesNotExistError,
         CallUpPlayerNotCalledUpError,
     ) as error:
@@ -581,23 +580,35 @@ async def command_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
     logger.error("Exception while handling an update:", exc_info=context.error)
 
-    traceback_str = "".join(
-        traceback.format_exception(
-            None,
-            context.error,
-            context.error.__traceback__,
+    traceback_str = html.escape(
+        "".join(
+            traceback.format_exception(
+                None,
+                context.error,
+                context.error.__traceback__,
+            )
         )
     )
 
     # Build the message with some markup and additional information about what happened.
     # You might need to add some logic to deal with messages longer than the 4096 character limit.
-    update_str = update.to_dict() if isinstance(update, Update) else str(update)
-    message = (
-        "An exception was raised while handling an update\n"
-        f"<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}"
-        "</pre>\n\n"
-        f"<pre>{html.escape(traceback_str)}</pre>"
+    update_str = html.escape(
+        json.dumps(
+            update.to_dict() if isinstance(update, Update) else str(update),
+            indent=2,
+            ensure_ascii=False,
+        )
     )
+    update_message = f"<pre>update = {update_str}</pre>"
+    error_message = f"<pre>{html.escape(traceback_str)}</pre>"
 
     for admin_id in ADMINS_IDS:
-        await context.bot.send_message(chat_id=admin_id, text=message, parse_mode=ParseMode.HTML)
+        await context.bot.send_message(
+            chat_id=admin_id, text="An exception was raised while handling an update"
+        )
+        await context.bot.send_message(
+            chat_id=admin_id, text=update_message, parse_mode=ParseMode.HTML
+        )
+        await context.bot.send_message(
+            chat_id=admin_id, text=error_message, parse_mode=ParseMode.HTML
+        )

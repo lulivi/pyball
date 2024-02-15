@@ -166,6 +166,3 @@ cython_debug/
 data/
 logs/
 scripts/
-
-# Ignore legacy code changes
-pyball/legacy/

@@ -24,7 +24,7 @@ import datetime
 import logging
 
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Union
+from typing import Optional, Union
 
 import yaml
 
@@ -34,10 +34,11 @@ from pyball import __version__
 from pyball.legacy.callup.errors import (
     CallUpMatchAlreadyFinishedError,
     CallUpMatchNotYetCreatedError,
+    CallUpPlayerAlreadyCalledUpError,
     CallUpWrongFormatError,
 )
 from pyball.legacy.callup.match import Match, PlayersStatInput
-from pyball.legacy.callup.players import PlayerAction, Players
+from pyball.legacy.callup.players import Players
 from pyball.settings import DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,6 @@ class CallUp:  # pylint: disable=too-many-public-methods
         "_actions",
         "_match",
     ]
-    _actions: Dict[str, Callable]
 
     def __init__(self, **kwargs: Unpack[CallUpParams]) -> None:
         self._date: datetime.datetime = kwargs["date"]
@@ -102,10 +102,6 @@ class CallUp:  # pylint: disable=too-many-public-methods
         self._players: Players = kwargs.get("players") or Players(
             maximum=kwargs.get("fixed_player_number")
         )
-        self._actions = {
-            PlayerAction.JOIN.name: self.add_player,
-            PlayerAction.LEAVE.name: self.del_player,
-        }
         self._match: Optional[Match] = kwargs.get("match")
         logger.debug(f"Creating a new call-up: {self.title}")
 
@@ -178,14 +174,19 @@ class CallUp:  # pylint: disable=too-many-public-methods
         """
         return self._subs_chat
 
-    def act(self, action: str, player: Union[str, int]) -> None:
+    def act(self, player: Union[str, int]) -> str:
         """Act depending on the player action.
 
         :param action: Action of joining or leaving the CallUp.
         :param player: Name of the player.
 
         """
-        self._actions[action](player)
+        try:
+            self.add_player(player=player)
+            return "Se te añadió a la convocatoria"
+        except CallUpPlayerAlreadyCalledUpError:
+            self.del_player(player=player)
+            return "Se te borró de la convocatoria"
 
     def set_subs_message_id(self, message_id: Optional[int]) -> None:
         """Set the substitutes chat message identifier.
