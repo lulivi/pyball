@@ -151,11 +151,8 @@ def create_player(name: str, telegram_id: Optional[int] = None, main_player: boo
     """
     table_info = {"name": name, "main": main_player}
 
-    table_info["telegram_id"] = (
-        telegram_id
-        if telegram_id is not None
-        else model.Player.select(fn.Max(model.Player.telegram_id)).scalar() + 1
-    )
+    max_id = model.Player.select(fn.Max(model.Player.telegram_id)).scalar()
+    table_info["telegram_id"] = telegram_id or max_id is not None and max_id + 1 or 0
 
     try:
         player_id = model.Player.insert(**table_info).execute()

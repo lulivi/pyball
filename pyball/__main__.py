@@ -31,15 +31,24 @@ from pyball.legacy.db.write_events import *  # pylint: disable=wildcard-import,u
 logger = logging.getLogger(__name__)
 
 
+def log_startup_info() -> None:
+    """Log some important information in the startup."""
+    asterisk_line = "*" * 79
+    booting_up_str = "Booting up!!"
+    pyball_version_str = f"Running Pyball v{__version__}"
+    logger.warning(asterisk_line)
+    logger.warning(f"*{booting_up_str:^77}*")
+    logger.warning(f"*{pyball_version_str:^77}*")
+    logger.warning(asterisk_line)
+
+
 def main() -> None:
     """Start the bot."""
     parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
     parser.add_argument("-v", "--version", action="version", version=f"Pyball {__version__}")
     parser.parse_args()
 
-    logger.warning("**********************************************************")
-    logger.warning("*********************** Booting up!! *********************")
-    logger.warning("**********************************************************")
+    log_startup_info()
 
     # Create the pickle persistence
     application = build_application()
