@@ -37,7 +37,7 @@ from pyball.legacy.bot.commands import (
     message_from_wrong_chat,
 )
 from pyball.legacy.db.errors import PyBallDbError
-from pyball.legacy.db.model import database
+from pyball.legacy.db.model import AllSeasons, CurrentSeason, MatchStatistic, Player, database
 from pyball.legacy.db.utils import get_player_id_list
 from pyball.settings import ADMINS_IDS, BOT_TOKEN, DATABASE_FILE_PATH, LOCALE, REGULARS_ID
 
@@ -60,6 +60,8 @@ def build_application() -> Application:
         allowed_chat_ids |= set(get_player_id_list())
     except PyBallDbError as error:
         logger.error(f"Error getting the player id list from `{DATABASE_FILE_PATH}`: {error}")
+        logger.warning("Creating model tables for future calls...")
+        database.create_tables([Player, CurrentSeason, AllSeasons, MatchStatistic])
     included_chats_filter = filters.Chat(allowed_chat_ids)
     update_filters = ~filters.UpdateType.EDITED_MESSAGE & included_chats_filter
 
