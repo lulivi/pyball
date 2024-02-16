@@ -28,11 +28,33 @@ from typing import Any, Callable, TypeVar, cast
 
 from pyball.settings import LOGS_DIRECTORY_PATH
 
-ADVANCED_FMT = "{asctime}|{levelname}|{name}:{lineno: 4d}| {message}"
-ADVANCED_FORMATTER = logging.Formatter(fmt=ADVANCED_FMT, datefmt="%Y/%m/%d-%H:%M", style="{")
+LOG_MESSAGE_FORMAT = "{asctime}|{levelname}|{name}:{lineno: 4d}| {message}"
+DATE_FORMAT = "%Y/%m/%d-%H:%M"
+ADVANCED_FORMATTER = logging.Formatter(fmt=LOG_MESSAGE_FORMAT, datefmt=DATE_FORMAT, style="{")
 
 stream_log = logging.StreamHandler()
 stream_log.setLevel(logging.INFO)
+
+
+def timed_rotating_file_handler(
+    file_name: str,
+    filter_string: str,
+) -> logging.handlers.TimedRotatingFileHandler:
+    """Create a log file handler with filter.
+
+    :param file_name: Name of the file inside the logs directory.
+    :param filter_string: Log file.
+    :returns: The newly created log handler.
+
+    """
+    log = logging.handlers.TimedRotatingFileHandler(
+        LOGS_DIRECTORY_PATH.joinpath(file_name),
+        when="W2",
+        backupCount=5,
+        atTime=datetime.time(hour=23, minute=59),
+    )
+    log.addFilter(logging.Filter(filter_string))
+    return log
 
 
 full_log = logging.handlers.RotatingFileHandler(
@@ -41,46 +63,15 @@ full_log = logging.handlers.RotatingFileHandler(
     backupCount=5,
 )
 
-
-pyball_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("pyball.log"),
-    when="W2",
-    backupCount=5,
-    atTime=datetime.time(hour=23, minute=59),
-)
-pyball_log.addFilter(logging.Filter("pyball"))
-
-
-bot_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("bot.log"),
-    when="W2",
-    backupCount=5,
-    atTime=datetime.time(hour=23, minute=59),
-)
-bot_log.addFilter(logging.Filter("pyball.bot"))
-
-
-players_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("players.log"),
-    when="W2",
-    backupCount=2,
-    atTime=datetime.time(hour=23, minute=59),
-)
-players_log.addFilter(logging.Filter("pyball.callup.players"))
-
-
-db_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("db.log"),
-    when="W2",
-    backupCount=5,
-    atTime=datetime.time(hour=23, minute=59),
-)
-db_log.addFilter(logging.Filter("pyball.db"))
+pyball_log = timed_rotating_file_handler("pyball.log", "pyball")
+bot_log = timed_rotating_file_handler("bot.log", "pyball.legacy.bot")
+players_log = timed_rotating_file_handler("players.log", "pyball.legacy.callup.players")
+db_log = timed_rotating_file_handler("db.log", "pyball.legacy.db")
 
 
 logging.basicConfig(
-    format=ADVANCED_FMT,
-    datefmt="%Y/%m/%d-%H:%M",
+    format=LOG_MESSAGE_FORMAT,
+    datefmt=DATE_FORMAT,
     style="{",
     level=logging.DEBUG,
     handlers=(
