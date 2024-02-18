@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import faker
 
-from pyball.bot.utils import md_monospace_items
+from pyball.legacy.bot.utils import md_monospace_items
 
 fake: faker.Faker = faker.Faker()
 

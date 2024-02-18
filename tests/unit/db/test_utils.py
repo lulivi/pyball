@@ -8,8 +8,8 @@ import peewee
 
 from freezegun import freeze_time
 
-from pyball import db
-from pyball.db.errors import (
+from pyball.legacy import db
+from pyball.legacy.db.errors import (
     DbMatchesCountInconsistencyError,
     DbMatchStatisticsNotFoundError,
     DbMultiplePlayersFoundError,
@@ -19,7 +19,7 @@ from pyball.db.errors import (
     DbScoreInconsistencyError,
     DbStatisticForPlayerInMatchAlreadyExistent,
 )
-from pyball.db.utils import (
+from pyball.legacy.db.utils import (
     add_match_results,
     check_inconsistencies,
     create_player,
@@ -251,7 +251,7 @@ class TestCreatePlayer(TestCase):
 
 
 class TestRenamePlayer(TestCase):
-    @mock.patch("pyball.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.find_player")
     def test_rename_player_by_id(self, mock_find_player):
         new_name = fake.unique.name()
         mock_find_player.return_value = db.model.Player.get(
@@ -262,7 +262,7 @@ class TestRenamePlayer(TestCase):
 
         self.assertEqual(player.name, new_name)
 
-    @mock.patch("pyball.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.find_player")
     def test_rename_player_by_name(self, mock_find_player):
         new_name = fake.unique.name()
         mock_find_player.return_value = db.model.Player.get(
@@ -273,7 +273,7 @@ class TestRenamePlayer(TestCase):
 
         self.assertEqual(player.name, new_name)
 
-    @mock.patch("pyball.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.find_player")
     def test_rename_player_with_error_due_to_duplication_of_name(self, mock_find_player):
         with self.assertRaises(DbPlayerAlreadyExistentError) as cm:
             mock_find_player.side_effect = [
@@ -309,7 +309,7 @@ class TestRenamePlayer(TestCase):
 
 
 class TestReidPlayer(TestCase):
-    @mock.patch("pyball.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.find_player")
     def test_reid_player_by_id(self, mock_find_player):
         new_identifier = fake.random_int()
         mock_find_player.return_value = db.model.Player.get(
@@ -320,7 +320,7 @@ class TestReidPlayer(TestCase):
 
         self.assertEqual(player.telegram_id, new_identifier)
 
-    @mock.patch("pyball.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.find_player")
     def test_reid_player_by_name(self, mock_find_player):
         new_identifier = fake.random_int()
         mock_find_player.return_value = db.model.Player.get(
@@ -331,7 +331,7 @@ class TestReidPlayer(TestCase):
 
         self.assertEqual(player.telegram_id, new_identifier)
 
-    @mock.patch("pyball.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.find_player")
     def test_reid_player_with_error_due_to_duplication_of_identifier(self, mock_find_player):
         with self.assertRaises(DbPlayerAlreadyExistentError) as cm:
             mock_find_player.side_effect = [
@@ -565,12 +565,12 @@ class TestGetMatchAndMatchesDateList(TestCase):
 
 
 class TestAddMatchResults(TestCase):
-    @mock.patch("pyball.db.utils.backup_database")
+    @mock.patch("pyball.legacy.db.utils.backup_database")
     def test_add_match_results_no_statistics(self, _):
         add_match_results([])
 
-    @mock.patch("pyball.db.utils.backup_database")
-    @mock.patch("pyball.db.utils.PyBallEventBus")
+    @mock.patch("pyball.legacy.db.utils.backup_database")
+    @mock.patch("pyball.legacy.db.utils.PyBallEventBus")
     def test_add_match_results(self, _, __):
         new_match_date = fake.unique.date_time()
         new_match_results = [
@@ -616,9 +616,9 @@ class TestAddMatchResults(TestCase):
         self.assertEqual(obtained_match["Naranja"]["goles"], 1)
         self.assertEqual(len(matches_date_list), 2)
 
-    @mock.patch("pyball.db.utils.find_player")
-    @mock.patch("pyball.db.utils.backup_database")
-    @mock.patch("pyball.db.utils.PyBallEventBus")
+    @mock.patch("pyball.legacy.db.utils.find_player")
+    @mock.patch("pyball.legacy.db.utils.backup_database")
+    @mock.patch("pyball.legacy.db.utils.PyBallEventBus")
     def test_add_match_results_already_added(self, _, __, mock_find_player):
         mock_find_player.return_value = db.model.Player.get(
             db.model.Player.id == self._match_statistics[0]["player"]

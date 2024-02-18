@@ -3,9 +3,9 @@ from unittest import TestCase
 import faker
 import peewee
 
-from pyball import db
-from pyball.db.errors import DbUnknownResultError
-from pyball.db.utils import find_player
+from pyball.legacy import db
+from pyball.legacy.db.errors import DbUnknownResultError
+from pyball.legacy.db.utils import find_player
 
 fake: faker.Faker = faker.Faker()
 

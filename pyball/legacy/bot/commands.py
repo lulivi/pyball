@@ -148,7 +148,7 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     player = update.effective_user.id
     answer: str = ""
 
-    old_call_up_yaml = call_up.as_yaml()
+    old_call_up_yaml = call_up.to_yaml()
 
     try:
         answer = call_up.act(player)

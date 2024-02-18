@@ -7,16 +7,16 @@ import peewee
 
 from freezegun import freeze_time
 
-from pyball import db
-from pyball.callup.callup import CallUp
-from pyball.callup.errors import CallUpMatchNotYetCreatedError
-from pyball.callup.match import Match, PlayersStatInput
-from pyball.callup.players import Players
-from pyball.db.write_events.on_match_results_were_added import (
+from pyball.legacy import db
+from pyball.legacy.callup.callup import CallUp
+from pyball.legacy.callup.errors import CallUpMatchNotYetCreatedError
+from pyball.legacy.callup.match import Match, PlayersStatInput
+from pyball.legacy.callup.players import Players
+from pyball.legacy.db.write_events.on_match_results_were_added import (
     update_all_seasons_player_table,
     update_current_season_player_table,
 )
-from pyball.db.write_events.on_player_was_created import (
+from pyball.legacy.db.write_events.on_player_was_created import (
     create_player_all_seasons_stats,
     create_player_current_season_stats,
 )
@@ -26,13 +26,13 @@ fake: faker.Faker = faker.Faker()
 
 
 class TestCallUpProcess(TestCase):
-    @mock.patch("pyball.db.utils.backup_database")
+    @mock.patch("pyball.legacy.db.utils.backup_database")
     def test_call_up_as_yaml_adds_goals_when_results_are_set(self, _):
         # when
         for player in self._players[:10]:
             self._call_up.add_player(player=player["telegram_id"])
 
-        obtained_yaml = self._call_up.as_yaml()
+        obtained_yaml = self._call_up.to_yaml()
 
         # then
         self.assertIn("Naranja", obtained_yaml)
@@ -44,7 +44,7 @@ class TestCallUpProcess(TestCase):
 
         # when
         self._call_up.set_results(player_stat_input)
-        obtained_yaml = self._call_up.as_yaml()
+        obtained_yaml = self._call_up.to_yaml()
 
         # then
         self.assertIn("goles", obtained_yaml)
@@ -67,7 +67,7 @@ class TestCallUpProcess(TestCase):
         self.assertIsNotNone(self._call_up.match)
         self.assertTrue(self._call_up.players.are_ready())
 
-    @mock.patch("pyball.db.utils.backup_database")
+    @mock.patch("pyball.legacy.db.utils.backup_database")
     def test_set_match_results(self, _):
         # given
         players = Players.from_list(
@@ -221,7 +221,7 @@ class TestCreatePlayerEvents(TestCase):
 
 class TestCreatePlayersAndAddMatchResults(TestCase):
     @freeze_time(fake.date_time().replace(month=11, day=6))
-    @mock.patch("pyball.db.utils.backup_database")
+    @mock.patch("pyball.legacy.db.utils.backup_database")
     def test_adding_first_results_update_stat_tables(self, _):
         # Create the players
         for player in self._players:

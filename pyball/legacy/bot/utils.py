@@ -305,7 +305,7 @@ async def update_call_up_message(
                     diff_lines[idx] = line.replace("-", "- ", 1)
             return "\n".join(diff_lines)
 
-        call_up_diff = diff_call_ups(old_call_up_yaml, call_up.as_yaml())
+        call_up_diff = diff_call_ups(old_call_up_yaml, call_up.to_yaml())
 
         if call_up_diff:
             for admin_id in ADMINS_IDS:
@@ -349,7 +349,7 @@ async def match_show(
     try:
         await bot_call_message_function(
             message_function=reply_function,
-            text=Match.from_dict(get_match(date)).as_yaml(),
+            text=Match.from_dict(get_match(date)).to_yaml(),
         )
     except DbMatchStatisticsNotFoundError as error:
         raise BotDatabaseError(
@@ -585,7 +585,7 @@ async def callup_maximum(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.as_yaml()
+    old_call_up_yaml = call_up.to_yaml()
     parsed_maximum: Optional[int] = None
 
     if maximum != "auto" and maximum.isnumeric():
@@ -640,7 +640,7 @@ async def callup_add(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.as_yaml()
+    old_call_up_yaml = call_up.to_yaml()
     for name in names:
         try:
             call_up.add_player(name)
@@ -683,7 +683,7 @@ async def callup_del(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.as_yaml()
+    old_call_up_yaml = call_up.to_yaml()
     for name in names:
         try:
             call_up.del_player(name)
@@ -773,7 +773,7 @@ async def callup_teams(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.as_yaml()
+    old_call_up_yaml = call_up.to_yaml()
     if swap is None:
         try:
             call_up.create_match()
@@ -824,7 +824,7 @@ async def callup_results(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.as_yaml()
+    old_call_up_yaml = call_up.to_yaml()
     try:
         call_up.set_results(stats)
     except CallUpMatchNotYetCreatedError as error:

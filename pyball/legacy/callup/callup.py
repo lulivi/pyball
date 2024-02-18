@@ -275,9 +275,9 @@ class CallUp:  # pylint: disable=too-many-public-methods
         self._match.set_results(results, self._date)
 
     def __str__(self) -> str:
-        return self.as_yaml()
+        return self.to_yaml()
 
-    def as_yaml(self) -> str:
+    def to_yaml(self) -> str:
         """Obtain the YAML representation of the call-up.
 
         :returns: The YAML string.
@@ -304,7 +304,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
         match_info: str = ""
         if self._match is not None:
-            match_info = self.match.as_yaml()
+            match_info = self.match.to_yaml()
 
         version_info = yaml.dump(
             {"versión": __version__},
@@ -312,7 +312,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
             indent=4,
         )
 
-        return f"{call_up_info}{self.players.as_yaml()}{search_info}{match_info}{version_info}"
+        return f"{call_up_info}{self.players.to_yaml()}{search_info}{match_info}{version_info}"
 
     @staticmethod
     def from_yaml(yaml_str: str, main_chat_id: int, main_chat_msg: int) -> "CallUp":

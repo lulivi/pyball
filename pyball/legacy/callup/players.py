@@ -171,7 +171,7 @@ class Players:
         return len(self._players)
 
     def __str__(self) -> str:
-        return self.as_yaml()
+        return self.to_yaml()
 
     def __repr__(self) -> str:
         # Since we don't want UTF-8 characters to mess up the sorting, we use the
@@ -183,7 +183,7 @@ class Players:
         player_list = ",".join(sorted_players)
         return f"Players({player_list})"
 
-    def as_yaml(self) -> str:
+    def to_yaml(self) -> str:
         """Obtain the YAML representation of the players.
 
         :returns: The YAML string.

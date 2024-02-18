@@ -6,15 +6,15 @@ from unittest import TestCase, mock
 
 import faker
 
-from pyball import db
-from pyball.callup.errors import (
+from pyball.legacy import db
+from pyball.legacy.callup.errors import (
     CallUpMultiplePlayersFoundError,
     CallUpPlayerAlreadyCalledUpError,
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
-from pyball.callup.players import Players, find_player
-from pyball.db.errors import DbMultiplePlayersFoundError, DbPlayerNotFoundError
+from pyball.legacy.callup.players import Players, find_player
+from pyball.legacy.db.errors import DbMultiplePlayersFoundError, DbPlayerNotFoundError
 from tests.utils import create_wrapped_player
 
 fake: faker.Faker = faker.Faker()
@@ -68,7 +68,7 @@ class TestPlayers(TestCase):
         self.assertFalse(players_object.are_ready())
         self.assertEqual(players_object.maximum, 14)
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_player_join(self, mock_find_player):
         players_object = Players()
 
@@ -77,7 +77,7 @@ class TestPlayers(TestCase):
         self.assertEqual(len(players_object), 1)
         mock_find_player.assert_called_once()
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_player_join_already_called_up(self, mock_find_player):
         player_a = create_wrapped_player()
         mock_find_player.return_value = player_a
@@ -88,7 +88,7 @@ class TestPlayers(TestCase):
 
         mock_find_player.assert_called_once()
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_player_join_when_aready_ready_should_set_automatic_maximum(self, _):
         player_a = create_wrapped_player()
         player_b = create_wrapped_player()
@@ -104,7 +104,7 @@ class TestPlayers(TestCase):
         self.assertFalse(players_object.are_ready())
         self.assertEqual(players_object.maximum, 10)
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_player_leave(self, mock_find_player):
         player_a = create_wrapped_player()
         player_b = create_wrapped_player()
@@ -118,7 +118,7 @@ class TestPlayers(TestCase):
         self.assertEqual(players_object.players[0], player_a)
         mock_find_player.assert_called_once()
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_player_leave_not_called_up(self, mock_find_player):
         player_a = create_wrapped_player()
         mock_find_player.return_value = player_a
@@ -183,7 +183,7 @@ class TestPlayers(TestCase):
 
         players_object = Players(players=players)
 
-        self.assertEqual(expected_output, players_object.as_yaml())
+        self.assertEqual(expected_output, players_object.to_yaml())
 
     def test_str_should_return_a_yaml(self):
         players = []
@@ -231,9 +231,9 @@ class TestPlayers(TestCase):
 
         players_object = Players(players=players)
 
-        self.assertEqual(expected_output, players_object.as_yaml())
+        self.assertEqual(expected_output, players_object.to_yaml())
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_from_list(self, mock_find_player):
         players = []
         for _ in range(10):
@@ -250,7 +250,7 @@ class TestPlayers(TestCase):
         self.assertEqual(players, players_object.players)
         self.assertTrue(players_object.are_ready())
 
-    @mock.patch("pyball.callup.players.find_player")
+    @mock.patch("pyball.legacy.callup.players.find_player")
     def test_from_list_when_there_are_missing_players(self, mock_find_player):
         players = []
         for _ in range(8):
@@ -270,7 +270,7 @@ class TestPlayers(TestCase):
 
 
 class TestFindPlayer(TestCase):
-    @mock.patch("pyball.callup.players.db.utils.find_player")
+    @mock.patch("pyball.legacy.callup.players.db.utils.find_player")
     def test_find_player_when_exists(self, mock_find_player):
         expected_player = create_wrapped_player()
         mock_find_player.return_value = expected_player
@@ -279,7 +279,7 @@ class TestFindPlayer(TestCase):
 
         self.assertEqual(obtained_player, expected_player)
 
-    @mock.patch("pyball.callup.players.db.utils.find_player")
+    @mock.patch("pyball.legacy.callup.players.db.utils.find_player")
     def test_find_player_when_the_player_does_not_exist(self, mock_find_player):
         mock_find_player.side_effect = DbPlayerNotFoundError("p")
 
@@ -288,7 +288,7 @@ class TestFindPlayer(TestCase):
 
         mock_find_player.assert_called_once()
 
-    @mock.patch("pyball.callup.players.db.utils.find_player")
+    @mock.patch("pyball.legacy.callup.players.db.utils.find_player")
     def test_find_player_when_player_name_returns_multiple_possible(self, mock_find_player):
         mock_find_player.side_effect = DbMultiplePlayersFoundError(["p1", "p2"], "p")
 

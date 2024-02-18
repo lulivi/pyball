@@ -134,7 +134,7 @@ class Team:
         )
         return f"{self.__class__.__name__}({players})"
 
-    def as_yaml(self, team_name: str) -> str:
+    def to_yaml(self, team_name: str) -> str:
         """Obtain the YAML representation of the team.
 
         :returns: The YAML string.
@@ -390,7 +390,7 @@ class Match:
 
         return str_output
 
-    def as_yaml(self) -> str:
+    def to_yaml(self) -> str:
         """Obtain the YAML representation of the match.
 
         :returns: The YAML string.
@@ -399,7 +399,7 @@ class Match:
         match_info: str = "\n"
 
         for team_name, team in self._teams.items():
-            match_info = f"{match_info}{team.as_yaml(team_name)}\n"
+            match_info = f"{match_info}{team.to_yaml(team_name)}\n"
 
         finished_info = ""
         if self._finished:

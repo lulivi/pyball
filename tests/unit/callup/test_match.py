@@ -6,8 +6,8 @@ from unittest import TestCase, mock
 
 import faker
 
-from pyball import db
-from pyball.callup.match import Match, PlayersStatInput, Team
+from pyball.legacy import db
+from pyball.legacy.callup.match import Match, PlayersStatInput, Team
 from tests.utils import create_wrapped_player
 
 fake: faker.Faker = faker.Faker()
@@ -15,7 +15,7 @@ TEMPLATE_DIR = Path(__file__).resolve().parents[2].joinpath("data")
 
 
 class TestPlayersStatInput(TestCase):
-    @mock.patch("pyball.callup.match.find_player")
+    @mock.patch("pyball.legacy.callup.match.find_player")
     def test_players_stat_input_add_goal(self, mock_find_player):
         scorer = create_wrapped_player()
         assistant = create_wrapped_player()
@@ -36,7 +36,7 @@ class TestPlayersStatInput(TestCase):
 
         self.assertDictEqual(players_stat_input.result, expected_dict)
 
-    @mock.patch("pyball.callup.match.find_player")
+    @mock.patch("pyball.legacy.callup.match.find_player")
     def test_players_stat_input_len(self, mock_find_player):
         scorer = create_wrapped_player()
         assistant = create_wrapped_player()
@@ -96,7 +96,7 @@ class TestTeam(TestCase):
 
         team = Team(players=players, score=score)
 
-        self.assertEqual(team.as_yaml(team_name), expected_output)
+        self.assertEqual(team.to_yaml(team_name), expected_output)
 
     def test_team_as_yaml_no_goals(self):
         players = []
@@ -118,7 +118,7 @@ class TestTeam(TestCase):
 
         team = Team(players=players)
 
-        self.assertEqual(team.as_yaml(team_name), expected_output)
+        self.assertEqual(team.to_yaml(team_name), expected_output)
 
     def test_team_repr(self):
         players = []

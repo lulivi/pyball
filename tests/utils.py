@@ -1,7 +1,7 @@
 """Testing utils."""
 import faker
 
-from pyball import db
+from pyball.legacy import db
 
 fake: faker.Faker = faker.Faker()
 

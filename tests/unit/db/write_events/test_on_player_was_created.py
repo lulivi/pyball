@@ -3,9 +3,9 @@ from unittest import TestCase
 import faker
 import peewee
 
-from pyball import db
-from pyball.db.errors import DbPlayerStatsAlreadyExistentError
-from pyball.db.write_events.on_player_was_created import (
+from pyball.legacy import db
+from pyball.legacy.db.errors import DbPlayerStatsAlreadyExistentError
+from pyball.legacy.db.write_events.on_player_was_created import (
     create_player_all_seasons_stats,
     create_player_current_season_stats,
 )
