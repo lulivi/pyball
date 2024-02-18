@@ -285,6 +285,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
         """
         call_up_info = yaml.dump(
             {
+                "apuntados": f"{len(self._players)}/{self._players.maximum}",
                 "convocatoria": f"*{self._date.strftime('%A %d/%b/%Y %H:%M')}*",
                 "localización": f"*{self._location}*",
             },
@@ -331,6 +332,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
         try:
             del call_up_info["versión"]
+            del call_up_info["apuntados"]
             date = datetime.datetime.strptime(
                 call_up_info.pop("convocatoria"), "%A %d/%b/%Y %H:%M"
             )
