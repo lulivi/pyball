@@ -19,8 +19,10 @@
 # SOFTWARE.
 
 """Package testing and deploying tasks."""
-import nox
 from pathlib import Path
+from typing import Tuple
+
+import nox
 
 ROOT_DIRECTORY = Path(__file__).parent.resolve()
 
@@ -32,32 +34,32 @@ nox.options.error_on_missing_interpreters = False
 
 
 @nox.session
-def lint(session):
+def lint(session: nox.Session):
     """Lint the code."""
     session.run("poetry", "install", external=True)
 
-    session.run(
+    session.run_always(
         "black",
         "--check",
         "--diff",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
     )
-    session.run(
+    session.run_always(
         "isort",
         "--check",
         "--diff",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
     )
-    session.run(
+    session.run_always(
         "pydocstyle",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
         "--add-ignore",
         "D104,D105,D107",
     )
-    session.run(
+    session.run_always(
         "pycodestyle",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
@@ -66,17 +68,19 @@ def lint(session):
         "--ignore",
         "W605,W503",
     )
-    session.run(
+    session.run_always(
         "mypy",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
         "--enable-incomplete-feature=Unpack",
     )
-    session.run("pylint", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
+    session.run_always(
+        "pylint", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+    )
 
 
 @nox.session(python=["3.8"])
-def test(session):
+def test(session: nox.Session):
     """Test the code."""
     session.run("poetry", "install", "--with", "test", external=True)
 
@@ -91,7 +95,7 @@ def test(session):
         target_dir = session.posargs[0]
         cov_parameters = []
 
-    session.run(
+    session.run_always(
         "pytest",
         "-vvv",
         *cov_parameters,
@@ -99,10 +103,62 @@ def test(session):
     )
 
 
-@nox.session()
-def format(session):
+@nox.session
+def format(session: nox.Session):
     """Format the code."""
     session.run("poetry", "install", "--only", "dev", external=True)
 
-    session.run("black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
-    session.run("isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
+    session.run_always(
+        "black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+    )
+    session.run_always(
+        "isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+    )
+
+
+@nox.session
+def build(session: nox.Session) -> None:
+    """Build the Python wheel."""
+    session.run("rm", "-r", "dist/", external=True)
+    session.run("poetry", "build", "-f", "wheel", external=True)
+
+
+@nox.session(name="dbuild")
+def docker_build(session: nox.Session) -> Tuple[str, str]:
+    """Build the Docker image."""
+    build(session=session)
+    image_tag = (
+        session.run_always(
+            "git",
+            "describe",
+            "--tags",
+            "--abbrev=0",
+            external=True,
+            silent=True,
+        )
+        .replace("v", "")
+        .strip()
+    )
+    image_name = "lulivi/pyball"
+    session.run_always(
+        "docker",
+        "build",
+        ".",
+        "-t",
+        f"{image_name}:{image_tag}",
+        "-f",
+        str(ROOT_DIRECTORY.joinpath("docker", "Dockerfile")),
+        external=True,
+    )
+    return image_name, image_tag
+
+
+@nox.session(name="dpublish", venv_backend=None)
+def docker_publish(session: nox.Session) -> None:
+    """Publish the Docker image."""
+    image_name, image_tag = docker_build(session=session)
+    session.run_always(
+        "docker", "tag", f"{image_name}:{image_tag}", f"{image_name}:latest", external=True
+    )
+    session.run_always("docker", "push", f"{image_name}:{image_tag}", external=True)
+    session.run_always("docker", "push", f"{image_name}:latest", external=True)
