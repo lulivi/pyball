@@ -26,10 +26,12 @@ import uuid
 from ast import Tuple
 from typing import List, Optional
 
+from pyball.greenfield.utils.aggregate import Aggregate, Event
+
 Team = List[uuid.UUID]
 
 
-class Meetup:
+class Meetup(Aggregate):
     def __init__(
         self,
         id: uuid.UUID,
@@ -78,6 +80,7 @@ class Meetup:
 
     def add_player(self, id: uuid.UUID) -> None:
         self._players.append(id)
+        self.trigger_event(PlayerWasAdded(id))
 
         if self.team_count > 1:
             self.create_teams()
@@ -91,7 +94,7 @@ class Meetup:
                 self._players[player_chunk_index : player_chunk_index + team_player_count]
             )
 
-        self._events.append(TeamsWereCreated(self._teams))
+        self.trigger_event(TeamsWereCreated(self._teams))
 
     def __contains__(self, player_id: uuid.UUID) -> bool:
         return player_id in self._players
