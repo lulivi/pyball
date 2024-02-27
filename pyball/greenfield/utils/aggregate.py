@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Iterator, List
 
 
+@dataclass
 class Event(ABC):
-    @property
-    @abstractmethod
-    def bus_string(self) -> str:
-        raise NotImplementedError
+    pass
 
 
 class Aggregate:

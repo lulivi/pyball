@@ -40,3 +40,7 @@ class MeetupDateAlreadyUsedError(Exception):
         self.date_time = date_time
         self.message = f"The date `{date_time}` is already in use"
         super().__init__(self.message)
+
+
+class InvalidPlayerCountError(Exception):
+    """The player count when creating teams is invalid."""

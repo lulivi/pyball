@@ -24,7 +24,9 @@ import datetime
 import uuid
 
 from ast import Tuple
+from dataclasses import dataclass
 from typing import List, Optional
+from pyball.greenfield.meetup.domain.errors import InvalidPlayerCountError
 
 from pyball.greenfield.utils.aggregate import Aggregate, Event
 
@@ -47,7 +49,6 @@ class Meetup(Aggregate):
         self._possible_team_sizes = possible_team_sizes
         self._players: List[uuid.UUID] = []
         self._teams: Optional[Team] = None
-        self._events: List[str] = []
 
     @property
     def id(self) -> uuid.UUID:
@@ -67,6 +68,7 @@ class Meetup(Aggregate):
 
     @property
     def team_count(self) -> int:
+        # TODO: Refactor
         player_count = len(self._players)
         for team_size in self._possible_team_sizes:
             if player_count % team_size == 0 and player_count > team_size:
@@ -80,12 +82,12 @@ class Meetup(Aggregate):
 
     def add_player(self, id: uuid.UUID) -> None:
         self._players.append(id)
-        self.trigger_event(PlayerWasAdded(id))
-
-        if self.team_count > 1:
-            self.create_teams()
+        self.trigger_event(self.PlayerWasAdded(self._id, id))
 
     def create_teams(self) -> None:
+        if self.team_count == 0:
+            raise InvalidPlayerCountError()
+
         team_player_count = len(self.players) // self.team_count
         self._teams = []
 
@@ -94,7 +96,17 @@ class Meetup(Aggregate):
                 self._players[player_chunk_index : player_chunk_index + team_player_count]
             )
 
-        self.trigger_event(TeamsWereCreated(self._teams))
+        self.trigger_event(self.TeamsWereCreated(self._id, self._teams))
 
     def __contains__(self, player_id: uuid.UUID) -> bool:
         return player_id in self._players
+
+    @dataclass
+    class PlayerWasAdded(Event):
+        meetup_id: uuid.UUID
+        player_id: uuid.UUID
+
+    @dataclass
+    class TeamsWereCreated(Event):
+        meetup_id: uuid.UUID
+        teams: List[Team]
