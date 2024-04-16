@@ -29,7 +29,7 @@ class MeetupIdNotFound(Exception):
 
     def __init__(self, id: uuid.UUID) -> None:
         self.id = id
-        self.message = f"There is no meetup with the id `{id}` does not exist"
+        self.message = f"There is no meetup with the id `{id}`"
         super().__init__(self.message)
 
 
@@ -38,7 +38,7 @@ class MeetupDateNotFound(Exception):
 
     def __init__(self, date_time: datetime.datetime) -> None:
         self.date_time = date_time
-        self.message = f"There is no meetup with the date `{date_time}` does not exist"
+        self.message = f"There is no meetup with the date `{date_time}`"
         super().__init__(self.message)
 
 
