@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Luis Liñán
+# Copyright (c) 2024 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Meetupes repository interface."""
+"""Matches repository interface."""
 
 import uuid
 
@@ -28,7 +28,7 @@ from typing import Optional
 from pyball.greenfield.match.domain.model.match import Match
 
 
-class Meetups(ABC):
+class Matches(ABC):
     @abstractmethod
     def save(self, match: Match) -> None:
         pass

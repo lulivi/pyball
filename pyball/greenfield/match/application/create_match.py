@@ -2,6 +2,10 @@ import uuid
 
 from typing import List
 
+from pyball.greenfield.match.domain.errors import MatchAlreadyExistsError
+from pyball.greenfield.match.domain.matches import Matches
+from pyball.greenfield.match.domain.model.match import Match
+
 
 class CreateMatch:
     def __init__(self, match_repository: Matches) -> None:
@@ -14,4 +18,8 @@ class CreateMatch:
         local_team: List[uuid.UUID],
         visiting_team: List[uuid.UUID],
     ) -> None:
-        pass
+        if self._matches.get(match_id) is not None:
+            raise MatchAlreadyExistsError(match_id)
+
+        my_match = Match(match_id, meetup_id, local_team, visiting_team)
+        self._matches.save(my_match)

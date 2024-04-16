@@ -8,6 +8,7 @@ from tests.unit.match.application.fake_match_repository import FakeMatchReposito
 
 
 class TestMatch(TestCase):
+    # TODO: PDS - Make this test green again
     def test_match_is_created(self) -> None:
         # Arrange
         match_id = uuid.uuid4()
@@ -30,8 +31,9 @@ class TestMatch(TestCase):
         self.assertEqual(match_id, obtained_match.id)
         self.assertEqual(local_team, obtained_match.local)
         self.assertEqual(visiting_team, obtained_match.visiting)
-        self.assertIsNone(obtained_match.result)
+        self.assertIsNone(obtained_match.score)
 
+    # TODO: PDS - Make this test green again
     def test_results_are_added_and_event_is_risen(self) -> None:
         # Arrange
         match_id = uuid.uuid4()
@@ -45,15 +47,17 @@ class TestMatch(TestCase):
             local_team,
             visiting_team,
         )
-        match_statistics = [
-            {"player_id": uuid.uuid4(), "team": "Local", "assistant": uuid.uuid4()},
-            {"player_id": uuid.uuid4(), "team": "Visiting"},
+        # statistics
+        goals = [
+            {"player_id": local_team[0], "assistant_id": local_team[1]},
+            {"player_id": visiting_team[0], "assistant_id": visiting_team[0]},
+            {"player_id": visiting_team[0], "own": True},
         ]
 
         # Act
         FinishMatch(fake_match_repository).finish(
             match_id,
-            match_statistics,
+            goals,
         )
 
         # Assert
@@ -61,4 +65,5 @@ class TestMatch(TestCase):
         events = list(obtained_match.consume_events())
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].match_id, match_id)
-        self.assertEqual(events[0].match_statistics, match_statistics)
+        self.assertEqual(events[0].goals, goals)
+        self.assertEqual(obtained_match.score, (2, 1))
