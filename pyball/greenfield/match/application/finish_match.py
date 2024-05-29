@@ -6,7 +6,8 @@ from pyball.greenfield.match.application.errors import MatchIdNotFound, Register
 from pyball.greenfield.match.domain.errors import (
     AssistantIsRivalError,
     OwnGoalWithAssistError,
-    PlayerIdNotFound,
+    PlayerIdNotFoundError,
+    PlayerIdNotInGoalError,
 )
 from pyball.greenfield.match.domain.matches import Matches
 
@@ -25,19 +26,14 @@ class FinishMatch:
         if match is None:
             raise MatchIdNotFound(match_id)
 
-        for goal in goals:
-            if "player_id" not in goal:
-                raise RegisterGoalError("player_id is required")
+        try:
+            match.finish_match(goals=goals)
+        except (
+            PlayerIdNotInGoalError,
+            PlayerIdNotFoundError,
+            AssistantIsRivalError,
+            OwnGoalWithAssistError,
+        ) as error:
+            raise RegisterGoalError(str(error)) from error
 
-            try:
-                match.register_goal(
-                    player_id=goal["player_id"],
-                    assistant_id=goal.get("assistant_id"),
-                    own=goal.get("own", False),
-                )
-            except (
-                PlayerIdNotFound,
-                AssistantIsRivalError,
-                OwnGoalWithAssistError,
-            ) as error:
-                raise RegisterGoalError(str(error)) from error
+        self._matches.save(match)

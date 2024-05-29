@@ -49,9 +49,13 @@ class TestMatch(TestCase):
         )
         # statistics
         goals = [
-            {"player_id": local_team[0], "assistant_id": local_team[1]},
-            {"player_id": visiting_team[0], "assistant_id": visiting_team[0]},
-            {"player_id": visiting_team[0], "own": True},
+            {"player_id": local_team[0], "scoring_team": "local", "assistant_id": local_team[1]},
+            {
+                "player_id": visiting_team[0],
+                "scoring_team": "visiting",
+                "assistant_id": visiting_team[0],
+            },
+            {"player_id": visiting_team[0], "scoring_team": "local"},
         ]
 
         # Act
@@ -66,4 +70,4 @@ class TestMatch(TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].match_id, match_id)
         self.assertEqual(events[0].goals, goals)
-        self.assertEqual(obtained_match.score, (2, 1))
+        self.assertEqual(obtained_match.score, {"local": 2, "visiting": 1})

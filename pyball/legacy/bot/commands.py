@@ -314,7 +314,7 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                         ),
                         CommandArgument("-id", "<identifier>", dest="identifier"),
                     ],
-                    callable=ensure_admin(update.effective_user.id, player_add),
+                    callable=ensure_admin(update.effective_user.id, create_player),
                 ),
                 SubCommand(
                     ["rename"],

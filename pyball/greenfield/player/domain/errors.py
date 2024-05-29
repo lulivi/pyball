@@ -43,3 +43,12 @@ class PlayerNameAlreadyInUseError(Exception):
         self.name = name
         self.message = f'The player name "{name}" is already in use'
         super().__init__(self.message)
+
+
+class ErrorSavingPlayer(Exception):
+    """Problem saving the player."""
+
+    def __init__(self, id: uuid.UUID, name: str) -> None:
+        self.name = name
+        self.message = f'The player with UUID "{id}" and name "{name}" could not be saved'
+        super().__init__(self.message)

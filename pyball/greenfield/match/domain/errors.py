@@ -21,10 +21,22 @@
 import uuid
 
 
-class PlayerIdNotFound(Exception):
+class PlayerIdNotFoundError(Exception):
     def __init__(self, id: uuid.UUID) -> None:
         self.id = id
         self.message = f"There is no player with the id `{id}` in the match"
+        super().__init__(self.message)
+
+
+class PlayerIdNotInGoalError(Exception):
+    def __init__(self) -> None:
+        self.message = f"The scorer ID was not found in the goal"
+        super().__init__(self.message)
+
+
+class TeamNotInGoalError(Exception):
+    def __init__(self) -> None:
+        self.message = f"The team was not found in the goal"
         super().__init__(self.message)
 
 

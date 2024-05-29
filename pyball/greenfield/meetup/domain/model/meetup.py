@@ -26,8 +26,8 @@ import uuid
 from ast import Tuple
 from dataclasses import dataclass
 from typing import List, Optional
-from pyball.greenfield.meetup.domain.errors import InvalidPlayerCountError
 
+from pyball.greenfield.meetup.domain.errors import InvalidPlayerCountError
 from pyball.greenfield.utils.aggregate import Aggregate, Event
 
 Team = List[uuid.UUID]

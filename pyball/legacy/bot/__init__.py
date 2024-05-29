@@ -22,6 +22,7 @@
 
 import locale
 import logging
+import sys
 
 import peewee
 
@@ -52,6 +53,9 @@ def build_application() -> Application:
     :returns: The built application.
 
     """
+    if not BOT_TOKEN:
+        sys.exit("`BOT_TOKEN` environment variable is needed to run the application")
+
     database.initialize(peewee.SqliteDatabase(DATABASE_FILE_PATH))
     logger.debug(f"Using database file {DATABASE_FILE_PATH}")
 
