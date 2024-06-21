@@ -24,8 +24,13 @@ import logging
 
 from argparse import ArgumentParser
 
+from telegram.ext import Application
+
 from pyball import __version__
-from pyball.legacy.bot import build_application
+from pyball.greenfield.utils.bot.commands.entrypoint import (
+    build_application as build_greenfield_application,
+)
+from pyball.legacy.bot import build_application as build_legacy_application
 from pyball.legacy.db.write_events import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 logger = logging.getLogger(__name__)
@@ -46,12 +51,18 @@ def main() -> None:
     """Start the bot."""
     parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
     parser.add_argument("-v", "--version", action="version", version=f"Pyball {__version__}")
-    parser.parse_args()
+    parser.add_argument("-g", "--greenfield", action="store_true", help="Use the new way")
+    args = parser.parse_args()
 
     log_startup_info()
 
-    # Create the pickle persistence
-    application = build_application()
+    application: Application
+    if args.greenfield:
+        logger.info("Using greenfield application builder")
+        application = build_greenfield_application()
+    else:
+        logger.info("Using legacy application builder")
+        application = build_legacy_application()
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling()

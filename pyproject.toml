@@ -22,7 +22,7 @@ packages = [{ include = "pyball" }]
 pyball = "pyball.__main__:main"
 
 [tool.poetry.group.dev.dependencies]
-black = "22.*"
+black = "24.*"
 isort = "5.*"
 nox = "*"
 mypy = "*"
@@ -35,7 +35,7 @@ freezegun = "*"
 ddt = "^1.7.1"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4.0"
+python = ">=3.8,<4.0"
 python-telegram-bot = "20.*"
 python-decouple = "3.6"
 peewee = "3.15.3"

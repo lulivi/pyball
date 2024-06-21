@@ -5,10 +5,7 @@ from unittest import TestCase
 import faker
 
 from pyball.greenfield.meetup.application.create_meetup import CreateMeetup
-from pyball.greenfield.meetup.domain.errors import (
-    MeetupAlreadyExistentError,
-    MeetupDateAlreadyUsedError,
-)
+from pyball.greenfield.meetup.domain.errors import MeetupDateAlreadyUsed, MeetupIdAlreadyUsed
 from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
 
 fake: faker.Faker = faker.Faker()
@@ -43,7 +40,7 @@ class TestCreateMeetup(TestCase):
         )
 
         # Assert
-        with self.assertRaises(MeetupAlreadyExistentError) as cm:
+        with self.assertRaises(MeetupIdAlreadyUsed) as cm:
             # Act
             create_meetup.create(
                 id=fake_uuid, date_time=fake.unique.date_time(), location=fake.unique.user_name()
@@ -60,7 +57,7 @@ class TestCreateMeetup(TestCase):
         )
 
         # Assert
-        with self.assertRaises(MeetupDateAlreadyUsedError) as cm:
+        with self.assertRaises(MeetupDateAlreadyUsed) as cm:
             # Act
             create_meetup.create(
                 id=uuid.uuid4(), date_time=fake_date_time, location=fake.unique.user_name()

@@ -23,6 +23,8 @@
 import datetime
 import uuid
 
+from typing import List
+
 from pyball.greenfield.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
 from pyball.greenfield.meetup.domain.meetups import Meetups
 from pyball.greenfield.meetup.domain.model.meetup import Meetup
@@ -31,6 +33,9 @@ from pyball.greenfield.meetup.domain.model.meetup import Meetup
 class GetMeetup:
     def __init__(self, meetup_remository: Meetups) -> None:
         self._meetups = meetup_remository
+
+    def all(self) -> List[Meetup]:
+        return self._meetups.all()
 
     def by_id(self, id: uuid.UUID) -> Meetup:
         meetup = self._meetups.get(id=id)

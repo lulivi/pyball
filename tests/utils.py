@@ -1,4 +1,5 @@
 """Testing utils."""
+
 import faker
 
 from pyball.legacy import db

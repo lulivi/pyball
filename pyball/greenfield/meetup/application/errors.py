@@ -50,3 +50,12 @@ class PlayerIsAlreadyInMeetup(Exception):
         self.player_id = player_id
         self.message = f"The player `{player_id}` is already in the meetup `{meetup_id}`"
         super().__init__(self.message)
+
+
+class PlayerNotFound(Exception):
+    """The player was not found meetup."""
+
+    def __init__(self, id: uuid.UUID) -> None:
+        self.player_id = id
+        self.message = f"The player `{id}` could not be found in the players repository"
+        super().__init__(self.message)

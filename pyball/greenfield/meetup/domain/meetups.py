@@ -24,14 +24,19 @@ import datetime
 import uuid
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional
 
 from pyball.greenfield.meetup.domain.model.meetup import Meetup
 
 
 class Meetups(ABC):
+
     @abstractmethod
     def save(self, meetup: Meetup) -> None:
+        pass
+
+    @abstractmethod
+    def all(self) -> List[Meetup]:
         pass
 
     @abstractmethod

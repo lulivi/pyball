@@ -29,12 +29,12 @@ from peewee import SqliteDatabase
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 try:
-    from pyball.db.model import MatchStatistic, Player, database
+    from pyball.legacy.db.model import MatchStatistic, Player, database
 except ModuleNotFoundError:
     import sys
 
     sys.path.insert(0, str(REPOSITORY_ROOT))
-    from pyball.db.model import MatchStatistic, Player, database
+    from pyball.legacy.db.model import MatchStatistic, Player, database
 
 from pyball.settings import DATABASE_FILE_PATH
 

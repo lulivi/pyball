@@ -22,13 +22,19 @@
 
 import uuid
 
-from pyball.greenfield.meetup.application.errors import MeetupIdNotFound, PlayerIsAlreadyInMeetup
+from pyball.greenfield.meetup.application.errors import (
+    MeetupIdNotFound,
+    PlayerIsAlreadyInMeetup,
+    PlayerNotFound,
+)
 from pyball.greenfield.meetup.domain.meetups import Meetups
+from pyball.greenfield.meetup.domain.player_checker import IPlayerChecker
 
 
 class AddPlayerToMeetup:
-    def __init__(self, meetup_repository: Meetups) -> None:
+    def __init__(self, meetup_repository: Meetups, player_checker: IPlayerChecker) -> None:
         self._meetup = meetup_repository
+        self._player_checker = player_checker
 
     def add(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
         meetup = self._meetup.get(id=meetup_id)
@@ -38,6 +44,9 @@ class AddPlayerToMeetup:
 
         if player_id in meetup:
             raise PlayerIsAlreadyInMeetup(meetup_id=meetup_id, player_id=player_id)
+
+        if not self._player_checker.check_player_exists(player_id=player_id):
+            raise PlayerNotFound(id=player_id)
 
         meetup.add_player(id=player_id)
         self._meetup.save(meetup=meetup)

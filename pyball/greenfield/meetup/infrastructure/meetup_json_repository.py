@@ -1,0 +1,81 @@
+import datetime
+import json
+import uuid
+
+from typing import List, Optional
+
+from pyball.greenfield.meetup.domain.meetups import Meetups
+from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.settings import DATA_DIRECTORY_PATH
+
+
+class MeetupJsonRepository(Meetups):
+    def __init__(self) -> None:
+        self._json_file = DATA_DIRECTORY_PATH.joinpath("meetup.json")
+        if not self._json_file.exists():
+            self._json_file.write_text("[]")
+
+    def save(self, meetup: Meetup) -> None:
+        saved_file_contents: List[dict] = json.loads(self._json_file.read_text())
+
+        for meetup_line in saved_file_contents:
+            if str(meetup.id) == meetup_line["id"]:
+                saved_file_contents.remove(meetup_line)
+                break
+
+        saved_file_contents.append(
+            {
+                "id": str(meetup.id),
+                "date_time": meetup.date_time.timestamp(),
+                "location": meetup.location,
+                "possible_team_sizes": list(meetup.possible_team_sizes),
+                "players": list(map(str, meetup.players)),
+                "teams": [list(map(str, team_players)) for team_players in meetup.teams],
+            }
+        )
+        self._json_file.write_text(json.dumps(saved_file_contents, indent=4))
+
+    def all(self) -> List[Meetup]:
+        saved_file_contents: List[dict] = json.loads(self._json_file.read_text())
+
+        meetups: List[Meetup] = []
+        for meetup_line in saved_file_contents:
+            meetups.append(
+                Meetup(
+                    id=uuid.UUID(meetup_line["id"]),
+                    date_time=datetime.datetime.fromtimestamp(meetup_line["date_time"]),
+                    location=meetup_line["location"],
+                    possible_team_sizes=tuple(meetup_line["possible_team_sizes"]),
+                    players=list(map(uuid.UUID, meetup_line["players"])),
+                    teams=[
+                        list(map(uuid.UUID, team_players)) for team_players in meetup_line["teams"]
+                    ],
+                )
+            )
+
+        return meetups
+
+    def get(self, id: uuid.UUID) -> Optional[Meetup]:
+        return self._get_by_item(item_name="id", value=id)
+
+    def get_by_date(self, date_time: datetime.datetime) -> Optional[Meetup]:
+        return self._get_by_item(item_name="date_time", value=date_time)
+
+    def _get_by_item(self, item_name: str, value: str) -> Optional[Meetup]:
+        saved_file_contents: List[dict] = json.loads(self._json_file.read_text())
+
+        for meetup_line in saved_file_contents:
+            meetup = Meetup(
+                id=uuid.UUID(meetup_line["id"]),
+                date_time=datetime.datetime.fromtimestamp(meetup_line["date_time"]),
+                location=meetup_line["location"],
+                possible_team_sizes=tuple(meetup_line["possible_team_sizes"]),
+                players=list(map(uuid.UUID, meetup_line["players"])),
+                teams=[
+                    list(map(uuid.UUID, team_players)) for team_players in meetup_line["teams"]
+                ],
+            )
+            if value == getattr(meetup, item_name):
+                return meetup
+
+        return None

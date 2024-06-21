@@ -23,7 +23,6 @@
 import datetime
 import uuid
 
-from ast import Tuple
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -40,6 +39,8 @@ class Meetup(Aggregate):
         date_time: datetime.datetime,
         location: str,
         possible_team_sizes: tuple = (5, 6),
+        players: List[uuid.UUID] = None,
+        teams: List[Team] = None,
     ):
         if not isinstance(id, uuid.UUID):
             raise AttributeError("The uuid is not a UUID object")
@@ -47,8 +48,8 @@ class Meetup(Aggregate):
         self._date_time: datetime.datetime = date_time
         self._location: str = location
         self._possible_team_sizes = possible_team_sizes
-        self._players: List[uuid.UUID] = []
-        self._teams: Optional[Team] = None
+        self._players: List[uuid.UUID] = players or []
+        self._teams: List[Team] = teams or []
 
     @property
     def id(self) -> uuid.UUID:
@@ -61,6 +62,10 @@ class Meetup(Aggregate):
     @property
     def location(self) -> str:
         return self._location
+
+    @property
+    def possible_team_sizes(self) -> tuple:
+        return self._possible_team_sizes
 
     @property
     def players(self) -> List[uuid.UUID]:
@@ -77,7 +82,7 @@ class Meetup(Aggregate):
         return 0
 
     @property
-    def teams(self) -> Optional[List[Team]]:
+    def teams(self) -> List[Team]:
         return self._teams
 
     def add_player(self, id: uuid.UUID) -> None:
