@@ -20,12 +20,10 @@
 
 """Populate the configuration variables from the environment."""
 
-import sys
-
 from pathlib import Path
 from typing import Tuple
 
-from decouple import AutoConfig, Csv, UndefinedValueError
+from decouple import AutoConfig, Csv
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
