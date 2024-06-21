@@ -15,16 +15,16 @@ from pyball.greenfield.utils.player_telegram_uuid_translator import (
 )
 
 
-def create_player(player_name: str, player_telegram_id: str):
+def create_player(name: str, identifier: str, **_: dict):
     sqlito_repository = PlayerSqlitoRepository()
     new_player_id = uuid.uuid4()
 
     try:
-        CreatePlayer(sqlito_repository).create(id=new_player_id, name=player_name)
+        CreatePlayer(sqlito_repository).create(id=new_player_id, name=name)
     except (PlayerUuidAlreadyExistsError, PlayerNameAlreadyInUseError, ErrorSavingPlayer):
         pass  # Display error in telegram
 
     try:
-        TelegramPlayerTranslatorService.save(id=new_player_id, telegram_id=player_telegram_id)
+        TelegramPlayerTranslatorService().save(id=new_player_id, telegram_id=identifier)
     except (TelegramIdNotFound, UUIDNotFound, TranslationSaveError):
         pass  # Display error in telegram
