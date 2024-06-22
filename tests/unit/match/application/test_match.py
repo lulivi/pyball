@@ -2,9 +2,10 @@ import uuid
 
 from unittest import TestCase
 
+from tests.unit.match.application.fake_match_repository import FakeMatchRepository
+
 from pyball.greenfield.match.application.create_match import CreateMatch
 from pyball.greenfield.match.application.finish_match import FinishMatch
-from tests.unit.match.application.fake_match_repository import FakeMatchRepository
 
 
 class TestMatch(TestCase):

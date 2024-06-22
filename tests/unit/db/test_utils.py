@@ -7,6 +7,7 @@ import faker
 import peewee
 
 from freezegun import freeze_time
+from tests.utils import create_dict_player, create_dict_stats
 
 from pyball.legacy import db
 from pyball.legacy.db.errors import (
@@ -34,7 +35,6 @@ from pyball.legacy.db.utils import (
     reid_player,
     rename_player,
 )
-from tests.utils import create_dict_player, create_dict_stats
 
 fake: faker.Faker = faker.Faker()
 

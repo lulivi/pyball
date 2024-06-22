@@ -4,12 +4,13 @@ from unittest import TestCase
 
 import faker
 
+from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
+from tests.unit.player.application.fake_player_repository import FakePlayerRepository
+
 from pyball.greenfield.meetup.application.add_player_to_meetup import AddPlayerToMeetup
 from pyball.greenfield.meetup.application.create_meetup import CreateMeetup
 from pyball.greenfield.meetup.application.errors import MeetupIdNotFound, PlayerIsAlreadyInMeetup
 from pyball.greenfield.player.application.create_player import CreatePlayer
-from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
-from tests.unit.player.application.fake_player_repository import FakePlayerRepository
 
 fake: faker.Faker = faker.Faker()
 

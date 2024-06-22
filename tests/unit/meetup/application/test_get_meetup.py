@@ -4,10 +4,11 @@ from unittest import TestCase
 
 import faker
 
+from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
+
 from pyball.greenfield.meetup.application.create_meetup import CreateMeetup
 from pyball.greenfield.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
 from pyball.greenfield.meetup.application.get_meetup import GetMeetup
-from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
 
 fake: faker.Faker = faker.Faker()
 

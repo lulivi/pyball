@@ -6,6 +6,8 @@ from unittest import TestCase, mock
 
 import faker
 
+from tests.utils import create_wrapped_player
+
 from pyball.legacy import db
 from pyball.legacy.callup.errors import (
     CallUpMultiplePlayersFoundError,
@@ -15,7 +17,6 @@ from pyball.legacy.callup.errors import (
 )
 from pyball.legacy.callup.players import Players, find_player
 from pyball.legacy.db.errors import DbMultiplePlayersFoundError, DbPlayerNotFoundError
-from tests.utils import create_wrapped_player
 
 fake: faker.Faker = faker.Faker()
 TEMPLATE_DIR = Path(__file__).resolve().parents[2].joinpath("data")

@@ -6,9 +6,10 @@ from unittest import TestCase, mock
 
 import faker
 
+from tests.utils import create_wrapped_player
+
 from pyball.legacy import db
 from pyball.legacy.callup.match import Match, PlayersStatInput, Team
-from tests.utils import create_wrapped_player
 
 fake: faker.Faker = faker.Faker()
 TEMPLATE_DIR = Path(__file__).resolve().parents[2].joinpath("data")

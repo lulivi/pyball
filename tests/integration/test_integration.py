@@ -6,6 +6,7 @@ import faker
 import peewee
 
 from freezegun import freeze_time
+from tests.utils import create_dict_player, create_dict_stats
 
 from pyball.legacy import db
 from pyball.legacy.callup.callup import CallUp
@@ -20,7 +21,6 @@ from pyball.legacy.db.write_events.on_player_was_created import (
     create_player_all_seasons_stats,
     create_player_current_season_stats,
 )
-from tests.utils import create_dict_player, create_dict_stats
 
 fake: faker.Faker = faker.Faker()
 

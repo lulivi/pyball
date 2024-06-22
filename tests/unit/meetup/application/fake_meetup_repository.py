@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from pyball.greenfield.meetup.domain.meetups import Meetups
 from pyball.greenfield.meetup.domain.model.meetup import Meetup
@@ -13,6 +13,9 @@ class FakeMeetupRepository(Meetups):
 
     def save(self, meetup: Meetup) -> None:
         self.meetups[meetup.id] = meetup
+
+    def all(self) -> List[Meetup]:
+        return list(self.meetups.values())
 
     def get(self, id: uuid.UUID) -> Optional[Meetup]:
         return self.meetups.get(id)
