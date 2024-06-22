@@ -1,0 +1,76 @@
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+
+[tool.poetry-dynamic-versioning]
+dirty = true
+enable = true
+format-jinja = "{% if distance == 0 %}{{ base }}{% if stage %}.{{ stage }}{% endif %}{% else %}{{ base }}.dev{% endif %}"
+latest-tag = true
+vcs = "git"
+
+[tool.poetry]
+name = "pyball"
+version = "0.0.0"
+description = "Bot to play them all"
+license = "MIT"
+authors = ["Luis Liñán <luislivilla@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "pyball" }]
+
+[tool.poetry.scripts]
+pyball = "pyball.__main__:main"
+
+[tool.poetry.group.dev.dependencies]
+black = "24.*"
+isort = "5.*"
+nox = "*"
+mypy = "*"
+pylama = "7.7.1"
+pycodestyle = "*"
+pydocstyle = "*"
+pylint = "*"
+Faker = "18.*"
+freezegun = "*"
+ddt = "^1.7.1"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+python-telegram-bot = "20.*"
+python-decouple = "3.6"
+peewee = "3.15.3"
+types-peewee = "*"
+pyyaml = "6.0"
+types-PyYAML = "^6.0.12.10"
+typing_extensions = "*"
+event_bus = "1.*"
+
+[tool.poetry.group.test]
+optional = true
+[tool.poetry.group.test.dependencies]
+coverage = {version = "6.2", extras = ["toml"]}
+pytest = "*"
+pytest-cov = "*"
+pytest-emoji = "*"
+pytest-timeout = "*"
+
+[tool.black]
+line-length = 99
+preview = true
+
+[tool.isort]
+profile = "black"
+line_length = 99
+lines_between_types = 1
+
+[tool.mypy]
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = ["decouple", "event_bus"]
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+  "logging-fstring-interpolation"
+]

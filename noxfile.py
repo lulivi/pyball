@@ -25,6 +25,8 @@ from typing import Tuple
 import nox
 
 ROOT_DIRECTORY = Path(__file__).parent.resolve()
+PACKAGE_CORE = ROOT_DIRECTORY.joinpath("core")
+PACKAGE_BOT = ROOT_DIRECTORY.joinpath("bot")
 
 nox.options.default_venv_backend = "venv"
 nox.options.reuse_existing_virtualenvs = True
@@ -36,32 +38,33 @@ nox.options.error_on_missing_interpreters = False
 @nox.session
 def lint(session: nox.Session):
     """Lint the code."""
-    session.run("poetry", "install", external=True)
+    session.run("poetry", "-C", str(PACKAGE_CORE), "install", external=True)
+    # session.run("poetry", "install", "-C", str(PACKAGE_BOT), external=True)
 
     session.run_always(
         "black",
         "--check",
         "--diff",
-        ROOT_DIRECTORY.joinpath("pyball"),
+        ROOT_DIRECTORY.joinpath("core"),
         ROOT_DIRECTORY.joinpath("tests"),
     )
     session.run_always(
         "isort",
         "--check",
         "--diff",
-        ROOT_DIRECTORY.joinpath("pyball"),
+        ROOT_DIRECTORY.joinpath("core"),
         ROOT_DIRECTORY.joinpath("tests"),
     )
     session.run_always(
         "pydocstyle",
-        ROOT_DIRECTORY.joinpath("pyball"),
+        ROOT_DIRECTORY.joinpath("core"),
         ROOT_DIRECTORY.joinpath("tests"),
         "--add-ignore",
         "D104,D105,D107",
     )
     session.run_always(
         "pycodestyle",
-        ROOT_DIRECTORY.joinpath("pyball"),
+        ROOT_DIRECTORY.joinpath("core"),
         ROOT_DIRECTORY.joinpath("tests"),
         "--max-line-length",
         "99",
@@ -70,7 +73,7 @@ def lint(session: nox.Session):
     )
     session.run_always(
         "mypy",
-        ROOT_DIRECTORY.joinpath("pyball"),
+        ROOT_DIRECTORY.joinpath("core"),
         ROOT_DIRECTORY.joinpath("tests"),
         "--enable-incomplete-feature=Unpack",
     )
@@ -82,7 +85,7 @@ def lint(session: nox.Session):
 @nox.session(python=["3.8"])
 def test(session: nox.Session):
     """Test the code."""
-    session.run("poetry", "install", "--with", "test", external=True)
+    session.run("poetry", "-C", str(PACKAGE_CORE), "install", "--with", "test", external=True)
 
     target_dir = ROOT_DIRECTORY.joinpath("tests")
     cov_dir = ROOT_DIRECTORY.joinpath("pyball")
@@ -109,10 +112,10 @@ def format(session: nox.Session):
     session.run("poetry", "install", "--only", "dev", external=True)
 
     session.run_always(
-        "black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+        "black", PACKAGE_CORE, PACKAGE_BOT, ROOT_DIRECTORY.joinpath("tests")
     )
     session.run_always(
-        "isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+        "isort", PACKAGE_CORE, PACKAGE_BOT, ROOT_DIRECTORY.joinpath("tests")
     )
 
 
