@@ -1,8 +1,9 @@
+from telegram import Update
+from telegram.ext import ContextTypes
+
 from pyballbot import __version__
 from pyballbot.logger import log_func
 from pyballbot.utils import bot_call_message_function
-from telegram import Update
-from telegram.ext import ContextTypes
 
 
 @log_func

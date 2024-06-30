@@ -2,6 +2,10 @@ import logging
 
 from enum import Enum, auto
 
+from telegram import Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
+
 from pyballbot.commands.finish_conversation import finish_conversation
 from pyballbot.logger import log_func
 from pyballbot.player_telegram_uuid_translator import (
@@ -11,9 +15,6 @@ from pyballbot.player_telegram_uuid_translator import (
 from pyballbot.requests import player as player_requests
 from pyballbot.requests.errors import CouldNotConnectToTheCore
 from pyballbot.utils import bot_call_message_function
-from telegram import Update
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 
 class CreatePlayerState(Enum):

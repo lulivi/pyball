@@ -74,7 +74,6 @@ def add_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
         raise PlayerIsAreadyCalled(meetup_id=meetup_id, player_id=player_id)
 
 
-
 def get_all() -> List[Meetup]:
     meetups = [
         Meetup.from_json(meetup_json)

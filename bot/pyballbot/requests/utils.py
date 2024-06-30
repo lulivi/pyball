@@ -4,8 +4,8 @@ from typing import Optional
 
 import requests
 
-from pyballbot.requests.types import Response
 from pyballbot.requests.errors import CouldNotConnectToTheCore
+from pyballbot.requests.types import Response
 from pyballbot.settings import PYBALL_API_URL
 
 
@@ -18,7 +18,6 @@ class RequestType(Enum):
     GET = requests.get
     POST = requests.post
     PUT = requests.put
-
 
 
 def get_json_response(

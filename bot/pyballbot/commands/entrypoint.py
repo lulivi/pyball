@@ -24,6 +24,8 @@ import locale
 import logging
 import sys
 
+from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
+
 from pyballbot.commands import meetup as meetup_commands
 from pyballbot.commands import player as player_commands
 from pyballbot.commands.error_handler import command_error
@@ -32,7 +34,6 @@ from pyballbot.commands.version import command_version
 from pyballbot.commands.wrong_chat import wrong_chat
 from pyballbot.settings import ADMINS_IDS, BOT_TOKEN, LOCALE, REGULARS_ID
 from pyballbot.utils import enum_as_regex
-from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
 
 # Set locale for sorting player names
 locale.setlocale(locale.LC_ALL, LOCALE)

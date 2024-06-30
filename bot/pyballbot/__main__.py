@@ -24,9 +24,10 @@ import logging
 
 from argparse import ArgumentParser
 
+from telegram.ext import Application
+
 from pyballbot import __version__
 from pyballbot.commands.entrypoint import build_application
-from telegram.ext import Application
 
 logger = logging.getLogger(__name__)
 

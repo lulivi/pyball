@@ -5,6 +5,10 @@ import logging
 from enum import Enum, auto
 from typing import Tuple
 
+from telegram import ReplyKeyboardMarkup, Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
+
 from pyballbot.commands.finish_conversation import finish_conversation
 from pyballbot.logger import log_func
 from pyballbot.requests import meetup as meetup_requests
@@ -15,9 +19,6 @@ from pyballbot.requests.errors import (
 )
 from pyballbot.settings import DATETIME_FORMAT
 from pyballbot.utils import bot_call_message_function
-from telegram import ReplyKeyboardMarkup, Update
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 
 class CreateMeetupState(Enum):

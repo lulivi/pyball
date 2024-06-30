@@ -1,6 +1,7 @@
 import uuid
 
 from peewee import CharField, Model, SqliteDatabase, UUIDField
+
 from pyballbot.peewee_db_wrapper import connection_wrapper
 from pyballbot.settings import DATA_DIRECTORY_PATH
 
