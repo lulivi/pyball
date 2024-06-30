@@ -26,7 +26,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.meetup.domain.model.meetup import Meetup
 
 
 class Meetups(ABC):

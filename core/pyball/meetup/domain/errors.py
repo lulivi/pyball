@@ -24,7 +24,11 @@ import datetime
 import uuid
 
 
-class MeetupIdAlreadyUsed(Exception):
+class MeetupSaveError(Exception):
+    """"""
+
+
+class MeetupIdIsAlreadyUsed(MeetupSaveError):
     """There is a meetup with the same UUID or date in the repository."""
 
     def __init__(self, id: uuid.UUID) -> None:
@@ -33,7 +37,7 @@ class MeetupIdAlreadyUsed(Exception):
         super().__init__(self.message)
 
 
-class MeetupDateAlreadyUsed(Exception):
+class MeetupDateTimeIsAlreadyUsed(MeetupSaveError):
     """There is a meetup with the same UUID or date in the repository."""
 
     def __init__(self, date_time: datetime.datetime) -> None:

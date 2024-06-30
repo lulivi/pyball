@@ -2,14 +2,14 @@ import uuid
 
 from typing import Dict, List, Union
 
-from pyball.greenfield.match.application.errors import MatchIdNotFound, RegisterGoalError
-from pyball.greenfield.match.domain.errors import (
+from pyball.match.application.errors import MatchIdNotFound, RegisterGoalError
+from pyball.match.domain.errors import (
     AssistantIsRivalError,
     OwnGoalWithAssistError,
     PlayerIdNotFoundError,
     PlayerIdNotInGoalError,
 )
-from pyball.greenfield.match.domain.matches import Matches
+from pyball.match.domain.matches import Matches
 
 
 class FinishMatch:

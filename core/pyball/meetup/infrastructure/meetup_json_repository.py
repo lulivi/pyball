@@ -4,8 +4,8 @@ import uuid
 
 from typing import List, Optional
 
-from pyball.greenfield.meetup.domain.meetups import Meetups
-from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.meetup.domain.meetups import Meetups
+from pyball.meetup.domain.model.meetup import Meetup
 from pyball.settings import DATA_DIRECTORY_PATH
 
 

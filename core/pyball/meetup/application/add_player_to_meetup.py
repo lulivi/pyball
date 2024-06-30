@@ -22,13 +22,13 @@
 
 import uuid
 
-from pyball.greenfield.meetup.application.errors import (
+from pyball.meetup.application.errors import (
     MeetupIdNotFound,
     PlayerIsAlreadyInMeetup,
     PlayerNotFound,
 )
-from pyball.greenfield.meetup.domain.meetups import Meetups
-from pyball.greenfield.meetup.domain.player_checker import IPlayerChecker
+from pyball.meetup.domain.meetups import Meetups
+from pyball.meetup.domain.player_checker import IPlayerChecker
 
 
 class AddPlayerToMeetup:

@@ -1,0 +1,27 @@
+services:
+  core:
+    image: pyball
+    build:
+      context: core
+      dockerfile: Dockerfile
+    container_name: pyball
+    networks:
+      - pyballnet
+    volumes:
+      - .:/pyball
+  bot:
+    image: pyballbot
+    build:
+      context: bot
+      dockerfile: Dockerfile
+    container_name: pyballbot
+    networks:
+      - pyballnet
+    depends_on:
+      core:
+        condition: service_started
+    volumes:
+      - .:/pyball
+networks:
+  pyballnet:
+    driver: bridge

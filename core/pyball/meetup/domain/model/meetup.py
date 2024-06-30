@@ -24,10 +24,10 @@ import datetime
 import uuid
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from pyball.greenfield.meetup.domain.errors import InvalidPlayerCountError
-from pyball.greenfield.utils.aggregate import Aggregate, Event
+from pyball.meetup.domain.errors import InvalidPlayerCountError
+from pyball.utils.aggregate import Aggregate, Event
 
 Team = List[uuid.UUID]
 
@@ -38,9 +38,9 @@ class Meetup(Aggregate):
         id: uuid.UUID,
         date_time: datetime.datetime,
         location: str,
-        possible_team_sizes: tuple = (5, 6),
-        players: List[uuid.UUID] = None,
-        teams: List[Team] = None,
+        possible_team_sizes: Tuple[int, ...] = (5, 6),
+        players: Optional[List[uuid.UUID]] = None,
+        teams: Optional[List[Team]] = None,
     ):
         if not isinstance(id, uuid.UUID):
             raise AttributeError("The uuid is not a UUID object")

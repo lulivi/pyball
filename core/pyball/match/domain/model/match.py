@@ -3,15 +3,15 @@ import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
-from pyball.greenfield.match.application.errors import RegisterGoalError
-from pyball.greenfield.match.domain.errors import (
+from pyball.match.application.errors import RegisterGoalError
+from pyball.match.domain.errors import (
     AssistantIsRivalError,
     OwnGoalWithAssistError,
     PlayerIdNotFoundError,
     PlayerIdNotInGoalError,
     TeamNotInGoalError,
 )
-from pyball.greenfield.utils.aggregate import Aggregate, Event
+from pyball.utils.aggregate import Aggregate, Event
 
 
 class Match(Aggregate):

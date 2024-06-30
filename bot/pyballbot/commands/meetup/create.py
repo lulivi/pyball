@@ -1,19 +1,3 @@
-#!/usr/bin/env python
-# pylint: disable=unused-argument
-# This program is dedicated to the public domain under the CC0 license.
-
-"""
-First, a few callback functions are defined. Then, those functions are passed to
-the Application and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-
-Usage:
-Example of a bot-user conversation using ConversationHandler.
-Send /start to initiate the conversation.
-Press Ctrl-C on the command line or send a signal to the process to stop the
-bot.
-"""
-
 import datetime
 import functools
 import logging
@@ -21,14 +5,19 @@ import logging
 from enum import Enum, auto
 from typing import Tuple
 
+from pyballbot.commands.finish_conversation import finish_conversation
+from pyballbot.logger import log_func
+from pyballbot.requests import meetup as meetup_requests
+from pyballbot.requests.errors import (
+    CouldNotConnectToTheCore,
+    MeetupCreationError,
+    MeetupDateTimeIsAlreadyInUse,
+)
+from pyballbot.settings import DATETIME_FORMAT
+from pyballbot.utils import bot_call_message_function
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-
-from pyball.greenfield.meetup.infrastructure.bot_meetup import create_meetup
-from pyball.greenfield.meetup.infrastructure.errors import MeetupDateAlreadyUsed
-from pyball.greenfield.utils.bot.commands.finish_conversation import finish_conversation
-from pyball.logger import log_func
 
 
 class CreateMeetupState(Enum):
@@ -43,9 +32,9 @@ class NewMeetupDateTime(Enum):
 
 class NewMeetupLocation(Enum):
     CARTUJA_F5 = "Campo de futbol sala de cesped de Cartuja"
-    CARTUJA_F7 = "Campo de futbol 7 de Cartuja"
+    FUENTENUEVA_PAVELLON = "Pabellón 1 de futbol sala de Fuentenueva"
     FUENTENUEVA_F5 = "Campo de futbol sala de pavimento de Fuentenueva"
-    FUENTENUEVA_PAVELLON = "Pabellón de futbol sala de Fuentenueva"
+    CARTUJA_F7 = "Campo de futbol 7 de Cartuja"
     FUENTENUEVA_F7 = "Campo de futbol 7 de Fuentenueva"
 
 
@@ -60,12 +49,11 @@ logger = logging.getLogger(__name__)
 @log_func
 async def ask_date_time(update: Update, _: ContextTypes.DEFAULT_TYPE) -> CreateMeetupState:
     """Starts the conversation and asks the user about their gender."""
-    await update.message.reply_text(
-        (
-            "Por favor, selecciona la fecha y hora de la convocatoria o introdúcela a mano en el"
-            " formato `DD/mmm/YYYY HH:MM` (Ej. `20/Jun/2024 21:30`)."
-        ),
-        parse_mode=ParseMode.MARKDOWN,
+    await bot_call_message_function(
+        update.message.reply_text,
+        "Por favor, selecciona la fecha y hora de la convocatoria o introdúcela a mano en el"
+        " formato `DD/mmm/YYYY HH:MM` (Ej.:"
+        f" `{datetime.datetime.fromtimestamp(1234).strftime(DATETIME_FORMAT)}`).",
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[NewMeetupDateTime.NEXT_WEDNESDAY.value]],
             one_time_keyboard=True,
@@ -87,9 +75,9 @@ async def save_date_time_ask_location(
         update.message.text, functools.partial(parse_date_time, update.message.text)
     )()
 
-    await update.message.reply_text(
+    await bot_call_message_function(
+        update.message.reply_text,
         "Por favor, selecciona o introduce la localización de la convocatoria",
-        parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[location.value] for location in NewMeetupLocation],
             one_time_keyboard=True,
@@ -108,19 +96,17 @@ def get_next_wednesday() -> datetime.datetime:
 
 
 def parse_date_time(date: str) -> datetime.date:
-    return datetime.datetime.strptime(date, "%d/%b/%Y %H:%M")
+    return datetime.datetime.strptime(date, DATETIME_FORMAT)
 
 
 @log_func
 async def save_location_ask_team_sizes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data["location"] = update.message.text.strip()
 
-    await update.message.reply_text(
-        (
-            f"Cuáles son los posibles tamaños de equipos? Indique en una lista de números se"
-            f" parados por coma `<número> [, <número> [...]]` Ej: `5, 6`."
-        ),
-        parse_mode=ParseMode.MARKDOWN,
+    await bot_call_message_function(
+        update.message.reply_text,
+        f"Cuáles son los posibles tamaños de equipos? Indique en una lista de números se"
+        f" parados por coma `<número> [, <número> [...]]` Ej: `5, 6`.",
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[team_sizes.value] for team_sizes in NewMeetupTeamSizes],
             one_time_keyboard=True,
@@ -133,30 +119,53 @@ async def save_location_ask_team_sizes(update: Update, context: ContextTypes.DEF
 
 @log_func
 async def save_meetup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    team_sizes = parse_team_sizes(update.message.text)
+    try:
+        team_sizes = parse_team_sizes(update.message.text)
+    except ValueError:
+        await bot_call_message_function(
+            update.message.reply_text,
+            "Please enter a valid value of the possible team sizes:",
+            reply_markup=ReplyKeyboardMarkup(
+                keyboard=[[team_sizes.value] for team_sizes in NewMeetupTeamSizes],
+                one_time_keyboard=True,
+                input_field_placeholder="Tamaños de equipo",
+            ),
+        )
+        return CreateMeetupState.SAVE_MEETUP
 
     try:
-        create_meetup(
+        meetup_requests.create(
             date_time=context.chat_data["date_time"],
             location=context.chat_data["location"],
             possible_team_sizes=team_sizes,
         )
-    except MeetupDateAlreadyUsed:
+    except MeetupDateTimeIsAlreadyInUse as error:
         return await finish_conversation(
             update,
             "The meetup date and time is already in use. Please, restart the meetup creation.",
         )
+    except MeetupCreationError as error:
+        return await finish_conversation(
+            update,
+            f"Unknown error ocurred creating the meetup: {str(error)}",
+        )
+    except CouldNotConnectToTheCore as error:
+        return await finish_conversation(
+            update, f"There is a problem contacting Pyball core: {error}"
+        )
 
     return await finish_conversation(
-        update, f"Se ha creado la convocatoria para {context.chat_data['date_time']}"
+        update,
+        "The meetup was created successfully with date and time:"
+        f" {context.chat_data['date_time']}",
     )
 
 
 def parse_team_sizes(string_team_sizes: str) -> Tuple[str, ...]:
-    return (int(size.strip()) for size in string_team_sizes.split(","))
+    return tuple(int(size.strip()) for size in string_team_sizes.split(","))
 
 
 @log_func
 async def cancel_meetup_creation(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update, "Creación de convocatoria cancelada.")
+    return await finish_conversation(update, "The meetup creation was cancelled.")

@@ -24,11 +24,12 @@ import uuid
 
 
 class Player:
-    def __init__(self, id: uuid.UUID, name: str):
+    def __init__(self, id: uuid.UUID, name: str, main: bool = False):
         if not isinstance(id, uuid.UUID):
             raise AttributeError("The uuid is not a UUID object")
         self._id: uuid.UUID = id
         self._name: str = name
+        self._main: bool = main
 
     @property
     def id(self) -> uuid.UUID:
@@ -37,3 +38,7 @@ class Player:
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def main(self) -> bool:
+        return self._main

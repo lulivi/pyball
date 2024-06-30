@@ -25,7 +25,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from pyball.greenfield.match.domain.model.match import Match
+from pyball.match.domain.model.match import Match
 
 
 class Matches(ABC):

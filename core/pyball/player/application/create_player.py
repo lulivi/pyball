@@ -22,24 +22,21 @@
 
 import uuid
 
-from pyball.greenfield.player.domain.errors import (
-    PlayerNameAlreadyInUseError,
-    PlayerUuidAlreadyExistsError,
-)
-from pyball.greenfield.player.domain.model.player import Player
-from pyball.greenfield.player.domain.players import Players
+from pyball.player.domain.errors import PlayerIdIsAlreadyInUse, PlayerNameIsAlreadyInUse
+from pyball.player.domain.model.player import Player
+from pyball.player.domain.players import Players
 
 
 class CreatePlayer:
     def __init__(self, players: Players) -> None:
         self._players = players
 
-    def create(self, id: uuid.UUID, name: str) -> None:
+    def create(self, id: uuid.UUID, name: str, main: bool = False) -> None:
         if self._players.get(id) is not None:
-            raise PlayerUuidAlreadyExistsError(id)
+            raise PlayerIdIsAlreadyInUse(id)
 
         if self._players.get_by_name(name) is not None:
-            raise PlayerNameAlreadyInUseError(name)
+            raise PlayerNameIsAlreadyInUse(name)
 
-        player = Player(id=id, name=name)
+        player = Player(id=id, name=name, main=main)
         self._players.save(player)

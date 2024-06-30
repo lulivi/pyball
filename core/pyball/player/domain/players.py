@@ -23,14 +23,18 @@
 import uuid
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional
 
-from pyball.greenfield.player.domain.model.player import Player
+from pyball.player.domain.model.player import Player
 
 
 class Players(ABC):
     @abstractmethod
     def save(self, player: Player) -> None:
+        pass
+
+    @abstractmethod
+    def all(self) -> List[Player]:
         pass
 
     @abstractmethod

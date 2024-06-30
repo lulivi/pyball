@@ -1,9 +1,8 @@
+from pyballbot import __version__
+from pyballbot.logger import log_func
+from pyballbot.utils import bot_call_message_function
 from telegram import Update
 from telegram.ext import ContextTypes
-
-from pyball import __version__
-from pyball.greenfield.utils.bot.utils import bot_call_message_function
-from pyball.logger import log_func
 
 
 @log_func

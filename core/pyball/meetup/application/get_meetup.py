@@ -25,9 +25,9 @@ import uuid
 
 from typing import List
 
-from pyball.greenfield.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
-from pyball.greenfield.meetup.domain.meetups import Meetups
-from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
+from pyball.meetup.domain.meetups import Meetups
+from pyball.meetup.domain.model.meetup import Meetup
 
 
 class GetMeetup:

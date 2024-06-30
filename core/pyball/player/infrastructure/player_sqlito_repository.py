@@ -1,14 +1,18 @@
 import uuid
 
-from typing import Optional
+from typing import List, Optional
 
-from peewee import CharField, IntegrityError, Model, SqliteDatabase, UUIDField
+from peewee import BooleanField, CharField, IntegrityError, Model, SqliteDatabase, UUIDField
 
-from pyball.greenfield.player.domain.errors import ErrorSavingPlayer
-from pyball.greenfield.player.domain.model.player import Player as DomainPlayer
-from pyball.greenfield.player.domain.players import Players
-from pyball.greenfield.utils.peewee_db_wrapper import connection_wrapper
+from pyball.player.domain.errors import (
+    PlayerIdIsAlreadyInUse,
+    PlayerNameIsAlreadyInUse,
+    PlayerSaveError,
+)
+from pyball.player.domain.model.player import Player as DomainPlayer
+from pyball.player.domain.players import Players
 from pyball.settings import DATA_DIRECTORY_PATH
+from pyball.utils.peewee_db_wrapper import connection_wrapper
 
 database = SqliteDatabase(DATA_DIRECTORY_PATH.joinpath("player.db"))
 
@@ -18,6 +22,7 @@ class Player(Model):
 
     id = UUIDField(null=False, unique=True)
     name = CharField(null=False, unique=True)
+    main = BooleanField(default=False)
 
     class Meta:
         database = database  # Essto no funciona a ver si puedo meterlo aqui de alguna manera
@@ -31,9 +36,17 @@ class PlayerSqlitoRepository(Players):
     @connection_wrapper(database=database)
     def save(self, player: DomainPlayer) -> None:
         try:
-            Player.create(id=player.id, name=player.name)
+            Player.create(id=player.id, name=player.name, main=player.main)
         except IntegrityError as error:
-            raise ErrorSavingPlayer(player.id, player.name) from error
+            if "player.name" in str(error):
+                raise PlayerNameIsAlreadyInUse(name=player.name)
+            raise PlayerIdIsAlreadyInUse(id=player.id)
+
+    @connection_wrapper(database=database)
+    def all(self) -> List[Player]:
+        return [
+            Player(id=player.id, name=player.name, main=player.main) for player in Player.select()
+        ]
 
     @connection_wrapper(database=database)
     def get(self, id: uuid.UUID) -> Optional[DomainPlayer]:

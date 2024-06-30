@@ -4,13 +4,12 @@ import logging
 from enum import Enum
 from typing import Callable
 
+from pyballbot.logger import log_func
+from pyballbot.settings import ADMINS_IDS
 from telegram import Message, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-
-from pyball.logger import log_func
-from pyball.settings import ADMINS_IDS
 
 logger = logging.getLogger(__name__)
 

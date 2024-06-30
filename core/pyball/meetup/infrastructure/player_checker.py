@@ -1,8 +1,8 @@
 import uuid
 
-from pyball.greenfield.meetup.domain.player_checker import IPlayerChecker
-from pyball.greenfield.player.domain.players import Players
-from pyball.greenfield.player.infrastructure.player_sqlito_repository import PlayerSqlitoRepository
+from pyball.meetup.domain.player_checker import IPlayerChecker
+from pyball.player.domain.players import Players
+from pyball.player.infrastructure.player_sqlito_repository import PlayerSqlitoRepository
 
 
 class PlayerChecker(IPlayerChecker):

@@ -18,54 +18,37 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Bot main file."""
+"""Core entrypoint."""
 
 import logging
+import os
 
-from argparse import ArgumentParser
+import uvicorn
 
-from telegram.ext import Application
+from fastapi import FastAPI
 
 from pyball import __version__
-from pyball.greenfield.utils.bot.commands.entrypoint import (
-    build_application as build_greenfield_application,
-)
-from pyball.legacy.bot import build_application as build_legacy_application
-from pyball.legacy.db.write_events import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from pyball.meetup.infrastructure import api as meetup_api
+from pyball.player.infrastructure import api as player_api
 
 logger = logging.getLogger(__name__)
 
+app = FastAPI(title="Pyball", docs_url="/", version=__version__)
 
-def log_startup_info() -> None:
-    """Log some important information in the startup."""
-    asterisk_line = "*" * 79
-    booting_up_str = "Booting up!!"
-    pyball_version_str = f"Running Pyball v{__version__}"
-    logger.warning(asterisk_line)
-    logger.warning(f"*{booting_up_str:^77}*")
-    logger.warning(f"*{pyball_version_str:^77}*")
-    logger.warning(asterisk_line)
+app.include_router(player_api.router, tags=["player"])
+app.include_router(meetup_api.router, tags=["meetup"])
 
 
-def main() -> None:
-    """Start the bot."""
-    parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
-    parser.add_argument("-v", "--version", action="version", version=f"Pyball {__version__}")
-    parser.add_argument("-g", "--greenfield", action="store_true", help="Use the new way")
-    args = parser.parse_args()
+@app.get("/status")
+def status():
+    return {"status": "OK"}
 
-    log_startup_info()
 
-    application: Application
-    if args.greenfield:
-        logger.info("Using greenfield application builder")
-        application = build_greenfield_application()
-    else:
-        logger.info("Using legacy application builder")
-        application = build_legacy_application()
-
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling()
+def main():
+    """Launched with `poetry run start` at root level"""
+    uvicorn.run(
+        "pyball.__main__:app", host="0.0.0.0", port=8000, reload="PYBALL_DEV" in os.environ
+    )
 
 
 if __name__ == "__main__":

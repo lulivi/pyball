@@ -23,9 +23,9 @@
 import datetime
 import uuid
 
-from pyball.greenfield.meetup.domain.errors import MeetupDateAlreadyUsed, MeetupIdAlreadyUsed
-from pyball.greenfield.meetup.domain.meetups import Meetups
-from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.meetup.domain.errors import MeetupDateTimeIsAlreadyUsed, MeetupIdIsAlreadyUsed
+from pyball.meetup.domain.meetups import Meetups
+from pyball.meetup.domain.model.meetup import Meetup
 
 
 class CreateMeetup:
@@ -40,10 +40,10 @@ class CreateMeetup:
         possible_team_sizes: tuple,
     ) -> None:
         if self._meetups.get(id=id) is not None:
-            raise MeetupIdAlreadyUsed(id=id)
+            raise MeetupIdIsAlreadyUsed(id=id)
 
         if self._meetups.get_by_date(date_time=date_time) is not None:
-            raise MeetupDateAlreadyUsed(date_time=date_time)
+            raise MeetupDateTimeIsAlreadyUsed(date_time=date_time)
 
         meetup = Meetup(
             id=id, date_time=date_time, location=location, possible_team_sizes=possible_team_sizes

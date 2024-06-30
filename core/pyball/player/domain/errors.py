@@ -23,11 +23,15 @@
 import uuid
 
 
-class PlayerNotFoundError(Exception):
+class PlayerNotFound(Exception):
     """The player was not found in the repository."""
 
 
-class PlayerUuidAlreadyExistsError(Exception):
+class PlayerSaveError(Exception):
+    """Problem saving the player."""
+
+
+class PlayerIdIsAlreadyInUse(PlayerSaveError):
     """There is a player with the same UUID in the repository."""
 
     def __init__(self, id: uuid.UUID) -> None:
@@ -36,19 +40,10 @@ class PlayerUuidAlreadyExistsError(Exception):
         super().__init__(self.message)
 
 
-class PlayerNameAlreadyInUseError(Exception):
+class PlayerNameIsAlreadyInUse(PlayerSaveError):
     """The name of the player is already in use."""
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.message = f"The player name `{name}` is already in use"
-        super().__init__(self.message)
-
-
-class ErrorSavingPlayer(Exception):
-    """Problem saving the player."""
-
-    def __init__(self, id: uuid.UUID, name: str) -> None:
-        self.name = name
-        self.message = f"The player with UUID `{id}` and name `{name}` could not be saved"
         super().__init__(self.message)
