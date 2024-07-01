@@ -3,8 +3,8 @@ import uuid
 
 from typing import Dict, List, Optional
 
-from pyball.greenfield.meetup.domain.meetups import Meetups
-from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.meetup.domain.meetups import Meetups
+from pyball.meetup.domain.model.meetup import Meetup
 
 
 class FakeMeetupRepository(Meetups):

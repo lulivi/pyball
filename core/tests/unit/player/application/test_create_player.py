@@ -8,13 +8,13 @@ import faker
 
 from tests.unit.player.application.fake_player_repository import FakePlayerRepository
 
-from pyball.greenfield.player.application.create_player import CreatePlayer
-from pyball.greenfield.player.domain.errors import (
+from pyball.player.application.create_player import CreatePlayer
+from pyball.player.domain.errors import (
     PlayerNameAlreadyInUseError,
     PlayerUuidAlreadyExistsError,
 )
-from pyball.greenfield.player.domain.model.player import Player
-from pyball.greenfield.player.domain.players import Players
+from pyball.player.domain.model.player import Player
+from pyball.player.domain.players import Players
 
 fake: faker.Faker = faker.Faker()
 

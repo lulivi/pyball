@@ -6,9 +6,9 @@ import faker
 
 from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
 
-from pyball.greenfield.meetup.application.create_meetup import CreateMeetup
-from pyball.greenfield.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
-from pyball.greenfield.meetup.application.get_meetup import GetMeetup
+from pyball.meetup.application.create_meetup import CreateMeetup
+from pyball.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
+from pyball.meetup.application.get_meetup import GetMeetup
 
 fake: faker.Faker = faker.Faker()
 

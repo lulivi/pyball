@@ -3,8 +3,8 @@ import uuid
 
 from typing import Dict, Optional
 
-from pyball.greenfield.match.domain.matches import Matches
-from pyball.greenfield.match.domain.model.match import Match
+from pyball.match.domain.matches import Matches
+from pyball.match.domain.model.match import Match
 
 
 class FakeMatchRepository(Matches):

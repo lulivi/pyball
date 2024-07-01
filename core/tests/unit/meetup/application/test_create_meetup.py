@@ -6,8 +6,8 @@ import faker
 
 from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
 
-from pyball.greenfield.meetup.application.create_meetup import CreateMeetup
-from pyball.greenfield.meetup.domain.errors import MeetupDateAlreadyUsed, MeetupIdAlreadyUsed
+from pyball.meetup.application.create_meetup import CreateMeetup
+from pyball.meetup.domain.errors import MeetupDateAlreadyUsed, MeetupIdAlreadyUsed
 
 fake: faker.Faker = faker.Faker()
 

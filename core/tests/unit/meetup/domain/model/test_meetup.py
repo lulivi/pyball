@@ -7,8 +7,8 @@ import faker
 
 from ddt import data, ddt
 
-from pyball.greenfield.meetup.domain.errors import InvalidPlayerCountError
-from pyball.greenfield.meetup.domain.model.meetup import Meetup
+from pyball.meetup.domain.errors import InvalidPlayerCountError
+from pyball.meetup.domain.model.meetup import Meetup
 
 fake: faker.Faker = faker.Faker()
 

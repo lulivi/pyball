@@ -4,8 +4,8 @@ from unittest import TestCase
 
 from tests.unit.match.application.fake_match_repository import FakeMatchRepository
 
-from pyball.greenfield.match.application.create_match import CreateMatch
-from pyball.greenfield.match.application.finish_match import FinishMatch
+from pyball.match.application.create_match import CreateMatch
+from pyball.match.application.finish_match import FinishMatch
 
 
 class TestMatch(TestCase):

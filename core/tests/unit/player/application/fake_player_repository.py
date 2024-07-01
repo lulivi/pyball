@@ -5,8 +5,8 @@ from typing import Optional
 
 import faker
 
-from pyball.greenfield.player.domain.model.player import Player
-from pyball.greenfield.player.domain.players import Players
+from pyball.player.domain.model.player import Player
+from pyball.player.domain.players import Players
 
 fake: faker.Faker = faker.Faker()
 

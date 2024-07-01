@@ -6,7 +6,7 @@ import faker
 
 from ddt import data, ddt
 
-from pyball.greenfield.utils.aggregate import Aggregate, Event
+from pyball.utils.aggregate import Aggregate, Event
 
 fake: faker.Faker = faker.Faker()
 
