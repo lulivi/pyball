@@ -3,7 +3,7 @@ build-backend = "poetry.core.masonry.api"
 requires = ["poetry-core>=1.0.0"]
 
 [tool.poetry]
-name = "pyball"
+name = "pyballcommon"
 version = "0.0.0"
 description = "App to manage meetup matches"
 license = "MIT"

@@ -27,6 +27,7 @@ import nox
 ROOT_DIRECTORY = Path(__file__).parent.resolve()
 PACKAGE_CORE = ROOT_DIRECTORY.joinpath("core")
 PACKAGE_BOT = ROOT_DIRECTORY.joinpath("bot")
+both_packages = [str(PACKAGE_CORE), str(PACKAGE_BOT)]
 
 nox.options.default_venv_backend = "venv"
 nox.options.reuse_existing_virtualenvs = True
@@ -39,47 +40,16 @@ nox.options.error_on_missing_interpreters = False
 def lint(session: nox.Session):
     """Lint the code."""
     session.run("poetry", "-C", str(PACKAGE_CORE), "install", external=True)
-    # session.run("poetry", "install", "-C", str(PACKAGE_BOT), external=True)
+    session.run("poetry", "-C", str(PACKAGE_BOT), "install", external=True)
 
+    session.run_always("black", "--check", "--diff", *both_packages)
+    session.run_always("isort", "--check", "--diff", *both_packages)
+    session.run_always("pydocstyle", "--add-ignore", "D104,D105,D107", *both_packages)
     session.run_always(
-        "black",
-        "--check",
-        "--diff",
-        ROOT_DIRECTORY.joinpath("core"),
-        ROOT_DIRECTORY.joinpath("tests"),
+        "pycodestyle", "--max-line-length", "99", "--ignore", "W605,W503", *both_packages
     )
-    session.run_always(
-        "isort",
-        "--check",
-        "--diff",
-        ROOT_DIRECTORY.joinpath("core"),
-        ROOT_DIRECTORY.joinpath("tests"),
-    )
-    session.run_always(
-        "pydocstyle",
-        ROOT_DIRECTORY.joinpath("core"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--add-ignore",
-        "D104,D105,D107",
-    )
-    session.run_always(
-        "pycodestyle",
-        ROOT_DIRECTORY.joinpath("core"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--max-line-length",
-        "99",
-        "--ignore",
-        "W605,W503",
-    )
-    session.run_always(
-        "mypy",
-        ROOT_DIRECTORY.joinpath("core"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--enable-incomplete-feature=Unpack",
-    )
-    session.run_always(
-        "pylint", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
-    )
+    session.run_always("mypy", "--enable-incomplete-feature=Unpack", *both_packages)
+    session.run_always("pylint", *both_packages)
 
 
 @nox.session(python=["3.8"])
