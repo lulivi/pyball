@@ -28,6 +28,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from pyball import __version__
+from pyball.logger import log_func
 from pyball.meetup.infrastructure import api as meetup_api
 from pyball.player.infrastructure import api as player_api
 
@@ -39,6 +40,7 @@ app.include_router(player_api.router, tags=["player"])
 app.include_router(meetup_api.router, tags=["meetup"])
 
 
+@log_func
 @app.get("/status")
 def status():
     return {"status": "OK"}
@@ -46,6 +48,7 @@ def status():
 
 def main():
     """Launched with `poetry run start` at root level"""
+    logger.info("Starting application")
     uvicorn.run(
         "pyball.__main__:app", host="0.0.0.0", port=8000, reload="PYBALL_DEV" in os.environ
     )

@@ -3,7 +3,7 @@ import functools
 import logging
 
 from enum import Enum, auto
-from typing import Tuple
+from typing import Callable, Dict, Tuple
 
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -40,9 +40,17 @@ class NewMeetupLocation(Enum):
 
 
 class NewMeetupTeamSizes(Enum):
-    FIVE_SIX = "5, 6"
-    SEVEN_EIGHT = "7, 8"
+    F5 = "5, 6"
+    F7 = "7, 8"
 
+
+location_to_team_sizes: Dict[str, str] = {
+    NewMeetupLocation.CARTUJA_F5.value: NewMeetupTeamSizes.F5.value,
+    NewMeetupLocation.FUENTENUEVA_PAVELLON.value: NewMeetupTeamSizes.F5.value,
+    NewMeetupLocation.FUENTENUEVA_F5.value: NewMeetupTeamSizes.F5.value,
+    NewMeetupLocation.CARTUJA_F7.value: NewMeetupTeamSizes.F7.value,
+    NewMeetupLocation.FUENTENUEVA_F7.value: NewMeetupTeamSizes.F7.value,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +110,17 @@ def parse_date_time(date: str) -> datetime.date:
 
 @log_func
 async def save_location_ask_team_sizes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.chat_data["location"] = update.message.text.strip()
+    selected_location = update.message.text.strip()
+
+    if selected_location in location_to_team_sizes:
+        return await save_meetup_(
+            reply_func=update.message.reply_text,
+            date_time=context.chat_data["date_time"],
+            location=selected_location,
+            team_sizes=parse_team_sizes(location_to_team_sizes[selected_location]),
+        )
+
+    context.chat_data["location"] = selected_location
 
     await bot_call_message_function(
         update.message.reply_text,
@@ -121,7 +139,7 @@ async def save_location_ask_team_sizes(update: Update, context: ContextTypes.DEF
 @log_func
 async def save_meetup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
-        team_sizes = parse_team_sizes(update.message.text)
+        team_sizes = parse_team_sizes(update.message.text.strip())
     except ValueError:
         await bot_call_message_function(
             update.message.reply_text,
@@ -134,31 +152,11 @@ async def save_meetup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
         return CreateMeetupState.SAVE_MEETUP
 
-    try:
-        meetup_requests.create(
-            date_time=context.chat_data["date_time"],
-            location=context.chat_data["location"],
-            possible_team_sizes=team_sizes,
-        )
-    except MeetupDateTimeIsAlreadyInUse as error:
-        return await finish_conversation(
-            update,
-            "The meetup date and time is already in use. Please, restart the meetup creation.",
-        )
-    except MeetupCreationError as error:
-        return await finish_conversation(
-            update,
-            f"Unknown error ocurred creating the meetup: {str(error)}",
-        )
-    except CouldNotConnectToTheCore as error:
-        return await finish_conversation(
-            update, f"There is a problem contacting Pyball core: {error}"
-        )
-
-    return await finish_conversation(
-        update,
-        "The meetup was created successfully with date and time:"
-        f" {context.chat_data['date_time']}",
+    return await save_meetup_(
+        reply_func=update.message.reply_text,
+        date_time=context.chat_data["date_time"],
+        location=context.chat_data["location"],
+        team_sizes=team_sizes,
     )
 
 
@@ -166,7 +164,40 @@ def parse_team_sizes(string_team_sizes: str) -> Tuple[str, ...]:
     return tuple(int(size.strip()) for size in string_team_sizes.split(","))
 
 
+async def save_meetup_(
+    reply_func: Callable, date_time: datetime.datetime, location: str, team_sizes: Tuple[int, ...]
+) -> None:
+    try:
+        meetup_requests.create(
+            date_time=date_time,
+            location=location,
+            possible_team_sizes=team_sizes,
+        )
+    except MeetupDateTimeIsAlreadyInUse as error:
+        return await finish_conversation(
+            reply_func,
+            "The meetup date and time is already in use. Please, restart the meetup creation.",
+        )
+    except MeetupCreationError as error:
+        return await finish_conversation(
+            reply_func,
+            f"Unknown error ocurred creating the meetup: {str(error)}",
+        )
+    except CouldNotConnectToTheCore as error:
+        return await finish_conversation(
+            reply_func, f"There is a problem contacting Pyball core: {error}"
+        )
+
+    return await finish_conversation(
+        reply_func,
+        "The meetup was created successfully with date and time:"
+        f" {date_time.strftime(DATETIME_FORMAT)}",
+    )
+
+
 @log_func
 async def cancel_meetup_creation(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update, "The meetup creation was cancelled.")
+    return await finish_conversation(
+        update.message.reply_text, "The meetup creation was cancelled."
+    )

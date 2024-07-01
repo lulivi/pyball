@@ -9,18 +9,21 @@ from pyballbot.requests.errors import (
     PlayerNameIsAlreadyInUse,
     PlayerQueryError,
 )
-from pyballbot.requests.types import Player
-from pyballbot.requests.utils import BaseEndpoint, RequestType, get_json_response
-from pyballbot.settings import PYBALL_API_URL
+from pyballbot.requests.types import Player, Response
+from pyballbot.requests.utils import BaseEndpoint, RequestMethod, get_response
 
 
 def create(name: str, telegram_id: str) -> None:
     try:
-        with requests.post(f"{PYBALL_API_URL}/player/create", json={"name": name}) as response:
-            response_json = response.json()
-            if "id" not in response_json:
-                raise PlayerCreationError("Could not find the new player ID in the response")
-            player_id: uuid.UUID = response_json["id"]
+        response: Response = get_response(
+            request_method=RequestMethod.POST,
+            base_endpoint=BaseEndpoint.PLAYERS,
+            route="",
+            json={"name": name},
+        )
+        if "id" not in response.json:
+            raise PlayerCreationError("Could not find the new player ID in the response")
+        player_id: uuid.UUID = response.json["id"]
     except requests.exceptions.HTTPError as error:
         error_response = error.response.json()["detail"]["error"]
         if error.errno == 409 and error_response["value"] == "name":
@@ -42,10 +45,11 @@ def create(name: str, telegram_id: str) -> None:
 def get_by_name(name: str) -> Player:
     try:
         return Player.from_json(
-            get_json_response(
-                request_type=RequestType.GET,
-                endpoint=BaseEndpoint.PLAYER,
-                route=f"by_name/{name}",
+            get_response(
+                request_method=RequestMethod.GET,
+                base_endpoint=BaseEndpoint.PLAYERS,
+                route=f"",
+                params={"name": name},
             ).json
         )
     except requests.exceptions.HTTPError as error:

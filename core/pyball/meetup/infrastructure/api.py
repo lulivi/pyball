@@ -1,26 +1,33 @@
 import datetime
+import logging
 import uuid
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from pyball.logger import log_func
 from pyball.meetup.application import errors as application_errors
 from pyball.meetup.application.add_player_to_meetup import AddPlayerToMeetup
 from pyball.meetup.application.create_meetup import CreateMeetup
-from pyball.meetup.application.get_meetup import GetMeetup
 from pyball.meetup.domain import errors as domain_errors
 from pyball.meetup.domain.model.meetup import Meetup, Team
+from pyball.meetup.infrastructure.get_meetup import GetMeetup
 from pyball.meetup.infrastructure.meetup_json_repository import MeetupJsonRepository
 from pyball.meetup.infrastructure.player_checker import PlayerChecker
-from pyball.player.domain.model.player import Player
-from pyball.player.infrastructure.get_player import GetPlayer
 
-router = APIRouter(prefix="/meetup")
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/meetups")
 
 
-class MeetupOut(BaseModel):
+class MeetupGetIn(BaseModel):
+    id: Optional[uuid.UUID] = None
+    date_time: Optional[datetime.datetime] = None
+
+
+class MeetupGetOut(BaseModel):
     id: uuid.UUID
     date_time: datetime.datetime
     location: str
@@ -29,37 +36,38 @@ class MeetupOut(BaseModel):
     teams: Optional[List[Team]] = None
 
 
-@router.get("/all", response_model=List[MeetupOut])
-def get_all_meetups() -> MeetupOut:
-    return [
-        MeetupOut(
-            id=meetup.id,
-            date_time=meetup.date_time,
-            location=meetup.location,
-            possible_team_sizes=meetup.possible_team_sizes,
-            players=meetup.players,
-            teams=meetup.teams,
-        )
-        for meetup in GetMeetup(MeetupJsonRepository()).all()
-    ]
+@router.get("", response_model=Union[MeetupGetOut, List[MeetupGetOut]])
+@log_func
+def get_meetup(
+    id: Optional[uuid.UUID] = None, date_time: Optional[datetime.datetime] = None
+) -> Union[MeetupGetOut, List[MeetupGetOut]]:
 
+    if id is None and date_time is None:
+        return [
+            MeetupGetOut(
+                id=meetup.id,
+                date_time=meetup.date_time,
+                location=meetup.location,
+                possible_team_sizes=meetup.possible_team_sizes,
+                players=meetup.players,
+                teams=meetup.teams,
+            )
+            for meetup in GetMeetup().all()
+        ]
 
-@router.get("/{meetup_id}", response_model=MeetupOut)
-def get_meetup(meetup_id: uuid.UUID) -> MeetupOut:
-    try:
-        meetup: Meetup = GetMeetup(MeetupJsonRepository()).by_id(id=meetup_id)
-    except application_errors.MeetupIdNotFound:
+    meetup: Optional[Meetup] = get_single_meetup(id=id, date_time=date_time)
+
+    if meetup is None:
         raise HTTPException(
             status_code=404,
             detail={
                 "error": {
-                    "message": f"The meetup ID {meetup_id} was not found",
-                    "value": "meetup_id",
+                    "message": f"The meetup `{id or date_time}` was not found",
                 }
             },
         )
 
-    return MeetupOut(
+    return MeetupGetOut(
         id=meetup.id,
         date_time=meetup.date_time,
         location=meetup.location,
@@ -69,27 +77,47 @@ def get_meetup(meetup_id: uuid.UUID) -> MeetupOut:
     )
 
 
+def get_single_meetup(
+    id: Optional[uuid.UUID], date_time: Optional[datetime.datetime]
+) -> Optional[Meetup]:
+    meetup_getter = GetMeetup()
+
+    if id is not None:
+        return meetup_getter.by_id(id=id)
+
+    if date_time is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": {"message": "The date and time is necessary if the ID is not provided"}
+            },
+        )
+
+    return meetup_getter.by_date_time(date_time=date_time)
+
+
 class CreateMeetupIn(BaseModel):
     date_time: datetime.datetime
     location: str
     possible_team_sizes: Tuple[int, ...]
 
 
-class CreateMeetupOut(CreateMeetupIn):
+class MeetupCreateOut(CreateMeetupIn):
     id: uuid.UUID
 
 
-@router.post("/create", response_model=CreateMeetupOut)
-def create(create_arguments: CreateMeetupIn) -> CreateMeetupOut:
+@router.post("", response_model=MeetupCreateOut)
+@log_func
+def create(args: CreateMeetupIn) -> MeetupCreateOut:
     new_meetup_id = uuid.uuid4()
     meetup_repository = MeetupJsonRepository()
 
     try:
         CreateMeetup(meetup_repository=meetup_repository).create(
             new_meetup_id,
-            date_time=create_arguments.date_time,
-            location=create_arguments.location,
-            possible_team_sizes=create_arguments.possible_team_sizes,
+            date_time=args.date_time,
+            location=args.location,
+            possible_team_sizes=args.possible_team_sizes,
         )
     except domain_errors.MeetupDateTimeIsAlreadyUsed as error:
         raise HTTPException(
@@ -108,26 +136,28 @@ def create(create_arguments: CreateMeetupIn) -> CreateMeetupOut:
             detail={"error": {"message": f"Unknown error: {error}", "type": "unknown"}},
         )
 
-    return CreateMeetupOut(
+    return MeetupCreateOut(
         id=new_meetup_id,
-        date_time=create_arguments.date_time,
-        location=create_arguments.location,
-        possible_team_sizes=create_arguments.possible_team_sizes,
+        date_time=args.date_time,
+        location=args.location,
+        possible_team_sizes=args.possible_team_sizes,
     )
 
 
 class AddPlayerIn(BaseModel):
+    meetup_id: uuid.UUID
     player_id: uuid.UUID
 
 
-@router.put("/{meetup_id}/add_player", status_code=204)
-def add_player(meetup_id: uuid.UUID, args: AddPlayerIn):
+@router.put("/add/player", status_code=204)
+@log_func
+def add_player(args: AddPlayerIn):
     try:
         AddPlayerToMeetup(
             meetup_repository=MeetupJsonRepository(),
             player_checker=PlayerChecker(),
         ).add(
-            meetup_id=meetup_id,
+            meetup_id=args.meetup_id,
             player_id=args.player_id,
         )
     except application_errors.PlayerNotFound as error:
@@ -135,7 +165,7 @@ def add_player(meetup_id: uuid.UUID, args: AddPlayerIn):
             status_code=404,
             detail={
                 "error": {
-                    "message": f"Player not found {args.player_id}",
+                    "message": f"Player not found `{error.id}`",
                     "value": "player_id",
                 }
             },
@@ -145,7 +175,7 @@ def add_player(meetup_id: uuid.UUID, args: AddPlayerIn):
             status_code=404,
             detail={
                 "error": {
-                    "message": f"Meetup not found {meetup_id}",
+                    "message": f"Meetup not found `{error.id}`",
                     "value": "meetup_id",
                 }
             },

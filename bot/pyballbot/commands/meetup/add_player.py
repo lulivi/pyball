@@ -40,7 +40,7 @@ async def ask_meetup_date_time(
         }
     except CouldNotConnectToTheCore as error:
         return await finish_conversation(
-            update, f"There is a problem contacting Pyball core: {error}"
+            update.message.reply_text, f"There is a problem contacting Pyball core: {error}"
         )
 
     if not meetups:
@@ -108,19 +108,21 @@ async def add_player_to_meetup(update: Update, context: ContextTypes.DEFAULT_TYP
         return AddPlayerToMeetupState.ASK_PLAYER_NAME
     except AddPlayerToMeetupError as error:
         return await finish_conversation(
-            update,
+            update.message.reply_text,
             f"Unexpected error adding player `{player_name}` to meetup"
             f" `{context.chat_data['selected_meetup']}`",
         )
     except CouldNotConnectToTheCore as error:
         return await finish_conversation(
-            update, f"There is a problem contacting Pyball core: {error}"
+            update.message.reply_text, f"There is a problem contacting Pyball core: {error}"
         )
 
-    return await finish_conversation(update, "The player was added to the meetup.")
+    return await finish_conversation(
+        update.message.reply_text, "The player was added to the meetup."
+    )
 
 
 @log_func
 async def cancel_player_addition(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update, "Adición del jugador cancelada.")
+    return await finish_conversation(update.message.reply_text, "Adición del jugador cancelada.")

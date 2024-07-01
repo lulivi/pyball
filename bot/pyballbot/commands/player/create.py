@@ -8,10 +8,7 @@ from telegram.ext import ContextTypes
 
 from pyballbot.commands.finish_conversation import finish_conversation
 from pyballbot.logger import log_func
-from pyballbot.player_telegram_uuid_translator import (
-    PlayerIdAlreadyInUse,
-    PlayerTelegramIdAlreadyInUse,
-)
+from pyballbot.player_telegram_uuid_translator import PlayerTelegramIdAlreadyInUse
 from pyballbot.requests import player as player_requests
 from pyballbot.requests.errors import CouldNotConnectToTheCore
 from pyballbot.utils import bot_call_message_function
@@ -67,16 +64,17 @@ async def save_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return CreatePlayerState.SAVE_PLAYER
     except player_requests.PlayerNameIsAlreadyInUse as error:
         return await finish_conversation(
-            update, "The player name is already in use, introduce another one different."
+            update.message.reply_text,
+            "The player name is already in use, introduce another one different.",
         )
     except CouldNotConnectToTheCore as error:
         return await finish_conversation(
-            update, f"There is a problem contacting Pyball core: {error}"
+            update.message.reply_text, f"There is a problem contacting Pyball core: {error}"
         )
-    return await finish_conversation(update, "Jugador creado con éxito.")
+    return await finish_conversation(update.message.reply_text, "Jugador creado con éxito.")
 
 
 @log_func
 async def cancel_player_creation(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update, "Creación de jugador cancelada.")
+    return await finish_conversation(update.message.reply_text, "Creación de jugador cancelada.")

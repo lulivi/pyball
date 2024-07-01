@@ -27,25 +27,16 @@ from decouple import AutoConfig, Csv
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
-LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
-DATE_FORMAT: str = config("DATE_FORMAT", default="%d/%b/%Y")
-TIME_FORMAT: str = config("TIME_FORMAT", default="%H:%M")
-DATETIME_FORMAT: str = config("DATETIME_FORMAT", default=f"{DATE_FORMAT} {TIME_FORMAT}")
-BOT_TOKEN: str = config("BOT_TOKEN", default="")
-REGULARS_ID: int = config("REGULARS_ID", cast=int)
-SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
-DEFAULT_MATCH_LOCATION: str = config("DEFAULT_MATCH_LOCATION")
-ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",
     cast=Path,
-    default=APP_ROOT_DIR.joinpath("logs"),
+    default=APP_ROOT_DIR.joinpath("logs", "core"),
 )
 LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
 DATA_DIRECTORY_PATH: Path = config(
     "DATA_DIRECTORY_PATH",
     cast=Path,
-    default=APP_ROOT_DIR.joinpath("data"),
+    default=APP_ROOT_DIR.joinpath("data", "core"),
 )
 DATA_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
 DATABASE_FILE_PATH: Path = config(

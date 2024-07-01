@@ -16,13 +16,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+FROM python:3.11-slim-bullseye AS builder
+
+ARG COMPONENT
+
+RUN apt-get update && apt-get install -y git
+
+WORKDIR /package
+COPY .git ./.git
+COPY $COMPONENT/ ./$COMPONENT
+WORKDIR $COMPONENT
+
+RUN rm -rf dist/ \
+    && python3 -m pip install poetry poetry-dynamic-versioning \
+    && poetry build -f wheel
+
 FROM python:3.11-slim-bullseye
+
+ARG UID
+ARG USER
+ARG COMPONENT
+
+RUN useradd -u "${UID}" -m "${USER}"
 
 ENV VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:${PATH}
 
 WORKDIR /builder
-COPY dist/*.whl .
+COPY --from=builder /package/$COMPONENT/dist/*.whl .
 
 RUN /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
     && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
@@ -31,6 +52,6 @@ RUN /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
     && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
     && rm -rf /builder
-WORKDIR /pyball
 
-ENTRYPOINT ["pyball"]
+WORKDIR /pyball
+VOLUME /pyball

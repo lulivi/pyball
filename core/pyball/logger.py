@@ -57,17 +57,15 @@ def timed_rotating_file_handler(
     return log
 
 
-full_log = logging.handlers.RotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("full.log"),
+app_log = logging.handlers.RotatingFileHandler(
+    LOGS_DIRECTORY_PATH.joinpath("app.log"),
     maxBytes=1024 * 1024,
     backupCount=5,
 )
-
-pyball_log = timed_rotating_file_handler("pyball.log", "pyball")
-bot_log = timed_rotating_file_handler("bot.log", "pyball.legacy.bot")
-players_log = timed_rotating_file_handler("players.log", "pyball.legacy.callup.players")
-db_log = timed_rotating_file_handler("db.log", "pyball.legacy.db")
-
+core_log = timed_rotating_file_handler("core.log", "pyball")
+player_log = timed_rotating_file_handler("player.log", "pyball.player")
+match_log = timed_rotating_file_handler("match.log", "pyball.match")
+meetup_log = timed_rotating_file_handler("meetup.log", "pyball.meetup")
 
 logging.basicConfig(
     format=LOG_MESSAGE_FORMAT,
@@ -76,17 +74,17 @@ logging.basicConfig(
     level=logging.DEBUG,
     handlers=(
         stream_log,
-        full_log,
-        pyball_log,
-        bot_log,
-        players_log,
-        db_log,
+        app_log,
+        core_log,
+        player_log,
+        match_log,
+        meetup_log,
     ),
 )
 
-# Third-party loggers
-logging.getLogger("httpx").setLevel(logging.ERROR)
-logging.getLogger("httpcore").setLevel(logging.ERROR)
+# # Third-party loggers
+# logging.getLogger("httpx").setLevel(logging.ERROR)
+# logging.getLogger("httpcore").setLevel(logging.ERROR)
 
 # Function type definition to preserve typing of the wrapped function
 F = TypeVar("F", bound=Callable[..., Any])

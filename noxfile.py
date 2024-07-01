@@ -112,18 +112,41 @@ def format(session: nox.Session):
     session.run("poetry", "install", "--only", "dev", external=True)
 
     session.run_always(
-        "poetry", "-C", PACKAGE_CORE, "run", "black", PACKAGE_CORE
+        "poetry",
+        "-C",
+        PACKAGE_CORE,
+        "run",
+        "black",
+        PACKAGE_CORE,
+        external=True,
     )
     session.run_always(
-        "poetry", "-C", PACKAGE_BOT, "run", "black", PACKAGE_BOT
+        "poetry",
+        "-C",
+        PACKAGE_BOT,
+        "run",
+        "black",
+        PACKAGE_BOT,
+        external=True,
     )
     session.run_always(
-        "poetry", "-C", PACKAGE_CORE, "run", "isort", PACKAGE_CORE
+        "poetry",
+        "-C",
+        PACKAGE_CORE,
+        "run",
+        "isort",
+        PACKAGE_CORE,
+        external=True,
     )
     session.run_always(
-        "poetry", "-C", PACKAGE_BOT, "run", "isort", PACKAGE_BOT
+        "poetry",
+        "-C",
+        PACKAGE_BOT,
+        "run",
+        "isort",
+        PACKAGE_BOT,
+        external=True,
     )
-
 
 
 @nox.session

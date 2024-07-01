@@ -25,30 +25,19 @@ import uuid
 
 from typing import List
 
-from pyball.meetup.application.errors import MeetupDateNotFound, MeetupIdNotFound
-from pyball.meetup.domain.meetups import Meetups
 from pyball.meetup.domain.model.meetup import Meetup
+from pyball.meetup.infrastructure.meetup_json_repository import MeetupJsonRepository
 
 
 class GetMeetup:
-    def __init__(self, meetup_remository: Meetups) -> None:
-        self._meetups = meetup_remository
+    def __init__(self) -> None:
+        self._meetups = MeetupJsonRepository()
 
     def all(self) -> List[Meetup]:
         return self._meetups.all()
 
     def by_id(self, id: uuid.UUID) -> Meetup:
-        meetup = self._meetups.get(id=id)
+        return self._meetups.get(id=id)
 
-        if meetup is None:
-            raise MeetupIdNotFound(id=id)
-
-        return meetup
-
-    def by_date(self, date_time: datetime.datetime) -> Meetup:
-        meetup = self._meetups.get_by_date(date_time=date_time)
-
-        if meetup is None:
-            raise MeetupDateNotFound(date_time=date_time)
-
-        return meetup
+    def by_date_time(self, date_time: datetime.datetime) -> Meetup:
+        return self._meetups.get_by_date(date_time=date_time)

@@ -1,35 +1,51 @@
-from dataclasses import dataclass
+import logging
+
 from enum import Enum
 from typing import Optional
 
 import requests
 
+from pyballbot.logger import log_func
 from pyballbot.requests.errors import CouldNotConnectToTheCore
 from pyballbot.requests.types import Response
 from pyballbot.settings import PYBALL_API_URL
 
+logger = logging.getLogger(__name__)
+
 
 class BaseEndpoint(Enum):
-    PLAYER = f"{PYBALL_API_URL}/player"
-    MEETUP = f"{PYBALL_API_URL}/meetup"
+    PLAYERS = f"{PYBALL_API_URL}/players"
+    MEETUPS = f"{PYBALL_API_URL}/meetups"
 
 
-class RequestType(Enum):
+class RequestMethod(Enum):
     GET = requests.get
     POST = requests.post
     PUT = requests.put
 
 
-def get_json_response(
-    request_type: RequestType, endpoint: BaseEndpoint, route: str, json: Optional[dict] = None
+@log_func
+def get_response(
+    request_method: RequestMethod,
+    base_endpoint: BaseEndpoint,
+    route: str = "",
+    json: Optional[dict] = None,
+    params: Optional[dict] = None,
 ) -> Response:
     response_json = None
+    endpoint = f"{base_endpoint.value}{route}"
+    logger.debug(
+        f"Sending request `{request_method.__name__}` to `{endpoint}` with params={params} and json={json}"
+    )
+
     try:
-        response: requests.Response = request_type(f"{endpoint.value}/{route}", json=json)
+        response: requests.Response = request_method(endpoint, params=params, json=json)
     except requests.exceptions.ConnectionError as error:
+        logger.error("Connection error sending the request")
         raise CouldNotConnectToTheCore(f"Core is not available: {error}")
 
     if response.status_code not in (204, 304):
+        logger.debug("No content response")
         response_json = response.json()
 
     return Response(status_code=response.status_code, json=response_json)

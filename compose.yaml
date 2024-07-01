@@ -1,19 +1,34 @@
 services:
   core:
     image: pyball
+    user: "$UID:$UID"
     build:
-      context: core
-      dockerfile: Dockerfile
+      dockerfile: ./docker/Dockerfile
+      args:
+        USER: "$USER"
+        UID: "$UID"
+        COMPONENT: "core"
+    environment:
+      USER: "$USER"
+      UID: "$UID"
     container_name: pyball
     networks:
       - pyballnet
     volumes:
       - .:/pyball
+    entrypoint: "pyball"
   bot:
     image: pyballbot
+    user: "$UID:$UID"
     build:
-      context: bot
-      dockerfile: Dockerfile
+      dockerfile: ./docker/Dockerfile
+      args:
+        USER: "$USER"
+        UID: "$UID"
+        COMPONENT: "bot"
+    environment:
+      USER: "$USER"
+      UID: "$UID"
     container_name: pyballbot
     networks:
       - pyballnet
@@ -22,6 +37,7 @@ services:
         condition: service_started
     volumes:
       - .:/pyball
+    entrypoint: "pyballbot"
 networks:
   pyballnet:
     driver: bridge
