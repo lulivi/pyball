@@ -1,5 +1,7 @@
 import uuid
 
+from typing import List
+
 import requests
 
 from pyballbot import player_telegram_uuid_translator as translator
@@ -40,6 +42,24 @@ def create(name: str, telegram_id: str) -> None:
     except translator.PlayerTelegramIdAlreadyInUse as error:
         # Remove player endpoint ????
         raise error
+
+
+def get_all() -> List[Player]:
+    try:
+        return [
+            Player.from_json(json_player)
+            for json_player in get_response(
+                request_method=RequestMethod.GET,
+                base_endpoint=BaseEndpoint.PLAYERS,
+                route="",
+                params=None,
+            ).json
+        ]
+
+    except requests.exceptions.HTTPError as error:
+        if error.errno == 404:
+            raise PlayerNameDoesNotExist(name=name)
+        raise PlayerQueryError(f"Unknown error: {error.strerror}")
 
 
 def get_by_name(name: str) -> Player:

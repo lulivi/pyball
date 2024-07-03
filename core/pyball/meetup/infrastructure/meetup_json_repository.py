@@ -26,7 +26,7 @@ class MeetupJsonRepository(Meetups):
         saved_file_contents.append(
             {
                 "id": str(meetup.id),
-                "date_time": meetup.date_time.timestamp(),
+                "date_time": meetup.date_time.isoformat(),
                 "location": meetup.location,
                 "possible_team_sizes": list(meetup.possible_team_sizes),
                 "players": list(map(str, meetup.players)),
@@ -43,7 +43,7 @@ class MeetupJsonRepository(Meetups):
             meetups.append(
                 Meetup(
                     id=uuid.UUID(meetup_line["id"]),
-                    date_time=datetime.datetime.fromtimestamp(meetup_line["date_time"]),
+                    date_time=datetime.datetime.fromisoformat(meetup_line["date_time"]),
                     location=meetup_line["location"],
                     possible_team_sizes=tuple(meetup_line["possible_team_sizes"]),
                     players=list(map(uuid.UUID, meetup_line["players"])),
@@ -67,7 +67,7 @@ class MeetupJsonRepository(Meetups):
         for meetup_line in saved_file_contents:
             meetup = Meetup(
                 id=uuid.UUID(meetup_line["id"]),
-                date_time=datetime.datetime.fromtimestamp(meetup_line["date_time"]),
+                date_time=datetime.datetime.fromisoformat(meetup_line["date_time"]),
                 location=meetup_line["location"],
                 possible_team_sizes=tuple(meetup_line["possible_team_sizes"]),
                 players=list(map(uuid.UUID, meetup_line["players"])),

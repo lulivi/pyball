@@ -1,6 +1,7 @@
 import logging
 
 from enum import Enum, auto
+from typing import List
 
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -8,6 +9,7 @@ from telegram.ext import ContextTypes
 from pyballbot.commands.finish_conversation import finish_conversation
 from pyballbot.logger import log_func
 from pyballbot.requests import meetup as meetup_requests
+from pyballbot.requests import player as player_requests
 from pyballbot.requests.errors import (
     AddPlayerToMeetupError,
     CouldNotConnectToTheCore,
@@ -16,7 +18,7 @@ from pyballbot.requests.errors import (
     PlayerNameDoesNotExist,
     PlayerQueryError,
 )
-from pyballbot.requests.types import Meetup
+from pyballbot.requests.types import Meetup, Player
 from pyballbot.utils import bot_call_message_function
 
 
@@ -44,7 +46,7 @@ async def ask_meetup_date_time(
         )
 
     if not meetups:
-        await bot_call_message_function(
+        await finish_conversation(
             update.message.reply_text, "There is no opened meetup. Please create one first."
         )
         return
@@ -58,7 +60,7 @@ async def ask_meetup_date_time(
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[meetup_date] for meetup_date in sorted(meetups.keys())],
             one_time_keyboard=True,
-            input_field_placeholder="Fecha y hora de la convocatoria",
+            input_field_placeholder="Meetup date and time",
         ),
     )
 
@@ -68,19 +70,31 @@ async def ask_meetup_date_time(
 async def save_meetup_date_time_ask_player_name(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> AddPlayerToMeetupState:
-    context.chat_data["selected_meetup"] = context.chat_data["meetups"][
-        update.message.text.strip()
-    ]
+    selected_meetup: Meetup = context.chat_data["meetups"][update.message.text.strip()]
+    context.chat_data["selected_meetup"] = selected_meetup
+
+    all_players: List[Player] = player_requests.get_all()
+    player_names_not_called_up = sorted([
+        player.name for player in all_players if player.id not in selected_meetup.players
+    ])
 
     await bot_call_message_function(
         update.message.reply_text,
-        "Please, send the player name to add to the meetup:",
+        "Please, select the player name to add to the meetup:",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[
+                player_tuple
+                for player_tuple in zip(player_names_not_called_up[::2], player_names_not_called_up[1::2])
+            ],
+            one_time_keyboard=True,
+            input_field_placeholder="Meetup date and time",
+        ),
     )
     return AddPlayerToMeetupState.ADD_PLAYER_TO_MEETUP
 
 
 async def add_player_to_meetup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    player_name = update.message.text.strip()
+    player_name: str = update.message.text.strip()
     meetup: Meetup = context.chat_data["selected_meetup"]
     try:
         meetup_requests.add_player_by_name(
