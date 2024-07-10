@@ -4,13 +4,12 @@ from unittest import TestCase
 
 import faker
 
-from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
-from tests.unit.player.application.fake_player_repository import FakePlayerRepository
-
 from pyball.meetup.application.add_player_to_meetup import AddPlayerToMeetup
 from pyball.meetup.application.create_meetup import CreateMeetup
 from pyball.meetup.application.errors import MeetupIdNotFound, PlayerIsAlreadyInMeetup
 from pyball.player.application.create_player import CreatePlayer
+from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
+from tests.unit.player.application.fake_player_repository import FakePlayerRepository
 
 fake: faker.Faker = faker.Faker()
 
@@ -20,7 +19,7 @@ class TestAddPlayerToMeetup(TestCase):
         # Arrange
         fake_player_repository = FakePlayerRepository()
         fake_player_uuid = uuid.uuid4()
-        CreatePlayer(fake_player_repository).create(
+        CreatePlayer(fake_player_repository).execute(
             id=fake_player_uuid,
             name=fake.unique.user_name(),
         )
@@ -45,7 +44,7 @@ class TestAddPlayerToMeetup(TestCase):
         # Arrange
         fake_player_repository = FakePlayerRepository()
         fake_player_uuid = uuid.uuid4()
-        CreatePlayer(fake_player_repository).create(
+        CreatePlayer(fake_player_repository).execute(
             id=fake_player_uuid,
             name=fake.unique.user_name(),
         )
@@ -66,7 +65,7 @@ class TestAddPlayerToMeetup(TestCase):
         # Arrange
         fake_player_repository = FakePlayerRepository()
         fake_player_uuid = uuid.uuid4()
-        CreatePlayer(fake_player_repository).create(
+        CreatePlayer(fake_player_repository).execute(
             id=fake_player_uuid,
             name=fake.unique.user_name(),
         )

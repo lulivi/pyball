@@ -44,3 +44,11 @@ class Players(ABC):
     @abstractmethod
     def get_by_name(self, name: str) -> Optional[Player]:
         pass
+
+    @abstractmethod
+    def update(self, player: Player) -> None:
+        pass
+
+    @abstractmethod
+    def delete(self, player: Player) -> None:
+        pass

@@ -31,12 +31,13 @@ class CreatePlayer:
     def __init__(self, players: Players) -> None:
         self._players = players
 
-    def create(self, id: uuid.UUID, name: str, main: bool = False) -> None:
-        if self._players.get(id) is not None:
-            raise PlayerIdIsAlreadyInUse(id)
+    def execute(self, id: uuid.UUID, name: str, main: bool = False) -> None:
+        if self._players.get(id=id) is not None:
+            raise PlayerIdIsAlreadyInUse(id=id)
 
-        if self._players.get_by_name(name) is not None:
-            raise PlayerNameIsAlreadyInUse(name)
+        if self._players.get_by_name(name=name) is not None:
+            raise PlayerNameIsAlreadyInUse(name=name)
 
         player = Player(id=id, name=name, main=main)
-        self._players.save(player)
+
+        self._players.save(player=player)

@@ -22,12 +22,15 @@
 
 import uuid
 
+from typing import Optional
+
 from pyball.meetup.application.errors import (
     MeetupIdNotFound,
     PlayerIsAlreadyInMeetup,
     PlayerNotFound,
 )
 from pyball.meetup.domain.meetups import Meetups
+from pyball.meetup.domain.model.meetup import Meetup
 from pyball.meetup.domain.player_checker import IPlayerChecker
 
 
@@ -37,7 +40,7 @@ class AddPlayerToMeetup:
         self._player_checker = player_checker
 
     def add(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
-        meetup = self._meetup.get(id=meetup_id)
+        meetup: Optional[Meetup] = self._meetup.get(id=meetup_id)
 
         if meetup is None:
             raise MeetupIdNotFound(id=meetup_id)

@@ -29,12 +29,27 @@ from typing import Any, Callable, TypeVar, cast
 
 from pyballbot.settings import LOGS_DIRECTORY_PATH
 
-LOG_MESSAGE_FORMAT = "{asctime}|{levelname}|{name}:{lineno: 4d}| {message}"
+LOG_MESSAGE_FORMAT = "{asctime}|{levelname}|{name}:{funcName}:{lineno: 4d}| {message}"
 DATE_FORMAT = "%Y/%m/%d-%H:%M"
 ADVANCED_FORMATTER = logging.Formatter(fmt=LOG_MESSAGE_FORMAT, datefmt=DATE_FORMAT, style="{")
 
-stream_log = logging.StreamHandler()
-stream_log.setLevel(logging.INFO)
+# Function type definition to preserve typing of the wrapped function
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def log_func(func: F) -> F:
+    """Log the function ussage."""
+    logger = logging.getLogger(func.__module__)
+
+    @functools.wraps(func)
+    def decorator(*args, **kwargs):
+        """Wrap the function."""
+        logger.debug(f">>>>> Entering {func.__name__} function")
+        ret_val = func(*args, **kwargs)
+        logger.debug(f"<<<<< Exiting {func.__name__} function")
+        return ret_val
+
+    return cast(F, decorator)
 
 
 def timed_rotating_file_handler(
@@ -58,48 +73,35 @@ def timed_rotating_file_handler(
     return log
 
 
-app_log = logging.handlers.RotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("app.log"),
-    maxBytes=1024 * 1024,
-    backupCount=5,
-)
-bot_log = timed_rotating_file_handler("bot.log", "pyballbot")
-commands_log = timed_rotating_file_handler("commands.log", "pyballbot.commands")
-requests_log = timed_rotating_file_handler("requests.log", "pyballbot.requests")
+def configure_logging(stream_level: str = "INFO"):
 
-logging.basicConfig(
-    format=LOG_MESSAGE_FORMAT,
-    datefmt=DATE_FORMAT,
-    style="{",
-    level=logging.DEBUG,
-    handlers=(
-        stream_log,
-        app_log,
-        bot_log,
-        commands_log,
-        requests_log,
-    ),
-)
+    stream_log = logging.StreamHandler()
+    stream_log.setLevel(stream_level)
 
-# Third-party loggers
-logging.getLogger("httpx").setLevel(logging.ERROR)
-logging.getLogger("httpcore").setLevel(logging.ERROR)
-logging.getLogger("telegram.ext.ExtBot").setLevel(logging.WARNING)
+    app_log = logging.handlers.RotatingFileHandler(
+        LOGS_DIRECTORY_PATH.joinpath("app.log"),
+        maxBytes=1024 * 1024,
+        backupCount=5,
+    )
+    bot_log = timed_rotating_file_handler("bot.log", "pyballbot")
+    commands_log = timed_rotating_file_handler("commands.log", "pyballbot.commands")
+    requests_log = timed_rotating_file_handler("requests.log", "pyballbot.requests")
 
-# Function type definition to preserve typing of the wrapped function
-F = TypeVar("F", bound=Callable[..., Any])
+    logging.basicConfig(
+        format=LOG_MESSAGE_FORMAT,
+        datefmt=DATE_FORMAT,
+        style="{",
+        level=logging.DEBUG,
+        handlers=(
+            stream_log,
+            app_log,
+            bot_log,
+            commands_log,
+            requests_log,
+        ),
+    )
 
-
-def log_func(func: F) -> F:
-    """Log the function ussage."""
-    logger = logging.getLogger(func.__module__)
-
-    @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        """Wrap the function."""
-        logger.debug(f">>>>> Entering {func.__name__} function")
-        ret_val = func(*args, **kwargs)
-        logger.debug(f"<<<<< Exiting {func.__name__} function")
-        return ret_val
-
-    return cast(F, decorator)
+    # Third-party loggers
+    logging.getLogger("httpx").setLevel(logging.ERROR)
+    logging.getLogger("httpcore").setLevel(logging.ERROR)
+    logging.getLogger("telegram.ext.ExtBot").setLevel(logging.WARNING)

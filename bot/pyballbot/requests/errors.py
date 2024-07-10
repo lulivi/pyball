@@ -48,6 +48,13 @@ class PlayerTelegramIdIsAlreadyInUse(PlayerCreationError):
 ###
 
 
+class PlayerUpdateError(Exception):
+    """"""
+
+
+###
+
+
 class MeetupQueryError(Exception):
     """"""
 
@@ -57,6 +64,13 @@ class MeetupIdDoesNotExist(MeetupQueryError):
     def __init__(self, id: uuid.UUID) -> None:
         self.id = id
         self.message = f"The meetup ID `{id}` does not exist"
+        super().__init__(self.message)
+
+
+class MeetupDateTimeDoesNotExist(MeetupQueryError):
+    def __init__(self, date_time) -> None:
+        self.date_time = date_time
+        self.message = f"The meetup date and time `{date_time}` does not exist"
         super().__init__(self.message)
 
 

@@ -55,6 +55,7 @@ pytest-timeout = "*"
 [tool.black]
 line-length = 99
 preview = true
+enable-unstable-feature = ["string_processing"]
 
 [tool.isort]
 profile = "black"

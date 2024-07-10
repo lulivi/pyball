@@ -21,12 +21,12 @@
 """Populate the configuration variables from the environment."""
 
 from pathlib import Path
-from typing import Tuple
 
-from decouple import AutoConfig, Csv
+from decouple import AutoConfig
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
+APP_VERBOSITY: str = config("PYBALL_VERBOSITY", default="INFO")
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",
     cast=Path,

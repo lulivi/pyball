@@ -17,6 +17,8 @@ nox = "*"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
+pyball = { path = "core/", develop = true }
+pyballbot = { path = "bot/", develop = true }
 
 [tool.black]
 line-length = 99

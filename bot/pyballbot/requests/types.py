@@ -7,7 +7,7 @@ from typing import Any, List, Tuple
 
 @dataclass
 class Response:
-    status_code: int
+    status: int
     json: Any
 
 

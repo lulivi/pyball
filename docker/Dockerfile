@@ -18,40 +18,44 @@
 
 FROM python:3.11-slim-bullseye AS builder
 
-ARG COMPONENT
+ARG PYBALL_COMPONENT
 
-RUN apt-get update && apt-get install -y git
+RUN apt-get update \
+    && apt-get install -y git \
+    && python3 -m pip install poetry poetry-dynamic-versioning
 
 WORKDIR /package
 COPY .git ./.git
-COPY $COMPONENT/ ./$COMPONENT
-WORKDIR $COMPONENT
+COPY $PYBALL_COMPONENT/ ./$PYBALL_COMPONENT
+WORKDIR $PYBALL_COMPONENT
 
 RUN rm -rf dist/ \
-    && python3 -m pip install poetry poetry-dynamic-versioning \
     && poetry build -f wheel
 
 FROM python:3.11-slim-bullseye
 
 ARG UID
 ARG USER
-ARG COMPONENT
+ARG PYBALL_COMPONENT
 
-RUN useradd -u "${UID}" -m "${USER}"
-
+ENV PYBALL_COMPONENT=$PYBALL_COMPONENT
 ENV VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:${PATH}
 
-WORKDIR /builder
-COPY --from=builder /package/$COMPONENT/dist/*.whl .
-
-RUN /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
+RUN useradd -u "${UID}" -m "${USER}" \
+    && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
     && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
-    && $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
     && apt-get update && apt-get install -y locales \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
-    && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
+    && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8
+
+COPY ./docker/entrypoint.bash /
+
+WORKDIR /builder
+COPY --from=builder /package/$PYBALL_COMPONENT/dist/*.whl .
+RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
     && rm -rf /builder
 
 WORKDIR /pyball
 VOLUME /pyball
+ENTRYPOINT ["/entrypoint.bash"]

@@ -1,1 +1,3 @@
-from pyballbot.commands.player import create
+__all__ = ["create", "rename"]
+
+from pyballbot.commands.player import create, rename

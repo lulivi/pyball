@@ -7,7 +7,7 @@ services:
       args:
         USER: "$USER"
         UID: "$UID"
-        COMPONENT: "core"
+        PYBALL_COMPONENT: "core"
     environment:
       USER: "$USER"
       UID: "$UID"
@@ -16,7 +16,6 @@ services:
       - pyballnet
     volumes:
       - .:/pyball
-    entrypoint: "pyball"
   bot:
     image: pyballbot
     user: "$UID:$UID"
@@ -25,7 +24,7 @@ services:
       args:
         USER: "$USER"
         UID: "$UID"
-        COMPONENT: "bot"
+        PYBALL_COMPONENT: "bot"
     environment:
       USER: "$USER"
       UID: "$UID"
@@ -37,7 +36,6 @@ services:
         condition: service_started
     volumes:
       - .:/pyball
-    entrypoint: "pyballbot"
 networks:
   pyballnet:
     driver: bridge

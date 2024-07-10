@@ -71,10 +71,10 @@ async def save_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return await finish_conversation(
             update.message.reply_text, f"There is a problem contacting Pyball core: {error}"
         )
-    return await finish_conversation(update.message.reply_text, "Jugador creado con éxito.")
+    return await finish_conversation(update.message.reply_text, "Player created successfully.")
 
 
 @log_func
 async def cancel_player_creation(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update.message.reply_text, "Creación de jugador cancelada.")
+    return await finish_conversation(update.message.reply_text, "Player creation cancelled.")

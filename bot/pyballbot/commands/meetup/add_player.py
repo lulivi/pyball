@@ -74,9 +74,9 @@ async def save_meetup_date_time_ask_player_name(
     context.chat_data["selected_meetup"] = selected_meetup
 
     all_players: List[Player] = player_requests.get_all()
-    player_names_not_called_up = sorted([
-        player.name for player in all_players if player.id not in selected_meetup.players
-    ])
+    player_names_not_called_up = sorted(
+        [player.name for player in all_players if player.id not in selected_meetup.players]
+    )
 
     await bot_call_message_function(
         update.message.reply_text,
@@ -84,10 +84,12 @@ async def save_meetup_date_time_ask_player_name(
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[
                 player_tuple
-                for player_tuple in zip(player_names_not_called_up[::2], player_names_not_called_up[1::2])
+                for player_tuple in zip(
+                    player_names_not_called_up[::2], player_names_not_called_up[1::2]
+                )
             ],
             one_time_keyboard=True,
-            input_field_placeholder="Meetup date and time",
+            input_field_placeholder="Player selection",
         ),
     )
     return AddPlayerToMeetupState.ADD_PLAYER_TO_MEETUP

@@ -4,10 +4,9 @@ from unittest import TestCase
 
 import faker
 
-from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
-
 from pyball.meetup.application.create_meetup import CreateMeetup
 from pyball.meetup.domain.errors import MeetupDateAlreadyUsed, MeetupIdAlreadyUsed
+from tests.unit.meetup.application.fake_meetup_repository import FakeMeetupRepository
 
 fake: faker.Faker = faker.Faker()
 

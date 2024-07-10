@@ -35,7 +35,8 @@ def get_response(
     response_json = None
     endpoint = f"{base_endpoint.value}{route}"
     logger.debug(
-        f"Sending request `{request_method.__name__}` to `{endpoint}` with params={params} and json={json}"
+        f"Sending request `{request_method.__name__}` to `{endpoint}` with params={params} and"
+        f" json={json}"
     )
 
     try:
@@ -44,8 +45,11 @@ def get_response(
         logger.error("Connection error sending the request")
         raise CouldNotConnectToTheCore(f"Core is not available: {error}")
 
-    if response.status_code not in (204, 304):
+    logger.debug(f"Response status: {response.status_code}")
+    if response.status_code in (204, 304):
         logger.debug("No content response")
+    else:
         response_json = response.json()
+        logger.debug(f"Response body: {response_json}")
 
-    return Response(status_code=response.status_code, json=response_json)
+    return Response(status=response.status_code, json=response_json)

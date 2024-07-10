@@ -79,7 +79,7 @@ def test(session: nox.Session):
 @nox.session
 def format(session: nox.Session):
     """Format the code."""
-    session.run("poetry", "install", "--only", "dev", external=True)
+    session.run("poetry", "install", external=True)
 
     session.run_always(
         "poetry",

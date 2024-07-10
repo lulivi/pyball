@@ -52,7 +52,7 @@ def build_application() -> Application:
     filter_admin_users = ~filters.UpdateType.EDITED_MESSAGE & filters.User(ADMINS_IDS)
     filter_allowed_chats = ~filters.UpdateType.EDITED_MESSAGE & filters.Chat(
         {*ADMINS_IDS, REGULARS_ID}
-    )  # Add all main players ids and
+    )  # Add all main players ids and admins
     filters_base_conversations = ~filters.COMMAND & filter_admin_users
 
     application = Application.builder().token(BOT_TOKEN).build()
@@ -97,6 +97,32 @@ def build_application() -> Application:
                 ],
             },
             fallbacks=[CommandHandler("cancel", player_commands.create.cancel_player_creation)],
+        )
+    )
+    application.add_handler(
+        ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "player_rename",
+                    player_commands.rename.ask_player_name,
+                    filters=filter_admin_users,
+                )
+            ],
+            states={
+                player_commands.rename.RenamePlayerState.ASK_NEW_PLAYER_NAME: [
+                    MessageHandler(
+                        filters=filters.TEXT & filters_base_conversations,
+                        callback=player_commands.rename.save_current_name_ask_new_name,
+                    )
+                ],
+                player_commands.rename.RenamePlayerState.UPDATE_PLAYER: [
+                    MessageHandler(
+                        filters=filters.TEXT & filters_base_conversations,
+                        callback=player_commands.rename.rename_player,
+                    )
+                ],
+            },
+            fallbacks=[CommandHandler("cancel", player_commands.rename.cancel_player_renaming)],
         )
     )
 

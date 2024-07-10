@@ -26,6 +26,19 @@ import uuid
 class PlayerNotFound(Exception):
     """The player was not found in the repository."""
 
+    def __init__(self, id: uuid.UUID) -> None:
+        self.id = id
+        self.message = f"The player id `{id}` is was not found"
+        super().__init__(self.message)
+
+
+class PlayerUpdateError(Exception):
+    """There was a problem updating the player"""
+
+
+class PlayerDeleteError(Exception):
+    """There was a problem updating the player"""
+
 
 class PlayerSaveError(Exception):
     """Problem saving the player."""

@@ -20,17 +20,23 @@
 # SOFTWARE.
 """Core entrypoint."""
 
+import argparse
 import logging
 import os
 
+from typing import cast
+
 import uvicorn
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from pyball import __version__
-from pyball.logger import log_func
+from pyball.logger import configure_logging, log_func
 from pyball.meetup.infrastructure import api as meetup_api
 from pyball.player.infrastructure import api as player_api
+from pyball.settings import APP_VERBOSITY
+from pyball.utils.api_exceptions import PyballClientError
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +44,15 @@ app = FastAPI(title="Pyball", docs_url="/", version=__version__)
 
 app.include_router(player_api.router, tags=["player"])
 app.include_router(meetup_api.router, tags=["meetup"])
+
+
+@app.exception_handler(PyballClientError)
+async def unicorn_exception_handler(_: Request, exception: PyballClientError):
+    logger.error(f"Sending exception: {exception.__class__.__name__}: {exception}")
+    return JSONResponse(
+        status_code=exception.status,
+        content={"error": {"message": exception.message, "item": exception.item}},
+    )
 
 
 @log_func
@@ -48,10 +63,32 @@ def status():
 
 def main():
     """Launched with `poetry run start` at root level"""
+    args = parse_arguments()
+    configure_logging(stream_level=args.verbosity)
+
     logger.info("Starting application")
-    uvicorn.run(
-        "pyball.__main__:app", host="0.0.0.0", port=8000, reload="PYBALL_DEV" in os.environ
+    try:
+        uvicorn.run(
+            "pyball.__main__:app", host="0.0.0.0", port=8000, reload="PYBALL_DEV" in os.environ
+        )
+    except KeyboardInterrupt:
+        logger.info("Stoping the application...")
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--verbosity",
+        default=APP_VERBOSITY,
     )
+    args = parser.parse_args()
+
+    logging_levels = list(logging._nameToLevel)
+    args.verbosity = cast(str, args.verbosity).upper()
+    if args.verbosity not in logging_levels:
+        parser.error(f"The argument --verbosity must be a valid logging level: {logging_levels}.")
+
+    return args
 
 
 if __name__ == "__main__":

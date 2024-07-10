@@ -20,14 +20,17 @@
 # SOFTWARE.
 """Bot main file."""
 
+import argparse
 import logging
 
-from argparse import ArgumentParser
+from typing import cast
 
 from telegram.ext import Application
 
 from pyballbot import __version__
 from pyballbot.commands.entrypoint import build_application
+from pyballbot.logger import configure_logging
+from pyballbot.settings import APP_VERBOSITY
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +48,8 @@ def log_startup_info() -> None:
 
 def main() -> None:
     """Start the bot."""
-    parser = ArgumentParser(prog="pyball", description="Organise call-ups for your club!")
-    parser.add_argument("-v", "--version", action="version", version=f"Pyball {__version__}")
-    args = parser.parse_args()
+    args = parse_arguments()
+    configure_logging(stream_level=args.verbosity)
 
     log_startup_info()
 
@@ -56,6 +58,22 @@ def main() -> None:
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling()
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--verbosity",
+        default=APP_VERBOSITY,
+    )
+    args = parser.parse_args()
+
+    logging_levels = list(logging._nameToLevel)
+    args.verbosity = cast(str, args.verbosity).upper()
+    if args.verbosity not in logging_levels:
+        parser.error(f"The argument --verbosity must be a valid logging level: {logging_levels}.")
+
+    return args
 
 
 if __name__ == "__main__":

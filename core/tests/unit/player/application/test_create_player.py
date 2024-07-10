@@ -6,15 +6,11 @@ from unittest import TestCase
 
 import faker
 
-from tests.unit.player.application.fake_player_repository import FakePlayerRepository
-
 from pyball.player.application.create_player import CreatePlayer
-from pyball.player.domain.errors import (
-    PlayerNameAlreadyInUseError,
-    PlayerUuidAlreadyExistsError,
-)
+from pyball.player.domain.errors import PlayerNameAlreadyInUseError, PlayerUuidAlreadyExistsError
 from pyball.player.domain.model.player import Player
 from pyball.player.domain.players import Players
+from tests.unit.player.application.fake_player_repository import FakePlayerRepository
 
 fake: faker.Faker = faker.Faker()
 
@@ -28,7 +24,7 @@ class TestCreatePlayer(TestCase):
         fake_name = fake.unique.user_name()
 
         # Act
-        create_player.create(id=fake_uuid, name=fake_name)
+        create_player.execute(id=fake_uuid, name=fake_name)
 
         # Assert
         obtained_player = fake_player_repository.get(fake_uuid)
@@ -41,12 +37,12 @@ class TestCreatePlayer(TestCase):
         fake_player_repository = FakePlayerRepository()
         create_player = CreatePlayer(fake_player_repository)
         fake_uuid = uuid.uuid4()
-        create_player.create(fake_uuid, fake.unique.user_name())
+        create_player.execute(fake_uuid, fake.unique.user_name())
 
         # Assert
         with self.assertRaises(PlayerUuidAlreadyExistsError) as cm:
             # Act
-            create_player.create(fake_uuid, fake.unique.user_name())
+            create_player.execute(fake_uuid, fake.unique.user_name())
 
         self.assertEqual(cm.exception.id, fake_uuid)
 
@@ -55,11 +51,11 @@ class TestCreatePlayer(TestCase):
         fake_player_repository = FakePlayerRepository()
         create_player = CreatePlayer(fake_player_repository)
         fake_name = fake.unique.user_name()
-        create_player.create(uuid.uuid4(), fake_name)
+        create_player.execute(uuid.uuid4(), fake_name)
 
         # Assert
         with self.assertRaises(PlayerNameAlreadyInUseError) as cm:
             # Act
-            create_player.create(uuid.uuid4(), fake_name)
+            create_player.execute(uuid.uuid4(), fake_name)
 
         self.assertEqual(cm.exception.name, fake_name)
