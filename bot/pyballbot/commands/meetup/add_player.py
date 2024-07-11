@@ -13,13 +13,12 @@ from pyballbot.requests import player as player_requests
 from pyballbot.requests.errors import (
     AddPlayerToMeetupError,
     CouldNotConnectToTheCore,
-    MeetupIdDoesNotExist,
     PlayerIsAreadyCalled,
     PlayerNameDoesNotExist,
     PlayerQueryError,
 )
 from pyballbot.requests.types import Meetup, Player
-from pyballbot.utils import bot_call_message_function
+from pyballbot.utils import bot_call_message_function, get_two_column_string_list_keyboard
 
 
 class AddPlayerToMeetupState(Enum):
@@ -46,10 +45,9 @@ async def ask_meetup_date_time(
         )
 
     if not meetups:
-        await finish_conversation(
+        return await finish_conversation(
             update.message.reply_text, "There is no opened meetup. Please create one first."
         )
-        return
 
     context.chat_data["meetups"] = meetups
 
@@ -78,16 +76,17 @@ async def save_meetup_date_time_ask_player_name(
         [player.name for player in all_players if player.id not in selected_meetup.players]
     )
 
+    if not player_names_not_called_up:
+        return await finish_conversation(
+            update.message.reply_text,
+            "There are no players left to call up. Add a new player first.",
+        )
+
     await bot_call_message_function(
         update.message.reply_text,
         "Please, select the player name to add to the meetup:",
         reply_markup=ReplyKeyboardMarkup(
-            keyboard=[
-                player_tuple
-                for player_tuple in zip(
-                    player_names_not_called_up[::2], player_names_not_called_up[1::2]
-                )
-            ],
+            keyboard=get_two_column_string_list_keyboard(player_names_not_called_up),
             one_time_keyboard=True,
             input_field_placeholder="Player selection",
         ),
@@ -141,4 +140,4 @@ async def add_player_to_meetup(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 async def cancel_player_addition(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update.message.reply_text, "Adición del jugador cancelada.")
+    return await finish_conversation(update.message.reply_text, "Player addition to meetup cancelled.")

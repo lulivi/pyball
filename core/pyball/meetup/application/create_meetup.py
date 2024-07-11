@@ -32,7 +32,7 @@ class CreateMeetup:
     def __init__(self, meetup_repository: Meetups) -> None:
         self._meetups = meetup_repository
 
-    def create(
+    def execute(
         self,
         id: uuid.UUID,
         date_time: datetime.datetime,

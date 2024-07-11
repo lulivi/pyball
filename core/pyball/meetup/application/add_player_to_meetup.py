@@ -39,7 +39,7 @@ class AddPlayerToMeetup:
         self._meetup = meetup_repository
         self._player_checker = player_checker
 
-    def add(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
+    def execute(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
         meetup: Optional[Meetup] = self._meetup.get(id=meetup_id)
 
         if meetup is None:

@@ -20,7 +20,7 @@ class TestCreateMeetup(TestCase):
         fake_location = fake.unique.user_name()
 
         # Act
-        CreateMeetup(fake_meetup_respository).create(
+        CreateMeetup(fake_meetup_respository).execute(
             id=fake_uuid, date_time=fake_date_time, location=fake_location
         )
 
@@ -35,14 +35,14 @@ class TestCreateMeetup(TestCase):
         # Arrange
         create_meetup = CreateMeetup(FakeMeetupRepository())
         fake_uuid = uuid.uuid4()
-        create_meetup.create(
+        create_meetup.execute(
             id=fake_uuid, date_time=fake.unique.date_time(), location=fake.unique.user_name()
         )
 
         # Assert
         with self.assertRaises(MeetupIdAlreadyUsed) as cm:
             # Act
-            create_meetup.create(
+            create_meetup.execute(
                 id=fake_uuid, date_time=fake.unique.date_time(), location=fake.unique.user_name()
             )
 
@@ -52,14 +52,14 @@ class TestCreateMeetup(TestCase):
         # Arrange
         create_meetup = CreateMeetup(FakeMeetupRepository())
         fake_date_time = fake.unique.date_time()
-        create_meetup.create(
+        create_meetup.execute(
             id=uuid.uuid4(), date_time=fake_date_time, location=fake.unique.user_name()
         )
 
         # Assert
         with self.assertRaises(MeetupDateAlreadyUsed) as cm:
             # Act
-            create_meetup.create(
+            create_meetup.execute(
                 id=uuid.uuid4(), date_time=fake_date_time, location=fake.unique.user_name()
             )
 

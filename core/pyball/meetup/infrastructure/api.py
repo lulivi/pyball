@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+from pyball.meetup.application.remove_player_from_meetup import RemovePlayerFromMeetup
 from pydantic import BaseModel
 
 from pyball.logger import log_func
@@ -116,7 +117,7 @@ def create(args: MeetupModelBaseInfoNoId) -> MeetupModelBaseInfo:
     new_meetup_id = uuid.uuid4()
 
     try:
-        CreateMeetup(MeetupJsonRepository()).create(
+        CreateMeetup(MeetupJsonRepository()).execute(
             new_meetup_id,
             date_time=args.date_time,
             location=args.location,
@@ -139,19 +140,19 @@ def create(args: MeetupModelBaseInfoNoId) -> MeetupModelBaseInfo:
     )
 
 
-class AddPlayerModel(BaseModel):
+class ModifyPlayerModel(BaseModel):
     meetup_id: uuid.UUID
     player_id: uuid.UUID
 
 
 @router.put("/add/player", status_code=204)
 @log_func
-def add_player(args: AddPlayerModel) -> None:
+def add_player(args: ModifyPlayerModel) -> None:
     try:
         AddPlayerToMeetup(
             meetup_repository=MeetupJsonRepository(),
             player_checker=PlayerChecker(),
-        ).add(
+        ).execute(
             meetup_id=args.meetup_id,
             player_id=args.player_id,
         )
@@ -164,4 +165,27 @@ def add_player(args: AddPlayerModel) -> None:
             object="meetup", item="meetup_id", value=args.meetup_id
         ) from error
     except application_errors.PlayerIsAlreadyInMeetup as error:
+        raise PyballRedirectionNotModified(object="meetup")
+
+
+@router.put("/remove/player", status_code=204)
+@log_func
+def remove_player(args: ModifyPlayerModel) -> None:
+    try:
+        RemovePlayerFromMeetup(
+            meetup_repository=MeetupJsonRepository(),
+            player_checker=PlayerChecker(),
+        ).execute(
+            meetup_id=args.meetup_id,
+            player_id=args.player_id,
+        )
+    except application_errors.PlayerNotFound as error:
+        raise PyballClientNotFound(
+            object="player", item="player_id", value=args.player_id
+        ) from error
+    except application_errors.MeetupIdNotFound as error:
+        raise PyballClientNotFound(
+            object="meetup", item="meetup_id", value=args.meetup_id
+        ) from error
+    except application_errors.PlayerIsNotInMeetup as error:
         raise PyballRedirectionNotModified(object="meetup")

@@ -19,7 +19,7 @@ class TestGetMeetup(TestCase):
         fake_date_time = fake.unique.date_time()
         fake_location = fake.unique.user_name()
         fake_meetup_respository = FakeMeetupRepository()
-        CreateMeetup(fake_meetup_respository).create(
+        CreateMeetup(fake_meetup_respository).execute(
             id=fake_uuid,
             date_time=fake_date_time,
             location=fake_location,
@@ -51,7 +51,7 @@ class TestGetMeetup(TestCase):
         fake_date_time = fake.unique.date_time()
         fake_location = fake.unique.user_name()
         fake_meetup_respository = FakeMeetupRepository()
-        CreateMeetup(fake_meetup_respository).create(
+        CreateMeetup(fake_meetup_respository).execute(
             id=fake_uuid,
             date_time=fake_date_time,
             location=fake_location,

@@ -25,14 +25,14 @@ class TestAddPlayerToMeetup(TestCase):
         )
         fake_meetup_repository = FakeMeetupRepository()
         fake_meetup_uuid = uuid.uuid4()
-        CreateMeetup(fake_meetup_repository).create(
+        CreateMeetup(fake_meetup_repository).execute(
             id=fake_meetup_uuid,
             date_time=fake.unique.date_time(),
             location=fake.unique.user_name(),
         )
 
         # Act
-        AddPlayerToMeetup(fake_meetup_repository).add(
+        AddPlayerToMeetup(fake_meetup_repository).execute(
             meetup_id=fake_meetup_uuid,
             player_id=fake_player_uuid,
         )
@@ -54,7 +54,7 @@ class TestAddPlayerToMeetup(TestCase):
         # Assert
         with self.assertRaises(MeetupIdNotFound) as cm:
             # Act
-            AddPlayerToMeetup(fake_meetup_repository).add(
+            AddPlayerToMeetup(fake_meetup_repository).execute(
                 meetup_id=fake_meetup_uuid,
                 player_id=fake_player_uuid,
             )
@@ -71,12 +71,12 @@ class TestAddPlayerToMeetup(TestCase):
         )
         fake_meetup_repository = FakeMeetupRepository()
         fake_meetup_uuid = uuid.uuid4()
-        CreateMeetup(fake_meetup_repository).create(
+        CreateMeetup(fake_meetup_repository).execute(
             id=fake_meetup_uuid,
             date_time=fake.unique.date_time(),
             location=fake.unique.user_name(),
         )
-        AddPlayerToMeetup(fake_meetup_repository).add(
+        AddPlayerToMeetup(fake_meetup_repository).execute(
             meetup_id=fake_meetup_uuid,
             player_id=fake_player_uuid,
         )
@@ -84,7 +84,7 @@ class TestAddPlayerToMeetup(TestCase):
         # Assert
         with self.assertRaises(PlayerIsAlreadyInMeetup) as cm:
             # Act
-            AddPlayerToMeetup(fake_meetup_repository).add(
+            AddPlayerToMeetup(fake_meetup_repository).execute(
                 meetup_id=fake_meetup_uuid,
                 player_id=fake_player_uuid,
             )

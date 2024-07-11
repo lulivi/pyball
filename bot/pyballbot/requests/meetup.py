@@ -14,6 +14,8 @@ from pyballbot.requests.errors import (
     MeetupQueryError,
     PlayerIdDoesNotExist,
     PlayerIsAreadyCalled,
+    PlayerIsNotCalled,
+    RemovePlayerFromMeetupError,
 )
 from pyballbot.requests.types import Meetup, Player, Response
 from pyballbot.requests.utils import BaseEndpoint, RequestMethod, get_response
@@ -118,3 +120,31 @@ def add_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
             raise PlayerIsAreadyCalled(meetup_id=meetup_id, player_id=player_id)
 
         raise AddPlayerToMeetupError(response.json["message"])
+
+
+def remove_player_by_name(
+    meetup_id: uuid.UUID,
+    player_name: str,
+):
+    player: Player = player_requests.get_by(name=player_name)
+    remove_player(meetup_id=meetup_id, player_id=player.id)
+
+
+def remove_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
+    response: Response = get_response(
+        request_method=RequestMethod.PUT,
+        base_endpoint=BaseEndpoint.MEETUPS,
+        route=f"/remove/player",
+        json={"meetup_id": meetup_id, "player_id": player_id},
+    )
+
+    if response.status != 204:
+        if response.status == 404:
+            if response.json["item"] == "player_id":
+                raise PlayerIdDoesNotExist(id=player_id)
+            raise MeetupIdDoesNotExist(id=meetup_id)
+
+        if response.status == 304:
+            raise PlayerIsNotCalled(meetup_id=meetup_id, player_id=player_id)
+
+        raise RemovePlayerFromMeetupError(response.json["message"])

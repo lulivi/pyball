@@ -2,7 +2,7 @@ import functools
 import logging
 
 from enum import Enum
-from typing import Callable
+from typing import Callable, List
 
 from telegram import Message, Update
 from telegram.constants import ParseMode
@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 def enum_as_regex(enum: Enum) -> str:
     inner_part = ")|(".join([location.value for location in enum])
     return f"({inner_part})"
+
+
+def get_two_column_string_list_keyboard(string_list: List[str]) -> List[str]:
+    pair_list = [player_tuple for player_tuple in zip(string_list[::2], string_list[1::2])]
+
+    if len(string_list) % 2 != 0:
+        pair_list.append((string_list.pop(),))
+
+    return pair_list
+
 
 
 def command_ensure_admin(func):
@@ -43,6 +53,12 @@ def command_ensure_admin(func):
     return wrapper_only_admin
 
 
+def is_admin_chat(chat_id: int) -> bool:
+    if ADMINS_IDS:
+        return chat_id in ADMINS_IDS
+
+    return False
+
 @log_func
 async def bot_call_message_function(
     message_function: Callable,
@@ -58,7 +74,7 @@ async def bot_call_message_function(
 
     """
     return await message_function(
-        text=escape_markdown(text=text, version=1),
+        text=text,
         parse_mode=ParseMode.MARKDOWN,
         *args,
         **kwargs,

@@ -193,6 +193,34 @@ def build_application() -> Application:
             ],
         )
     )
+    application.add_handler(
+        ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "meetup_remove_player",
+                    meetup_commands.remove_player.ask_meetup_date_time,
+                    filters=filter_admin_users,
+                )
+            ],
+            states={
+                meetup_commands.remove_player.RemovePlayerFromMeetupState.ASK_PLAYER_NAME: [
+                    MessageHandler(
+                        filters=filters.TEXT & filters_base_conversations,
+                        callback=meetup_commands.remove_player.save_meetup_date_time_ask_player_name,
+                    )
+                ],
+                meetup_commands.remove_player.RemovePlayerFromMeetupState.REMOVE_PLAYER_FROM_MEETUP: [
+                    MessageHandler(
+                        filters=filters.TEXT & filters_base_conversations,
+                        callback=meetup_commands.remove_player.remove_player_from_meetup,
+                    )
+                ],
+            },
+            fallbacks=[
+                CommandHandler("cancel", meetup_commands.remove_player.cancel_player_removal)
+            ],
+        )
+    )
     # application.add_handler(CallbackQueryHandler(button_game))
 
     # Errors

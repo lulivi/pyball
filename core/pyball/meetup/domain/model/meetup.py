@@ -89,6 +89,10 @@ class Meetup(Aggregate):
         self._players.append(id)
         self.trigger_event(self.PlayerWasAdded(self._id, id))
 
+    def remove_player(self, id: uuid.UUID) -> None:
+        self._players.remove(id)
+        self.trigger_event(self.PlayerWasRemoved(self._id, id))
+
     def create_teams(self) -> None:
         if self.team_count == 0:
             raise InvalidPlayerCountError()
@@ -108,6 +112,11 @@ class Meetup(Aggregate):
 
     @dataclass
     class PlayerWasAdded(Event):
+        meetup_id: uuid.UUID
+        player_id: uuid.UUID
+
+    @dataclass
+    class PlayerWasRemoved(Event):
         meetup_id: uuid.UUID
         player_id: uuid.UUID
 

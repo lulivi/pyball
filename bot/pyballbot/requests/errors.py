@@ -101,5 +101,18 @@ class PlayerIsAreadyCalled(AddPlayerToMeetupError):
         super().__init__(self.message)
 
 
+class RemovePlayerFromMeetupError(Exception):
+    """"""
+
+
+class PlayerIsNotCalled(RemovePlayerFromMeetupError):
+
+    def __init__(self, meetup_id: uuid.UUID, player_id: uuid.UUID) -> None:
+        self.meetup_id = meetup_id
+        self.player_id = player_id
+        self.message = f"The player `{player_id}` is not in the meetup `{meetup_id}`"
+        super().__init__(self.message)
+
+
 class CouldNotConnectToTheCore(Exception):
     """"""
