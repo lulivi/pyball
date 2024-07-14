@@ -4,15 +4,14 @@ import uuid
 
 from typing import Dict, List, Optional, Tuple, Union
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
-from pyball.meetup.application.remove_player_from_meetup import RemovePlayerFromMeetup
+from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from pyball.logger import log_func
 from pyball.meetup.application import errors as application_errors
 from pyball.meetup.application.add_player_to_meetup import AddPlayerToMeetup
 from pyball.meetup.application.create_meetup import CreateMeetup
+from pyball.meetup.application.remove_player_from_meetup import RemovePlayerFromMeetup
 from pyball.meetup.domain import errors as domain_errors
 from pyball.meetup.domain.model.meetup import Meetup, Team
 from pyball.meetup.infrastructure.get_meetup import GetMeetup
@@ -111,7 +110,7 @@ def get_error_info(
     return {"item": "date_time", "value": date_time}
 
 
-@router.post("", response_model=MeetupModelBaseInfo, status_code=201)
+@router.post("", response_model=MeetupModelBaseInfo, status_code=status.HTTP_201_CREATED)
 @log_func
 def create(args: MeetupModelBaseInfoNoId) -> MeetupModelBaseInfo:
     new_meetup_id = uuid.uuid4()
@@ -145,7 +144,7 @@ class ModifyPlayerModel(BaseModel):
     player_id: uuid.UUID
 
 
-@router.put("/add/player", status_code=204)
+@router.put("/add/player", status_code=status.HTTP_204_NO_CONTENT)
 @log_func
 def add_player(args: ModifyPlayerModel) -> None:
     try:
@@ -165,10 +164,10 @@ def add_player(args: ModifyPlayerModel) -> None:
             object="meetup", item="meetup_id", value=args.meetup_id
         ) from error
     except application_errors.PlayerIsAlreadyInMeetup as error:
-        raise PyballRedirectionNotModified(object="meetup")
+        raise PyballRedirectionNotModified()
 
 
-@router.put("/remove/player", status_code=204)
+@router.put("/remove/player", status_code=status.HTTP_204_NO_CONTENT)
 @log_func
 def remove_player(args: ModifyPlayerModel) -> None:
     try:
@@ -188,4 +187,4 @@ def remove_player(args: ModifyPlayerModel) -> None:
             object="meetup", item="meetup_id", value=args.meetup_id
         ) from error
     except application_errors.PlayerIsNotInMeetup as error:
-        raise PyballRedirectionNotModified(object="meetup")
+        raise PyballRedirectionNotModified(object="meetup", item="player")

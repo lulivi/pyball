@@ -1,4 +1,6 @@
 import datetime
+import functools
+import locale
 import uuid
 
 from typing import Dict, List, Optional, Tuple, Union, cast
@@ -17,8 +19,46 @@ from pyballbot.requests.errors import (
     PlayerIsNotCalled,
     RemovePlayerFromMeetupError,
 )
-from pyballbot.requests.types import Meetup, Player, Response
+from pyballbot.requests.types import DisplayMeetup, Meetup, Player, Response
 from pyballbot.requests.utils import BaseEndpoint, RequestMethod, get_response
+
+
+@log_func
+def get_display_meetup(id: uuid.UUID) -> DisplayMeetup:
+    meetup: Meetup = get_by(id=id)
+    id_player_translator = {}
+    display_meetup_players = []
+    display_meetup_teams = []
+
+    for player_id in meetup.players:
+        player = player_requests.get_by(id=player_id)
+        id_player_translator[player_id] = player
+        display_meetup_players.append(player)
+
+    for team in meetup.teams:
+        display_team = []
+        for player_id in team:
+            display_team.append(id_player_translator[player_id])
+        display_meetup_teams.append(
+            sorted(
+                display_team,
+                key=functools.cmp_to_key(
+                    lambda player_1, player_2: locale.strcoll(player_1.name, player_2.name)
+                ),
+            )
+        )
+
+    return DisplayMeetup(
+        date_time=meetup.date_time,
+        location=meetup.location,
+        players=sorted(
+            display_meetup_players,
+            key=functools.cmp_to_key(
+                lambda player_1, player_2: locale.strcoll(player_1.name, player_2.name)
+            ),
+        ),
+        teams=display_meetup_teams,
+    )
 
 
 @log_func
@@ -51,7 +91,7 @@ def _get(
             if id is not None:
                 raise MeetupIdDoesNotExist(id=id)
             raise MeetupDateTimeDoesNotExist(date_time=date_time)
-        raise MeetupQueryError(response.json["details"]["msg"])
+        raise MeetupQueryError(response.json["error"]["message"])
 
     if isinstance(response.json, list):
         return [Meetup.from_json(json_meetup) for json_meetup in response.json]
@@ -107,7 +147,7 @@ def add_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
         request_method=RequestMethod.PUT,
         base_endpoint=BaseEndpoint.MEETUPS,
         route=f"/add/player",
-        json={"meetup_id": meetup_id, "player_id": player_id},
+        json={"meetup_id": str(meetup_id), "player_id": str(player_id)},
     )
 
     if response.status != 204:
@@ -135,7 +175,7 @@ def remove_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
         request_method=RequestMethod.PUT,
         base_endpoint=BaseEndpoint.MEETUPS,
         route=f"/remove/player",
-        json={"meetup_id": meetup_id, "player_id": player_id},
+        json={"meetup_id": str(meetup_id), "player_id": str(player_id)},
     )
 
     if response.status != 204:

@@ -51,7 +51,7 @@ class PlayerSqlitoRepository(Players):
             player = PlayerModel.get(PlayerModel.id == id)
         except PlayerModel.DoesNotExist:
             return None
-        return Player(id=player.id, name=player.name)
+        return Player(id=player.id, name=player.name, main=player.main)
 
     @connection_wrapper(database=database)
     def get_by_name(self, name: str) -> Optional[Player]:
@@ -59,7 +59,7 @@ class PlayerSqlitoRepository(Players):
             player = PlayerModel.get(PlayerModel.name == name)
         except PlayerModel.DoesNotExist:
             return None
-        return Player(id=player.id, name=player.name)
+        return Player(id=player.id, name=player.name, main=player.main)
 
     @connection_wrapper(database=database)
     def update(self, player: Player) -> int:

@@ -57,7 +57,6 @@ logger = logging.getLogger(__name__)
 
 @log_func
 async def ask_date_time(update: Update, _: ContextTypes.DEFAULT_TYPE) -> CreateMeetupState:
-    """Starts the conversation and asks the user about their gender."""
     await bot_call_message_function(
         update.message.reply_text,
         "Por favor, selecciona la fecha y hora de la convocatoria o introdúcela a mano en el"
@@ -113,7 +112,7 @@ async def save_location_ask_team_sizes(update: Update, context: ContextTypes.DEF
     selected_location = update.message.text.strip()
 
     if selected_location in location_to_team_sizes:
-        return await save_meetup_(
+        return await save_meetup_request(
             reply_func=update.message.reply_text,
             date_time=context.chat_data["date_time"],
             location=selected_location,
@@ -152,7 +151,7 @@ async def save_meetup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
         return CreateMeetupState.SAVE_MEETUP
 
-    return await save_meetup_(
+    return await save_meetup_request(
         reply_func=update.message.reply_text,
         date_time=context.chat_data["date_time"],
         location=context.chat_data["location"],
@@ -164,7 +163,7 @@ def parse_team_sizes(string_team_sizes: str) -> Tuple[str, ...]:
     return tuple(int(size.strip()) for size in string_team_sizes.split(","))
 
 
-async def save_meetup_(
+async def save_meetup_request(
     reply_func: Callable, date_time: datetime.datetime, location: str, team_sizes: Tuple[int, ...]
 ) -> None:
     try:

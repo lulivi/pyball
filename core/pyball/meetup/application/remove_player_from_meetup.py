@@ -24,11 +24,7 @@ import uuid
 
 from typing import Optional
 
-from pyball.meetup.application.errors import (
-    MeetupIdNotFound,
-    PlayerIsNotInMeetup,
-    PlayerNotFound,
-)
+from pyball.meetup.application.errors import MeetupIdNotFound, PlayerIsNotInMeetup, PlayerNotFound
 from pyball.meetup.domain.meetups import Meetups
 from pyball.meetup.domain.model.meetup import Meetup
 from pyball.meetup.domain.player_checker import IPlayerChecker

@@ -28,7 +28,7 @@ from typing import cast
 
 import uvicorn
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from pyball import __version__
@@ -36,7 +36,7 @@ from pyball.logger import configure_logging, log_func
 from pyball.meetup.infrastructure import api as meetup_api
 from pyball.player.infrastructure import api as player_api
 from pyball.settings import APP_VERBOSITY
-from pyball.utils.api_exceptions import PyballClientError
+from pyball.utils.api_exceptions import BaseApiException
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +46,17 @@ app.include_router(player_api.router, tags=["player"])
 app.include_router(meetup_api.router, tags=["meetup"])
 
 
-@app.exception_handler(PyballClientError)
-async def unicorn_exception_handler(_: Request, exception: PyballClientError):
+@app.exception_handler(BaseApiException)
+async def unicorn_exception_handler(_: Request, exception: BaseApiException):
     logger.error(f"Sending exception: {exception.__class__.__name__}: {exception}")
-    return JSONResponse(
-        status_code=exception.status,
-        content={"error": {"message": exception.message, "item": exception.item}},
-    )
+    response = Response(status_code=exception.status)
+
+    if exception.message:
+        response = JSONResponse(
+            content={"error": {"message": exception.message, "item": exception.item}}
+        )
+
+    return response
 
 
 @log_func

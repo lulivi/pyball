@@ -32,6 +32,10 @@ LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 DATE_FORMAT: str = config("DATE_FORMAT", default="%d/%b/%Y")
 TIME_FORMAT: str = config("TIME_FORMAT", default="%H:%M")
 DATETIME_FORMAT: str = config("DATETIME_FORMAT", default=f"{DATE_FORMAT} {TIME_FORMAT}")
+DISPLAY_DATETIME_FORMAT: str = config(
+    "DISPLAY_DATETIME_FORMAT", default=f"%A {DATE_FORMAT} {TIME_FORMAT}"
+)
+DISPLAY_DATE_FORMAT_PATTERN: str = r"^\w+ \d{1,2}\/[a-zA-Z]{3}\/\d{4} \d{2}\:\d{2}$"
 BOT_TOKEN: str = config("BOT_TOKEN", default="")
 REGULARS_ID: int = config("REGULARS_ID", cast=int)
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)

@@ -29,7 +29,6 @@ def get_two_column_string_list_keyboard(string_list: List[str]) -> List[str]:
     return pair_list
 
 
-
 def command_ensure_admin(func):
     """Ensure the command is being executed by an admin."""
 
@@ -58,6 +57,7 @@ def is_admin_chat(chat_id: int) -> bool:
         return chat_id in ADMINS_IDS
 
     return False
+
 
 @log_func
 async def bot_call_message_function(

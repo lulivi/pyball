@@ -52,7 +52,7 @@ class PlayerTelegramIdAlreadyInUse(Exception):
         super().__init__(self.message)
 
 
-class TelegramPlayerTranslatorService:
+class PlayerToTelegramIdTranslatorService:
     @connection_wrapper(database=database)
     def __init__(self) -> None:
         TelegramPlayerTranslator.create_table(safe=True)

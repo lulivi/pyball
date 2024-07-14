@@ -7,6 +7,7 @@ from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from pyballbot.commands.finish_conversation import finish_conversation
+from pyballbot.commands.utils import update_meetup_messages
 from pyballbot.logger import log_func
 from pyballbot.requests import meetup as meetup_requests
 from pyballbot.requests import player as player_requests
@@ -18,6 +19,7 @@ from pyballbot.requests.errors import (
     RemovePlayerFromMeetupError,
 )
 from pyballbot.requests.types import Meetup, Player
+from pyballbot.settings import DISPLAY_DATETIME_FORMAT
 from pyballbot.utils import bot_call_message_function, get_two_column_string_list_keyboard
 
 
@@ -33,10 +35,9 @@ logger = logging.getLogger(__name__)
 async def ask_meetup_date_time(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> RemovePlayerFromMeetupState:
-    """Starts the conversation and asks the user about their gender."""
     try:
         meetups = {
-            meetup.date_time.strftime("%A %d/%b/%Y %H:%M"): meetup
+            meetup.date_time.strftime(DISPLAY_DATETIME_FORMAT): meetup
             for meetup in meetup_requests.get_all()
         }
     except CouldNotConnectToTheCore as error:
@@ -46,7 +47,7 @@ async def ask_meetup_date_time(
 
     if not meetups:
         return await finish_conversation(
-            update.message.reply_text, "There is no opened meetup. Please create one first."
+            update.message.reply_text, "There are no opened meetups. Please create one first."
         )
 
     context.chat_data["meetups"] = meetups
@@ -131,6 +132,13 @@ async def remove_player_from_meetup(update: Update, context: ContextTypes.DEFAUL
             update.message.reply_text, f"There is a problem contacting Pyball core: {error}"
         )
 
+    # TODO: event?
+    await update_meetup_messages(
+        meetup_id=meetup.id,
+        send_message_func=context.bot.send_message,
+        edit_message_func=context.bot.edit_message_text,
+    )
+
     return await finish_conversation(
         update.message.reply_text, "The player was removed from the meetup."
     )
@@ -139,4 +147,6 @@ async def remove_player_from_meetup(update: Update, context: ContextTypes.DEFAUL
 @log_func
 async def cancel_player_removal(update: Update, _: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
-    return await finish_conversation(update.message.reply_text, "Player removal from meetup cancelled.")
+    return await finish_conversation(
+        update.message.reply_text, "Player removal from meetup cancelled."
+    )

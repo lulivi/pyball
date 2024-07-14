@@ -4,12 +4,10 @@ from enum import Enum, auto
 from typing import List
 
 from telegram import ReplyKeyboardMarkup, Update
-from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from pyballbot.commands.finish_conversation import finish_conversation
 from pyballbot.logger import log_func
-from pyballbot.player_telegram_uuid_translator import PlayerTelegramIdAlreadyInUse
 from pyballbot.requests import player as player_requests
 from pyballbot.requests.errors import (
     CouldNotConnectToTheCore,
@@ -32,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 @log_func
 async def ask_player_name(update: Update, _: ContextTypes.DEFAULT_TYPE) -> RenamePlayerState:
-    """Starts the conversation and asks the user about their gender."""
     all_players: List[Player] = sorted(player.name for player in player_requests.get_all())
     print("All players:", all_players)
 
@@ -53,7 +50,6 @@ async def ask_player_name(update: Update, _: ContextTypes.DEFAULT_TYPE) -> Renam
 async def save_current_name_ask_new_name(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> RenamePlayerState:
-    """Starts the conversation and asks the user about their gender."""
     context.chat_data["current_name"] = update.message.text.strip()
 
     await bot_call_message_function(

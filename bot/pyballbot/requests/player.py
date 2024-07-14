@@ -3,7 +3,7 @@ import uuid
 
 from typing import Dict, List, Optional, Union, cast
 
-from pyballbot import player_telegram_uuid_translator as translator
+from pyballbot import player_telegram_id_translator as translator
 from pyballbot.logger import log_func
 from pyballbot.requests.errors import (
     PlayerCreationError,
@@ -49,7 +49,7 @@ def _get(
             if id is not None:
                 raise PlayerIdDoesNotExist(id=id)
             raise PlayerNameDoesNotExist(name=name)
-        raise PlayerQueryError(response.json["details"]["msg"])
+        raise PlayerQueryError(response.json["error"]["message"])
 
     if isinstance(response.json, list):
         return [Player.from_json(json_player) for json_player in response.json]
@@ -68,12 +68,12 @@ def get_params(id: Optional[uuid.UUID], name: Optional[str] = None) -> Optional[
 
 
 @log_func
-def create(name: str, telegram_id: str) -> None:
+def create(name: str, telegram_id: str, main: bool) -> None:
     response: Response = get_response(
         request_method=RequestMethod.POST,
         base_endpoint=BaseEndpoint.PLAYERS,
         route="",
-        json={"name": name},
+        json={"name": name, "main": main},
     )
 
     if response.status != 201:
@@ -84,16 +84,18 @@ def create(name: str, telegram_id: str) -> None:
     player_id: uuid.UUID = response.json["id"]
 
     try:
-        translator.TelegramPlayerTranslatorService().save(id=player_id, telegram_id=telegram_id)
+        translator.PlayerToTelegramIdTranslatorService().save(
+            id=player_id, telegram_id=telegram_id
+        )
     except translator.PlayerTelegramIdAlreadyInUse as error:
         conflicted_player_id: (
             uuid.UUID
-        ) = translator.TelegramPlayerTranslatorService().translate_telegram_id(
+        ) = translator.PlayerToTelegramIdTranslatorService().translate_telegram_id(
             telegram_id=telegram_id
         )
 
         try:
-            player: Player = _get(id=conflicted_player_id)
+            player: Player = get_by(id=conflicted_player_id)
         except PlayerIdDoesNotExist as error:
             raise PlayerCreationError(
                 f"The Telegram ID `{telegram_id}` is already bounded to a player that does not"
@@ -109,7 +111,7 @@ def create(name: str, telegram_id: str) -> None:
 
 @log_func
 def rename(current_name: str, new_name: str) -> None:
-    player: Player = _get(name=current_name)
+    player: Player = get_by(name=current_name)
 
     response: Response = get_response(
         request_method=RequestMethod.PUT,

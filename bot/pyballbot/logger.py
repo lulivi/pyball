@@ -24,7 +24,6 @@ import functools
 import logging
 import logging.handlers
 
-from pathlib import Path
 from typing import Any, Callable, TypeVar, cast
 
 from pyballbot.settings import LOGS_DIRECTORY_PATH

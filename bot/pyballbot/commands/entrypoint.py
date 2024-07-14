@@ -20,11 +20,17 @@
 
 """Bot to help organize game call-ups."""
 
-import locale
 import logging
 import sys
 
-from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from pyballbot.commands import meetup as meetup_commands
 from pyballbot.commands import player as player_commands
@@ -32,11 +38,9 @@ from pyballbot.commands.error_handler import command_error
 from pyballbot.commands.help import command_help
 from pyballbot.commands.version import command_version
 from pyballbot.commands.wrong_chat import wrong_chat
-from pyballbot.settings import ADMINS_IDS, BOT_TOKEN, LOCALE, REGULARS_ID
+from pyballbot.settings import ADMINS_IDS, BOT_TOKEN, DISPLAY_DATE_FORMAT_PATTERN, REGULARS_ID
 from pyballbot.utils import enum_as_regex
 
-# Set locale for sorting player names
-locale.setlocale(locale.LC_ALL, LOCALE)
 logger = logging.getLogger(__name__)
 
 
@@ -89,9 +93,15 @@ def build_application() -> Application:
                         callback=player_commands.create.save_player_name_ask_telegram_id,
                     )
                 ],
-                player_commands.create.CreatePlayerState.SAVE_PLAYER: [
+                player_commands.create.CreatePlayerState.ENTER_PLAYER_ROLE: [
                     MessageHandler(
                         filters=filters.Regex(r"\d+") & filters_base_conversations,
+                        callback=player_commands.create.save_telegram_id_ask_role,
+                    )
+                ],
+                player_commands.create.CreatePlayerState.SAVE_PLAYER: [
+                    MessageHandler(
+                        filters=filters.TEXT & filters_base_conversations,
                         callback=player_commands.create.save_player,
                     )
                 ],
@@ -142,7 +152,7 @@ def build_application() -> Application:
                         filters=(
                             filters.Regex(
                                 f"^({enum_as_regex(meetup_commands.create.NewMeetupDateTime)}|"
-                                r"\d{1,2}\/[a-zA-Z]{3}\/\d{4} \d{2}\:\d{2})$"
+                                f"{DISPLAY_DATE_FORMAT_PATTERN})$"
                             )
                             & filters_base_conversations
                         ),
@@ -169,6 +179,27 @@ def build_application() -> Application:
         ConversationHandler(
             entry_points=[
                 CommandHandler(
+                    "meetup_display",
+                    meetup_commands.display.ask_meetup_date_time,
+                    filters=filter_admin_users,
+                )
+            ],
+            states={
+                meetup_commands.display.DisplayMeetupState.DISPLAY_MEETUP: [
+                    MessageHandler(
+                        filters=filters.Regex(DISPLAY_DATE_FORMAT_PATTERN)
+                        & filters_base_conversations,
+                        callback=meetup_commands.display.display_meetup,
+                    )
+                ],
+            },
+            fallbacks=[CommandHandler("cancel", meetup_commands.display.cancel_meetup_display)],
+        )
+    )
+    application.add_handler(
+        ConversationHandler(
+            entry_points=[
+                CommandHandler(
                     "meetup_add_player",
                     meetup_commands.add_player.ask_meetup_date_time,
                     filters=filter_admin_users,
@@ -177,7 +208,8 @@ def build_application() -> Application:
             states={
                 meetup_commands.add_player.AddPlayerToMeetupState.ASK_PLAYER_NAME: [
                     MessageHandler(
-                        filters=filters.TEXT & filters_base_conversations,
+                        filters=filters.Regex(DISPLAY_DATE_FORMAT_PATTERN)
+                        & filters_base_conversations,
                         callback=meetup_commands.add_player.save_meetup_date_time_ask_player_name,
                     )
                 ],
@@ -205,7 +237,8 @@ def build_application() -> Application:
             states={
                 meetup_commands.remove_player.RemovePlayerFromMeetupState.ASK_PLAYER_NAME: [
                     MessageHandler(
-                        filters=filters.TEXT & filters_base_conversations,
+                        filters=filters.Regex(DISPLAY_DATE_FORMAT_PATTERN)
+                        & filters_base_conversations,
                         callback=meetup_commands.remove_player.save_meetup_date_time_ask_player_name,
                     )
                 ],
@@ -221,7 +254,30 @@ def build_application() -> Application:
             ],
         )
     )
-    # application.add_handler(CallbackQueryHandler(button_game))
+    application.add_handler(
+        ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "meetup_search_substitutes",
+                    meetup_commands.search_substitutes.ask_meetup_date_time,
+                    filters=filter_admin_users,
+                )
+            ],
+            states={
+                meetup_commands.search_substitutes.SearchSubstitutesState.DISPLAY_MEETUP: [
+                    MessageHandler(
+                        filters=filters.Regex(DISPLAY_DATE_FORMAT_PATTERN)
+                        & filters_base_conversations,
+                        callback=meetup_commands.search_substitutes.send_search,
+                    )
+                ],
+            },
+            fallbacks=[
+                CommandHandler("cancel", meetup_commands.search_substitutes.cancel_meetup_search)
+            ],
+        )
+    )
+    application.add_handler(CallbackQueryHandler(meetup_commands.handle_button.handle))
 
     # Errors
     application.add_handler(

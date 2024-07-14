@@ -10,23 +10,19 @@ class PyballRedirection(BaseApiException):
     def __init__(
         self, status: int = 300, message: str = "Unknown redirection", item: str = "unknown"
     ):
-        self.status = status
-        self.message = message
-        self.item = item
-        super().__init__(self.message)
+        super().__init__(status=status, message=message, item=item)
 
 
 class PyballRedirectionNotModified(PyballRedirection):
-    def __init__(self, object: str, item: str) -> None:
-        super().__init__(status=304, message=f"The {object} was not modified")
+    def __init__(self) -> None:
+        super().__init__(status=304, message="", item="")
 
 
-class PyballClientError(Exception):
-    def __init__(self, status: int = 400, message: str = "Unknown error", item: str = "unknown"):
-        self.status = status
-        self.message = message
-        self.item = item
-        super().__init__(self.message)
+class PyballClientError(BaseApiException):
+    def __init__(
+        self, status: int = 400, message: str = "Unknown client error", item: str = "unknown"
+    ):
+        super().__init__(status=status, message=message, item=item)
 
 
 class PyballClientNotFound(PyballClientError):

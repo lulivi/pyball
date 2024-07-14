@@ -21,6 +21,7 @@
 """Bot main file."""
 
 import argparse
+import locale
 import logging
 
 from typing import cast
@@ -30,7 +31,7 @@ from telegram.ext import Application
 from pyballbot import __version__
 from pyballbot.commands.entrypoint import build_application
 from pyballbot.logger import configure_logging
-from pyballbot.settings import APP_VERBOSITY
+from pyballbot.settings import APP_VERBOSITY, LOCALE
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,9 @@ def main() -> None:
     configure_logging(stream_level=args.verbosity)
 
     log_startup_info()
+
+    # Set locale for sorting player names
+    locale.setlocale(locale.LC_ALL, LOCALE)
 
     application: Application
     application = build_application()

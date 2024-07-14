@@ -1,8 +1,13 @@
 import datetime
+import logging
 import uuid
 
 from dataclasses import dataclass
 from typing import Any, List, Tuple
+
+from pyballbot.settings import DISPLAY_DATETIME_FORMAT
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -45,3 +50,39 @@ class Player:
             name=json_player["name"],
             main=json_player["main"],
         )
+
+
+@dataclass
+class DisplayMeetup:
+    date_time: datetime.datetime
+    location: str
+    players: List[Player]
+    teams: List[List[Player]]
+
+    def to_string(self, classified: bool = False) -> str:
+        message = (
+            f"Fecha: {self.date_time.strftime(DISPLAY_DATETIME_FORMAT)}\nLocalización:"
+            f" {self.location}"
+        )
+
+        if self.players:
+            message = f"{message}\n\nAsistentes:"
+            for player in self.players:
+                string_player = player.name
+                if player.main and classified:
+                    string_player = "?????"
+                message = f"{message}\n- {string_player}"
+
+        if self.teams:
+            message = f"{message}\n\nEquipos:"
+            team_number = 0
+            for team in self.teams:
+                message = f"{message}\n- Equipo {team_number}:"
+                for player in team:
+                    string_player = player.name
+                    if player.main and classified:
+                        string_player = "?????"
+                    message = f"{message}\n  - {string_player}"
+                team_number += 1
+
+        return message
