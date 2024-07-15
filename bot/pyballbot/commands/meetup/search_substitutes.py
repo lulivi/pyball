@@ -49,6 +49,7 @@ async def ask_meetup_date_time(
     )
     return SearchSubstitutesState.DISPLAY_MEETUP
 
+
 @log_func
 async def send_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     meetup: Meetup = context.chat_data["meetups"][update.message.text.strip()]

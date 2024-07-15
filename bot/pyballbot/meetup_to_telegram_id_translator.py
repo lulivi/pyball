@@ -33,7 +33,9 @@ class MeetupToTelegramIdTranslator:
         except KeyError as error:
             raise MeetupIdNotFound(id=meetup_id) from error
 
-    def save(self, meetup_id: uuid.UUID, regulars_id: int, substitutes_id: Optional[int] = None) -> None:
+    def save(
+        self, meetup_id: uuid.UUID, regulars_id: int, substitutes_id: Optional[int] = None
+    ) -> None:
         saved_file_contents: Dict[str, MeetupMessagesIds] = json.loads(self._json_file.read_text())
         saved_file_contents[str(meetup_id)] = MeetupMessagesIds(
             regulars_id=regulars_id, substitutes_id=substitutes_id

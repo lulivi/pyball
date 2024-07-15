@@ -24,11 +24,11 @@ class PlayerRole(Enum):
     REGULAR_PLAYER = "Player of the main team"
     SUBSTITUTE_PLAYER = "Substitute player"
 
+
 player_role_to_bool: Dict[str, bool] = {
     PlayerRole.REGULAR_PLAYER.value: True,
-    PlayerRole.SUBSTITUTE_PLAYER.value: False
+    PlayerRole.SUBSTITUTE_PLAYER.value: False,
 }
-
 
 
 logger = logging.getLogger(__name__)

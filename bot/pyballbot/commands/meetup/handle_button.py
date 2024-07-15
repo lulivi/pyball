@@ -2,7 +2,6 @@ import datetime
 import logging
 import uuid
 
-from pyballbot.requests.errors import PlayerIsAreadyCalled
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -14,6 +13,7 @@ from pyballbot.commands.utils import (
 )
 from pyballbot.logger import log_func
 from pyballbot.requests import meetup as meetup_requests
+from pyballbot.requests.errors import PlayerIsAreadyCalled
 from pyballbot.requests.types import Meetup
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         ) = translator.PlayerToTelegramIdTranslatorService().translate_telegram_id(
             telegram_id=str(update.effective_user.id)
         )
-    except translator.PlayerTelegramIdNotFound as error:
+    except translator.PlayerTelegramIdNotFound:
         await send_message_to_admins(
             message_function=context.bot.send_message,
             text=(
@@ -50,7 +50,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     meetup: Meetup = meetup_requests.get_by(date_time=meetup_date_time)
 
-    query_answer = "Nothing has been done."
+    query_answer = "There was an error. Please contact with an administrator."
 
     logger.warning(f"Meetup players: {meetup.players}")
     logger.warning(f"Player ID: {player_id}")
