@@ -36,6 +36,7 @@ from pyballbot.commands import meetup as meetup_commands
 from pyballbot.commands import player as player_commands
 from pyballbot.commands.error_handler import command_error
 from pyballbot.commands.help import command_help
+from pyballbot.commands.utils import INLINE_KEYBOARD_JOIN_LEAVE_MEETUP
 from pyballbot.commands.version import command_version
 from pyballbot.commands.wrong_chat import wrong_chat
 from pyballbot.settings import ADMINS_IDS, BOT_TOKEN, DISPLAY_DATE_FORMAT_PATTERN, REGULARS_ID
@@ -277,7 +278,12 @@ def build_application() -> Application:
             ],
         )
     )
-    application.add_handler(CallbackQueryHandler(meetup_commands.handle_button.handle))
+    application.add_handler(
+        CallbackQueryHandler(
+            meetup_commands.handle_join_leave_button.handle,
+            pattern=INLINE_KEYBOARD_JOIN_LEAVE_MEETUP,
+        )
+    )
 
     # Errors
     application.add_handler(
