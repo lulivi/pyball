@@ -533,6 +533,7 @@ def player_reid(reid_list: List[str], **_: dict) -> str:
 async def callup_new(
     max_players: Optional[int],
     location: Optional[str],
+    team_names: Optional[str],
     date: datetime.datetime,
     chat_id: int,
     context: ContextTypes.DEFAULT_TYPE,
@@ -566,6 +567,10 @@ async def callup_new(
         location=location,
         fixed_player_number=max_players,
     )
+
+    if team_names:
+        team_name_list = [name.strip() for name in team_names.split(",")]
+        call_up.save_team_names(team_names=team_name_list)
 
     await update_call_up_message(call_up=call_up, context=context)
 

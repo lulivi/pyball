@@ -403,6 +403,13 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             dest="location",
                         ),
                         CommandArgument(
+                            "-t",
+                            metavar="<team name>, <team name>, <team name>",
+                            help="A coma separated list of team names",
+                            default=None,
+                            dest="team_names",
+                        ),
+                        CommandArgument(
                             "date",
                             metavar="DD/MMM/YYY",
                             help="Date of the match. E.g.: 10/oct/2023",

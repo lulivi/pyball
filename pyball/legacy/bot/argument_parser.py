@@ -121,8 +121,8 @@ class ComaSeparatedMultiWordStringsAction(
 
     def __call__(self, _, namespace, values, __=None) -> None:
         """Set the player name."""
-        players = " ".join(values).split(",")
-        setattr(namespace, self.dest, list(filter(None, [player.strip() for player in players])))
+        elements = " ".join(values).split(",")
+        setattr(namespace, self.dest, list(filter(None, [element.strip() for element in elements])))
 
 
 class CommandParser(argparse.ArgumentParser):

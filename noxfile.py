@@ -119,7 +119,7 @@ def format(session: nox.Session):
 @nox.session
 def build(session: nox.Session) -> None:
     """Build the Python wheel."""
-    session.run("rm", "-r", "dist/", external=True)
+    session.run("rm", "-rf", str(ROOT_DIRECTORY.joinpath("dist")), external=True)
     session.run("poetry", "build", "-f", "wheel", external=True)
 
 
@@ -129,14 +129,12 @@ def docker_build(session: nox.Session) -> Tuple[str, str]:
     build(session=session)
     image_tag = (
         session.run_always(
-            "git",
-            "describe",
-            "--tags",
-            "--abbrev=0",
+            "poetry",
+            "version",
             external=True,
             silent=True,
         )
-        .replace("v", "")
+        .split()[-1]
         .strip()
     )
     image_name = "lulivi/pyball"

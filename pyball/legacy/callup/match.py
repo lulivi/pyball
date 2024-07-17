@@ -42,6 +42,8 @@ from pyball.legacy.db.utils import add_match_results, get_results_names
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TEAM_NAMES: List[str] = ["Verde", "Naranja", "Sin Peto"]
+
 
 class PlayersStatInput:
     """Player match stats."""
@@ -156,15 +158,17 @@ class Team:
 class Match:
     """Necessary information involving a match.
 
-    :cvar team_names: Common team names to match for each team.
+    :cvar _team_names: Common team names to match for each team.
     :ivar _teams: Resulting teams.
 
     """
 
-    __slots__ = ["_teams", "_finished"]
-    team_names: Tuple[str, str, str] = ("Verde", "Naranja", "Sin Peto")
+    __slots__ = ["_teams", "_finished", "_team_names"]
 
-    def __init__(self) -> None:
+    def __init__(self, team_names: Optional[List[str]] = None) -> None:
+        self._team_names: List[str] = (
+            team_names if team_names is not None and len(team_names) > 1 else DEFAULT_TEAM_NAMES
+        )
         self._teams: Dict[str, Team] = {}
         self._finished: bool = False
 
@@ -190,7 +194,11 @@ class Match:
         self._teams = teams
 
     @staticmethod
-    def auto_create(players: Players, teams_number: Optional[int] = None) -> "Match":
+    def auto_create(
+        players: Players,
+        teams_number: Optional[int] = None,
+        team_names: Optional[List[str]] = None,
+    ) -> "Match":
         """Create the teams automaticaly from a player list.
 
         :param players: The Players object.
@@ -200,7 +208,7 @@ class Match:
         """
         if teams_number is not None and teams_number == 3:
             raise CallUpMatchTooManyTeamsForResults()
-        match = Match()
+        match = Match(team_names=team_names)
         match.create_teams(players, teams_number)
         return match
 
@@ -256,7 +264,7 @@ class Match:
         :param teams_number: Number of teams to create.
 
         """
-        self._teams = {team_name: Team() for team_name in self.team_names[:teams_number]}
+        self._teams = {team_name: Team() for team_name in self._team_names[:teams_number]}
         iterator = iter(sorted(players.players, key=lambda p: p.skill, reverse=True))
         zip_iters = [iterator] * teams_number
 
@@ -275,8 +283,8 @@ class Match:
         swapping the ``i`` item between the two lists, if the skill sum of each team is closser.
 
         """
-        for index in range(len(self._teams[self.team_names[0]])):
-            team_1, team_2 = self._teams[self.team_names[0]], self._teams[self.team_names[1]]
+        for index in range(len(self._teams[self._team_names[0]])):
+            team_1, team_2 = self._teams[self._team_names[0]], self._teams[self._team_names[1]]
 
             diff1 = abs(team_1.skill - team_2.skill)
             team_1[index], team_2[index] = team_2[index], team_1[index]
@@ -284,11 +292,11 @@ class Match:
 
             if diff2 < diff1:
                 (
-                    self._teams[self.team_names[0]][index],
-                    self._teams[self.team_names[1]][index],
+                    self._teams[self._team_names[0]][index],
+                    self._teams[self._team_names[1]][index],
                 ) = (
-                    self._teams[self.team_names[1]][index],
-                    self._teams[self.team_names[0]][index],
+                    self._teams[self._team_names[1]][index],
+                    self._teams[self._team_names[0]][index],
                 )
 
     def swap_players(self, first_player: Union[str, int], second_player: Union[str, int]) -> None:
@@ -369,9 +377,10 @@ class Match:
                     )
                 )
 
-        team_0_names = [p.id for p in self._teams[self.team_names[0]].players]
+        team_0_names = [p.id for p in self._teams[self._team_names[0]].players]
         team_0_result, team_1_result = get_results_names(
-            self._teams[self.team_names[0]].score or 0, self._teams[self.team_names[1]].score or 0
+            self._teams[self._team_names[0]].score or 0,
+            self._teams[self._team_names[1]].score or 0,
         )
         for stat in match_statistics:
             stat.set_result(team_0_result if stat.player in team_0_names else team_1_result)

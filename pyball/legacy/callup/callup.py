@@ -21,10 +21,11 @@
 """Call-up object."""
 
 import datetime
+import json
 import logging
 
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import yaml
 
@@ -39,7 +40,7 @@ from pyball.legacy.callup.errors import (
 )
 from pyball.legacy.callup.match import Match, PlayersStatInput
 from pyball.legacy.callup.players import Players
-from pyball.settings import DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
+from pyball.settings import DATA_DIRECTORY_PATH, DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
 
 logger = logging.getLogger(__name__)
 
@@ -78,19 +79,16 @@ class CallUp:  # pylint: disable=too-many-public-methods
     :ivar _main_chat: Info about the main chat post.
     :ivar _subs_chat: Info about the substitutes chat post.
     :ivar _players: Object containing the list of players.
-    :cvar _actions: Dictionary containing the two actions for a player to do in
-        a call-up.
     :ivar _match: Object containing the teams of the call-up.
 
     """
 
     __slots__ = [
         "_date",
-        "_location",
         "_main_chat",
         "_subs_chat",
+        "_location",
         "_players",
-        "_actions",
         "_match",
     ]
 
@@ -173,6 +171,28 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
         """
         return self._subs_chat
+
+    def save_team_names(self, team_names: List[str]) -> None:
+        callup_teams_file = DATA_DIRECTORY_PATH.joinpath("callup-teams.json")
+
+        if not callup_teams_file.exists():
+            callup_teams_file.write_text("{}")
+
+        callup_teams: Dict[str, List[str]] = json.loads(callup_teams_file.read_text())
+
+        callup_teams[self._date.isoformat()] = team_names
+
+        callup_teams_file.write_text(json.dumps(callup_teams))
+
+    def _load_team_names(self) -> Optional[List[str]]:
+        callup_teams_file = DATA_DIRECTORY_PATH.joinpath("callup-teams.json")
+
+        if not callup_teams_file.exists():
+            return None
+
+        callup_teams: Dict[str, List[str]] = json.loads(callup_teams_file.read_text())
+
+        return callup_teams.get(self._date.isoformat())
 
     def act(self, player: Union[str, int]) -> str:
         """Act depending on the player action.
@@ -259,7 +279,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
     def create_match(self) -> None:
         """Create a new match."""
-        self._match = Match.auto_create(self._players)
+        self._match = Match.auto_create(self._players, team_names=self._load_team_names())
 
     def set_results(self, results: PlayersStatInput) -> None:
         """Introduce the results of the match.
