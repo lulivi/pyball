@@ -27,6 +27,7 @@ from decouple import AutoConfig, Csv
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
+
 APP_VERBOSITY: str = config("PYBALL_VERBOSITY", default="INFO")
 LOCALE: str = config("LOCALE", default="es_ES.UTF-8")
 DATE_FORMAT: str = config("DATE_FORMAT", default="%d/%b/%Y")

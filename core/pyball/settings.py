@@ -39,8 +39,3 @@ DATA_DIRECTORY_PATH: Path = config(
     default=APP_ROOT_DIR.joinpath("data", "core"),
 )
 DATA_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
-DATABASE_FILE_PATH: Path = config(
-    "DATABASE_FILE_PATH",
-    cast=Path,
-    default=DATA_DIRECTORY_PATH.joinpath("pyball.db"),
-)
