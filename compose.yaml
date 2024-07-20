@@ -1,6 +1,6 @@
 services:
   core:
-    image: pyball
+    image: lulivi/pyball
     user: "$UID:$UID"
     build:
       dockerfile: ./docker/Dockerfile
@@ -17,7 +17,7 @@ services:
     volumes:
       - .:/pyball
   bot:
-    image: pyballbot
+    image: lulivi/pyballbot
     user: "$UID:$UID"
     build:
       dockerfile: ./docker/Dockerfile

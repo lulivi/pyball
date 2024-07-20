@@ -24,7 +24,13 @@ logger = logging.getLogger(__name__)
 INLINE_KEYBOARD_JOIN_LEAVE_MEETUP = "join/leave"
 
 MEETUP_TELEGRAM_INLINE_KEYBOARD: InlineKeyboardMarkup = InlineKeyboardMarkup(
-    [[InlineKeyboardButton("Apuntarme / Desapuntarme", callback_data=INLINE_KEYBOARD_JOIN_LEAVE_MEETUP)]]
+    [
+        [
+            InlineKeyboardButton(
+                "Apuntarme / Desapuntarme", callback_data=INLINE_KEYBOARD_JOIN_LEAVE_MEETUP
+            )
+        ]
+    ]
 )
 
 

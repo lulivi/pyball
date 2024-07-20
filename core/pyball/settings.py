@@ -26,16 +26,19 @@ from decouple import AutoConfig
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
+
+COMPONENT: str = "core"
 APP_VERBOSITY: str = config("PYBALL_VERBOSITY", default="INFO")
+
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",
     cast=Path,
-    default=APP_ROOT_DIR.joinpath("logs", "core"),
+    default=APP_ROOT_DIR.joinpath("logs", COMPONENT),
 )
 LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
 DATA_DIRECTORY_PATH: Path = config(
     "DATA_DIRECTORY_PATH",
     cast=Path,
-    default=APP_ROOT_DIR.joinpath("data", "core"),
+    default=APP_ROOT_DIR.joinpath("data", COMPONENT),
 )
 DATA_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)

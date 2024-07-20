@@ -1,23 +1,23 @@
 # PyBall Manager
 
-Telegram bot helper.
+PyBall consists in two main applications:
+
+- Core
+- Bot
+
+The core holds the main functionality: manage players (create, delete, modify),
+manage meetups (create, delete, add players, remove players, create matches).
+The bot component serves as a wrapper of the core in Telegram.
 
 ## Usage
 
-First rename the [`sample.env`](./sample.env) file to `.env` and fill it in with
-the proper values.
+Run `make setup` to rename the [`sample.env`](./sample.env) file to `.env`. Then
+fill it in with the proper values.
 
-Then install the package with `poetry`:
-
-```bash
-pip3 install poetry==1.2.1
-poetry install
-```
-
-And run the bot!
+Now just run:
 
 ```bash
-poetry run pyball
+make up
 ```
 
 ## License
