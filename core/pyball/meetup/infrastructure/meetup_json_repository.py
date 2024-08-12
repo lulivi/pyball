@@ -7,6 +7,7 @@ from typing import List, Optional
 from pyball.meetup.domain.meetups import Meetups
 from pyball.meetup.domain.model.meetup import Meetup
 from pyball.settings import DATA_DIRECTORY_PATH
+from pyball.utils.event_bus import PyBallEventBus
 
 
 class MeetupJsonRepository(Meetups):
@@ -34,6 +35,9 @@ class MeetupJsonRepository(Meetups):
             }
         )
         self._json_file.write_text(json.dumps(saved_file_contents, indent=4))
+
+        for event in meetup.consume_events():
+            PyBallEventBus.emit(event)
 
     def all(self) -> List[Meetup]:
         saved_file_contents: List[dict] = json.loads(self._json_file.read_text())

@@ -11,7 +11,7 @@ class CreateMatch:
     def __init__(self, match_repository: Matches) -> None:
         self._matches = match_repository
 
-    def create(
+    def execute(
         self,
         match_id: uuid.UUID,
         meetup_id: uuid.UUID,

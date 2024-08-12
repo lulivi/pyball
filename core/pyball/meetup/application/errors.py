@@ -62,6 +62,10 @@ class PlayerIsNotInMeetup(Exception):
         super().__init__(self.message)
 
 
+class InvalidPlayerCount(Exception):
+    """"""
+
+
 class PlayerNotFound(Exception):
     """The player was not found meetup."""
 

@@ -18,7 +18,7 @@ class TestMatch(TestCase):
         fake_match_repository = FakeMatchRepository()
 
         # Act
-        CreateMatch(fake_match_repository).create(
+        CreateMatch(fake_match_repository).execute(
             match_id,
             meetup_id,
             local_team,
@@ -41,7 +41,7 @@ class TestMatch(TestCase):
         local_team = [uuid.uuid4() for _ in range(5)]
         visiting_team = [uuid.uuid4() for _ in range(5)]
         fake_match_repository = FakeMatchRepository()
-        CreateMatch(fake_match_repository).create(
+        CreateMatch(fake_match_repository).execute(
             match_id,
             meetup_id,
             local_team,

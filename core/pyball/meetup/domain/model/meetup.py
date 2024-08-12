@@ -81,6 +81,9 @@ class Meetup(Aggregate):
 
         return 0
 
+    def player_count_is_valid(self) -> bool:
+        return self.team_count > 0
+
     @property
     def teams(self) -> List[Team]:
         return self._teams
