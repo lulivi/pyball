@@ -21,11 +21,11 @@
 """Call-up object."""
 
 import datetime
-import json
 import logging
 
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import yaml
 
@@ -36,11 +36,15 @@ from pyball.legacy.callup.errors import (
     CallUpMatchAlreadyFinishedError,
     CallUpMatchNotYetCreatedError,
     CallUpPlayerAlreadyCalledUpError,
-    CallUpWrongFormatError,
 )
 from pyball.legacy.callup.match import Match, PlayersStatInput
 from pyball.legacy.callup.players import Players
-from pyball.settings import DATA_DIRECTORY_PATH, DEFAULT_MATCH_LOCATION, SUBSTITUTES_ID
+from pyball.settings import (
+    DATETIME_DISPLAY_FORMAT,
+    DEFAULT_MATCH_LOCATION,
+    REGULARS_ID,
+    SUBSTITUTES_ID,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +66,13 @@ class CallUpParams(TypedDict):  # pylint: disable=too-few-public-methods
     """All call-up parametters."""
 
     date: datetime.datetime
-    main_chat_id: int
     main_chat_msg: int
     subs_chat_msg: NotRequired[Optional[int]]
     location: NotRequired[Optional[str]]
     fixed_player_number: NotRequired[Optional[int]]
     players: NotRequired[Optional[Players]]
     match: NotRequired[Optional[Match]]
+    team_names: NotRequired[List[str]]
 
 
 class CallUp:  # pylint: disable=too-many-public-methods
@@ -89,34 +93,38 @@ class CallUp:  # pylint: disable=too-many-public-methods
         "_subs_chat",
         "_location",
         "_players",
+        "_fixed_player_number",
         "_match",
+        "_team_names",
     ]
 
     def __init__(self, **kwargs: Unpack[CallUpParams]) -> None:
         self._date: datetime.datetime = kwargs["date"]
-        self._main_chat: ChatInfo = ChatInfo(kwargs["main_chat_id"], kwargs["main_chat_msg"])
+        self._main_chat: ChatInfo = ChatInfo(REGULARS_ID, kwargs["main_chat_msg"])
         self._subs_chat: ChatInfo = ChatInfo(SUBSTITUTES_ID, kwargs.get("subs_chat_msg"))
         self._location: str = kwargs.get("location") or DEFAULT_MATCH_LOCATION
         self._players: Players = kwargs.get("players") or Players(
             maximum=kwargs.get("fixed_player_number")
         )
+        self._fixed_player_number = kwargs.get("fixed_player_number")
         self._match: Optional[Match] = kwargs.get("match")
+        self._team_names: Optional[List[str]] = kwargs.get("team_names")
         logger.debug(f"Creating a new call-up: {self.title}")
 
     @property
-    def date(self) -> str:
-        """Obtain the date string."""
-        return self._date.strftime("%A %d/%b/%Y")
-
-    @property
-    def time(self) -> str:
-        """Obtain the time string."""
-        return self._date.strftime("%H:%M")
+    def date_time(self) -> datetime.datetime:
+        """Obtain the date object."""
+        return self._date
 
     @property
     def location(self) -> str:
         """Obtain the location."""
         return self._location
+
+    @location.setter
+    def location(self, new_location: str) -> None:
+        """Obtain the location."""
+        self._location = new_location
 
     @property
     def title(self) -> str:
@@ -126,7 +134,8 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
         """
         return (
-            f"*Convocatoria*\nFecha *{self.date}*\nHora: *{self.time}*\nLugar: *{self.location}*"
+            f"Convocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*\nLugar:"
+            f" *{self.location}*"
         )
 
     @property
@@ -171,28 +180,6 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
         """
         return self._subs_chat
-
-    def save_team_names(self, team_names: List[str]) -> None:
-        callup_teams_file = DATA_DIRECTORY_PATH.joinpath("callup-teams.json")
-
-        if not callup_teams_file.exists():
-            callup_teams_file.write_text("{}")
-
-        callup_teams: Dict[str, List[str]] = json.loads(callup_teams_file.read_text())
-
-        callup_teams[self._date.isoformat()] = team_names
-
-        callup_teams_file.write_text(json.dumps(callup_teams))
-
-    def _load_team_names(self) -> Optional[List[str]]:
-        callup_teams_file = DATA_DIRECTORY_PATH.joinpath("callup-teams.json")
-
-        if not callup_teams_file.exists():
-            return None
-
-        callup_teams: Dict[str, List[str]] = json.loads(callup_teams_file.read_text())
-
-        return callup_teams.get(self._date.isoformat())
 
     def act(self, player: Union[str, int]) -> str:
         """Act depending on the player action.
@@ -275,11 +262,12 @@ class CallUp:  # pylint: disable=too-many-public-methods
         :param maximum: The number of players.
 
         """
+        self._fixed_player_number = maximum
         self._players.set_maximum(maximum)
 
     def create_match(self) -> None:
         """Create a new match."""
-        self._match = Match.auto_create(self._players, team_names=self._load_team_names())
+        self._match = Match.auto_create(self._players, team_names=self._team_names)
 
     def set_results(self, results: PlayersStatInput) -> None:
         """Introduce the results of the match.
@@ -295,82 +283,71 @@ class CallUp:  # pylint: disable=too-many-public-methods
         self._match.set_results(results, self._date)
 
     def __str__(self) -> str:
-        return self.to_yaml()
-
-    def to_yaml(self) -> str:
-        """Obtain the YAML representation of the call-up.
-
-        :returns: The YAML string.
-
-        """
-        call_up_info = yaml.dump(
-            {
-                "apuntados": f"{len(self._players)}/{self._players.maximum}",
-                "convocatoria": f"*{self._date.strftime('%A %d/%b/%Y %H:%M')}*",
-                "localización": f"*{self._location}*",
-            },
-            allow_unicode=True,
-            indent=4,
-            sort_keys=False,
+        call_up_string: str = (
+            f"Apuntados: {len(self._players)}/{self._players.maximum}"
+            f"\nConvocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*"
+            f"\nLugar: *{self._location}*"
+            f"\n\nJugadores:\n{self._players}"
         )
+        if self._match:
+            call_up_string = f"{call_up_string}\n\n{self._match}"
 
-        search_info: str = ""
-        if self.is_searching():
-            search_info = yaml.dump(
-                {"búsqueda": self.subs_chat.message_id},
-                allow_unicode=True,
-                indent=4,
+        call_up_string = f"{call_up_string}\n\nVersión: `{__version__}`"
+
+        return call_up_string
+
+    def display_subs(self) -> str:
+        subs_players = [
+            f"- `{player.name}`" for player in self._players.players if not player.main
+        ]
+
+        if not subs_players:
+            return (
+                "¡Hola compas! Ya hemos llegado al cupo de personas convocadas, ¡muchas gracias!"
             )
-            search_info = f"\n{search_info}"
 
-        match_info: str = ""
-        if self._match is not None:
-            match_info = self.match.to_yaml()
-
-        version_info = yaml.dump(
-            {"versión": __version__},
-            allow_unicode=True,
-            indent=4,
+        subs_players_str = "\n".join(
+            [f"- `{player.name}`" for player in self._players.players if not player.main]
+        )
+        call_up_subs_string = (
+            f"Apuntados: {len(self._players)}/{self._players.maximum}"
+            f"\nConvocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*"
+            f"\nLugar: *{self._location}*"
+            f"\n\nSuplentes:\n{subs_players_str}"
         )
 
-        return f"{call_up_info}{self.players.to_yaml()}{search_info}{match_info}{version_info}"
+        if self._match:
+            call_up_subs_string = f"{call_up_subs_string}\n\n{self._match.display_subs()}"
+
+        return call_up_subs_string
+
+    @property
+    def __dict__(self) -> dict:
+        return {
+            "date_time": self._date.isoformat(),
+            "main_chat_msg": self._main_chat.message_id,
+            "subs_chat_msg": self._subs_chat.message_id,
+            "location": self._location,
+            "players": vars(self._players),
+            "fixed_player_number": self._fixed_player_number,
+            "match": self._match and vars(self._match),
+            "team_names": self._team_names,
+        }
 
     @staticmethod
-    def from_yaml(yaml_str: str, main_chat_id: int, main_chat_msg: int) -> "CallUp":
-        """Create a CallUp object from a yaml string and the chat and messaages ids.
+    def from_dict(call_up_json: dict) -> "CallUp":
+        call_up = CallUp(
+            date=datetime.datetime.fromisoformat(call_up_json["date_time"]),
+            main_chat_msg=call_up_json["main_chat_msg"],
+            subs_chat_msg=call_up_json["subs_chat_msg"],
+            location=call_up_json["location"],
+            players=Players.from_dict(call_up_json["players"]),
+            fixed_player_number=call_up_json["fixed_player_number"],
+            match=call_up_json["match"] and Match.from_dict(call_up_json["match"]),
+            team_names=call_up_json["team_names"],
+        )
 
-        :param yaml_str: The text containing the yaml call-up.
-        :param main_chat_id: The call-up chat.
-        :param main_chat_msg: The call-up message.
-        :returns: The newly created object.
-
-        """
-        call_up_info: dict = yaml.safe_load(yaml_str)
-
-        if "finalizado" in call_up_info:
+        if call_up._match and call_up._match.finished:
             raise CallUpMatchAlreadyFinishedError()
 
-        try:
-            del call_up_info["versión"]
-            del call_up_info["apuntados"]
-            date = datetime.datetime.strptime(
-                call_up_info.pop("convocatoria"), "%A %d/%b/%Y %H:%M"
-            )
-            subs_chat_msg = call_up_info.pop("búsqueda", None)
-            location = call_up_info.pop("localización")
-            players = Players.from_list(call_up_info.pop("jugadores"))
-            match: Optional[Match] = None
-            if len(call_up_info) >= 2:
-                match = Match.from_dict(call_up_info)
-
-            return CallUp(
-                date=date,
-                main_chat_id=main_chat_id,
-                main_chat_msg=main_chat_msg,
-                subs_chat_msg=subs_chat_msg,
-                location=location,
-                players=players,
-                match=match,
-            )
-        except KeyError as error:
-            raise CallUpWrongFormatError(error.args[0]) from error
+        return call_up

@@ -148,6 +148,9 @@ def docker_build(session: nox.Session) -> Tuple[str, str]:
         str(ROOT_DIRECTORY.joinpath("docker", "Dockerfile")),
         external=True,
     )
+    session.run_always(
+        "docker", "tag", f"{image_name}:{image_tag}", f"{image_name}:latest", external=True
+    )
     return image_name, image_tag
 
 
@@ -155,8 +158,5 @@ def docker_build(session: nox.Session) -> Tuple[str, str]:
 def docker_publish(session: nox.Session) -> None:
     """Publish the Docker image."""
     image_name, image_tag = docker_build(session=session)
-    session.run_always(
-        "docker", "tag", f"{image_name}:{image_tag}", f"{image_name}:latest", external=True
-    )
     session.run_always("docker", "push", f"{image_name}:{image_tag}", external=True)
     session.run_always("docker", "push", f"{image_name}:latest", external=True)

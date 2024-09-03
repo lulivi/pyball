@@ -106,8 +106,8 @@ class MatchStatsAction(argparse.Action):  # pylint: disable=too-few-public-metho
         setattr(namespace, self.dest, stats)
 
 
-class PlayerNameAction(argparse.Action):  # pylint: disable=too-few-public-methods
-    """Transform a list of string into a name."""
+class MultiWordStringAction(argparse.Action):  # pylint: disable=too-few-public-methods
+    """Transform a list of string into a single string."""
 
     def __call__(self, _, namespace, values, __=None) -> None:
         """Set the player name."""
@@ -122,7 +122,9 @@ class ComaSeparatedMultiWordStringsAction(
     def __call__(self, _, namespace, values, __=None) -> None:
         """Set the player name."""
         elements = " ".join(values).split(",")
-        setattr(namespace, self.dest, list(filter(None, [element.strip() for element in elements])))
+        setattr(
+            namespace, self.dest, list(filter(None, [element.strip() for element in elements]))
+        )
 
 
 class CommandParser(argparse.ArgumentParser):

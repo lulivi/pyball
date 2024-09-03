@@ -36,7 +36,7 @@ from pyball.legacy.bot.argument_parser import (
     ComaSeparatedMultiWordStringsAction,
     CommandArgument,
     MatchStatsAction,
-    PlayerNameAction,
+    MultiWordStringAction,
     SubCommand,
     parse_command,
 )
@@ -49,9 +49,11 @@ from pyball.legacy.bot.errors import (
     BotPlayerError,
 )
 from pyball.legacy.bot.utils import (
+    CallUpWrapper,
     bot_call_message_function,
     callup_add,
     callup_del,
+    callup_location,
     callup_lock,
     callup_maximum,
     callup_new,
@@ -133,45 +135,43 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     query = update.callback_query
 
-    if query is None or query.message is None:
+    if query is None or query.message is None or update.effective_user is None:
         return
 
     try:
-        call_up: CallUp = get_call_up(query.message)
+        call_up_wrapper: CallUpWrapper = get_call_up(query.message)
     except BotCallUpError as error:
         await query.answer(text=str(error))
-        return
-
-    if update.effective_user is None:
         return
 
     player = update.effective_user.id
     answer: str = ""
 
-    old_call_up_yaml = call_up.to_yaml()
+    with call_up_wrapper.unwrap() as call_up:
+        old_call_up_str = str(call_up)
 
-    try:
-        answer = call_up.act(player)
-    except (
-        CallUpMultiplePlayersFoundError,
-        CallUpPlayerDoesNotExistError,
-        CallUpPlayerNotCalledUpError,
-    ) as error:
-        answer = str(error)
-        return
-    finally:
-        await query.answer(answer)
+        try:
+            answer = call_up.act(player)
+        except (
+            CallUpMultiplePlayersFoundError,
+            CallUpPlayerDoesNotExistError,
+            CallUpPlayerNotCalledUpError,
+        ) as error:
+            answer = str(error)
+            return
+        finally:
+            await query.answer(answer)
 
-    await update_call_up_message(
-        call_up=call_up,
-        context=context,
-        old_call_up_yaml=old_call_up_yaml,
-    )
-    await search_substitutes(
-        call_up=call_up,
-        reply_function=query.message.reply_text,
-        bot=context.bot,
-    )
+        await update_call_up_message(
+            call_up=call_up,
+            context=context,
+            old_call_up_str=old_call_up_str,
+        )
+        await search_substitutes(
+            call_up=call_up,
+            reply_function=query.message.reply_text,
+            bot=context.bot,
+        )
 
 
 @log_func
@@ -309,7 +309,7 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                             "name",
                             metavar="<nombre jugador>",
                             help="Player name",
-                            action=PlayerNameAction,
+                            action=MultiWordStringAction,
                             nargs="+",
                         ),
                         CommandArgument("-id", "<identifier>", dest="identifier"),
@@ -381,6 +381,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
         return
 
     new_subcommand_names = ["new", "n"]
+    reply_function = update.message.reply_text
 
     try:
         args = parse_command(
@@ -401,12 +402,16 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             metavar="<location>",
                             default=None,
                             dest="location",
+                            action=MultiWordStringAction,
+                            nargs="+",
                         ),
                         CommandArgument(
                             "-t",
                             metavar="<team name>, <team name>, <team name>",
                             help="A coma separated list of team names",
                             default=None,
+                            nargs="+",
+                            action=ComaSeparatedMultiWordStringsAction,
                             dest="team_names",
                         ),
                         CommandArgument(
@@ -432,6 +437,19 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                         )
                     ],
                     callable=callup_maximum,
+                ),
+                SubCommand(
+                    ["location"],
+                    [
+                        CommandArgument(
+                            "new_location",
+                            metavar="<location>",
+                            help="The new location",
+                            action=MultiWordStringAction,
+                            nargs="+",
+                        )
+                    ],
+                    callable=callup_location,
                 ),
                 SubCommand(["lock", "l"], callable=callup_lock),
                 SubCommand(["unlock", "u"], callable=callup_unlock),
@@ -502,13 +520,13 @@ async def command_callup(  # pylint: disable=too-many-return-statements
             )
     except (BotCommandError, BotPlayerError) as error:
         await bot_call_message_function(
-            message_function=update.message.reply_text,
+            message_function=reply_function,
             text=str(error),
         )
         return
     except ValueError:
         await bot_call_message_function(
-            message_function=update.message.reply_text,
+            message_function=reply_function,
             text=(
                 "La fecha de la nueva convocatoria no es correcta. Por favor, indícala en formato"
                 " DD/MMM/YYYY HH:MM."
@@ -516,41 +534,55 @@ async def command_callup(  # pylint: disable=too-many-return-statements
         )
         return
 
-    if args["subcommand"] not in new_subcommand_names:
+    args["context"] = context
+
+    if args["subcommand"] in new_subcommand_names:
         try:
-            args["call_up"] = get_call_up(update.message.reply_to_message)
-        except BotCallUpError as error:
+            await args.pop("func")(**args)
+        except (BotCallUpError, BotNotAdminError) as error:
             await bot_call_message_function(
-                message_function=update.message.reply_text,
+                message_function=reply_function,
                 text=str(error),
             )
             return
+        # await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.id)
+        return
 
-    args["reply_function"] = update.message.reply_text
-    args["context"] = context
+    args["reply_function"] = reply_function
 
     try:
-        await args.pop("func")(**args)
-    except (CallUpPlayerAlreadyCalledUpError, CallUpPlayerNotCalledUpError):
-        return
-    except (BotPlayerError, BotMatchError, BotCallUpError, BotNotAdminError) as error:
+        with get_call_up(update.message.reply_to_message).unwrap() as call_up:
+            args["call_up"] = call_up
+
+            try:
+                await args.pop("func")(**args)
+            except (CallUpPlayerAlreadyCalledUpError, CallUpPlayerNotCalledUpError):
+                return
+            except (BotPlayerError, BotMatchError, BotCallUpError, BotNotAdminError) as error:
+                await bot_call_message_function(
+                    message_function=reply_function,
+                    text=str(error),
+                )
+                return
+            except TypeError as error:
+                if error.args[0] == "call_up":
+                    await bot_call_message_function(
+                        message_function=reply_function,
+                        text=(
+                            "No se ha encontrado una convocatoria en el mensaje respondido. Por"
+                            " favor, responde al mensaje con la convocatoria."
+                        ),
+                    )
+                    return
+
+            await context.bot.delete_message(
+                chat_id=update.message.chat_id, message_id=update.message.id
+            )
+    except BotCallUpError as error:
         await bot_call_message_function(
-            message_function=update.message.reply_text,
+            message_function=reply_function,
             text=str(error),
         )
-        return
-    except TypeError as error:
-        if error.args[0] == "call_up":
-            await bot_call_message_function(
-                message_function=update.message.reply_text,
-                text=(
-                    "No se ha encontrado una convocatoria en el mensaje respondido. Por favor,"
-                    " responde al mensaje con la convocatoria."
-                ),
-            )
-            return
-
-    await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.id)
 
 
 @log_func

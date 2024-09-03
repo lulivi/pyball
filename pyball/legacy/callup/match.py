@@ -136,6 +136,47 @@ class Team:
         )
         return f"{self.__class__.__name__}({players})"
 
+    def to_string_with_name(self, team_name: str) -> str:
+        players_str = "\n".join(
+            sorted(
+                [f"- `{p.name}`" for p in self.players], key=functools.cmp_to_key(locale.strcoll)
+            )
+        )
+
+        score_str = ""
+        if self.score is not None:
+            score_str = f" ({self.score})"
+
+        return f"{team_name}{score_str}:\n{players_str}"
+
+    def subs_to_string_with_name(self, team_name: str) -> str:
+        players_str = "\n".join(
+            sorted(
+                [f"- `{player.name}`" for player in self.players if not player.main],
+                key=functools.cmp_to_key(locale.strcoll),
+            )
+        )
+
+        score_str = ""
+        if self.score is not None:
+            score_str = f" ({self.score})"
+
+        return f"{team_name}{score_str}:\n{players_str}"
+
+    @property
+    def __dict__(self) -> dict:
+        return {
+            "players": list(map(lambda player: player.name, self.players)),
+            "score": self.score,
+        }
+
+    @staticmethod
+    def from_dict(team: dict) -> "Team":
+        return Team(
+            players=[find_player(player_name) for player_name in team["players"]],
+            score=team["score"],
+        )
+
     def to_yaml(self, team_name: str) -> str:
         """Obtain the YAML representation of the team.
 
@@ -167,7 +208,7 @@ class Match:
 
     def __init__(self, team_names: Optional[List[str]] = None) -> None:
         self._team_names: List[str] = (
-            team_names if team_names is not None and len(team_names) > 1 else DEFAULT_TEAM_NAMES
+            team_names if team_names is not None and len(team_names) >= 2 else DEFAULT_TEAM_NAMES
         )
         self._teams: Dict[str, Team] = {}
         self._finished: bool = False
@@ -192,6 +233,10 @@ class Match:
             raise ValueError("There should be at least to teams")
 
         self._teams = teams
+
+    @property
+    def finished(self) -> bool:
+        return self._finished
 
     @staticmethod
     def auto_create(
@@ -220,7 +265,7 @@ class Match:
         :returns: The new Match object.
 
         """
-        match = Match()
+        match = Match(team_names=list(teams.keys()))
         match.teams = teams
         return match
 
@@ -393,46 +438,42 @@ class Match:
             return "No teams created yet."
 
         str_output = ""
+
         for team_name, team in self._teams.items():
             logger.debug(f"Team {team_name} ({team.skill}): {team}")
             str_output = f"{str_output}\nTeam {team_name}: {str(team.score or '')}\n{str(team)}\n"
 
         return str_output
 
-    def to_yaml(self) -> str:
-        """Obtain the YAML representation of the match.
+    def __str__(self) -> str:
+        teams_str = "\n\n".join(
+            [team.to_string_with_name(team_name) for team_name, team in self._teams.items()]
+        )
 
-        :returns: The YAML string.
-
-        """
-        match_info: str = "\n"
-
-        for team_name, team in self._teams.items():
-            match_info = f"{match_info}{team.to_yaml(team_name)}\n"
-
-        finished_info = ""
         if self._finished:
-            finished_info = yaml.dump(
-                {"finalizado": "🎉"},
-                allow_unicode=True,
-                indent=4,
-            )
+            winner_team = sorted(
+                self._teams.items(), key=lambda item: item[1].score, reverse=True
+            ).pop()[0]
+            teams_str = f"{teams_str}\n\nEnhorabuena equipo `{winner_team}`!"
 
-        return f"{match_info}{finished_info}"
+        return teams_str
+
+    def display_subs(self) -> str:
+        return "\n\n".join(
+            [team.subs_to_string_with_name(team_name) for team_name, team in self._teams.items()]
+        )
+
+    @property
+    def __dict__(self) -> dict:
+        return {
+            "teams": {name: vars(team) for name, team in self._teams.items()},
+            "finished": self._finished,
+        }
 
     @staticmethod
-    def from_dict(teams_info: Dict[str, dict]) -> "Match":
-        """Recreate a Match object from a dictionary of teams.
-
-        :param teams_info: The dictionary with the necessary information.
-
-        """
-        teams: Dict[str, Team] = {}
-
-        for team_name, team_info in teams_info.items():
-            teams[team_name] = Team(
-                [find_player(player_name) for player_name in team_info["jugadores"]],
-                team_info.get("goles"),
-            )
-
-        return Match.manual_create(teams)
+    def from_dict(json_match: dict) -> "Match":
+        match = Match.manual_create(
+            {name: Team.from_dict(team) for name, team in json_match["teams"].items()}
+        )
+        match._finished = json_match["finished"]
+        return match

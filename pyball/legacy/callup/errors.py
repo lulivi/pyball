@@ -26,17 +26,6 @@ class PyBallCallUpError(Exception):
     """Base error for PyBall bot."""
 
 
-class CallUpWrongFormatError(PyBallCallUpError):
-    """The message does not contains a call-up."""
-
-    def __init__(self, missing_key: Optional[str]) -> None:
-        self.missing_key = missing_key
-        self.message = "There was an error parsing the call-up yaml"
-        if self.missing_key is not None:
-            self.message = f"{self.message}: missing {self.missing_key} key"
-        super().__init__(self.message)
-
-
 class CallUpPlayerDoesNotExistError(PyBallCallUpError):
     """The player is not found in the database."""
 

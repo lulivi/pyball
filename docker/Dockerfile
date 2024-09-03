@@ -21,15 +21,16 @@ FROM python:3.11-slim-bullseye
 ENV VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:${PATH}
 
+RUN apt-get update && apt-get install -y locales \
+    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
+    && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
+    && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
+    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel
+
 WORKDIR /builder
 COPY dist/*.whl .
 
-RUN /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
-    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
-    && $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
-    && apt-get update && apt-get install -y locales \
-    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
-    && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
+RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
     && rm -rf /builder
 WORKDIR /pyball
 

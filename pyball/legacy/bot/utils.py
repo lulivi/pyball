@@ -25,12 +25,14 @@ import functools
 import locale
 import logging
 
-from typing import Callable, List, Optional, cast
+from contextlib import contextmanager
+from typing import Callable, Generator, List, Optional, cast
 
 from telegram import Bot, Message, Update
 from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
+from telegram.helpers import escape_markdown
 
 from pyball.legacy import db
 from pyball.legacy.bot.errors import (
@@ -42,6 +44,7 @@ from pyball.legacy.bot.errors import (
 )
 from pyball.legacy.bot.globals import CALL_UP_KEYBOARD
 from pyball.legacy.callup.callup import CallUp
+from pyball.legacy.callup.callup_repository import CallUpRepository
 from pyball.legacy.callup.errors import (
     CallUpMatchAlreadyFinishedError,
     CallUpMatchNotYetCreatedError,
@@ -51,7 +54,6 @@ from pyball.legacy.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
     CallUpPlayersNotInMatch,
-    CallUpWrongFormatError,
 )
 from pyball.legacy.callup.match import Match, PlayersStatInput
 from pyball.legacy.db.errors import (
@@ -72,7 +74,7 @@ from pyball.legacy.db.utils import (
     rollback_database,
 )
 from pyball.logger import log_func
-from pyball.settings import ADMINS_IDS, DATETIME_FORMAT
+from pyball.settings import ADMINS_IDS, DATETIME_DISPLAY_FORMAT, DATETIME_FORMAT
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +116,29 @@ async def bot_call_message_function(
     )
 
 
-def get_call_up(message: Optional[Message]) -> CallUp:
+class CallUpWrapper:
+    def __init__(self, date_time: datetime.datetime) -> None:
+        self._date_time = date_time
+
+    @contextmanager
+    def unwrap(self) -> Generator[CallUp, None, None]:
+        try:
+            call_up = CallUpRepository().get(date_time=self._date_time)
+
+            if call_up is None:
+                raise BotCallUpError(
+                    f"Call up with date `{self._date_time.isoformat()}` not found"
+                )
+
+            yield call_up
+        except CallUpMatchAlreadyFinishedError as error:
+            raise BotCallUpError("El partido seleccionado ha concluido") from error
+        finally:
+            if call_up is not None:
+                CallUpRepository().save(call_up=call_up)
+
+
+def get_call_up(message: Optional[Message]) -> CallUpWrapper:
     """Get the call-up object.
 
     :param message: The call-up message.
@@ -125,18 +149,18 @@ def get_call_up(message: Optional[Message]) -> CallUp:
     if message is None or message.text is None:
         raise BotCallUpError("El comando debe responder a una convocatoria abierta")
 
+    call_up_date_time = obtain_date_from_call_up_message(message.text)
+
     try:
-        return CallUp.from_yaml(
-            message.text,
-            message.chat_id,
-            message.id,
-        )
-    except CallUpWrongFormatError as error:
-        raise BotCallUpError(
-            f"El mensaje de convocatoria necesita el elemento `{error.missing_key}`"
-        ) from error
+        return CallUpWrapper(date_time=call_up_date_time)
     except CallUpMatchAlreadyFinishedError as error:
         raise BotCallUpError("El partido seleccionado ha concluido") from error
+
+
+def obtain_date_from_call_up_message(call_up_message: str) -> datetime.datetime:
+    return datetime.datetime.strptime(
+        call_up_message.splitlines()[1].split(maxsplit=1)[1].strip(), DATETIME_DISPLAY_FORMAT
+    )
 
 
 def command_ensure_admin(func):
@@ -221,33 +245,27 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
     """
     remaining_players = call_up.remaining_players()
 
-    substitutes_message_text = (
-        "¡Hola compas! Estamos buscando suplentes para este"
-        f" partido.\n\n{call_up.title}\nJugadores restantes: *{remaining_players}*"
-    )
+    substitutes_message_text = call_up.display_subs()
     call_up_reply_message = "Mensaje de búsqueda actualizado."
-    search_is_finished = False
-    if remaining_players < 1:
-        substitutes_message_text = (
-            "¡Hola compas! Ya hemos llegado al cupo de personas convocadas, ¡muchas gracias!"
-        )
+
+    with_keyboard = True
+    if remaining_players == 0:
         call_up_reply_message = (
             "Se han alcanzado las plazas necesarias. No se buscará más suplentes."
         )
-        search_is_finished = True
+        with_keyboard = False
 
     if call_up.is_searching():
         try:
             await bot_call_message_function(
                 message_function=bot.edit_message_text,
                 text=substitutes_message_text,
+                with_keyboard=with_keyboard,
                 **vars(call_up.subs_chat),
             )
         except BadRequest as error:
             if "Message is not modified" in str(error):
                 pass
-        if search_is_finished:
-            call_up.reset_subs_message_id()
         return call_up_reply_message
 
     call_up.set_subs_message_id(
@@ -255,6 +273,7 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
             await bot_call_message_function(
                 message_function=bot.send_message,
                 text=substitutes_message_text,
+                with_keyboard=with_keyboard,
                 chat_id=call_up.subs_chat.chat_id,
             )
         ).message_id
@@ -266,14 +285,14 @@ async def update_call_up_message(
     call_up: CallUp,
     context: ContextTypes.DEFAULT_TYPE,
     with_keyboard: bool = True,
-    old_call_up_yaml: Optional[str] = None,
+    old_call_up_str: Optional[str] = None,
 ) -> None:
     """Edit the call-up message with the new state.
 
     :param call_up: The call-up to show.
     :param context: The object from which get the edit_message method.
     :param with_keyboard: Whether to add a keyboard with join/leave to the message.
-    :param old_call_up_yaml: The old call-up yaml string to create a diff with the new one. This
+    :param old_call_up_str: The old call-up string to create a diff with the new one. This
         diff is sent to all the admins.
 
     """
@@ -288,7 +307,7 @@ async def update_call_up_message(
         if "Message is not modified" in str(error):
             pass
 
-    if old_call_up_yaml is not None:
+    if old_call_up_str is not None:
 
         def diff_call_ups(old_call_up: str, new_call_up: str) -> str:
             diff_lines = list(
@@ -305,14 +324,14 @@ async def update_call_up_message(
                     diff_lines[idx] = line.replace("-", "- ", 1)
             return "\n".join(diff_lines)
 
-        call_up_diff = diff_call_ups(old_call_up_yaml, call_up.to_yaml())
+        call_up_diff = diff_call_ups(old_call_up_str, str(call_up)).replace("`", "")
 
         if call_up_diff:
             for admin_id in ADMINS_IDS:
                 await bot_call_message_function(
                     message_function=context.bot.send_message,
                     chat_id=admin_id,
-                    text=f"```{call_up_diff}```",
+                    text=f"```text\n{escape_markdown(call_up_diff)}```",
                 )
 
 
@@ -533,7 +552,7 @@ def player_reid(reid_list: List[str], **_: dict) -> str:
 async def callup_new(
     max_players: Optional[int],
     location: Optional[str],
-    team_names: Optional[str],
+    team_names: Optional[List[str]],
     date: datetime.datetime,
     chat_id: int,
     context: ContextTypes.DEFAULT_TYPE,
@@ -562,17 +581,15 @@ async def callup_new(
 
     call_up = CallUp(
         date=date,
-        main_chat_id=chat_id,
         main_chat_msg=chat_message_id,
         location=location,
         fixed_player_number=max_players,
+        team_names=team_names,
     )
 
-    if team_names:
-        team_name_list = [name.strip() for name in team_names.split(",")]
-        call_up.save_team_names(team_names=team_name_list)
+    CallUpRepository().save(call_up=call_up)
 
-    await update_call_up_message(call_up=call_up, context=context)
+    await update_call_up_message(call_up=call_up, context=context, old_call_up_str="")
 
 
 @log_func
@@ -590,7 +607,7 @@ async def callup_maximum(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.to_yaml()
+    old_call_up_str = str(call_up)
     parsed_maximum: Optional[int] = None
 
     if maximum != "auto" and maximum.isnumeric():
@@ -606,7 +623,36 @@ async def callup_maximum(
     await update_call_up_message(
         call_up=call_up,
         context=context,
-        old_call_up_yaml=old_call_up_yaml,
+        old_call_up_str=old_call_up_str,
+    )
+
+
+@log_func
+async def callup_location(
+    location: str,
+    context: ContextTypes.DEFAULT_TYPE,
+    reply_function: Callable,
+    call_up: CallUp,
+    **_: dict,
+) -> None:
+    """Change location of the call-up
+
+    :param context: Information related to the bot and the chat.
+
+    """
+    old_call_up_str = str(call_up)
+
+    call_up.location = location
+
+    await search_substitutes(
+        call_up=call_up,
+        reply_function=reply_function,
+        bot=context.bot,
+    )
+    await update_call_up_message(
+        call_up=call_up,
+        context=context,
+        old_call_up_str=old_call_up_str,
     )
 
 
@@ -645,7 +691,7 @@ async def callup_add(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.to_yaml()
+    old_call_up_str = str(call_up)
     for name in names:
         try:
             call_up.add_player(name)
@@ -669,7 +715,7 @@ async def callup_add(
     await update_call_up_message(
         call_up=call_up,
         context=context,
-        old_call_up_yaml=old_call_up_yaml,
+        old_call_up_str=old_call_up_str,
     )
 
 
@@ -688,7 +734,7 @@ async def callup_del(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.to_yaml()
+    old_call_up_str = str(call_up)
     for name in names:
         try:
             call_up.del_player(name)
@@ -712,7 +758,7 @@ async def callup_del(
     await update_call_up_message(
         call_up=call_up,
         context=context,
-        old_call_up_yaml=old_call_up_yaml,
+        old_call_up_str=old_call_up_str,
     )
 
 
@@ -778,7 +824,7 @@ async def callup_teams(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.to_yaml()
+    old_call_up_str = str(call_up)
     if swap is None:
         try:
             call_up.create_match()
@@ -811,7 +857,7 @@ async def callup_teams(
     await update_call_up_message(
         call_up=call_up,
         context=context,
-        old_call_up_yaml=old_call_up_yaml,
+        old_call_up_str=old_call_up_str,
     )
 
 
@@ -829,7 +875,7 @@ async def callup_results(
     :param reply_function: Function used to send messages within this method.
 
     """
-    old_call_up_yaml = call_up.to_yaml()
+    old_call_up_str = str(call_up)
     try:
         call_up.set_results(stats)
     except CallUpMatchNotYetCreatedError as error:
@@ -860,7 +906,7 @@ async def callup_results(
         call_up=call_up,
         context=context,
         with_keyboard=False,
-        old_call_up_yaml=old_call_up_yaml,
+        old_call_up_str=old_call_up_str,
     )
     await bot_call_message_function(
         message_function=context.bot.send_message,

@@ -171,7 +171,14 @@ class Players:
         return len(self._players)
 
     def __str__(self) -> str:
-        return self.to_yaml()
+        players = sorted(
+            [player.name for player in self._players], key=functools.cmp_to_key(locale.strcoll)
+        )
+        players.extend(["?????"] * (self.maximum - len(self._players)))
+        players_str = [
+            f"{index + 1: >2}. `{player_name}`" for index, player_name in enumerate(players)
+        ]
+        return "\n".join(players_str)
 
     def __repr__(self) -> str:
         # Since we don't want UTF-8 characters to mess up the sorting, we use the
@@ -183,37 +190,18 @@ class Players:
         player_list = ",".join(sorted_players)
         return f"Players({player_list})"
 
-    def to_yaml(self) -> str:
-        """Obtain the YAML representation of the players.
-
-        :returns: The YAML string.
-
-        """
-        return yaml.dump(
-            {
-                "jugadores": sorted(
-                    [f"`{p.name}`" for p in self._players],
-                    key=functools.cmp_to_key(locale.strcoll),
-                )
-                + ["`?????`"] * (self.maximum - len(self._players))
-            },
-            allow_unicode=True,
-            indent=4,
-            sort_keys=False,
-        )
+    @property
+    def __dict__(self) -> dict:
+        return {
+            "player_names": list(map(lambda player: player.name, self._players)),
+            "maximum": self._fixed_player_number,
+        }
 
     @staticmethod
-    def from_list(players_info: List[str]) -> "Players":
-        """Recreate a Player object from a list of player names.
-
-        :param players_info: The list with all the players.
-
-        """
+    def from_dict(players: dict) -> "Players":
         return Players(
-            maximum=len(players_info) if "?????" in players_info else None,
-            players=[
-                find_player(player_name) for player_name in players_info if player_name != "?????"
-            ],
+            maximum=players["maximum"],
+            players=list(map(find_player, players["player_names"])),
         )
 
 
