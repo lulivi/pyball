@@ -18,3 +18,8 @@ f: format
 .PHONY: build
 build:
 	poetry run nox -e dbuild
+
+
+.PHONY: publish
+publish: build
+	poetry run nox -e dpublish

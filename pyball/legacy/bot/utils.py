@@ -816,7 +816,11 @@ async def callup_search(
 
 @log_func
 async def callup_teams(
-    swap: Optional[List[str]], context: ContextTypes.DEFAULT_TYPE, call_up: CallUp, **_: dict
+    swap: Optional[List[str]],
+    context: ContextTypes.DEFAULT_TYPE,
+    reply_function: Callable,
+    call_up: CallUp,
+    **_: dict,
 ) -> None:
     """Create the teams.
 
@@ -854,6 +858,11 @@ async def callup_teams(
                 f"El jugador `{error.non_players[0]}` no está convocado"
             ) from error
 
+    await search_substitutes(
+        call_up=call_up,
+        reply_function=reply_function,
+        bot=context.bot,
+    )
     await update_call_up_message(
         call_up=call_up,
         context=context,
