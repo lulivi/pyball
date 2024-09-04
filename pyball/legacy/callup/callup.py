@@ -300,12 +300,6 @@ class CallUp:  # pylint: disable=too-many-public-methods
         subs_players = [
             f"- `{player.name}`" for player in self._players.players if not player.main
         ]
-
-        if not subs_players:
-            return (
-                "¡Hola compas! Ya hemos llegado al cupo de personas convocadas, ¡muchas gracias!"
-            )
-
         subs_players_str = "\n".join(
             [f"- `{player.name}`" for player in self._players.players if not player.main]
         )
