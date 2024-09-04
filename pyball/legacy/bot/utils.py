@@ -224,15 +224,12 @@ async def search_substitutes(
 
     try:
         logger.debug(f"Sending search message {call_up}")
-        search_message = await update_substitutes_search(call_up, bot)
+        await update_substitutes_search(call_up, bot)
     except Forbidden as error:
         reply_function(
             "El bot no tiene los permisos suficientes para enviar el mensaje al chat de suplentes:"
             f"\n\t{str(error)}"
         )
-
-    if search_message:
-        await reply_function(search_message)
 
 
 async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
@@ -244,16 +241,8 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
 
     """
     remaining_players = call_up.remaining_players()
-
     substitutes_message_text = call_up.display_subs()
-    call_up_reply_message = "Mensaje de búsqueda actualizado."
-
-    with_keyboard = True
-    if remaining_players == 0:
-        call_up_reply_message = (
-            "Se han alcanzado las plazas necesarias. No se buscará más suplentes."
-        )
-        with_keyboard = False
+    with_keyboard = remaining_players != 0
 
     if call_up.is_searching():
         try:
@@ -266,7 +255,7 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
         except BadRequest as error:
             if "Message is not modified" in str(error):
                 pass
-        return call_up_reply_message
+        return
 
     call_up.set_subs_message_id(
         (
@@ -278,7 +267,6 @@ async def update_substitutes_search(call_up: CallUp, bot: Bot) -> str:
             )
         ).message_id
     )
-    return call_up_reply_message
 
 
 async def update_call_up_message(
