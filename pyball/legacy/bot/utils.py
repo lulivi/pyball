@@ -24,6 +24,7 @@ import difflib
 import functools
 import locale
 import logging
+import re
 
 from contextlib import contextmanager
 from typing import Callable, Generator, List, Optional, cast
@@ -296,23 +297,10 @@ async def update_call_up_message(
             pass
 
     if old_call_up_str is not None:
-
-        def diff_call_ups(old_call_up: str, new_call_up: str) -> str:
-            diff_lines = list(
-                difflib.unified_diff(old_call_up.splitlines(), new_call_up.splitlines(), n=20)
-            )[4:]
-            for idx, line in enumerate(diff_lines):
-                if line.startswith(" "):
-                    diff_lines[idx] = line.replace(" ", "  ", 1)
-                    continue
-                if line.startswith("+"):
-                    diff_lines[idx] = line.replace("+", "+ ", 1)
-                    continue
-                if line.startswith("-"):
-                    diff_lines[idx] = line.replace("-", "- ", 1)
-            return "\n".join(diff_lines)
-
-        call_up_diff = diff_call_ups(old_call_up_str, str(call_up)).replace("`", "")
+        call_up_diff = diff_call_ups(
+            old_call_up=remove_leading_numbers(old_call_up_str),
+            new_call_up=remove_leading_numbers(str(call_up)),
+        ).replace("`", "")
 
         if call_up_diff:
             for admin_id in ADMINS_IDS:
@@ -321,6 +309,32 @@ async def update_call_up_message(
                     chat_id=admin_id,
                     text=f"```text\n{escape_markdown(call_up_diff)}```",
                 )
+
+
+def diff_call_ups(old_call_up: str, new_call_up: str) -> str:
+    diff_lines = list(
+        difflib.unified_diff(
+            a=old_call_up.splitlines(),
+            b=new_call_up.splitlines(),
+            n=20,
+        )
+    )[4:]
+
+    for idx, line in enumerate(diff_lines):
+        if line.startswith(" "):
+            diff_lines[idx] = line.replace(" ", "  ", 1)
+            continue
+        if line.startswith("+"):
+            diff_lines[idx] = line.replace("+", "+ ", 1)
+            continue
+        if line.startswith("-"):
+            diff_lines[idx] = line.replace("-", "- ", 1)
+
+    return "\n".join(diff_lines)
+
+
+def remove_leading_numbers(text: str) -> str:
+    return re.sub("^\s*\d+", " ", text, flags=re.MULTILINE)
 
 
 @log_func
@@ -828,6 +842,27 @@ async def callup_teams(
     else:
         if len(swap) != 2:
             raise BotPlayerError("Se deben indicar dos jugadores para la opción `-swap`")
+
+        # TODO: Manage swaps between called up players and players from outside
+
+        # if swap[0] not in call_up and swap[1] not in call_up:
+        #     raise BotMatchError(
+        #         f"Ninguno de los jugadores está convocado"
+        #     ) from error
+
+        # if swap[0] not in call_up:
+        #     # Swap 1 from match with 0 not in match
+
+        #     # Change external player with swap[1] in call_up._players
+        #     # Change external player with swap[1] in call_up._match
+        #     pass
+        # if swap[1] not in call_up:
+        #     # Swap 0 from match with 1 not inmatch
+
+        #     # Change external player with swap[0] in call_up._players
+        #     # Change external player with swap[0] in call_up._match
+        #     pass
+
         try:
             call_up.match.swap_players(*swap)
         except CallUpMatchNotYetCreatedError as error:

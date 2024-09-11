@@ -154,10 +154,12 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             answer = call_up.act(player)
         except (
             CallUpMultiplePlayersFoundError,
-            CallUpPlayerDoesNotExistError,
             CallUpPlayerNotCalledUpError,
         ) as error:
             answer = str(error)
+            return
+        except CallUpPlayerDoesNotExistError as error:
+            answer = "No se ha encontrado tu ID, contacta con un administrador."
             return
         finally:
             await query.answer(answer)

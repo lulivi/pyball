@@ -162,6 +162,12 @@ class Players:
         """
         return self.remaining() == 0
 
+    def __contains__(self, other: Union[str, int, db.wrapper.Player]) -> bool:
+        if not isinstance(other, db.wrapper.Player):
+            other = find_player(other)
+
+        return other in self._players
+
     def __len__(self) -> int:
         """Obtain the number of players signed up for the call-up.
 
