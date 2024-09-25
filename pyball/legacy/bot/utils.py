@@ -631,7 +631,7 @@ async def callup_maximum(
 
 @log_func
 async def callup_location(
-    location: str,
+    new_location: str,
     context: ContextTypes.DEFAULT_TYPE,
     reply_function: Callable,
     call_up: CallUp,
@@ -644,7 +644,7 @@ async def callup_location(
     """
     old_call_up_str = str(call_up)
 
-    call_up.location = location
+    call_up.location = new_location
 
     await search_substitutes(
         call_up=call_up,

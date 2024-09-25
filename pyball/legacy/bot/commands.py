@@ -30,6 +30,7 @@ import traceback
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
+from telegram.helpers import escape_markdown
 
 from pyball import __version__
 from pyball.legacy.bot.argument_parser import (
@@ -559,6 +560,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
             try:
                 await args.pop("func")(**args)
             except (CallUpPlayerAlreadyCalledUpError, CallUpPlayerNotCalledUpError):
+                logger.warning("The player was or was not in the call-up")
                 return
             except (BotPlayerError, BotMatchError, BotCallUpError, BotNotAdminError) as error:
                 await bot_call_message_function(
@@ -576,6 +578,11 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                         ),
                     )
                     return
+                await bot_call_message_function(
+                    message_function=reply_function,
+                    text=escape_markdown(f"Ha ocurrido un error: {error}"),
+                )
+                return
 
             await context.bot.delete_message(
                 chat_id=update.message.chat_id, message_id=update.message.id

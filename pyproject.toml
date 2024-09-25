@@ -43,7 +43,7 @@ types-peewee = "*"
 pyyaml = "6.0"
 types-PyYAML = "^6.0.12.10"
 typing_extensions = "*"
-event_bus = "1.*"
+event-bus = "1.0.2"
 
 [tool.poetry.group.test]
 optional = true

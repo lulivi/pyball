@@ -123,7 +123,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
 
     @location.setter
     def location(self, new_location: str) -> None:
-        """Obtain the location."""
+        """Set the location."""
         self._location = new_location
 
     @property
@@ -287,19 +287,18 @@ class CallUp:  # pylint: disable=too-many-public-methods
             f"Apuntados: {len(self._players)}/{self._players.maximum}"
             f"\nConvocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*"
             f"\nLugar: *{self._location}*"
-            f"\n\nJugadores:\n{self._players}"
         )
+
         if self._match:
             call_up_string = f"{call_up_string}\n\n{self._match}"
+        else:
+            call_up_string = f"{call_up_string}\n\nJugadores:\n{self._players}"
 
         call_up_string = f"{call_up_string}\n\nVersión: `{__version__}`"
 
         return call_up_string
 
     def display_subs(self) -> str:
-        subs_players = [
-            f"- `{player.name}`" for player in self._players.players if not player.main
-        ]
         subs_players_str = "\n".join(
             [f"- `{player.name}`" for player in self._players.players if not player.main]
         )
@@ -307,11 +306,12 @@ class CallUp:  # pylint: disable=too-many-public-methods
             f"Apuntados: {len(self._players)}/{self._players.maximum}"
             f"\nConvocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*"
             f"\nLugar: *{self._location}*"
-            f"\n\nSuplentes:\n{subs_players_str}"
         )
 
         if self._match:
             call_up_subs_string = f"{call_up_subs_string}\n\n{self._match.display_subs()}"
+        else:
+            call_up_subs_string = f"{call_up_subs_string}\n\nSuplentes:\n{subs_players_str}"
 
         return call_up_subs_string
 

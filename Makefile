@@ -6,6 +6,10 @@ default: build
 up: build
 	docker compose up
 
+.PHONY: run
+run: build
+	docker compose run bot
+
 # Development
 
 .PHONY: format
