@@ -42,7 +42,7 @@ from pyball.legacy.db.utils import add_match_results, get_results_names
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TEAM_NAMES: List[str] = ["Verde", "Naranja", "Sin Peto"]
+DEFAULT_TEAM_NAMES: List[str] = ["Color claro", "Color oscuro"]
 
 
 class PlayersStatInput:
