@@ -403,11 +403,14 @@ def player_list(**_: dict) -> str:
     :returns: A formatted string containing the list.
 
     """
+    players = []
+
+    for player in get_player_list():
+        main_str = " ⚽" if player.main else ""
+        players.append(f"{player.name}{main_str}")
+
     return "\n".join(
-        f"· `{name}`"
-        for name in sorted(
-            [player.name for player in get_player_list()], key=functools.cmp_to_key(locale.strcoll)
-        )
+        f"· `{name}`" for name in sorted(players, key=functools.cmp_to_key(locale.strcoll))
     )
 
 
@@ -416,7 +419,7 @@ def player_rank(order: str, all_seasons: bool = False, **_: dict) -> str:
     """Retrieve the list of players in the database ordered.
 
     :param all_seasons: Whether to show the statistics from all the seasons.
-    :param order: The order to rank the players.
+    :param order: The order to rank the pla yers.
     :returns: The ordered list of players.
 
     """
