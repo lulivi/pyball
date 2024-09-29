@@ -205,6 +205,21 @@ def reid_player(player: Union[str, int], new_identifier: int) -> None:
 
 
 @log_func
+def remain_player(player: Union[str, int], is_main: bool) -> None:
+    """Set the player main status.
+
+    :param player: The id or the name of the player.
+    :param is_main: Whether the player is from the main team.
+    :raises DbPlayerNotUpdatedError: If no player was modified.
+    :raises DbPlayerAlreadyExistentError: If a player with the same name already exists.
+
+    """
+    player_wrapper = find_player(player)
+
+    model.Player.update({"main": is_main}).where(model.Player.id == player_wrapper.id).execute()
+
+
+@log_func
 def get_player_list(all_seasons: bool = False) -> List[wrapper.Player]:
     """Get the list of existing players in the database.
 

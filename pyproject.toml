@@ -35,7 +35,7 @@ freezegun = "*"
 ddt = "^1.7.1"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4.0"
+python = ">=3.10,<4.0"
 python-telegram-bot = "20.*"
 python-decouple = "3.6"
 peewee = "3.15.3"

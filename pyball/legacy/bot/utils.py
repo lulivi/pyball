@@ -67,10 +67,12 @@ from pyball.legacy.db.errors import (
 )
 from pyball.legacy.db.utils import (
     create_player,
+    find_player,
     get_match,
     get_matches_date_list,
     get_player_list,
     reid_player,
+    remain_player,
     rename_player,
     rollback_database,
 )
@@ -415,11 +417,23 @@ def player_list(**_: dict) -> str:
 
 
 @log_func
+def player_main(name: str, main: Optional[bool], **_: dict) -> str:
+    """Get or set the player main status."""
+    if main is not None:
+        remain_player(player=name, is_main=main)
+
+    player = find_player(player=name)
+
+    main_str = "" if player.main else "NO "
+    return f"`{player}` *{main_str}es* titular."
+
+
+@log_func
 def player_rank(order: str, all_seasons: bool = False, **_: dict) -> str:
     """Retrieve the list of players in the database ordered.
 
     :param all_seasons: Whether to show the statistics from all the seasons.
-    :param order: The order to rank the pla yers.
+    :param order: The order to rank the players.
     :returns: The ordered list of players.
 
     """

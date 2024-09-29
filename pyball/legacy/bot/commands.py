@@ -20,6 +20,7 @@
 
 """Bot commands and buttons."""
 
+import argparse
 import datetime
 import functools
 import html
@@ -70,6 +71,7 @@ from pyball.legacy.bot.utils import (
     match_show,
     player_add,
     player_list,
+    player_main,
     player_rank,
     player_reid,
     player_rename,
@@ -342,6 +344,23 @@ async def command_player(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                         ),
                     ],
                     callable=ensure_admin(update.effective_user.id, player_reid),
+                ),
+                SubCommand(
+                    ["main"],
+                    [
+                        CommandArgument(
+                            "name",
+                            metavar="<nombre jugador>",
+                            help="Player name",
+                            action=MultiWordStringAction,
+                            nargs="+",
+                        ),
+                        CommandArgument(
+                            "--main",
+                            action=argparse.BooleanOptionalAction,
+                        ),
+                    ],
+                    callable=ensure_admin(update.effective_user.id, player_main),
                 ),
             ],
             text=update.message.text,
