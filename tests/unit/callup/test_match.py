@@ -32,7 +32,7 @@ class TestPlayersStatInput(TestCase):
         mock_find_player.side_effect = [scorer, assistant]
         players_stat_input = PlayersStatInput()
 
-        players_stat_input.add_stat(scorer.name, assistant.name)
+        players_stat_input.add_goal_stat(scorer.name, assistant.name)
 
         self.assertDictEqual(players_stat_input.result, expected_dict)
 
@@ -43,7 +43,7 @@ class TestPlayersStatInput(TestCase):
         mock_find_player.side_effect = [scorer, assistant]
         players_stat_input = PlayersStatInput()
 
-        players_stat_input.add_stat(scorer.name, assistant.name)
+        players_stat_input.add_goal_stat(scorer.name, assistant.name)
 
         self.assertEqual(len(players_stat_input), 2)
 

@@ -40,7 +40,7 @@ class TestCallUpProcess(TestCase):
         self.assertNotIn("goles", obtained_yaml)
 
         player_stat_input = PlayersStatInput()
-        player_stat_input.add_stat(self._players[0]["name"])
+        player_stat_input.add_goal_stat(self._players[0]["name"])
 
         # when
         self._call_up.set_results(player_stat_input)
@@ -117,11 +117,11 @@ class TestCallUpProcess(TestCase):
 
         player_stat_input = PlayersStatInput()
 
-        player_stat_input.add_stat(self._players[0]["name"], self._players[1]["name"])
-        player_stat_input.add_stat(self._players[1]["name"], self._players[0]["name"])
-        player_stat_input.add_stat(self._players[2]["name"], self._players[3]["name"])
+        player_stat_input.add_goal_stat(self._players[0]["name"], self._players[1]["name"])
+        player_stat_input.add_goal_stat(self._players[1]["name"], self._players[0]["name"])
+        player_stat_input.add_goal_stat(self._players[2]["name"], self._players[3]["name"])
 
-        player_stat_input.add_stat(self._players[7]["name"], self._players[5]["name"])
+        player_stat_input.add_goal_stat(self._players[7]["name"], self._players[5]["name"])
 
         # when
         self._call_up.set_results(player_stat_input)

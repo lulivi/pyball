@@ -65,7 +65,7 @@ class PlayersStatInput:
         """
         return self._result
 
-    def add_stat(self, scorer: str, assistant: str = "") -> None:
+    def add_goal_stat(self, scorer: str, assistant: str = "") -> None:
         """Add a goal to the player match statistics.
 
         :param scorer: Scorer name.
@@ -76,6 +76,18 @@ class PlayersStatInput:
 
         if assistant:
             self._result[self._player_correct_name(assistant)]["assists"] += 1
+
+    def add_player_stat(self, scorer: str, goals: int, assists: int = 0):
+        """Add a the statistic of a player.
+
+        :param scorer: Scorer name.
+        :param goals: Number of goals in the match.
+        :param assists: Number of assists in the match.
+
+        """
+        player_name = self._player_correct_name(scorer)
+        self._result[player_name]["goals"] = int(goals)
+        self._result[player_name]["assists"] = int(assists)
 
     @staticmethod
     def _player_correct_name(player_name: str) -> str:

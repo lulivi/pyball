@@ -89,19 +89,29 @@ class MatchStatsAction(argparse.Action):  # pylint: disable=too-few-public-metho
         # Ensure there is at least one space before the first `g` for the proper splitting
         raw_stats_str = f" {' '.join(values)}"
 
-        # The first item will be empty since there is nothing at the left of the first `g`
-        for raw_stat in raw_stats_str.split(" g ")[1:]:
-            try:
-                stats.add_stat(*raw_stat.split(" a "))
-            except CallUpPlayerDoesNotExistError as error:
-                raise BotPlayerError(
-                    f"No se ha encontrado al jugador `{error.player}` en la base de datos."
-                ) from error
-            except CallUpMultiplePlayersFoundError as error:
-                raise BotPlayerError(
-                    f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
-                    f" {md_monospace_items(error.players)}. Por favor, concreta"
-                ) from error
+        try:
+            # person stats
+            if " s " in raw_stats_str:
+                for stat_line in raw_stats_str.split(" s ")[1:]:
+                    parts = stat_line.strip().rsplit(" ", 2)
+                    if not parts[1].isdigit():
+                        parts[0] = f"{parts[0]} {parts[1]}"
+                        del parts[1]
+                    stats.add_player_stat(*parts)
+            # goal stats
+            else:
+                # The first item will be empty since there is nothing at the left of the first `g`
+                for raw_stat in raw_stats_str.split(" g ")[1:]:
+                    stats.add_goal_stat(*raw_stat.split(" a "))
+        except CallUpPlayerDoesNotExistError as error:
+            raise BotPlayerError(
+                f"No se ha encontrado al jugador `{error.player}` en la base de datos."
+            ) from error
+        except CallUpMultiplePlayersFoundError as error:
+            raise BotPlayerError(
+                f"La búsqueda del jugador `{error.wild_card}` obtuvo múltiples resultados:"
+                f" {md_monospace_items(error.players)}. Por favor, concreta"
+            ) from error
 
         setattr(namespace, self.dest, stats)
 
