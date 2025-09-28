@@ -53,6 +53,7 @@ from pyball.legacy.bot.errors import (
 from pyball.legacy.bot.utils import (
     CallUpWrapper,
     bot_call_message_function,
+    calc_next_wednesday,
     callup_add,
     callup_del,
     callup_location,
@@ -69,6 +70,7 @@ from pyball.legacy.bot.utils import (
     match_list,
     match_rollback,
     match_show,
+    notify_admins,
     player_add,
     player_list,
     player_main,
@@ -85,6 +87,7 @@ from pyball.legacy.callup.errors import (
     CallUpPlayerDoesNotExistError,
     CallUpPlayerNotCalledUpError,
 )
+from pyball.legacy.callup.players import find_player
 from pyball.logger import log_func
 from pyball.settings import ADMINS_IDS, DATE_FORMAT, TIME_FORMAT
 
@@ -166,6 +169,16 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
         finally:
             await query.answer(answer)
+
+        player_name = find_player(player=player).name
+        action = "salió de"
+        if "añadió" in answer:
+            action = "se unió a"
+
+        await notify_admins(
+            context=context,
+            message=f"Jugador `{player_name}` {action} la convocatoria.",
+        )
 
         await update_call_up_message(
             call_up=call_up,
@@ -402,7 +415,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
     if update.message is None or update.message.text is None:
         return
 
-    new_subcommand_names = ["new", "n"]
+    new_subcommand_names = ["new", "n", "next"]
     reply_function = update.message.reply_text
 
     try:
@@ -410,7 +423,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
             command="/callup",
             subcommands=[
                 SubCommand(
-                    new_subcommand_names,
+                    ["new", "n"],
                     [
                         CommandArgument(
                             "-p",
@@ -447,6 +460,18 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                     ],
                     callable=functools.partial(
                         callup_new,
+                        chat_id=update.message.chat_id,
+                    ),
+                ),
+                SubCommand(
+                    ["next"],
+                    [],
+                    callable=functools.partial(
+                        callup_new,
+                        max_players=None,
+                        location=None,
+                        team_names=None,
+                        date=calc_next_wednesday(),
                         chat_id=update.message.chat_id,
                     ),
                 ),

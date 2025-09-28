@@ -82,6 +82,18 @@ from pyball.settings import ADMINS_IDS, DATETIME_DISPLAY_FORMAT, DATETIME_FORMAT
 logger = logging.getLogger(__name__)
 
 
+def calc_next_wednesday() -> datetime.datetime:
+    """Calculate the next Wednesday at 20:00 from now."""
+    now = datetime.datetime.now()
+    days_ahead = 2 - now.weekday()
+
+    if days_ahead <= 0:
+        days_ahead += 7
+
+    next_wednesday = now + datetime.timedelta(days=days_ahead)
+    return next_wednesday.replace(hour=20, minute=0, second=0, microsecond=0)
+
+
 def md_monospace_items(items: List[str]) -> str:
     """Transform a list of elements into a string of comma separated monospaced strings.
 
@@ -205,6 +217,20 @@ def ensure_admin(user_id: int, func: Callable):
     return wrapper
 
 
+async def notify_admins(context: ContextTypes.DEFAULT_TYPE, message: str) -> None:
+    """Send a message to all the admins.
+
+    :param context: The object from which get the send_message method.
+    :param message: The message to send.
+    """
+    for admin_id in ADMINS_IDS:
+        await bot_call_message_function(
+            message_function=context.bot.send_message,
+            chat_id=admin_id,
+            text=message,
+        )
+
+
 async def search_substitutes(
     call_up: CallUp,
     reply_function: Callable,
@@ -305,12 +331,8 @@ async def update_call_up_message(
         ).replace("`", "")
 
         if call_up_diff:
-            for admin_id in ADMINS_IDS:
-                await bot_call_message_function(
-                    message_function=context.bot.send_message,
-                    chat_id=admin_id,
-                    text=f"```text\n{escape_markdown(call_up_diff)}```",
-                )
+            message = f"```text\n{escape_markdown(call_up_diff)}```"
+            await notify_admins(context=context, message=message)
 
 
 def diff_call_ups(old_call_up: str, new_call_up: str) -> str:
@@ -726,6 +748,11 @@ async def callup_add(
         except CallUpPlayerAlreadyCalledUpError:
             return
 
+        await notify_admins(
+            context=context,
+            message=f"Jugador `{name}` se unió a la convocatoria.",
+        )
+
     await search_substitutes(
         call_up=call_up,
         reply_function=reply_function,
@@ -768,6 +795,11 @@ async def callup_del(
             ) from error
         except CallUpPlayerNotCalledUpError:
             pass
+
+        await notify_admins(
+            context=context,
+            message=f"Jugador `{name}` salió de la convocatoria.",
+        )
 
     await search_substitutes(
         call_up=call_up,
