@@ -24,10 +24,7 @@ import functools
 import locale
 import logging
 
-from enum import Enum, auto
 from typing import List, Optional, Union
-
-import yaml
 
 from pyball.legacy import db
 from pyball.legacy.callup.errors import (
@@ -92,7 +89,7 @@ class Players:
         :returns: The maximum number of players to search for.
 
         """
-        return min(filter(lambda x: len(self) <= x, (10, 12, 14, 15, 22)), default=100)
+        return min(filter(lambda x: len(self) <= x, (10, 12)), default=12)
 
     @property
     def players(self) -> List[db.wrapper.Player]:

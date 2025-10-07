@@ -24,6 +24,7 @@ import difflib
 import functools
 import locale
 import logging
+import random
 import re
 
 from contextlib import contextmanager
@@ -43,7 +44,7 @@ from pyball.legacy.bot.errors import (
     BotNotAdminError,
     BotPlayerError,
 )
-from pyball.legacy.bot.globals import CALL_UP_KEYBOARD
+from pyball.legacy.bot.globals import CALL_UP_KEYBOARD, create_answer_keyboard_button
 from pyball.legacy.callup.callup import CallUp
 from pyball.legacy.callup.callup_repository import CallUpRepository
 from pyball.legacy.callup.errors import (
@@ -109,6 +110,7 @@ async def bot_call_message_function(
     text: str,
     *args,
     with_keyboard: bool = False,
+    auto_answer: str = "",
     **kwargs,
 ) -> Message:
     """Call bot function with desired args.
@@ -121,6 +123,9 @@ async def bot_call_message_function(
     reply_markup = None
     if with_keyboard:
         reply_markup = CALL_UP_KEYBOARD
+
+    if auto_answer:
+        reply_markup = create_answer_keyboard_button(auto_answer)
 
     return await message_function(
         text=text,
@@ -166,16 +171,22 @@ def get_call_up(message: Optional[Message]) -> CallUpWrapper:
 
     call_up_date_time = obtain_date_from_call_up_message(message.text)
 
-    try:
-        return CallUpWrapper(date_time=call_up_date_time)
-    except CallUpMatchAlreadyFinishedError as error:
-        raise BotCallUpError("El partido seleccionado ha concluido") from error
+    return get_call_up_wrapper_from_date(call_up_date_time)
 
 
 def obtain_date_from_call_up_message(call_up_message: str) -> datetime.datetime:
+    logger.debug(f"Obtaining date from call-up message:\n{call_up_message}")
     return datetime.datetime.strptime(
         call_up_message.splitlines()[1].split(maxsplit=1)[1].strip(), DATETIME_DISPLAY_FORMAT
     )
+
+
+def get_call_up_wrapper_from_date(date_time: datetime.datetime) -> CallUpWrapper:
+    """Get the call-up object from a date."""
+    try:
+        return CallUpWrapper(date_time=date_time)
+    except CallUpMatchAlreadyFinishedError as error:
+        raise BotCallUpError("El partido seleccionado ha concluido") from error
 
 
 def command_ensure_admin(func):
@@ -771,6 +782,7 @@ async def callup_del(
     context: ContextTypes.DEFAULT_TYPE,
     reply_function: Callable,
     call_up: CallUp,
+    date: Optional[datetime.datetime] = None,
     **_: dict,
 ) -> None:
     """Remove players from the call-up.
@@ -939,6 +951,60 @@ async def callup_teams(
         call_up=call_up,
         context=context,
         old_call_up_str=old_call_up_str,
+    )
+
+
+@log_func
+async def callup_random_twelve(
+    shielded: List[str],
+    reply_function: Callable,
+    call_up: CallUp,
+    **_: dict,
+) -> None:
+    """Send a list of twelve random players and the excluded players.
+
+    :param shielded: List of players that will not be excluded from the call-up.
+    :param context: The information related to the update.
+    :param reply_function: Function used to send messages within this method.
+
+    """
+    fixed_shielded_players = [find_player(shielded_player).name for shielded_player in shielded]
+
+    players = call_up.players.players
+
+    if len(players) <= 12:
+        raise BotCallUpError("No hay suficientes jugadores para excluir a nadie.")
+
+    player_names = [player.name for player in players]
+
+    for shielded_player in fixed_shielded_players:
+        if shielded_player in player_names:
+            player_names.remove(shielded_player)
+
+    random.shuffle(player_names)
+    complete_player_list = (
+        list(map(lambda player_name: f"{player_name} 🛡️", fixed_shielded_players)) + player_names
+    )
+
+    selected_players, excluded_players = complete_player_list[:12], complete_player_list[12:]
+    selected_players_str = "\n".join(
+        [
+            f"· `{player}`"
+            for player in sorted(selected_players, key=functools.cmp_to_key(locale.strcoll))
+        ]
+    )
+
+    excluded_players_comma_separated_string = ", ".join(excluded_players)
+
+    await bot_call_message_function(
+        message_function=reply_function,
+        text=(
+            f"*Jugadores seleccionados:*\n\n{selected_players_str}\n\n*Jugadores"
+            f" excluidos:*\n\n`{excluded_players_comma_separated_string}`\n\n*Copia y envía el"
+            " siguiente comando para quitar de la comvocatoria a los jugadores excluidos:*\n\n`/c"
+            f" d {excluded_players_comma_separated_string} -date"
+            f" {call_up.date_time.strftime(DATETIME_FORMAT)}`"
+        ),
     )
 
 

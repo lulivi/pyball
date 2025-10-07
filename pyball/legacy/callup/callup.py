@@ -23,11 +23,8 @@
 import datetime
 import logging
 
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import List, Optional, Union
-
-import yaml
 
 from typing_extensions import NotRequired, TypedDict, Unpack
 
@@ -41,6 +38,7 @@ from pyball.legacy.callup.match import Match, PlayersStatInput
 from pyball.legacy.callup.players import Players
 from pyball.settings import (
     DATETIME_DISPLAY_FORMAT,
+    DATETIME_FORMAT,
     DEFAULT_MATCH_LOCATION,
     REGULARS_ID,
     SUBSTITUTES_ID,
@@ -283,11 +281,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
         self._match.set_results(results, self._date)
 
     def __str__(self) -> str:
-        call_up_string: str = (
-            f"Apuntados: {len(self._players)}/{self._players.maximum}"
-            f"\nConvocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*"
-            f"\nLugar: *{self._location}*"
-        )
+        call_up_string: str = self._get_common_message()
 
         if self._match:
             call_up_string = f"{call_up_string}\n\n{self._match}"
@@ -302,11 +296,7 @@ class CallUp:  # pylint: disable=too-many-public-methods
         subs_players_str = "\n".join(
             [f"- `{player.name}`" for player in self._players.players if not player.main]
         )
-        call_up_subs_string = (
-            f"Apuntados: {len(self._players)}/{self._players.maximum}"
-            f"\nConvocatoria: *{self._date.strftime(DATETIME_DISPLAY_FORMAT)}*"
-            f"\nLugar: *{self._location}*"
-        )
+        call_up_subs_string = self._get_common_message()
 
         if self._match:
             call_up_subs_string = f"{call_up_subs_string}\n\n{self._match.display_subs()}"
@@ -314,6 +304,14 @@ class CallUp:  # pylint: disable=too-many-public-methods
             call_up_subs_string = f"{call_up_subs_string}\n\nSuplentes:\n{subs_players_str}"
 
         return call_up_subs_string
+
+    def _get_common_message(self) -> str:
+        """Get the common part of the call-up message."""
+        return (
+            f"Apuntados: {len(self._players)}/{self._players.maximum}"
+            f"\nConvocatoria: {self._date.strftime('%A')} `{self._date.strftime(DATETIME_FORMAT)}`"
+            f"\nLugar: {self._location}"
+        )
 
     @property
     def __dict__(self) -> dict:

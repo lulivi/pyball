@@ -21,6 +21,7 @@
 """Argument parser classes and functions."""
 
 import argparse
+import datetime
 import re
 
 from typing import Any, Callable, Dict, List, NamedTuple, NoReturn, Optional, Type, Union
@@ -33,6 +34,7 @@ from pyball.legacy.callup.errors import (
 )
 from pyball.legacy.callup.match import PlayersStatInput
 from pyball.logger import log_func
+from pyball.settings import DATETIME_FORMAT
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -135,6 +137,21 @@ class ComaSeparatedMultiWordStringsAction(
         setattr(
             namespace, self.dest, list(filter(None, [element.strip() for element in elements]))
         )
+
+
+class CallupDateTimeAction(argparse.Action):  # pylint: disable=too-few-public-methods
+    """Transform a list coma separated word groups list strings."""
+
+    def __call__(self, _, namespace, values, __=None) -> None:
+        """Set the player name."""
+        try:
+            setattr(
+                namespace,
+                self.dest,
+                datetime.datetime.strptime(" ".join(values), DATETIME_FORMAT),
+            )
+        except ValueError as error:
+            raise BotCommandError(f"La fecha '{values}' no tiene el formato adecuado.") from error
 
 
 class CommandParser(argparse.ArgumentParser):

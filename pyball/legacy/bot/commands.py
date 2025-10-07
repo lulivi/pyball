@@ -35,6 +35,7 @@ from telegram.helpers import escape_markdown
 
 from pyball import __version__
 from pyball.legacy.bot.argument_parser import (
+    CallupDateTimeAction,
     ComaSeparatedMultiWordStringsAction,
     CommandArgument,
     MatchStatsAction,
@@ -60,6 +61,7 @@ from pyball.legacy.bot.utils import (
     callup_lock,
     callup_maximum,
     callup_new,
+    callup_random_twelve,
     callup_results,
     callup_search,
     callup_teams,
@@ -67,6 +69,7 @@ from pyball.legacy.bot.utils import (
     command_ensure_admin,
     ensure_admin,
     get_call_up,
+    get_call_up_wrapper_from_date,
     match_list,
     match_rollback,
     match_show,
@@ -416,6 +419,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
         return
 
     new_subcommand_names = ["new", "n", "next"]
+    call_up_date_metavar = "call_up_date"
     reply_function = update.message.reply_text
 
     try:
@@ -509,7 +513,14 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             help="A coma separated list of player names",
                             action=ComaSeparatedMultiWordStringsAction,
                             nargs="+",
-                        )
+                        ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to select the players from",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_add,
                 ),
@@ -522,7 +533,14 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             help="A coma separated list of player names",
                             action=ComaSeparatedMultiWordStringsAction,
                             nargs="+",
-                        )
+                        ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to delete the players from",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_del,
                 ),
@@ -543,6 +561,20 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                         )
                     ],
                     callable=callup_teams,
+                ),
+                SubCommand(
+                    ["random12", "r12"],
+                    [
+                        CommandArgument(
+                            "-shielded",
+                            metavar="<nombre jugador>[, <nombre jugador>[, ...]]",
+                            help="A coma separated list of player names",
+                            action=ComaSeparatedMultiWordStringsAction,
+                            nargs="+",
+                            default=[],
+                        ),
+                    ],
+                    callable=callup_random_twelve,
                 ),
                 SubCommand(
                     ["results", "r"],
@@ -583,6 +615,7 @@ async def command_callup(  # pylint: disable=too-many-return-statements
 
     args["context"] = context
 
+    # There is no call-up, we are creating a new one
     if args["subcommand"] in new_subcommand_names:
         try:
             await args.pop("func")(**args)
@@ -598,7 +631,13 @@ async def command_callup(  # pylint: disable=too-many-return-statements
     args["reply_function"] = reply_function
 
     try:
-        with get_call_up(update.message.reply_to_message).unwrap() as call_up:
+        call_up_wrapper: CallUpWrapper = (
+            get_call_up_wrapper_from_date(args.pop(call_up_date_metavar))
+            if args.get(call_up_date_metavar) is not None
+            else get_call_up(update.message.reply_to_message)
+        )
+
+        with call_up_wrapper.unwrap() as call_up:
             args["call_up"] = call_up
 
             try:

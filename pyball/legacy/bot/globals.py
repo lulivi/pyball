@@ -19,10 +19,24 @@
 # SOFTWARE.
 
 """Global bot variables."""
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import ForceReply, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 CALL_UP_KEYBOARD: InlineKeyboardMarkup = InlineKeyboardMarkup(
     [[InlineKeyboardButton("Voy / No voy", callback_data="x")]]
 )
+
+
+def create_answer_keyboard_button(command: str) -> ForceReply:
+    """Generate a keyboard with a button to send a command.
+
+    :param command: Command to be sent when the button is pressed.
+    :return: An InlineKeyboardMarkup object with the button.
+
+    """
+    return ForceReply(
+        input_field_placeholder=command,
+        selective=True,
+    )
+
 
 CALL_UP_DICT_KEY: str = "call-up"
