@@ -30,7 +30,7 @@ import re
 from contextlib import contextmanager
 from typing import Callable, Generator, List, Optional, cast
 
-from telegram import Bot, Message, Update
+from telegram import Bot, CallbackQuery, Message, Update
 from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
@@ -78,7 +78,12 @@ from pyball.legacy.db.utils import (
     rollback_database,
 )
 from pyball.logger import log_func
-from pyball.settings import ADMINS_IDS, DATETIME_DISPLAY_FORMAT, DATETIME_FORMAT
+from pyball.settings import (
+    ADMINS_IDS,
+    DATETIME_DISPLAY_FORMAT,
+    DATETIME_FORMAT,
+    REGULARS_THREAD_ID,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +147,7 @@ class CallUpWrapper:
 
     @contextmanager
     def unwrap(self) -> Generator[CallUp, None, None]:
+        call_up = None
         try:
             call_up = CallUpRepository().get(date_time=self._date_time)
 
@@ -370,6 +376,58 @@ def diff_call_ups(old_call_up: str, new_call_up: str) -> str:
 
 def remove_leading_numbers(text: str) -> str:
     return re.sub("^\s*\d+", " ", text, flags=re.MULTILINE)
+
+
+@log_func
+async def handle_button_action(
+    call_up: CallUp,
+    player: int,
+    query: CallbackQuery,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Handle a player's call-up action (join/leave).
+
+    :param call_up: The call-up object to modify
+    :param player: The player ID
+    :param query: The callback query
+    :param context: The bot context
+    """
+    old_call_up_str = str(call_up)
+
+    try:
+        answer = call_up.act(player)
+    except (
+        CallUpMultiplePlayersFoundError,
+        CallUpPlayerNotCalledUpError,
+    ) as error:
+        answer = str(error)
+        return
+    except CallUpPlayerDoesNotExistError as error:
+        answer = "No se ha encontrado tu ID, contacta con un administrador."
+        return
+    finally:
+        await query.answer(answer)
+
+    player_name = find_player(player=player).name
+    action = "salió de"
+    if "añadió" in answer:
+        action = "se unió a"
+
+    await notify_admins(
+        context=context,
+        message=f"Jugador `{player_name}` {action} la convocatoria.",
+    )
+
+    await update_call_up_message(
+        call_up=call_up,
+        context=context,
+        old_call_up_str=old_call_up_str,
+    )
+    await search_substitutes(
+        call_up=call_up,
+        reply_function=query.message.reply_text,
+        bot=context.bot,
+    )
 
 
 @log_func
@@ -626,6 +684,7 @@ async def callup_new(
                 message_function=context.bot.send_message,
                 text="Creando convocatoria...",
                 chat_id=chat_id,
+                message_thread_id=REGULARS_THREAD_ID,
                 with_keyboard=True,
             )
         ),
@@ -640,6 +699,14 @@ async def callup_new(
     )
 
     CallUpRepository().save(call_up=call_up)
+
+    date_time_str = date.strftime(DATETIME_FORMAT)
+
+    await bot_call_message_function(
+        message_function=context.bot.send_message,
+        text=f"Se ha abierto una nueva convocatoria para el día `{date_time_str}`!",
+        chat_id=call_up.main_chat.chat_id,
+    )
 
     await update_call_up_message(call_up=call_up, context=context, old_call_up_str="")
 
@@ -1059,7 +1126,6 @@ async def callup_results(
         message_function=context.bot.send_message,
         text="Partido concluido!",
         chat_id=call_up.main_chat.chat_id,
-        reply_to_message_id=call_up.main_chat.message_id,
     )
     await callup_search(
         stop=True,

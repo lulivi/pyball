@@ -22,6 +22,7 @@
 
 import argparse
 import datetime
+import logging
 import re
 
 from typing import Any, Callable, Dict, List, NamedTuple, NoReturn, Optional, Type, Union
@@ -35,6 +36,8 @@ from pyball.legacy.callup.errors import (
 from pyball.legacy.callup.match import PlayersStatInput
 from pyball.logger import log_func
 from pyball.settings import DATETIME_FORMAT
+
+logger = logging.getLogger(__name__)
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):

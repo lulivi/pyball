@@ -70,18 +70,16 @@ from pyball.legacy.bot.utils import (
     ensure_admin,
     get_call_up,
     get_call_up_wrapper_from_date,
+    handle_button_action,
     match_list,
     match_rollback,
     match_show,
-    notify_admins,
     player_add,
     player_list,
     player_main,
     player_rank,
     player_reid,
     player_rename,
-    search_substitutes,
-    update_call_up_message,
 )
 from pyball.legacy.callup.callup import CallUp
 from pyball.legacy.callup.errors import (
@@ -154,45 +152,13 @@ async def button_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     player = update.effective_user.id
-    answer: str = ""
 
-    with call_up_wrapper.unwrap() as call_up:
-        old_call_up_str = str(call_up)
-
-        try:
-            answer = call_up.act(player)
-        except (
-            CallUpMultiplePlayersFoundError,
-            CallUpPlayerNotCalledUpError,
-        ) as error:
-            answer = str(error)
-            return
-        except CallUpPlayerDoesNotExistError as error:
-            answer = "No se ha encontrado tu ID, contacta con un administrador."
-            return
-        finally:
-            await query.answer(answer)
-
-        player_name = find_player(player=player).name
-        action = "salió de"
-        if "añadió" in answer:
-            action = "se unió a"
-
-        await notify_admins(
-            context=context,
-            message=f"Jugador `{player_name}` {action} la convocatoria.",
-        )
-
-        await update_call_up_message(
-            call_up=call_up,
-            context=context,
-            old_call_up_str=old_call_up_str,
-        )
-        await search_substitutes(
-            call_up=call_up,
-            reply_function=query.message.reply_text,
-            bot=context.bot,
-        )
+    try:
+        with call_up_wrapper.unwrap() as call_up:
+            await handle_button_action(call_up, player, query, context)
+    except BotCallUpError as error:
+        await query.answer(text=str(error))
+        return
 
 
 @log_func
@@ -485,7 +451,14 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                         CommandArgument(
                             "maximum",
                             metavar="<maximum> | auto",
-                        )
+                        ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to ...",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_maximum,
                 ),
@@ -498,12 +471,43 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             help="The new location",
                             action=MultiWordStringAction,
                             nargs="+",
-                        )
+                        ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to ...",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_location,
                 ),
-                SubCommand(["lock", "l"], callable=callup_lock),
-                SubCommand(["unlock", "u"], callable=callup_unlock),
+                SubCommand(
+                    ["lock", "l"],
+                    [
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to ...",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
+                    ],
+                    callable=callup_lock,
+                ),
+                SubCommand(
+                    ["unlock", "u"],
+                    [
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to ...",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
+                    ],
+                    callable=callup_unlock,
+                ),
                 SubCommand(
                     ["add", "a"],
                     [
@@ -546,7 +550,16 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                 ),
                 SubCommand(
                     ["search", "s"],
-                    [CommandArgument("-stop", action="store_true")],
+                    [
+                        CommandArgument("-stop", action="store_true"),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to search players for",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
+                    ],
                     callable=callup_search,
                 ),
                 SubCommand(
@@ -558,7 +571,14 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             help="The two player names separated by coma",
                             action=ComaSeparatedMultiWordStringsAction,
                             nargs="+",
-                        )
+                        ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to swap teams in",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_teams,
                 ),
@@ -573,6 +593,13 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             nargs="+",
                             default=[],
                         ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to ...",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_random_twelve,
                 ),
@@ -585,7 +612,14 @@ async def command_callup(  # pylint: disable=too-many-return-statements
                             metavar="g <nombre jugador 1> [a <nombre jugador 2>]",
                             action=MatchStatsAction,
                             nargs="+",
-                        )
+                        ),
+                        CommandArgument(
+                            "-date",
+                            dest=call_up_date_metavar,
+                            help="The date of the call-up to ...",
+                            action=CallupDateTimeAction,
+                            nargs="+",
+                        ),
                     ],
                     callable=callup_results,
                 ),

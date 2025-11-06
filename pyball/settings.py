@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import Tuple
 
-from decouple import AutoConfig, Csv, UndefinedValueError
+from decouple import AutoConfig, Csv
 
 APP_ROOT_DIR: Path = Path.cwd()
 config = AutoConfig(search_path=APP_ROOT_DIR)
@@ -38,6 +38,7 @@ DATETIME_DISPLAY_FORMAT: str = config(
 )
 BOT_TOKEN: str = config("BOT_TOKEN", default="")
 REGULARS_ID: int = config("REGULARS_ID", cast=int)
+REGULARS_THREAD_ID = config("REGULARS_THREAD_ID", default=None)
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
 DEFAULT_MATCH_LOCATION: str = config("DEFAULT_MATCH_LOCATION")
 ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")

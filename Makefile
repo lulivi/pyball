@@ -8,7 +8,7 @@ up: build
 
 .PHONY: run
 run: build
-	docker compose run bot
+	docker compose run --remove-orphans bot
 
 # Development
 

@@ -464,7 +464,7 @@ class Match:
 
         if self._finished:
             winner_team = sorted(
-                self._teams.items(), key=lambda item: item[1].score, reverse=True
+                self._teams.items(), key=lambda item: item[1].score, reverse=False
             ).pop()[0]
             teams_str = f"{teams_str}\n\nEnhorabuena equipo `{winner_team}`!"
 
