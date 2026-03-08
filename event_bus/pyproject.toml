@@ -1,0 +1,71 @@
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+
+[tool.poetry-dynamic-versioning]
+dirty = true
+enable = true
+format-jinja = "{% if distance == 0 %}{{ base }}{% if stage %}.{{ stage }}{% endif %}{% else %}{{ base }}.dev{% endif %}"
+latest-tag = true
+vcs = "git"
+
+[tool.poetry]
+name = "event_bus"
+version = "0.0.0"
+description = "Send and receive Events to and from the PyballBus"
+license = "MIT"
+authors = ["Luis Liñán <luislivilla@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "event_bus" }]
+
+[tool.poetry.group.dev.dependencies]
+black = "24.*"
+isort = "5.*"
+nox = "*"
+mypy = "*"
+pylama = "7.7.1"
+pycodestyle = "*"
+pydocstyle = "*"
+pylint = "*"
+Faker = "18.*"
+freezegun = "*"
+ddt = "^1.7.1"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+python-decouple = "3.6"
+typing_extensions = "*"
+event_bus = "1.*"
+fastapi = "^0.111.0"
+websockets = "^13.1"
+
+[tool.poetry.group.test]
+optional = true
+[tool.poetry.group.test.dependencies]
+coverage = {version = "6.2", extras = ["toml"]}
+pytest = "*"
+pytest-cov = "*"
+pytest-emoji = "*"
+pytest-timeout = "*"
+
+[tool.black]
+line-length = 99
+preview = true
+enable-unstable-feature = ["string_processing"]
+
+[tool.isort]
+profile = "black"
+line_length = 99
+lines_between_types = 1
+
+[tool.mypy]
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = ["decouple", "event_bus"]
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+  "logging-fstring-interpolation"
+]

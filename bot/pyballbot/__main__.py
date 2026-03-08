@@ -22,6 +22,7 @@
 """Bot main file."""
 
 import argparse
+import asyncio
 import locale
 import logging
 
@@ -33,35 +34,26 @@ from pyballbot import __version__
 from pyballbot.commands.entrypoint import build_application
 from pyballbot.logger import configure_logging
 from pyballbot.settings import APP_VERBOSITY, LOCALE
+from pyballbot.event_bus import PyBallBotEventBus
 
 logger = logging.getLogger(__name__)
-
-
-def log_startup_info() -> None:
-    """Log some important information in the startup."""
-    asterisk_line = "*" * 79
-    booting_up_str = "Booting up!!"
-    pyball_version_str = f"Running Pyball v{__version__}"
-    logger.warning(asterisk_line)
-    logger.warning(f"*{booting_up_str:^77}*")
-    logger.warning(f"*{pyball_version_str:^77}*")
-    logger.warning(asterisk_line)
 
 
 def main() -> None:
     """Start the bot."""
     args = parse_arguments()
     configure_logging(stream_level=args.verbosity)
-
     log_startup_info()
 
     # Set locale for sorting player names
     locale.setlocale(locale.LC_ALL, LOCALE)
 
+    logger.info("Starting event bus listener")
+    PyBallBotEventBus.start_listener()
+
+    logger.info("Starting bot application")
     application: Application
     application = build_application()
-
-    # Run the bot until the user presses Ctrl-C
     application.run_polling()
 
 
@@ -79,6 +71,20 @@ def parse_arguments() -> argparse.Namespace:
         parser.error(f"The argument --verbosity must be a valid logging level: {logging_levels}.")
 
     return args
+
+
+def log_startup_info() -> None:
+    """Log some important information in the startup."""
+    asterisk_line = "*" * 79
+    booting_up_str = "Booting up!!"
+    pyball_version_str = f"Running Pyball v{__version__}"
+    logger.warning(asterisk_line)
+    logger.warning(f"*{booting_up_str:^77}*")
+    logger.warning(f"*{pyball_version_str:^77}*")
+    logger.warning(asterisk_line)
+
+async def start_event_bus_listener():
+    
 
 
 if __name__ == "__main__":

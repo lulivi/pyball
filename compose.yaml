@@ -1,41 +1,5 @@
-services:
-  core:
-    image: lulivi/pyball
-    user: "$UID:$UID"
-    build:
-      dockerfile: ./docker/Dockerfile
-      args:
-        USER: "$USER"
-        UID: "$UID"
-        PYBALL_COMPONENT: "core"
-    environment:
-      USER: "$USER"
-      UID: "$UID"
-    container_name: pyball
-    networks:
-      - pyballnet
-    volumes:
-      - .:/pyball
-  bot:
-    image: lulivi/pyballbot
-    user: "$UID:$UID"
-    build:
-      dockerfile: ./docker/Dockerfile
-      args:
-        USER: "$USER"
-        UID: "$UID"
-        PYBALL_COMPONENT: "bot"
-    environment:
-      USER: "$USER"
-      UID: "$UID"
-    container_name: pyballbot
-    networks:
-      - pyballnet
-    depends_on:
-      core:
-        condition: service_started
-    volumes:
-      - .:/pyball
-networks:
-  pyballnet:
-    driver: bridge
+include:
+  - network-compose.yaml
+  - bus-compose.yaml
+  - core-compose.yaml
+  - bot-compose.yaml

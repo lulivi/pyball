@@ -1,0 +1,18 @@
+services:
+  bus:
+    image: lulivi/pyball-bus
+    user: "$UID:$UID"
+    build:
+      dockerfile: ./docker/Dockerfile
+      args:
+        USER: "$USER"
+        UID: "$UID"
+        PYBALL_COMPONENT: "bus"
+    environment:
+      USER: "$USER"
+      UID: "$UID"
+    container_name: pyball-bus
+    networks:
+      - pyball-net
+    volumes:
+      - .:/pyball

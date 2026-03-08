@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class BaseEndpoint(Enum):
     PLAYERS = f"{PYBALL_API_URL}/players"
     MEETUPS = f"{PYBALL_API_URL}/meetups"
+    MATCHES = f"{PYBALL_API_URL}/matches"
 
 
 class RequestMethod(Enum):

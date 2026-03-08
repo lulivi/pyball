@@ -79,6 +79,7 @@ def create(name: str, telegram_id: str, main: bool) -> None:
     if response.status != 201:
         if response.status == 409:
             raise PlayerNameIsAlreadyInUse(name=name)
+        logger.error(">>>>>>>>>> json response", response.json)
         raise PlayerCreationError(response.json["message"])
 
     player_id: uuid.UUID = response.json["id"]

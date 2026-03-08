@@ -1,0 +1,3 @@
+networks:
+  pyball-net:
+    driver: bridge

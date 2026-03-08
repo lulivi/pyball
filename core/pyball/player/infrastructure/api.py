@@ -4,6 +4,7 @@ import uuid
 from typing import Dict, List, Optional, Tuple, Union, cast
 
 from fastapi import APIRouter, HTTPException
+from pyball.player.infrastructure.player_json_repository import PlayerJsonRepository
 from pydantic import BaseModel
 
 from pyball.logger import log_func
@@ -13,7 +14,6 @@ from pyball.player.application.update_player import UpdatePlayer
 from pyball.player.domain import errors as domain_errors
 from pyball.player.domain.model.player import Player
 from pyball.player.infrastructure.get_player import GetPlayer
-from pyball.player.infrastructure.player_sqlito_repository import PlayerSqlitoRepository
 from pyball.utils.api_exceptions import (
     PyballClientConflict,
     PyballClientError,
@@ -99,7 +99,7 @@ def create_player(args: PlayerModelNoId) -> PlayerModelComplete:
     new_player_id = uuid.uuid4()
 
     try:
-        CreatePlayer(PlayerSqlitoRepository()).execute(
+        CreatePlayer(PlayerJsonRepository()).execute(
             id=new_player_id, name=args.name, main=args.main
         )
     except domain_errors.PlayerNameIsAlreadyInUse as error:
@@ -122,7 +122,7 @@ def create_player(args: PlayerModelNoId) -> PlayerModelComplete:
 @log_func
 def update_player(args: PlayerModelComplete) -> None:
     try:
-        UpdatePlayer(PlayerSqlitoRepository()).execute(id=args.id, name=args.name, main=args.main)
+        UpdatePlayer(PlayerJsonRepository()).execute(id=args.id, name=args.name, main=args.main)
     except domain_errors.PlayerNotFound as error:
         raise PyballClientNotFound(
             object="player",
@@ -138,7 +138,7 @@ def update_player(args: PlayerModelComplete) -> None:
 @log_func
 def delete_player(args: PlayerModelOnlyId) -> None:
     try:
-        DeletePlayer(PlayerSqlitoRepository()).execute(id=args.id)
+        DeletePlayer(PlayerJsonRepository()).execute(id=args.id)
     except domain_errors.PlayerNotFound as error:
         raise PyballClientNotFound(
             object="player",

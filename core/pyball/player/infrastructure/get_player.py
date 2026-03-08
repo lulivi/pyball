@@ -3,12 +3,12 @@ import uuid
 from typing import List, Optional
 
 from pyball.player.domain.model.player import Player
-from pyball.player.infrastructure.player_sqlito_repository import PlayerSqlitoRepository
+from pyball.player.infrastructure.player_json_repository import PlayerJsonRepository
 
 
 class GetPlayer:
     def __init__(self) -> None:
-        self._players = PlayerSqlitoRepository()
+        self._players = PlayerJsonRepository()
 
     def all(self) -> List[Player]:
         return self._players.all()

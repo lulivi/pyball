@@ -30,6 +30,9 @@ config = AutoConfig(search_path=APP_ROOT_DIR)
 COMPONENT: str = "core"
 APP_VERBOSITY: str = config("PYBALL_VERBOSITY", default="INFO")
 
+EVENT_BUS_SERVER_URL: str = config("EVENT_BUS_SERVER_URL")
+EVENT_BUS_CORE_CLIENT_URL: str = config("EVENT_BUS_CORE_CLIENT_URL")
+
 LOGS_DIRECTORY_PATH: Path = config(
     "LOGS_DIRECTORY_PATH",
     cast=Path,

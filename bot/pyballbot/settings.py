@@ -43,6 +43,8 @@ REGULARS_ID: int = config("REGULARS_ID", cast=int)
 SUBSTITUTES_ID: int = config("SUBSTITUTES_ID", cast=int)
 ADMINS_IDS: Tuple[str] = config("ADMINS_IDS", cast=Csv(int, post_process=tuple), default="")
 
+EVENT_BUS_SERVER_URL: str = config("EVENT_BUS_SERVER_URL")
+EVENT_BUS_BOT_CLIENT_URL: str = config("EVENT_BUS_BOT_CLIENT_URL")
 PYBALL_API_URL_DOMAIN = "http://pyball"
 PYBALL_API_PORT = "8000"
 PYBALL_API_URL = f"{PYBALL_API_URL_DOMAIN}:{PYBALL_API_PORT}"

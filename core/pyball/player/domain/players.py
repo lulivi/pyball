@@ -46,9 +46,5 @@ class Players(ABC):
         pass
 
     @abstractmethod
-    def update(self, player: Player) -> None:
-        pass
-
-    @abstractmethod
     def delete(self, player: Player) -> None:
         pass

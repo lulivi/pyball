@@ -25,8 +25,7 @@ RUN apt-get update \
     && python3 -m pip install poetry poetry-dynamic-versioning
 
 WORKDIR /package
-COPY .git ./.git
-COPY $PYBALL_COMPONENT/ ./$PYBALL_COMPONENT
+COPY . .
 WORKDIR $PYBALL_COMPONENT
 
 RUN rm -rf dist/ \

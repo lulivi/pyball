@@ -11,6 +11,7 @@ from pyballbot.commands.filters import ADMIN_USERS_FILTER, BASE_CONVERSATIONS_FI
 from pyballbot.commands.meetup import (
     add_player,
     create,
+    create_teams,
     display,
     handle_join_leave_button,
     remove_player,
@@ -154,6 +155,27 @@ def add_meetup_handlers(application: Application) -> None:
                 ],
             },
             fallbacks=[CommandHandler("cancel", search_substitutes.cancel_meetup_search)],
+        )
+    )
+    application.add_handler(
+        ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "create_teams",
+                    create_teams.ask_what_to_do,
+                    filters=ADMIN_USERS_FILTER,
+                )
+            ],
+            states={
+                create_teams.CreateTeamsState.RECREATE_TEAMS: [
+                    MessageHandler(
+                        filters=filters.Regex(f"^{enum_as_regex(create_teams.CreateTeamsAction)}$")
+                        & BASE_CONVERSATIONS_FILTER,
+                        callback=create_teams.recreate_or_save_teams,
+                    )
+                ],
+            },
+            fallbacks=[CommandHandler("cancel", create_teams.cancel_match_creaation)],
         )
     )
     application.add_handler(

@@ -21,6 +21,7 @@
 """Core entrypoint."""
 
 import argparse
+import asyncio
 import logging
 import os
 
@@ -37,6 +38,7 @@ from pyball.meetup.infrastructure import api as meetup_api
 from pyball.player.infrastructure import api as player_api
 from pyball.settings import APP_VERBOSITY
 from pyball.utils.api_exceptions import BaseApiException
+from pyball.utils.event_bus import PyBallEventBus
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,8 @@ async def unicorn_exception_handler(_: Request, exception: BaseApiException):
 
     if exception.message:
         response = JSONResponse(
-            content={"error": {"message": exception.message, "item": exception.item}}
+            status_code=exception.status,
+            content={"error": {"message": exception.message, "item": exception.item}},
         )
 
     return response
@@ -70,7 +73,7 @@ def main():
     args = parse_arguments()
     configure_logging(stream_level=args.verbosity)
 
-    logger.info("Starting application")
+    logger.info("Starting REST API application")
     try:
         uvicorn.run(
             "pyball.__main__:app", host="0.0.0.0", port=8000, reload="PYBALL_DEV" in os.environ

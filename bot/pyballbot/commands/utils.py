@@ -101,7 +101,6 @@ async def update_meetup_messages(
     except BadRequest as error:
         error_message = parse_update_request_error(
             meetup_date_time_string=meetup_date_time_string,
-            meetup_id=meetup_id,
             error=error,
         )
         if "Deleting the saved reference" in error_message:
@@ -129,7 +128,6 @@ async def update_meetup_messages(
         except BadRequest as error:
             error_message = parse_update_request_error(
                 meetup_date_time_string=meetup_date_time_string,
-                meetup_id=meetup_id,
                 error=error,
             )
             if "Deleting the saved reference" in error_message:

@@ -1,0 +1,7 @@
+include:
+  - network-compose.yaml
+  - core-compose.yaml
+
+services:
+  test-bot:
+    

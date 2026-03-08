@@ -41,5 +41,4 @@ class UpdatePlayer:
 
         new_player: Player = Player(id=player.id, name=name, main=main)
 
-        self._players.update(player=new_player)
-        # TODO: Check if there was no updated row??
+        self._players.save(player=new_player)

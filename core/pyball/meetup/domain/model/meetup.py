@@ -103,6 +103,11 @@ class Meetup(Aggregate):
         team_player_count = len(self.players) // self.team_count
         self._teams = []
 
+        # TODO: Remove once a better method is found. Perform a random shuffle of the teams
+        import random
+
+        random.shuffle(self._players)
+
         for player_chunk_index in range(0, len(self._players), team_player_count):
             self._teams.append(
                 self._players[player_chunk_index : player_chunk_index + team_player_count]

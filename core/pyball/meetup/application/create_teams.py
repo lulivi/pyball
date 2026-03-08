@@ -16,7 +16,7 @@ class CreateTeams:
         self,
         id: uuid.UUID,
     ) -> None:
-        meetup: Optional[Meetup] = self._meetup.get(id=id)
+        meetup: Optional[Meetup] = self._meetups.get(id=id)
 
         if meetup is None:
             raise MeetupIdNotFound(id=id)

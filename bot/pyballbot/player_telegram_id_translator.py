@@ -1,19 +1,10 @@
+import json
 import uuid
 
-from peewee import CharField, Model, SqliteDatabase, UUIDField
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
-from pyballbot.peewee_db_wrapper import connection_wrapper
 from pyballbot.settings import DATA_DIRECTORY_PATH
-
-database = SqliteDatabase(DATA_DIRECTORY_PATH.joinpath("telegram_player_translator.db"))
-
-
-class TelegramPlayerTranslator(Model):
-    id = UUIDField(null=False, unique=True)
-    telegram_id = CharField(null=False, unique=True)
-
-    class Meta:
-        database = database  # Essto no funciona a ver si puedo meterlo aqui de alguna manera
 
 
 class PlayerIdNotFound(Exception):
@@ -52,34 +43,66 @@ class PlayerTelegramIdAlreadyInUse(Exception):
         super().__init__(self.message)
 
 
+@dataclass
+class PlayerIds:
+    id: uuid.UUID
+    telegram_id: str
+
+    def as_json(self) -> Dict[str, str]:
+        return {"id": str(self.id), "telegram_id": self.telegram_id}
+
+    @staticmethod
+    def from_json(json_object: Dict[str, str]) -> "PlayerIds":
+        return PlayerIds(id=uuid.UUID(json_object["id"]), telegram_id=json_object["telegram_id"])
+
+
 class PlayerToTelegramIdTranslatorService:
-    @connection_wrapper(database=database)
     def __init__(self) -> None:
-        TelegramPlayerTranslator.create_table(safe=True)
+        self._json_file = DATA_DIRECTORY_PATH.joinpath("player_to_telegram_id_translator.json")
+        if not self._json_file.exists():
+            self._json_file.write_text("[]")
 
-    @connection_wrapper(database=database)
+    def translate_player_id(self, id: uuid.UUID) -> str:
+        player_ids: Optional[PlayerIds] = self._get_by_item(name="id", value=str(id))
+
+        if player_ids is None:
+            raise PlayerIdNotFound(id)
+
+        return player_ids.telegram_id
+
     def translate_telegram_id(self, telegram_id: str) -> uuid.UUID:
-        try:
-            return TelegramPlayerTranslator.get(
-                TelegramPlayerTranslator.telegram_id == telegram_id
-            ).id
-        except TelegramPlayerTranslator.DoesNotExist as error:
-            raise PlayerTelegramIdNotFound(
-                f"Could not find the Telegram ID `{telegram_id}`"
-            ) from error
+        player_ids: Optional[PlayerIds] = self._get_by_item(name="telegram_id", value=telegram_id)
 
-    @connection_wrapper(database=database)
-    def translate_uuid(self, id: uuid.UUID) -> str:
-        try:
-            return TelegramPlayerTranslator.get(TelegramPlayerTranslator.id == id).telegram_id
-        except TelegramPlayerTranslator.DoesNotExist as error:
-            raise PlayerIdNotFound(f"Could not find the UUID `{id}`") from error
+        if player_ids is None:
+            raise PlayerTelegramIdNotFound(telegram_id=telegram_id)
 
-    @connection_wrapper(database=database)
+        return player_ids.id
+
+    def _get_by_item(self, name: str, value: str) -> Optional[PlayerIds]:
+        saved_file_contents: List[Dict[str, str]] = json.loads(self._json_file.read_text())
+
+        for element in saved_file_contents:
+            if value == element[name]:
+                return PlayerIds.from_json(element)
+
+        return None
+
     def save(self, id: uuid.UUID, telegram_id: str) -> None:
-        if TelegramPlayerTranslator.get_or_none(id=id) is not None:
+        if self._get_by_item(name="id", value=str(id)):
             raise PlayerIdAlreadyInUse(id=id)
-        if TelegramPlayerTranslator.get_or_none(telegram_id=telegram_id) is not None:
+        if self._get_by_item(name="telegram_id", value=telegram_id):
             raise PlayerTelegramIdAlreadyInUse(telegram_id=telegram_id)
 
-        TelegramPlayerTranslator.create(id=id, telegram_id=telegram_id)
+        saved_file_contents: List[Dict[str, str]] = json.loads(self._json_file.read_text())
+        saved_file_contents.append(PlayerIds(id=id, telegram_id=telegram_id).as_json())
+        self._json_file.write_text(json.dumps(saved_file_contents, indent=4))
+
+    def delete(self, id: uuid.UUID) -> None:
+        player_ids = self._get_by_item(name="id", value=str(id))
+
+        if player_ids is None:
+            return None
+
+        saved_file_contents: List[Dict[str, str]] = json.loads(self._json_file.read_text())
+        saved_file_contents.remove(player_ids.as_json())
+        self._json_file.write_text(json.dumps(saved_file_contents, indent=4))

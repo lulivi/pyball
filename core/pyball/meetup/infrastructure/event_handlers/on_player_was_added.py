@@ -2,10 +2,10 @@ from pyball.meetup.application.create_teams import CreateTeams
 from pyball.meetup.domain.model.meetup import Meetup
 from pyball.meetup.infrastructure.get_meetup import GetMeetup
 from pyball.meetup.infrastructure.meetup_json_repository import MeetupJsonRepository
-from pyball.utils.event_bus import on
+from pyball.utils.event_bus import PyBallEventBus
 
 
-@on("PlayerWasAdded")
+@PyBallEventBus.on("PlayerWasAdded")
 def on_player_was_added(event: Meetup.PlayerWasAdded):
     meetup: Meetup = GetMeetup().by_id(event.meetup_id)
 

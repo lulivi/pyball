@@ -9,6 +9,9 @@ from pyballbot.logger import log_func
 from pyballbot.requests import player as player_requests
 from pyballbot.requests.errors import (
     AddPlayerToMeetupError,
+    CreateMatchesError,
+    CreateTeamsError,
+    InvalidPlayerCount,
     MeetupCreationError,
     MeetupDateTimeDoesNotExist,
     MeetupDateTimeIsAlreadyInUse,
@@ -26,19 +29,25 @@ from pyballbot.requests.utils import BaseEndpoint, RequestMethod, get_response
 @log_func
 def get_display_meetup(id: uuid.UUID) -> DisplayMeetup:
     meetup: Meetup = get_by(id=id)
-    id_player_translator = {}
+    id_to_player_translator = {}
     display_meetup_players = []
     display_meetup_teams = []
 
     for player_id in meetup.players:
         player = player_requests.get_by(id=player_id)
-        id_player_translator[player_id] = player
+        id_to_player_translator[player_id] = player
         display_meetup_players.append(player)
+
+    display_meetup_players.sort(
+        key=functools.cmp_to_key(
+            lambda player_1, player_2: locale.strcoll(player_1.name, player_2.name)
+        )
+    )
 
     for team in meetup.teams:
         display_team = []
         for player_id in team:
-            display_team.append(id_player_translator[player_id])
+            display_team.append(id_to_player_translator[player_id])
         display_meetup_teams.append(
             sorted(
                 display_team,
@@ -83,7 +92,7 @@ def _get(
     response: Response = get_response(
         request_method=RequestMethod.GET,
         base_endpoint=BaseEndpoint.MEETUPS,
-        params=get_params(id=id, date_time=date_time),
+        params=_get_params(id=id, date_time=date_time),
     )
 
     if response.status != 200:
@@ -91,7 +100,7 @@ def _get(
             if id is not None:
                 raise MeetupIdDoesNotExist(id=id)
             raise MeetupDateTimeDoesNotExist(date_time=date_time)
-        raise MeetupQueryError(response.json["error"]["message"])
+        raise MeetupQueryError(str(response.json))
 
     if isinstance(response.json, list):
         return [Meetup.from_json(json_meetup) for json_meetup in response.json]
@@ -99,7 +108,7 @@ def _get(
     return Meetup.from_json(response.json)
 
 
-def get_params(
+def _get_params(
     id: Optional[uuid.UUID], date_time: Optional[datetime.datetime] = None
 ) -> Optional[Dict[str, str]]:
     if id is not None:
@@ -109,6 +118,23 @@ def get_params(
         return {"date_time": date_time.isoformat()}
 
     return None
+
+
+@log_func
+def translate_date_to_id(date_time: datetime.datetime) -> uuid.UUID:
+    response: Response = get_response(
+        request_method=RequestMethod.GET,
+        base_endpoint=BaseEndpoint.MEETUPS,
+        route="/translate_date",
+        params={"date_time": date_time.isoformat()},
+    )
+
+    if response.status != 200:
+        if response.status == 404:
+            raise MeetupDateTimeDoesNotExist(date_time=date_time)
+        raise MeetupQueryError(str(response.json))
+
+    return uuid.UUID(response.json["id"])
 
 
 @log_func
@@ -131,7 +157,7 @@ def create(
     if response.status != 201:
         if response.status == 409:
             raise MeetupDateTimeIsAlreadyInUse(date_time=date_time)
-        raise MeetupCreationError(response.json["message"])
+        raise MeetupCreationError(str(response.json))
 
 
 def add_player_by_name(
@@ -146,20 +172,20 @@ def add_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
     response: Response = get_response(
         request_method=RequestMethod.PUT,
         base_endpoint=BaseEndpoint.MEETUPS,
-        route=f"/add/player",
+        route="/add/player",
         json={"meetup_id": str(meetup_id), "player_id": str(player_id)},
     )
 
     if response.status != 204:
         if response.status == 404:
-            if response.json["item"] == "player_id":
+            if response.json["error"]["item"] == "player_id":
                 raise PlayerIdDoesNotExist(id=player_id)
             raise MeetupIdDoesNotExist(id=meetup_id)
 
         if response.status == 304:
             raise PlayerIsAreadyCalled(meetup_id=meetup_id, player_id=player_id)
 
-        raise AddPlayerToMeetupError(response.json["message"])
+        raise AddPlayerToMeetupError(str(response.json))
 
 
 def remove_player_by_name(
@@ -174,17 +200,56 @@ def remove_player(meetup_id: uuid.UUID, player_id: uuid.UUID):
     response: Response = get_response(
         request_method=RequestMethod.PUT,
         base_endpoint=BaseEndpoint.MEETUPS,
-        route=f"/remove/player",
+        route="/remove/player",
         json={"meetup_id": str(meetup_id), "player_id": str(player_id)},
     )
 
     if response.status != 204:
         if response.status == 404:
-            if response.json["item"] == "player_id":
+            if response.json["error"]["item"] == "player_id":
                 raise PlayerIdDoesNotExist(id=player_id)
             raise MeetupIdDoesNotExist(id=meetup_id)
 
         if response.status == 304:
             raise PlayerIsNotCalled(meetup_id=meetup_id, player_id=player_id)
 
-        raise RemovePlayerFromMeetupError(response.json["message"])
+        raise RemovePlayerFromMeetupError(str(response.json))
+
+
+def create_teams(meetup_id: uuid.UUID) -> None:
+    response: Response = get_response(
+        request_method=RequestMethod.PUT,
+        base_endpoint=BaseEndpoint.MEETUPS,
+        route="/create_teams",
+        json={"id": str(meetup_id)},
+    )
+
+    if response.status != 201:
+        if response.status == 404:
+            raise MeetupIdDoesNotExist(id=meetup_id)
+
+        if response.status == 409:
+            raise InvalidPlayerCount()
+
+        raise CreateTeamsError(str(response.json))
+
+
+def create_matches(meetup_id: uuid.UUID) -> None:
+    # Not implemented
+    return
+    response: Response = get_response(
+        request_method=RequestMethod.POST,
+        base_endpoint=BaseEndpoint.MATCHES,
+        route="",
+        json={"meetup_id": str(meetup_id)},
+    )
+
+    if response.status != 204:
+        # Check
+        if response.status == 404:
+            raise MeetupIdDoesNotExist(id=meetup_id)
+
+        if response.status == 409:
+            raise InvalidPlayerCount()
+
+        raise CreateMatchesError(str(response.json))

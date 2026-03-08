@@ -1,0 +1,21 @@
+services:
+  core:
+    image: lulivi/pyball-core
+    user: "$UID:$UID"
+    build:
+      dockerfile: ./docker/Dockerfile
+      args:
+        USER: "$USER"
+        UID: "$UID"
+        PYBALL_COMPONENT: "core"
+    environment:
+      USER: "$USER"
+      UID: "$UID"
+    container_name: pyball-core
+    networks:
+      - pyball-net
+    depends_on:
+      bus:
+        condition: service_started
+    volumes:
+      - .:/pyball

@@ -109,4 +109,4 @@ class Match(Aggregate):
         local: List[uuid.UUID]
         visiting: List[uuid.UUID]
         goals: List[dict]
-        score: Tuple[int, int]
+        score: Dict[int, int]

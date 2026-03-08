@@ -45,7 +45,7 @@ types-peewee = "*"
 PyYAML = "6.*"
 types-PyYAML = "6.*"
 typing_extensions = "*"
-event_bus = "1.*"
+event_bus = { path = "../event_bus", develop = false }
 
 [tool.poetry.group.test]
 optional = true
@@ -71,7 +71,7 @@ show_error_codes = true
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
-module = ["decouple", "event_bus"]
+module = ["decouple"]
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [

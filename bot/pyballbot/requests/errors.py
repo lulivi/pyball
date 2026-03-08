@@ -114,5 +114,20 @@ class PlayerIsNotCalled(RemovePlayerFromMeetupError):
         super().__init__(self.message)
 
 
+class CreateTeamsError(Exception):
+    """"""
+
+
+class CreateMatchesError(Exception):
+    """"""
+
+
+class InvalidPlayerCount(CreateTeamsError):
+    """"""
+
+
+# Core
+
+
 class CouldNotConnectToTheCore(Exception):
     """"""

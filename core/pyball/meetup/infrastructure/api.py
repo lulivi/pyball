@@ -11,12 +11,14 @@ from pyball.logger import log_func
 from pyball.meetup.application import errors as application_errors
 from pyball.meetup.application.add_player_to_meetup import AddPlayerToMeetup
 from pyball.meetup.application.create_meetup import CreateMeetup
+from pyball.meetup.application.create_teams import CreateTeams
 from pyball.meetup.application.remove_player_from_meetup import RemovePlayerFromMeetup
 from pyball.meetup.domain import errors as domain_errors
 from pyball.meetup.domain.model.meetup import Meetup, Team
 from pyball.meetup.infrastructure.get_meetup import GetMeetup
 from pyball.meetup.infrastructure.meetup_json_repository import MeetupJsonRepository
 from pyball.meetup.infrastructure.player_checker import PlayerChecker
+from pyball.meetup.infrastructure.translate_date import TranslateDate
 from pyball.utils.api_exceptions import (
     PyballClientConflict,
     PyballClientError,
@@ -110,6 +112,16 @@ def get_error_info(
     return {"item": "date_time", "value": date_time}
 
 
+@router.get("/translate_date", response_model=MeetupModelOnlyId)
+def translate_date(date_time: datetime.datetime) -> MeetupModelOnlyId:
+    meetup_id = TranslateDate().execute(date_time=date_time)
+
+    if meetup_id is None:
+        raise PyballClientNotFound(object="meetup", item="date_time", value=date_time.isoformat())
+
+    return {"id": str(meetup_id)}
+
+
 @router.post("", response_model=MeetupModelBaseInfo, status_code=status.HTTP_201_CREATED)
 @log_func
 def create(args: MeetupModelBaseInfoNoId) -> MeetupModelBaseInfo:
@@ -188,3 +200,31 @@ def remove_player(args: ModifyPlayerModel) -> None:
         ) from error
     except application_errors.PlayerIsNotInMeetup as error:
         raise PyballRedirectionNotModified(object="meetup", item="player")
+
+
+@router.put(
+    "/create_teams", response_model=MeetupModelComplete, status_code=status.HTTP_201_CREATED
+)
+@log_func
+def create_teams(args: MeetupModelOnlyId) -> MeetupModelComplete:
+    try:
+        CreateTeams(meetup_repository=MeetupJsonRepository()).execute(id=args.id)
+    except application_errors.MeetupIdNotFound as error:
+        raise PyballClientNotFound(object="meetup", **get_error_info(id=id)) from error
+    except application_errors.InvalidPlayerCount as error:
+        raise PyballClientConflict(
+            object="meetup",
+            item="players_count",
+            value="invalid",
+        ) from error
+
+    meetup = GetMeetup().by_id(args.id)
+
+    return MeetupModelComplete(
+        id=meetup.id,
+        date_time=meetup.date_time,
+        location=meetup.location,
+        possible_team_sizes=meetup.possible_team_sizes,
+        players=meetup.players,
+        teams=meetup.teams,
+    )
