@@ -9,4 +9,5 @@ def create_application() -> Application:
     """Create and configure the Telegram application."""
     settings = load_settings()
     application = Application.builder().token(settings.telegram.bot_token).build()
+    application.bot_data['settings'] = settings
     return application
