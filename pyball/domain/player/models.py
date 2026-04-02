@@ -28,6 +28,10 @@ class Player(Entity):
     id: PlayerId
     name: str
 
+    def __post_init__(self):
+        if not self.name:
+            raise ValueError("Player name cannot be empty")
+
     @classmethod
     def create(cls, name: str) -> "Player":
         if not name or not name.strip():
@@ -37,4 +41,4 @@ class Player(Entity):
     def rename(self, new_name: str) -> None:
         if not new_name or not new_name.strip():
             raise ValueError("Player name cannot be empty")
-        self.name = new_name.strip()
+        object.__setattr__(self, 'name', new_name.strip())
