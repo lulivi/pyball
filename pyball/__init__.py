@@ -1,3 +1,8 @@
 """PyBall - Telegram bot for managing football meetups."""
 
-__version__ = "4.0.0"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("pyball")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
