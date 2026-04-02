@@ -37,13 +37,7 @@ ddt = "^1.7.1"
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 python-telegram-bot = "20.*"
-python-decouple = "3.6"
-peewee = "3.15.3"
-types-peewee = "*"
-pyyaml = "6.0"
-types-PyYAML = "^6.0.12.10"
-typing_extensions = "*"
-event-bus = "1.0.2"
+pydantic = "^2.0"
 
 [tool.poetry.group.test]
 optional = true
