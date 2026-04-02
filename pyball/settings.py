@@ -10,6 +10,9 @@ class SettingsValidationError(ValueError):
     pass
 
 
+_NOT_PROVIDED = object()
+
+
 @dataclass
 class Paths:
     data_dir: Path = field(default_factory=lambda: Path("data"))
@@ -26,15 +29,17 @@ class Paths:
 @dataclass
 class TelegramSettings:
     bot_token: str = field(default_factory=lambda: os.environ.get("bot_token", ""))
-    admins_ids: tuple[int, ...] = field(default_factory=tuple)
+    admins_ids: tuple[int, ...] = field(default_factory=lambda: _NOT_PROVIDED)
 
     def __post_init__(self) -> None:
         if not self.bot_token:
             raise SettingsValidationError("bot_token is required but not set in .env file")
-        if not self.admins_ids:
+        if self.admins_ids is _NOT_PROVIDED:
             admins_str = os.environ.get("admins_ids", "")
             if admins_str:
                 self.admins_ids = tuple(int(x.strip()) for x in admins_str.split(",") if x.strip())
+            else:
+                self.admins_ids = ()
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
