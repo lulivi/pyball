@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 
 from pyball.application.container import Container
+from pyball.application.meetup.add_player import REGULAR, SUBSTITUTE
 
 
 def setup_meetup_handlers(application):
@@ -22,7 +23,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     container: Container = context.bot_data.get('container')
     if not container:
         container = Container()
-    
+
     if not context.args:
         await update.message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
         return
@@ -46,17 +47,19 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     container: Container = context.bot_data.get('container')
     if not container:
         container = Container()
-    
+
     if len(context.args) < 3:
-        await update.message.reply_text("Usage: /add_player <meetup_id> <player_id> [regular|substitute]")
+        await update.message.reply_text(
+            "Usage: /add_player <meetup_id> <player_id> [regular|substitute]"
+        )
         return
 
     meetup_id = context.args[0]
     player_id = context.args[1]
-    role = context.args[2] if len(context.args) > 2 else "regular"
+    role = context.args[2] if len(context.args) > 2 else REGULAR
 
-    if role not in ("regular", "substitute"):
-        role = "regular"
+    if role not in (REGULAR, SUBSTITUTE):
+        role = REGULAR
 
     try:
         meetup = container.add_player_to_meetup().execute(meetup_id, player_id, role)

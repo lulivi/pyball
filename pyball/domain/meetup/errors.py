@@ -15,3 +15,11 @@ class PlayerNotInMeetupError(Exception):
     def __init__(self, player_id: str):
         self.player_id = player_id
         super().__init__(f"Player '{player_id}' is not in this meetup")
+
+
+class InvalidMeetupIdError(Exception):
+    """Raised when a meetup ID is not a valid UUID."""
+
+    def __init__(self, meetup_id: str):
+        self.meetup_id = meetup_id
+        super().__init__(f"Invalid meetup ID format: '{meetup_id}'")

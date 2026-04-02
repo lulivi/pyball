@@ -14,7 +14,11 @@ class PlayerId(ValueObject):
 
     @classmethod
     def from_string(cls, value: str) -> "PlayerId":
-        return cls(UUID(value))
+        try:
+            return cls(UUID(value))
+        except ValueError as e:
+            from pyball.domain.player.errors import InvalidPlayerIdError
+            raise InvalidPlayerIdError(value) from e
 
     @classmethod
     def generate(cls) -> "PlayerId":

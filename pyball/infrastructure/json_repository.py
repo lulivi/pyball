@@ -77,7 +77,7 @@ class JsonMeetupRepository(MeetupRepository):
         self.directory.mkdir(parents=True, exist_ok=True)
 
     def _get_file_path(self, meetup: Meetup) -> Path:
-        return self.directory / f"{meetup.date.strftime('%Y-%m-%d')}.json"
+        return self.directory / f"{meetup.id.value}.json"
 
     def _read_file(self, file_path: Path) -> dict | None:
         if not file_path.exists():
@@ -114,10 +114,12 @@ class JsonMeetupRepository(MeetupRepository):
         return None
 
     def find_by_date(self, meetup_date: date) -> Meetup | None:
-        file_path = self.directory / f"{meetup_date.strftime('%Y-%m-%d')}.json"
-        data = self._read_file(file_path)
-        if data:
-            return self._dict_to_meetup(data)
+        for file_path in self.directory.glob("*.json"):
+            data = self._read_file(file_path)
+            if data:
+                meetup_date_from_data = datetime.fromisoformat(data["date"]).date()
+                if meetup_date_from_data == meetup_date:
+                    return self._dict_to_meetup(data)
         return None
 
     def find_all(self) -> list[Meetup]:

@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
-from pyball.domain.meetup.errors import PlayerNotInMeetupError
+from pyball.domain.meetup.errors import InvalidMeetupIdError, PlayerNotInMeetupError
 from pyball.domain.player.models import PlayerId
 
 
@@ -17,7 +17,10 @@ class MeetupId(ValueObject):
 
     @classmethod
     def from_string(cls, value: str) -> "MeetupId":
-        return cls(UUID(value))
+        try:
+            return cls(UUID(value))
+        except ValueError as e:
+            raise InvalidMeetupIdError(value) from e
 
     @classmethod
     def generate(cls) -> "MeetupId":

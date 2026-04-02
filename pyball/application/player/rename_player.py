@@ -1,6 +1,10 @@
 """Rename player use case."""
 
-from pyball.domain.player.errors import PlayerNotFoundError
+from pyball.domain.player.errors import (
+    InvalidPlayerIdError,
+    NameAlreadyTakenError,
+    PlayerNotFoundError,
+)
 from pyball.domain.player.models import Player, PlayerId
 from pyball.domain.player.repository import PlayerRepository
 
@@ -12,9 +16,19 @@ class RenamePlayer:
         self.player_repository = player_repository
 
     def execute(self, player_id: str, new_name: str) -> Player:
-        player = self.player_repository.find_by_id(PlayerId.from_string(player_id))
+        try:
+            parsed_id = PlayerId.from_string(player_id)
+        except InvalidPlayerIdError:
+            raise
+
+        player = self.player_repository.find_by_id(parsed_id)
         if not player:
             raise PlayerNotFoundError(player_id)
+
+        existing = self.player_repository.find_by_name(new_name)
+        if existing and existing.id != player.id:
+            raise NameAlreadyTakenError(new_name)
+
         player.rename(new_name)
         self.player_repository.save(player)
         return player

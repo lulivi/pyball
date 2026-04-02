@@ -1,9 +1,19 @@
 """Player command handlers."""
 
+import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 
 from pyball.application.container import Container
+from pyball.domain.player.errors import (
+    InvalidPlayerIdError,
+    NameAlreadyTakenError,
+    PlayerAlreadyExistsError,
+    PlayerNotFoundError,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def setup_player_handlers(application):
@@ -19,7 +29,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     container: Container = context.bot_data.get('container')
     if not container:
         container = Container()
-    
+
     if not context.args:
         await update.message.reply_text("Usage: /new_player <name>")
         return
@@ -28,8 +38,11 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         player = container.create_player().execute(name)
         await update.message.reply_text(f"Player '{player.name}' created!")
+    except PlayerAlreadyExistsError as e:
+        await update.message.reply_text(str(e))
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        logger.exception("Error creating player")
+        await update.message.reply_text("An error occurred. Please try again.")
 
 
 async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -37,7 +50,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     container: Container = context.bot_data.get('container')
     if not container:
         container = Container()
-    
+
     if len(context.args) < 2:
         await update.message.reply_text("Usage: /rename_player <player_id> <new_name>")
         return
@@ -47,8 +60,15 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         player = container.rename_player().execute(player_id, new_name)
         await update.message.reply_text(f"Player renamed to '{player.name}'!")
+    except InvalidPlayerIdError:
+        await update.message.reply_text("Invalid player ID format.")
+    except PlayerNotFoundError:
+        await update.message.reply_text("Player not found.")
+    except NameAlreadyTakenError as e:
+        await update.message.reply_text(str(e))
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        logger.exception("Error renaming player")
+        await update.message.reply_text("An error occurred. Please try again.")
 
 
 async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -56,7 +76,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     container: Container = context.bot_data.get('container')
     if not container:
         container = Container()
-    
+
     if not context.args:
         await update.message.reply_text("Usage: /delete_player <player_id>")
         return
@@ -65,8 +85,13 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         container.delete_player().execute(player_id)
         await update.message.reply_text("Player deleted!")
+    except InvalidPlayerIdError:
+        await update.message.reply_text("Invalid player ID format.")
+    except PlayerNotFoundError:
+        await update.message.reply_text("Player not found.")
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        logger.exception("Error deleting player")
+        await update.message.reply_text("An error occurred. Please try again.")
 
 
 async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -74,7 +99,7 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     container: Container = context.bot_data.get('container')
     if not container:
         container = Container()
-    
+
     players = container.player_repository.find_all()
     if not players:
         await update.message.reply_text("No players found.")

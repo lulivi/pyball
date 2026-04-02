@@ -1,6 +1,6 @@
 """Delete player use case."""
 
-from pyball.domain.player.errors import PlayerNotFoundError
+from pyball.domain.player.errors import InvalidPlayerIdError, PlayerNotFoundError
 from pyball.domain.player.models import PlayerId
 from pyball.domain.player.repository import PlayerRepository
 
@@ -12,7 +12,12 @@ class DeletePlayer:
         self.player_repository = player_repository
 
     def execute(self, player_id: str) -> None:
-        player = self.player_repository.find_by_id(PlayerId.from_string(player_id))
+        try:
+            parsed_id = PlayerId.from_string(player_id)
+        except InvalidPlayerIdError:
+            raise
+
+        player = self.player_repository.find_by_id(parsed_id)
         if not player:
             raise PlayerNotFoundError(player_id)
-        self.player_repository.delete(PlayerId.from_string(player_id))
+        self.player_repository.delete(parsed_id)
