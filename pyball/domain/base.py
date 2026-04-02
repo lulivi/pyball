@@ -23,6 +23,9 @@ class Entity:
 
     id: UUID
 
+    def __init__(self, id: UUID | None = None) -> None:
+        self.id = id or uuid4()
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return False
