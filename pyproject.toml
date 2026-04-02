@@ -44,6 +44,7 @@ optional = true
 [tool.poetry.group.test.dependencies]
 coverage = {version = "6.2", extras = ["toml"]}
 pytest = "*"
+pytest-asyncio = "*"
 pytest-cov = "*"
 pytest-emoji = "*"
 pytest-timeout = "*"

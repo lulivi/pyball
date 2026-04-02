@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 
 from pyball.application.container import Container
+from pyball.bot.auth import authorized
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
     NameAlreadyTakenError,
@@ -24,6 +25,7 @@ def setup_player_handlers(application):
     application.add_handler(CommandHandler("list_players", list_players_handler))
 
 
+@authorized
 async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new_player command."""
     container: Container = context.bot_data.get('container')
@@ -45,6 +47,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("An error occurred. Please try again.")
 
 
+@authorized
 async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /rename_player command."""
     container: Container = context.bot_data.get('container')
@@ -71,6 +74,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("An error occurred. Please try again.")
 
 
+@authorized
 async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /delete_player command."""
     container: Container = context.bot_data.get('container')
@@ -94,6 +98,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("An error occurred. Please try again.")
 
 
+@authorized
 async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /list_players command."""
     container: Container = context.bot_data.get('container')
