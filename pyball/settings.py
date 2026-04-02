@@ -55,7 +55,7 @@ def load_settings() -> Settings:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if "=" not in line:
-                    raise ValueError(f"Malformed line {line_num} in .env: missing '=' separator")
+                    raise SettingsValidationError(f"Malformed line {line_num} in .env: missing '=' separator")
                 key, _, value = line.partition("=")
                 os.environ.setdefault(key.strip().lower(), value.strip())
     return Settings()
