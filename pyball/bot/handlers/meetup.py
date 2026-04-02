@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes, CommandHandler
 from pyball.application.container import Container
 
 
-def setup_meetup_handlers(application, container: Container):
+def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
     application.add_handler(CommandHandler("new_meetup", new_meetup_handler))
     application.add_handler(CommandHandler("add_player", add_player_handler))
@@ -19,7 +19,9 @@ def setup_meetup_handlers(application, container: Container):
 
 async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new_meetup command."""
-    container = Container()
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
     
     if not context.args:
         await update.message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
@@ -41,7 +43,9 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /add_player command."""
-    container = Container()
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
     
     if len(context.args) < 3:
         await update.message.reply_text("Usage: /add_player <meetup_id> <player_id> [regular|substitute]")
@@ -63,7 +67,9 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /remove_player command."""
-    container = Container()
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
     
     if len(context.args) < 2:
         await update.message.reply_text("Usage: /remove_player <meetup_id> <player_id>")
@@ -81,7 +87,9 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /create_teams command."""
-    container = Container()
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
     
     if not context.args:
         await update.message.reply_text("Usage: /create_teams <meetup_id>")
@@ -111,7 +119,9 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /list_meetups command."""
-    container = Container()
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
     
     meetups = container.meetup_repository.find_all()
     
@@ -128,7 +138,9 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /show_meetup command."""
-    container = Container()
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
     
     if not context.args:
         await update.message.reply_text("Usage: /show_meetup <meetup_id>")

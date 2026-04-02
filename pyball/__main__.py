@@ -24,9 +24,10 @@ def main() -> None:
     
     container = Container()
     application = create_application()
+    application.bot_data['container'] = container
     
-    setup_player_handlers(application, container)
-    setup_meetup_handlers(application, container)
+    setup_player_handlers(application)
+    setup_meetup_handlers(application)
     
     application.run_polling()
 

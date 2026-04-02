@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes, CommandHandler
 from pyball.application.container import Container
 
 
-def setup_player_handlers(application, container: Container):
+def setup_player_handlers(application):
     """Register player-related handlers."""
     application.add_handler(CommandHandler("new_player", new_player_handler))
     application.add_handler(CommandHandler("rename_player", rename_player_handler))
@@ -16,6 +16,10 @@ def setup_player_handlers(application, container: Container):
 
 async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new_player command."""
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
+    
     if not context.args:
         await update.message.reply_text("Usage: /new_player <name>")
         return
@@ -30,6 +34,10 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /rename_player command."""
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
+    
     if len(context.args) < 2:
         await update.message.reply_text("Usage: /rename_player <player_id> <new_name>")
         return
@@ -45,6 +53,10 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /delete_player command."""
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
+    
     if not context.args:
         await update.message.reply_text("Usage: /delete_player <player_id>")
         return
@@ -59,6 +71,10 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /list_players command."""
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
+    
     players = container.player_repository.find_all()
     if not players:
         await update.message.reply_text("No players found.")
