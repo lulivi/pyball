@@ -1,0 +1,17 @@
+# PyBall Configuration
+# Copy this file to config.toml and fill in your values
+# Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
+
+[telegram]
+# Required: Telegram bot token
+# Override with PYBALL_TELEGRAM_BOT_TOKEN
+bot_token = ""
+
+# Required: List of authorized Telegram user IDs
+# Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
+admins_ids = [123456789, 987654321]
+
+[locale]
+# Player names locale for sorting
+# Override with PYBALL_LOCALE_VALUE
+value = "en_US.UTF-8"
