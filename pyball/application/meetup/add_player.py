@@ -1,7 +1,7 @@
 """Add player to meetup use case."""
 
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import MeetupId
+from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.errors import PlayerNotFoundError
 from pyball.domain.player.models import PlayerId

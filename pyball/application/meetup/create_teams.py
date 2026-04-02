@@ -3,7 +3,7 @@
 import random
 
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import MeetupId
+from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.meetup.repository import MeetupRepository
 
 
