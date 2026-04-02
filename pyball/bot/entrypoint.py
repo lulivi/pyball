@@ -1,0 +1,12 @@
+"""Bot application entrypoint."""
+
+from telegram.ext import Application
+
+from pyball.settings import load_settings
+
+
+def create_application() -> Application:
+    """Create and configure the Telegram application."""
+    settings = load_settings()
+    application = Application.builder().token(settings.telegram.bot_token).build()
+    return application
