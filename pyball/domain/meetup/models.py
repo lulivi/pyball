@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pyball.domain.base import Entity, ValueObject
+from pyball.domain.meetup.errors import PlayerNotInMeetupError
 from pyball.domain.player.models import PlayerId
 
 
@@ -67,7 +68,7 @@ class Meetup(Entity):
         elif player_id in self.substitutes:
             self.substitutes.remove(player_id)
         else:
-            raise ValueError(f"Player {player_id} not in meetup")
+            raise PlayerNotInMeetupError(str(player_id.value))
 
     def create_balanced_teams(self, random_generator) -> None:
         if len(self.regulars) < 2:
