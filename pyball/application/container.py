@@ -21,30 +21,27 @@ from pyball.infrastructure import JsonPlayerRepository, JsonMeetupRepository
 class Container:
     """Simple dependency injection container."""
 
-    _player_repository: PlayerRepository | None = None
-    _meetup_repository: MeetupRepository | None = None
-
     def __init__(self, data_dir: Path | None = None):
-        if data_dir is None:
-            from pyball.settings import load_settings
-            self._data_dir = load_settings().paths.data_dir
-        else:
+        from pyball.settings import load_settings
+        self._settings = load_settings()
+        self._player_repository: PlayerRepository | None = None
+        self._meetup_repository: MeetupRepository | None = None
+
+        if data_dir:
             self._data_dir = data_dir
+        else:
+            self._data_dir = self._settings.paths.data_dir
 
     @property
     def player_repository(self) -> PlayerRepository:
         if self._player_repository is None:
-            from pyball.settings import load_settings
-            settings = load_settings()
-            self._player_repository = JsonPlayerRepository(settings.paths.players_file)
+            self._player_repository = JsonPlayerRepository(self._settings.paths.players_file)
         return self._player_repository
 
     @property
     def meetup_repository(self) -> MeetupRepository:
         if self._meetup_repository is None:
-            from pyball.settings import load_settings
-            settings = load_settings()
-            self._meetup_repository = JsonMeetupRepository(settings.paths.meetups_dir)
+            self._meetup_repository = JsonMeetupRepository(self._settings.paths.meetups_dir)
         return self._meetup_repository
 
     def create_player(self) -> CreatePlayer:
