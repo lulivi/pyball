@@ -1,7 +1,7 @@
 """Player models."""
 
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
 
@@ -18,7 +18,7 @@ class PlayerId(ValueObject):
 
     @classmethod
     def generate(cls) -> "PlayerId":
-        return cls(UUID())
+        return cls(uuid4())
 
 
 @dataclass

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
 from pyball.domain.meetup.errors import PlayerNotInMeetupError
@@ -21,7 +21,7 @@ class MeetupId(ValueObject):
 
     @classmethod
     def generate(cls) -> "MeetupId":
-        return cls(UUID())
+        return cls(uuid4())
 
 
 @dataclass(frozen=True)
