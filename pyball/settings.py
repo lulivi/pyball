@@ -1,6 +1,7 @@
 """Application settings."""
 
 import os
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -8,9 +9,6 @@ from pathlib import Path
 class SettingsValidationError(ValueError):
     """Raised when required settings are missing or invalid."""
     pass
-
-
-_NOT_PROVIDED = object()
 
 
 @dataclass
@@ -26,20 +24,32 @@ class Paths:
         self.mappings_file = self.data_dir / "bot" / "mappings.json"
 
 
+def _get_env_override(section: str, key: str, default):
+    """Get environment variable override for config value.
+    
+    Env var format: PYBALL_<SECTION>_<KEY>
+    Example: PYBALL_TELEGRAM_BOT_TOKEN
+    """
+    env_key = f"PYBALL_{section.upper()}_{key.upper()}"
+    env_value = os.environ.get(env_key)
+    if env_value is None:
+        return default
+    return env_value
+
+
+def _parse_admins_ids(value) -> tuple[int, ...]:
+    """Parse admins_ids from config or env override."""
+    if isinstance(value, list):
+        return tuple(int(x) for x in value)
+    if isinstance(value, str):
+        return tuple(int(x.strip()) for x in value.split(",") if x.strip())
+    return ()
+
+
 @dataclass
 class TelegramSettings:
-    bot_token: str = field(default_factory=lambda: os.environ.get("bot_token", ""))
-    admins_ids: tuple[int, ...] = field(default_factory=lambda: _NOT_PROVIDED)
-
-    def __post_init__(self) -> None:
-        if not self.bot_token:
-            raise SettingsValidationError("bot_token is required but not set in .env file")
-        if self.admins_ids is _NOT_PROVIDED:
-            admins_str = os.environ.get("admins_ids", "")
-            if admins_str:
-                self.admins_ids = tuple(int(x.strip()) for x in admins_str.split(",") if x.strip())
-            else:
-                self.admins_ids = ()
+    bot_token: str = ""
+    admins_ids: tuple[int, ...] = ()
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
@@ -47,29 +57,55 @@ class TelegramSettings:
 
 
 @dataclass
+class LocaleSettings:
+    value: str = "en_US.UTF-8"
+
+
+@dataclass
 class Settings:
     telegram: TelegramSettings = field(default_factory=TelegramSettings)
+    locale: LocaleSettings = field(default_factory=LocaleSettings)
     paths: Paths = field(default_factory=Paths)
 
 
-def load_settings() -> Settings:
-    """Load settings from .env file and environment variables.
+def load_settings(config_path: Path = Path("config.toml")) -> Settings:
+    """Load settings from TOML config file with env var overrides.
     
-    Parses .env file, setting values in environment.
-    Validates that required settings (e.g., bot_token) are present.
+    Args:
+        config_path: Path to config.toml (defaults to project root)
+    
+    Returns:
+        Settings instance with loaded configuration
     
     Raises:
-        SettingsValidationError: If required settings are missing.
+        SettingsValidationError: If required settings are missing
     """
-    env_file = Path(".env")
-    if env_file.exists():
-        with open(env_file) as f:
-            for line_num, line in enumerate(f, 1):
-                stripped = line.strip()
-                if not stripped or stripped.startswith("#"):
-                    continue
-                if "=" not in line:
-                    raise SettingsValidationError(f"Malformed line {line_num} in .env: missing '=' separator")
-                key, _, value = line.partition("=")
-                os.environ.setdefault(key.strip().lower(), value.strip())
-    return Settings()
+    example_path = Path("example.config.toml")
+    
+    if config_path.exists():
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+    elif example_path.exists():
+        with open(example_path, "rb") as f:
+            config = tomllib.load(f)
+    else:
+        config = {}
+
+    telegram_cfg = config.get("telegram", {})
+    locale_cfg = config.get("locale", {})
+
+    telegram = TelegramSettings(
+        bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
+        admins_ids=_parse_admins_ids(
+            _get_env_override("telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
+        ),
+    )
+
+    if not telegram.bot_token:
+        raise SettingsValidationError("bot_token is required but not set")
+
+    locale = LocaleSettings(
+        value=_get_env_override("locale", "value", locale_cfg.get("value", "en_US.UTF-8")),
+    )
+
+    return Settings(telegram=telegram, locale=locale)
