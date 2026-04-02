@@ -2,6 +2,7 @@
 
 import random
 
+from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import MeetupId
 from pyball.domain.meetup.repository import MeetupRepository
 
@@ -15,7 +16,6 @@ class CreateTeams:
     def execute(self, meetup_id: str) -> Meetup:
         meetup = self.meetup_repository.find_by_id(MeetupId.from_string(meetup_id))
         if not meetup:
-            from pyball.domain.meetup.errors import MeetupNotFoundError
             raise MeetupNotFoundError(meetup_id)
 
         meetup.create_balanced_teams(random)
