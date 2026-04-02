@@ -1,7 +1,7 @@
 """JSON file-based repository implementations."""
 
 import json
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from uuid import UUID
 
@@ -113,7 +113,7 @@ class JsonMeetupRepository(MeetupRepository):
                 return self._dict_to_meetup(data)
         return None
 
-    def find_by_date(self, meetup_date) -> Meetup | None:
+    def find_by_date(self, meetup_date: date) -> Meetup | None:
         file_path = self.directory / f"{meetup_date.strftime('%Y-%m-%d')}.json"
         data = self._read_file(file_path)
         if data:
