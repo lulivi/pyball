@@ -45,6 +45,7 @@ class Meetup(Entity):
 
     id: MeetupId
     date: datetime
+    location: str | None = None
     regulars: list[PlayerId] = field(default_factory=list)
     substitutes: list[PlayerId] = field(default_factory=list)
     teams: list[Team] | None = None
