@@ -2,12 +2,14 @@
 
 import os
 import tomllib
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
 
 class SettingsValidationError(ValueError):
     """Raised when required settings are missing or invalid."""
+
     pass
 
 
@@ -26,7 +28,7 @@ class Paths:
 
 def _get_env_override(section: str, key: str, default):
     """Get environment variable override for config value.
-    
+
     Env var format: PYBALL_<SECTION>_<KEY>
     Example: PYBALL_TELEGRAM_BOT_TOKEN
     """
@@ -81,18 +83,18 @@ class Settings:
 
 def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     """Load settings from TOML config file with env var overrides.
-    
+
     Args:
         config_path: Path to config.toml (defaults to project root)
-    
+
     Returns:
         Settings instance with loaded configuration
-    
+
     Raises:
         SettingsValidationError: If required settings are missing
     """
     example_path = Path("example.config.toml")
-    
+
     if config_path.exists():
         with open(config_path, "rb") as f:
             config = tomllib.load(f)
@@ -109,12 +111,20 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     substitutes_cfg = telegram_cfg.get("substitutes", {})
 
     regulars = TelegramChatSettings(
-        chat_id=int(_get_env_override("telegram_regulars", "chat_id", regulars_cfg.get("chat_id", 0))),
-        thread_id=_get_env_override("telegram_regulars", "thread_id", regulars_cfg.get("thread_id", "")),
+        chat_id=int(
+            _get_env_override("telegram_regulars", "chat_id", regulars_cfg.get("chat_id", 0))
+        ),
+        thread_id=_get_env_override(
+            "telegram_regulars", "thread_id", regulars_cfg.get("thread_id", "")
+        ),
     )
     substitutes = TelegramChatSettings(
-        chat_id=int(_get_env_override("telegram_substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))),
-        thread_id=_get_env_override("telegram_substitutes", "thread_id", substitutes_cfg.get("thread_id", "")),
+        chat_id=int(
+            _get_env_override("telegram_substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))
+        ),
+        thread_id=_get_env_override(
+            "telegram_substitutes", "thread_id", substitutes_cfg.get("thread_id", "")
+        ),
     )
 
     telegram = TelegramSettings(

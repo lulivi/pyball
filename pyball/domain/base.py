@@ -24,7 +24,7 @@ class Entity:
     id: UUID
 
     def __init__(self, id: UUID | None = None) -> None:
-        object.__setattr__(self, 'id', id or uuid4())
+        object.__setattr__(self, "id", id or uuid4())
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
@@ -35,6 +35,6 @@ class Entity:
         return hash(self.id)
 
     def __setattr__(self, name, value):
-        if name == 'id' and hasattr(self, 'id'):
+        if name == "id" and hasattr(self, "id"):
             raise AttributeError("Entity.id cannot be modified after construction")
         object.__setattr__(self, name, value)

@@ -7,7 +7,6 @@ from pyball.domain.player.errors import PlayerNotFoundError
 from pyball.domain.player.models import PlayerId
 from pyball.domain.player.repository import PlayerRepository
 
-
 REGULAR = "regular"
 SUBSTITUTE = "substitute"
 
@@ -23,9 +22,7 @@ class AddPlayerToMeetup:
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
 
-    def execute(
-        self, meetup_id: str, player_id: str, role: str = "regular"
-    ) -> Meetup:
+    def execute(self, meetup_id: str, player_id: str, role: str = "regular") -> Meetup:
         meetup = self.meetup_repository.find_by_id(MeetupId.from_string(meetup_id))
         if not meetup:
             raise MeetupNotFoundError(meetup_id)

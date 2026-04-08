@@ -65,8 +65,12 @@ def build_main_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
     """Build inline keyboard for main chat."""
     keyboard = [
         [
-            InlineKeyboardButton("✅ Unirse", callback_data=build_callback_data("join", meetup_date)),
-            InlineKeyboardButton("❌ Salir", callback_data=build_callback_data("leave", meetup_date)),
+            InlineKeyboardButton(
+                "✅ Unirse", callback_data=build_callback_data("join", meetup_date)
+            ),
+            InlineKeyboardButton(
+                "❌ Salir", callback_data=build_callback_data("leave", meetup_date)
+            ),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -76,8 +80,12 @@ def build_subs_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
     """Build inline keyboard for substitutes chat."""
     keyboard = [
         [
-            InlineKeyboardButton("✅ Unirse", callback_data=build_callback_data("join_sub", meetup_date)),
-            InlineKeyboardButton("❌ Salir", callback_data=build_callback_data("leave_sub", meetup_date)),
+            InlineKeyboardButton(
+                "✅ Unirse", callback_data=build_callback_data("join_sub", meetup_date)
+            ),
+            InlineKeyboardButton(
+                "❌ Salir", callback_data=build_callback_data("leave_sub", meetup_date)
+            ),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

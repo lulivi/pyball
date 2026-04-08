@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
+from pyball.domain.player.errors import InvalidPlayerIdError
 
 
 @dataclass(frozen=True)
@@ -17,7 +18,6 @@ class PlayerId(ValueObject):
         try:
             return cls(UUID(value))
         except ValueError as e:
-            from pyball.domain.player.errors import InvalidPlayerIdError
             raise InvalidPlayerIdError(value) from e
 
     @classmethod
@@ -45,4 +45,4 @@ class Player(Entity):
     def rename(self, new_name: str) -> None:
         if not new_name or not new_name.strip():
             raise ValueError("Player name cannot be empty")
-        object.__setattr__(self, 'name', new_name.strip())
+        object.__setattr__(self, "name", new_name.strip())

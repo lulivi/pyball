@@ -3,26 +3,22 @@
 from pathlib import Path
 
 from pyball.application.meetup import (
-    CreateMeetup,
     AddPlayerToMeetup,
-    RemovePlayerFromMeetup,
+    CreateMeetup,
     CreateTeams,
+    RemovePlayerFromMeetup,
 )
-from pyball.application.player import (
-    CreatePlayer,
-    RenamePlayer,
-    DeletePlayer,
-)
+from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
-from pyball.infrastructure import JsonPlayerRepository, JsonMeetupRepository
+from pyball.infrastructure import JsonMeetupRepository, JsonPlayerRepository
+from pyball.settings import load_settings
 
 
 class Container:
     """Simple dependency injection container."""
 
     def __init__(self, data_dir: Path | None = None):
-        from pyball.settings import load_settings
         self._settings = load_settings()
         self._player_repository: PlayerRepository | None = None
         self._meetup_repository: MeetupRepository | None = None

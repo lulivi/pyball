@@ -1,7 +1,8 @@
 """JSON file-based repository implementations."""
 
 import json
-from datetime import datetime, date
+
+from datetime import date, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -59,8 +60,7 @@ class JsonPlayerRepository(PlayerRepository):
     def find_all(self) -> list[Player]:
         data = self._read()
         return [
-            Player(id=PlayerId(UUID(p["id"])), name=p["name"])
-            for p in data.get("players", [])
+            Player(id=PlayerId(UUID(p["id"])), name=p["name"]) for p in data.get("players", [])
         ]
 
     def delete(self, player_id: PlayerId) -> None:

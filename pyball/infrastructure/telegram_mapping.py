@@ -1,6 +1,7 @@
 """Telegram ID to player ID mapping storage."""
 
 import json
+
 from pathlib import Path
 
 

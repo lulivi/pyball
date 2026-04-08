@@ -1,4 +1,5 @@
 import json
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -34,7 +35,9 @@ class TelegramMessageStore:
         with open(self.file_path, "w") as f:
             json.dump(data, f, indent=2)
 
-    def save_message(self, meetup_date: str, chat_type: ChatType, tracking: MessageTracking) -> None:
+    def save_message(
+        self, meetup_date: str, chat_type: ChatType, tracking: MessageTracking
+    ) -> None:
         """Save message info for a meetup. chat_type is 'main' or 'subs'."""
         data = self._read()
         if meetup_date not in data:

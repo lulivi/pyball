@@ -7,11 +7,11 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from pyball.application.container import Container
 from pyball.bot.formatters import (
-    parse_callback_data,
-    format_main_message,
-    format_subs_message,
     build_main_keyboard,
     build_subs_keyboard,
+    format_main_message,
+    format_subs_message,
+    parse_callback_data,
 )
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram_mapping import TelegramMappingStore
