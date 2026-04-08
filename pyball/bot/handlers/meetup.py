@@ -8,7 +8,11 @@ from telegram.ext import ContextTypes, CommandHandler
 from pyball.application.container import Container
 from pyball.application.meetup.add_player import REGULAR, SUBSTITUTE
 from pyball.bot.auth import authorized
+from pyball.bot.formatters import format_main_message, format_subs_message, build_main_keyboard, build_subs_keyboard
 from pyball.domain.meetup.models import MeetupId
+from pyball.infrastructure import TelegramMessageStore
+from pyball.infrastructure.telegram_store import MessageTracking
+from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,8 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("create_teams", create_teams_handler))
     application.add_handler(CommandHandler("list_meetups", list_meetups_handler))
     application.add_handler(CommandHandler("show_meetup", show_meetup_handler))
+    application.add_handler(CommandHandler("callup", callup_handler))
+    application.add_handler(CommandHandler("search", search_handler))
 
 
 def _get_player_names(player_ids, player_repo) -> dict:
@@ -200,3 +206,131 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.exception("Error showing meetup")
         await update.message.reply_text("An error occurred. Please try again.")
+
+
+@authorized
+async def callup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /callup command - create meetup and send main message."""
+    container: Container = context.bot_data.get('container')
+    if not container:
+        container = Container()
+    
+    settings = load_settings()
+    
+    if not context.args:
+        await update.message.reply_text("Usage: /callup YYYY-MM-DD HH:MM [location]")
+        return
+    
+    date_str = " ".join(context.args[:-1]) if len(context.args) > 2 else context.args[0]
+    time_str = context.args[1] if len(context.args) > 1 else "20:00"
+    location = context.args[2] if len(context.args) > 2 else "Park"
+    
+    try:
+        full_date_str = f"{date_str} {time_str}"
+        meetup_date = datetime.fromisoformat(full_date_str)
+    except ValueError:
+        await update.message.reply_text("Invalid date. Use: /callup YYYY-MM-DD HH:MM [location]")
+        return
+    
+    if not settings.telegram.regulars.chat_id:
+        await update.message.reply_text("Regulars chat not configured.")
+        return
+    
+    try:
+        meetup = container.create_meetup().execute(meetup_date)
+        meetup.location = location
+        container.meetup_repository.save(meetup)
+    except Exception as e:
+        logger.exception("Error creating meetup")
+        await update.message.reply_text("An error occurred. Please try again.")
+        return
+    
+    player_names = {p.id: p.name for p in container.player_repository.find_all()}
+    text = format_main_message(meetup, player_names)
+    keyboard = build_main_keyboard(meetup.date)
+    
+    try:
+        msg = await context.bot.send_message(
+            chat_id=settings.telegram.regulars.chat_id,
+            text=text,
+            reply_markup=keyboard,
+            message_thread_id=settings.telegram.regulars.thread_id or None,
+        )
+        
+        store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+        store.save_message(
+            meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "main",
+            MessageTracking(
+                chat_id=settings.telegram.regulars.chat_id,
+                thread_id=settings.telegram.regulars.thread_id or None,
+                message_id=msg.message_id,
+            ),
+        )
+        
+        await update.message.reply_text(f"Callup created! Message sent.")
+    except Exception as e:
+        logger.exception("Error sending callup message")
+        await update.message.reply_text("Meetup created but failed to send message.")
+
+
+@authorized
+async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /search command - send substitutes message."""
+    container: Container = context.bot_data.get('container')
+    settings = load_settings()
+    
+    if not context.args:
+        await update.message.reply_text("Usage: /search YYYY-MM-DD")
+        return
+    
+    date_str = context.args[0]
+    
+    try:
+        meetup_date = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        await update.message.reply_text("Invalid date. Use: /search YYYY-MM-DD")
+        return
+    
+    from pyball.domain.meetup.repository import MeetupRepository
+    meetup = None
+    for m in container.meetup_repository.find_all():
+        if m.date.date() == meetup_date.date():
+            meetup = m
+            break
+    
+    if not meetup:
+        await update.message.reply_text("Meetup not found.")
+        return
+    
+    if not settings.telegram.substitutes.chat_id:
+        await update.message.reply_text("Substitutes chat not configured.")
+        return
+    
+    player_names = {p.id: p.name for p in container.player_repository.find_all()}
+    text = format_subs_message(meetup, player_names)
+    keyboard = build_subs_keyboard(meetup.date)
+    
+    try:
+        msg = await context.bot.send_message(
+            chat_id=settings.telegram.substitutes.chat_id,
+            text=text,
+            reply_markup=keyboard,
+            message_thread_id=settings.telegram.substitutes.thread_id or None,
+        )
+        
+        store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+        store.save_message(
+            meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "subs",
+            MessageTracking(
+                chat_id=settings.telegram.substitutes.chat_id,
+                thread_id=settings.telegram.substitutes.thread_id or None,
+                message_id=msg.message_id,
+            ),
+        )
+        
+        await update.message.reply_text("Substitutes message sent!")
+    except Exception as e:
+        logger.exception("Error sending substitutes message")
+        await update.message.reply_text("Failed to send message.")
