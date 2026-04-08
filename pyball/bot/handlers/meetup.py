@@ -292,7 +292,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("Invalid date. Use: /search YYYY-MM-DD")
         return
     
-    from pyball.domain.meetup.repository import MeetupRepository
     meetup = None
     for m in container.meetup_repository.find_all():
         if m.date.date() == meetup_date.date():

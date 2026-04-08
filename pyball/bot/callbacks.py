@@ -13,7 +13,9 @@ from pyball.bot.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
 )
+from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+from pyball.settings import load_settings
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -27,7 +29,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     settings = context.bot_data.get("settings")
     if not settings:
-        from pyball.settings import load_settings
         settings = load_settings()
 
     mapping_store = TelegramMappingStore(settings.paths.mappings_file)
@@ -61,7 +62,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     player_repo = container.player_repository
     player_names = {p.id.value: p.name for p in player_repo.find_all()}
 
-    from pyball.domain.player.models import PlayerId
     telegram_id = query.from_user.id
 
     player_id_str = mapping_store.get_player_id(telegram_id)
