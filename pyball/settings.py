@@ -47,9 +47,20 @@ def _parse_admins_ids(value) -> tuple[int, ...]:
 
 
 @dataclass
+class TelegramChatSettings:
+    chat_id: int = 0
+    thread_id: str | int = ""
+
+    def has_thread(self) -> bool:
+        return bool(self.thread_id)
+
+
+@dataclass
 class TelegramSettings:
     bot_token: str = ""
     admins_ids: tuple[int, ...] = ()
+    regulars: TelegramChatSettings = field(default_factory=TelegramChatSettings)
+    substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
@@ -94,11 +105,25 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     telegram_cfg = config.get("telegram", {})
     locale_cfg = config.get("locale", {})
 
+    regulars_cfg = telegram_cfg.get("regulars", {})
+    substitutes_cfg = telegram_cfg.get("substitutes", {})
+
+    regulars = TelegramChatSettings(
+        chat_id=int(_get_env_override("telegram_regulars", "chat_id", regulars_cfg.get("chat_id", 0))),
+        thread_id=_get_env_override("telegram_regulars", "thread_id", regulars_cfg.get("thread_id", "")),
+    )
+    substitutes = TelegramChatSettings(
+        chat_id=int(_get_env_override("telegram_substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))),
+        thread_id=_get_env_override("telegram_substitutes", "thread_id", substitutes_cfg.get("thread_id", "")),
+    )
+
     telegram = TelegramSettings(
         bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
         admins_ids=_parse_admins_ids(
             _get_env_override("telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
         ),
+        regulars=regulars,
+        substitutes=substitutes,
     )
 
     if not telegram.bot_token:
