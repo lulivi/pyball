@@ -13,7 +13,7 @@ from pyball.bot.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
 )
-from pyball.infrastructure import TelegramMessageStore
+from pyball.infrastructure.telegram_mapping import TelegramMappingStore
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -30,8 +30,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         from pyball.settings import load_settings
         settings = load_settings()
 
-    message_store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
-    from pyball.infrastructure.telegram_mapping import TelegramMappingStore
     mapping_store = TelegramMappingStore(settings.paths.mappings_file)
 
     parsed = parse_callback_data(query.data)
@@ -48,8 +46,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     meetup_repo = container.meetup_repository
-    from pyball.domain.meetup.repository import MeetupRepository
-    from datetime import date
 
     meetup = None
     all_meetups = meetup_repo.find_all()
@@ -99,8 +95,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     meetup_repo.save(meetup)
 
     player_names = {p.id.value: p.name for p in player_repo.find_all()}
-
-    date_key = meetup_date.strftime("%Y-%m-%dT%H:%M")
 
     if action in ("join", "leave"):
         text = format_main_message(meetup, player_names)

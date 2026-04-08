@@ -11,6 +11,20 @@ bot_token = ""
 # Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
 admins_ids = [123456789, 987654321]
 
+[telegram.regulars]
+# Required: The main chat
+# The only group in which the bot will send callup messages
+# Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
+chat_id = ""
+
+# Optional: The thread inside the group. If empty, it will be sent to the general thread
+thread_id = ""
+
+[telegram.substitutes]
+# Required: The substitutes chat
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
+chat_id = ""
+
 [locale]
 # Player names locale for sorting
 # Override with PYBALL_LOCALE_VALUE

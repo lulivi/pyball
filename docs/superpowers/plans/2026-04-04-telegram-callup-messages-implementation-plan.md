@@ -18,7 +18,7 @@ pyball/
 ├── infrastructure/
 │   └── telegram_store.py    # NEW: TelegramMessageStore for message tracking
 ├── bot/
-│   ├── formatters.py         # NEW: Message formatting (main + substitutes)
+│   ├── formatters.py        # NEW: Message formatting (main + substitutes)
 │   ├── callbacks.py         # NEW: Callback query handler for buttons
 │   └── handlers/
 │       └── meetup.py        # MODIFY: Add /callup, /search commands
