@@ -22,6 +22,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 <b>Meetup:</b>
 /new_meetup - Create a new meetup
+/next_meetup - Create meetup for next default day
 /add_player - Add player to meetup
 /remove_player - Remove player from meetup
 /create_teams - Create balanced teams

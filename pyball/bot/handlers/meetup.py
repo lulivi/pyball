@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
     application.add_handler(CommandHandler("new_meetup", new_meetup_handler))
+    application.add_handler(CommandHandler("next_meetup", next_meetup_handler))
     application.add_handler(CommandHandler("add_player", add_player_handler))
     application.add_handler(CommandHandler("remove_player", remove_player_handler))
     application.add_handler(CommandHandler("create_teams", create_teams_handler))
@@ -61,6 +62,46 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         meetup = container.create_meetup().execute(date)
         await update.message.reply_text(f"Meetup created for {date.strftime('%Y-%m-%d %H:%M')}!")
+    except Exception as e:
+        logger.exception("Error creating meetup")
+        await update.message.reply_text("An error occurred. Please try again.")
+
+
+def _get_next_weekday(default_week_day: str) -> datetime:
+    """Calculate next occurrence of default weekday."""
+    settings = load_settings()
+    day_map = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+    target_weekday = day_map.get(default_week_day.lower(), 2)
+    
+    today = datetime.now()
+    days_until_target = (target_weekday - today.weekday() + 7) % 7
+    
+    if days_until_target == 0:
+        days_until_target = 7
+    
+    next_date = today + timedelta(days=days_until_target)
+    hour, minute = map(int, settings.pyball.default_hour.split(":"))
+    return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+
+@authorized
+async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /next_meetup command - creates meetup for next default weekday."""
+    container: Container = context.bot_data.get("container")
+    if not container:
+        container = Container()
+
+    settings = load_settings()
+    default_week_day = settings.pyball.default_week_day
+
+    next_date = _get_next_weekday(default_week_day)
+
+    try:
+        meetup = container.create_meetup().execute(next_date)
+        day_name = next_date.strftime("%A")
+        await update.message.reply_text(
+            f"Meetup created for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})!"
+        )
     except Exception as e:
         logger.exception("Error creating meetup")
         await update.message.reply_text("An error occurred. Please try again.")
