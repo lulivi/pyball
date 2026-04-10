@@ -1,13 +1,10 @@
 """Tests for meetup use cases."""
 
 from datetime import datetime
+
 import pytest
 
-from pyball.application.meetup import (
-    AddPlayerToMeetup,
-    RemovePlayerFromMeetup,
-    CreateTeams,
-)
+from pyball.application.meetup import AddPlayerToMeetup, CreateTeams, RemovePlayerFromMeetup
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, MeetupId, PlayerId
 from pyball.domain.player.errors import PlayerNotFoundError

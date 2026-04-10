@@ -79,7 +79,7 @@ def lint(session: nox.Session):
     )
 
 
-@nox.session(python=["3.8"])
+@nox.session(python=["3.12"])
 def test(session: nox.Session):
     """Test the code."""
     session.run("poetry", "install", "--with", "test", external=True)

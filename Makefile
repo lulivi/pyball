@@ -19,6 +19,13 @@ format:
 .PHONY: f
 f: format
 
+.PHONY: test
+test:
+	poetry run nox -e test
+
+.PHONY: t
+t: test
+
 .PHONY: build
 build:
 	poetry run nox -e dbuild

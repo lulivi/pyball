@@ -3,7 +3,11 @@
 import pytest
 
 from pyball.application.player import RenamePlayer
-from pyball.domain.player.errors import InvalidPlayerIdError, NameAlreadyTakenError, PlayerNotFoundError
+from pyball.domain.player.errors import (
+    InvalidPlayerIdError,
+    NameAlreadyTakenError,
+    PlayerNotFoundError,
+)
 from pyball.domain.player.models import Player, PlayerId
 
 

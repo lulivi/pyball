@@ -152,7 +152,7 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         substitutes=substitutes,
     )
 
-    pyball_settings = PyballSettings(
+    pyball = PyballSettings(
         location=_get_env_override("pyball", "location", pyball_cfg.get("location", "")),
         default_week_day=_get_env_override(
             "pyball", "default_week_day", pyball_cfg.get("default_week_day", "wednesday")
@@ -165,7 +165,7 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     missing = []
     if not telegram.bot_token:
         missing.append("telegram.bot_token")
-    if not pyball_settings.location:
+    if not pyball.location:
         missing.append("pyball.location")
     if not telegram.regulars.chat_id:
         missing.append("telegram.regulars.chat_id")
@@ -182,4 +182,4 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         value=_get_env_override("locale", "value", locale_cfg.get("value", "en_US.UTF-8")),
     )
 
-    return Settings(telegram=telegram, pyball=pyball_settings, locale=locale)
+    return Settings(telegram=telegram, pyball=pyball, locale=locale)

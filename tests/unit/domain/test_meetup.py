@@ -1,7 +1,8 @@
 """Tests for Meetup domain model."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.player.models import PlayerId
@@ -26,6 +27,7 @@ class TestMeetup:
         meetup.add_regular(p2)
 
         import random
+
         meetup.create_balanced_teams(random)
 
         assert meetup.teams is not None
