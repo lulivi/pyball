@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from random import shuffle
 from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
@@ -63,3 +64,16 @@ class Meetup(Entity):
         if player_id not in self.players:
             raise PlayerNotInMeetupError(str(player_id.value))
         self.players.remove(player_id)
+
+    def create_balanced_teams(self, random=__import__("random")) -> None:
+        if len(self.players) < 2:
+            raise ValueError("Need at least 2 players to create teams")
+
+        players_copy = list(self.players)
+        random.shuffle(players_copy)
+
+        mid = len(players_copy) // 2
+        self.teams = [
+            Team.create("A", players_copy[:mid]),
+            Team.create("B", players_copy[mid:]),
+        ]

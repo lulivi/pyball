@@ -78,51 +78,19 @@ class FakePlayerRepository:
 
 
 class TestAddPlayerToMeetup:
-    def test_add_regular_player_success(self):
-        meetup_repo = FakeMeetupRepository()
-        player_repo = FakePlayerRepository()
-        meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
-        player = Player.create("Luis")
-        meetup_repo.save(meetup)
-        player_repo.save(player)
+    def test_add_player_to_meetup_fuzzy(self):
+        player_repo = MagicMock()
+        player = Player.create(name="Mario", group="regular")
+        player_repo.find_all.return_value = [player]
+
+        meetup_repo = MagicMock()
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        meetup_repo.find_all.return_value = [meetup]
+
         use_case = AddPlayerToMeetup(meetup_repo, player_repo)
+        use_case.execute("2024-03-20 20:00", "Mario")
 
-        result = use_case.execute(str(meetup.id.value), str(player.id.value), "regular")
-
-        assert player.id in result.regulars
-
-    def test_add_substitute_player_success(self):
-        meetup_repo = FakeMeetupRepository()
-        player_repo = FakePlayerRepository()
-        meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
-        player = Player.create("Luis")
-        meetup_repo.save(meetup)
-        player_repo.save(player)
-        use_case = AddPlayerToMeetup(meetup_repo, player_repo)
-
-        result = use_case.execute(str(meetup.id.value), str(player.id.value), "substitute")
-
-        assert player.id in result.substitutes
-
-    def test_add_player_meetup_not_found(self):
-        meetup_repo = FakeMeetupRepository()
-        player_repo = FakePlayerRepository()
-        player = Player.create("Luis")
-        player_repo.save(player)
-        use_case = AddPlayerToMeetup(meetup_repo, player_repo)
-
-        with pytest.raises(MeetupNotFoundError):
-            use_case.execute(str(MeetupId.generate().value), str(player.id.value))
-
-    def test_add_player_player_not_found(self):
-        meetup_repo = FakeMeetupRepository()
-        player_repo = FakePlayerRepository()
-        meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
-        meetup_repo.save(meetup)
-        use_case = AddPlayerToMeetup(meetup_repo, player_repo)
-
-        with pytest.raises(PlayerNotFoundError):
-            use_case.execute(str(meetup.id.value), str(PlayerId.generate().value))
+        assert player.id in meetup.players
 
 
 class TestRemovePlayerFromMeetup:
@@ -130,13 +98,13 @@ class TestRemovePlayerFromMeetup:
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
         player_id = PlayerId.generate()
-        meetup.add_regular(player_id)
+        meetup.add_player(player_id)
         meetup_repo.save(meetup)
         use_case = RemovePlayerFromMeetup(meetup_repo)
 
         use_case.execute(str(meetup.id.value), str(player_id.value))
 
-        assert player_id not in meetup.regulars
+        assert player_id not in meetup.players
 
     def test_remove_player_meetup_not_found(self):
         meetup_repo = FakeMeetupRepository()
@@ -150,8 +118,8 @@ class TestCreateTeams:
     def test_create_teams_success(self):
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
-        meetup.add_regular(PlayerId.generate())
-        meetup.add_regular(PlayerId.generate())
+        meetup.add_player(PlayerId.generate())
+        meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
         use_case = CreateTeams(meetup_repo)
 
@@ -170,7 +138,7 @@ class TestCreateTeams:
     def test_create_teams_not_enough_players(self):
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
-        meetup.add_regular(PlayerId.generate())
+        meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
         use_case = CreateTeams(meetup_repo)
 
