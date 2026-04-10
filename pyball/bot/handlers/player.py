@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
+from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.bot.auth import authorized
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
@@ -23,6 +24,7 @@ def setup_player_handlers(application):
     application.add_handler(CommandHandler("rename_player", rename_player_handler))
     application.add_handler(CommandHandler("delete_player", delete_player_handler))
     application.add_handler(CommandHandler("list_players", list_players_handler))
+    application.add_handler(CommandHandler("change_group", change_group_handler))
 
 
 @authorized
@@ -115,3 +117,39 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         lines.append(f"- {p.name} (id: {p.id.value})")
 
     await update.message.reply_text("\n".join(lines))
+
+
+@authorized
+async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /change_group command."""
+    container: Container = context.bot_data.get("container")
+    if not container:
+        container = Container()
+
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /change_group <player_name> <regular|substitute>")
+        return
+
+    player_name = context.args[0]
+    new_group = context.args[1]
+
+    if new_group not in ("regular", "substitute"):
+        await update.message.reply_text("Group must be 'regular' or 'substitute'")
+        return
+
+    player_repo = container.player_repository
+    all_players = player_repo.find_all()
+
+    try:
+        match = fuzzy_match_player(player_name, all_players)
+    except ValueError as e:
+        await update.message.reply_text(str(e))
+        return
+
+    try:
+        use_case = container.change_player_group()
+        player = use_case.execute(match.player_id, new_group)
+        await update.message.reply_text(f"Player {player.name} changed to {new_group}!")
+    except Exception as e:
+        logger.exception("Error changing player group")
+        await update.message.reply_text("Error changing player group.")

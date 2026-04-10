@@ -15,7 +15,7 @@ class CreatePlayer:
         existing = self.player_repository.find_all()
         if any(p.name.lower() == name.lower() for p in existing):
             raise PlayerAlreadyExistsError(name)
-        
+
         player = Player.create(name=name, group=group)
         self.player_repository.save(player)
         return player
