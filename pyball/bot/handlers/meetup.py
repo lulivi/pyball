@@ -2,7 +2,7 @@
 
 import logging
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
@@ -223,22 +223,45 @@ async def callup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     settings = load_settings()
 
     if not context.args:
-        await update.message.reply_text("Usage: /callup YYYY-MM-DD HH:MM [location]")
-        return
-
-    date_str = " ".join(context.args[:-1]) if len(context.args) > 2 else context.args[0]
-    time_str = context.args[1] if len(context.args) > 1 else "20:00"
-    location = context.args[2] if len(context.args) > 2 else "Park"
+        date_str = settings.pyball.default_week_day
+        time_str = settings.pyball.default_hour
+        location = settings.pyball.location
+    else:
+        date_str = context.args[0]
+        time_str = context.args[1] if len(context.args) > 1 else settings.pyball.default_hour
+        location = context.args[2] if len(context.args) > 2 else settings.pyball.location
 
     try:
-        full_date_str = f"{date_str} {time_str}"
-        meetup_date = datetime.fromisoformat(full_date_str)
+        if not context.args:
+            from datetime import timedelta
+
+            weekday_map = {
+                "monday": 0,
+                "tuesday": 1,
+                "wednesday": 2,
+                "thursday": 3,
+                "friday": 4,
+                "saturday": 5,
+                "sunday": 6,
+            }
+            today = datetime.now().date()
+            target_weekday = weekday_map.get(date_str.lower())
+            if target_weekday is not None:
+                days_until = (target_weekday - today.weekday()) % 7
+                if days_until == 0:
+                    days_until = 7
+                meetup_date = datetime.combine(
+                    today + timedelta(days=days_until),
+                    datetime.strptime(time_str, "%H:%M").time(),
+                )
+            else:
+                full_date_str = f"{date_str} {time_str}"
+                meetup_date = datetime.fromisoformat(full_date_str)
+        else:
+            full_date_str = f"{date_str} {time_str}"
+            meetup_date = datetime.fromisoformat(full_date_str)
     except ValueError:
         await update.message.reply_text("Invalid date. Use: /callup YYYY-MM-DD HH:MM [location]")
-        return
-
-    if not settings.telegram.regulars.chat_id:
-        await update.message.reply_text("Regulars chat not configured.")
         return
 
     try:
