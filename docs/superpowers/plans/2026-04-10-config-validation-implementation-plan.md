@@ -2,77 +2,103 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add startup validation for required config params and use telegram.location as default for meetups
+**Goal:** Add startup validation for required config params and use pyball settings as defaults for meetups
 
-**Architecture:** Validate settings at load time, add location field to TelegramSettings, update /callup handler
+**Architecture:** Add PyballSettings dataclass, validate at load time, update /callup handler
 
 **Tech Stack:** Python, pytest
 
 ---
 
-## Task 1: Add location field to TelegramSettings
+## Task 1: Add PyballSettings dataclass
 
 **Files:**
-- Modify: `pyball/settings.py:60-70`
+- Modify: `pyball/settings.py:72-80`
 
-- [ ] **Step 1: Read TelegramSettings class**
+- [ ] **Step 1: Read current Settings dataclass around line 77**
 
 ```python
 @dataclass
-class TelegramSettings:
-    bot_token: str = ""
-    admins_ids: tuple[int, ...] = ()
-    location: str = ""
-    regulars: TelegramChatSettings = field(default_factory=TelegramChatSettings)
-    substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
+class Settings:
+    telegram: TelegramSettings = field(default_factory=TelegramSettings)
+    locale: LocaleSettings = field(default_factory=LocaleSettings)
+    paths: Paths = field(default_factory=Paths)
 ```
 
-- [ ] **Step 2: Run existing tests**
+- [ ] **Step 2: Add PyballSettings before Settings**
+
+Add:
+```python
+@dataclass
+class PyballSettings:
+    location: str = ""
+    default_week_day: str = "wednesday"
+    default_hour: str = "20:00"
+```
+
+- [ ] **Step 3: Add pyball field to Settings**
+
+Replace:
+```python
+@dataclass
+class Settings:
+    telegram: TelegramSettings = field(default_factory=TelegramSettings)
+    locale: LocaleSettings = field(default_factory=LocaleSettings)
+    paths: Paths = field(default_factory=Paths)
+```
+
+With:
+```python
+@dataclass
+class Settings:
+    telegram: TelegramSettings = field(default_factory=TelegramSettings)
+    pyball: PyballSettings = field(default_factory=PyballSettings)
+    locale: LocaleSettings = field(default_factory=LocaleSettings)
+    paths: Paths = field(default_factory=Paths)
+```
+
+- [ ] **Step 4: Run existing tests**
 
 Run: `pytest tests/ -v`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add pyball/settings.py
-git commit -m "feat: add location field to TelegramSettings"
+git commit -m "feat: add PyballSettings dataclass"
 ```
 
 ---
 
-## Task 2: Load location from config
+## Task 2: Load pyball config section
 
 **Files:**
-- Modify: `pyball/settings.py:130-137`
+- Modify: `pyball/settings.py:107-146`
 
-- [ ] **Step 1: Read load_settings function around line 130**
+- [ ] **Step 1: Read load_settings function around line 107**
 
-- [ ] **Step 2: Add location loading**
-
-Find:
+After `telegram_cfg = config.get("telegram", {})`, add:
 ```python
-telegram = TelegramSettings(
-    bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
-    admins_ids=_parse_admins_ids(
-        _get_env_override("telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
-    ),
-    regulars=regulars,
-    substitutes=substitutes,
+pyball_cfg = config.get("pyball", {})
+
+pyball_settings = PyballSettings(
+    location=_get_env_override("pyball", "location", pyball_cfg.get("location", "")),
+    default_week_day=_get_env_override("pyball", "default_week_day", pyball_cfg.get("default_week_day", "wednesday")),
+    default_hour=_get_env_override("pyball", "default_hour", pyball_cfg.get("default_hour", "20:00")),
 )
+```
+
+- [ ] **Step 2: Update Settings return to include pyball**
+
+Find return statement around line 145:
+```python
+return Settings(telegram=telegram, locale=locale)
 ```
 
 Replace with:
 ```python
-telegram = TelegramSettings(
-    bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
-    admins_ids=_parse_admins_ids(
-        _get_env_override("telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
-    ),
-    location=_get_env_override("telegram", "location", telegram_cfg.get("location", "")),
-    regulars=regulars,
-    substitutes=substitutes,
-)
+return Settings(telegram=telegram, pyball=pyball_settings, locale=locale)
 ```
 
 - [ ] **Step 3: Run existing tests**
@@ -84,7 +110,7 @@ Expected: PASS
 
 ```bash
 git add pyball/settings.py
-git commit -m "feat: load location from config"
+git commit -m "feat: load pyball config section"
 ```
 
 ---
@@ -92,25 +118,25 @@ git commit -m "feat: load location from config"
 ## Task 3: Add validation for required settings
 
 **Files:**
-- Modify: `pyball/settings.py:139-141`
+- Modify: `pyball/settings.py` (after telegram validation around line 139)
 
 - [ ] **Step 1: Read current validation around line 139**
 
-Current code:
+- [ ] **Step 2: Add pyball.location validation**
+
+Find current:
 ```python
 if not telegram.bot_token:
     raise SettingsValidationError("bot_token is required but not set")
 ```
-
-- [ ] **Step 2: Extend validation**
 
 Replace with:
 ```python
 missing = []
 if not telegram.bot_token:
     missing.append("telegram.bot_token")
-if not telegram.location:
-    missing.append("telegram.location")
+if not pyball_settings.location:
+    missing.append("pyball.location")
 if not telegram.regulars.chat_id:
     missing.append("telegram.regulars.chat_id")
 if not telegram.substitutes.chat_id:
@@ -137,16 +163,80 @@ git commit -m "feat: validate required config params at startup"
 
 ---
 
-## Task 4: Update /callup handler to use settings.location as default
+## Task 4: Update example.config.toml
 
 **Files:**
-- Modify: `pyball/bot/handlers/meetup.py:231`
+- Modify: `example.config.toml`
 
-- [ ] **Step 1: Read meetup.py around line 223-231**
+- [ ] **Step 1: Read example.config.toml**
+
+- [ ] **Step 2: Replace content**
+
+Replace current with:
+```toml
+# PyBall Configuration
+# Copy this file to config.toml and fill in your values
+# Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
+
+[pyball]
+# Required: Default location for meetups
+# Override with PYBALL_PYBALL_LOCATION
+location = ""
+
+# Optional: Default weekday for meetups (monday, tuesday, etc.)
+# Override with PYBALL_PYBALL_DEFAULT_WEEK_DAY
+default_week_day = "wednesday"
+
+# Optional: Default hour for meetups
+# Override with PYBALL_PYBALL_DEFAULT_HOUR
+default_hour = "20:00"
+
+[telegram]
+# Required: Telegram bot token
+# Override with PYBALL_TELEGRAM_BOT_TOKEN
+bot_token = ""
+
+# Required: List of authorized Telegram user IDs
+# Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
+admins_ids = [123456789, 987654321]
+
+[telegram.regulars]
+# Required: The main chat
+# Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
+chat_id = ""
+
+# Optional: The thread inside the group
+# Override with PYBALL_TELEGRAM_REGULARS_THREAD_ID
+thread_id = ""
+
+[telegram.substitutes]
+# Required: The substitutes chat
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
+chat_id = ""
+
+[locale]
+# Player names locale for sorting
+# Override with PYBALL_LOCALE_VALUE
+value = "en_US.UTF-8"
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add example.config.toml
+git commit -m "feat: update example.config.toml with pyball section"
+```
+
+---
+
+## Task 5: Update /callup handler to use pyball defaults
+
+**Files:**
+- Modify: `pyball/bot/handlers/meetup.py:225-246`
+
+- [ ] **Step 1: Read meetup.py around line 225-246**
 
 ```python
-settings = load_settings()
-
 if not context.args:
     await update.message.reply_text("Usage: /callup YYYY-MM-DD HH:MM [location]")
     return
@@ -156,28 +246,29 @@ time_str = context.args[1] if len(context.args) > 1 else "20:00"
 location = context.args[2] if len(context.args) > 2 else "Park"
 ```
 
-- [ ] **Step 2: Change default location**
+- [ ] **Step 2: Update to use pyball settings defaults**
 
-Replace:
+Replace with:
 ```python
-location = context.args[2] if len(context.args) > 2 else "Park"
-```
-
-With:
-```python
-location = context.args[2] if len(context.args) > 2 else settings.telegram.location
+if not context.args:
+    # Use defaults from pyball settings
+    date_str = settings.pyball.default_week_day
+    time_str = settings.pyball.default_hour
+    location = settings.pyball.location
+else:
+    date_str = context.args[0]
+    time_str = context.args[1] if len(context.args) > 1 else settings.pyball.default_hour
+    location = context.args[2] if len(context.args) > 2 else settings.pyball.location
 ```
 
 - [ ] **Step 3: Remove unnecessary chat_id check (line 240-242)**
 
-Since validation now happens at startup, the check at line 240-242 is redundant:
+Remove:
 ```python
 if not settings.telegram.regulars.chat_id:
     await update.message.reply_text("Regulars chat not configured.")
     return
 ```
-
-Remove this block.
 
 - [ ] **Step 4: Run existing tests**
 
@@ -188,12 +279,12 @@ Expected: PASS
 
 ```bash
 git add pyball/bot/handlers/meetup.py
-git commit -m "feat: use settings.telegram.location as default for meetups"
+git commit -m "feat: use pyball settings as defaults for /callup"
 ```
 
 ---
 
-## Task 5: Verify startup validation works
+## Task 6: Verify startup validation works
 
 **Files:**
 - Test: Run the application
@@ -205,5 +296,5 @@ Expected: SettingsValidationError with message about missing params
 
 - [ ] **Step 2: Run with valid config**
 
-Run: `python -c "from pyball.settings import load_settings; s = load_settings(); print(s.telegram.location)"`
-Expected: Print location value from config (or empty if not set)
+Run: `python -c "from pyball.settings import load_settings; s = load_settings(); print(s.pyball.location, s.pyball.default_week_day, s.pyball.default_hour)"`
+Expected: Print values from config

@@ -2,44 +2,91 @@
 
 ## Overview
 
-Add startup validation to ensure required configuration parameters are present and valid before the application runs.
+Add startup validation to ensure required configuration parameters are present and valid before the application runs. Add a `[pyball]` section for application-level settings.
 
-## Section 1: Required Parameters
+## Section 1: New Config Structure
+
+```toml
+[pyball]
+# Required: Default location for meetups
+location = "someplace"
+
+# Optional: Default datetime for meetups
+default_week_day = "wednesday"
+default_hour = "20:00"
+
+[telegram]
+# Required: Telegram bot token
+bot_token = ""
+
+# Required: Regulars and substitutes chat IDs
+[telegram.regulars]
+chat_id = ""
+
+[telegram.substitutes]
+chat_id = ""
+```
+
+## Section 2: Required Parameters
 
 The following parameters must be non-empty:
 - `telegram.bot_token` - Telegram bot token
-- `telegram.regulars.chat_id` - Regulars chat ID
+- `telegram.regulars.chat_id` - Regulars chat ID  
 - `telegram.substitutes.chat_id` - Substitutes chat ID
-- `telegram.location` - Default meetup location
+- `pyball.location` - Default meetup location
 
-## Section 2: Validation Implementation
+## Section 3: Settings Classes
 
-Add validation in `pyball/settings.py` after loading configuration:
+Add new `PyballSettings` dataclass in `settings.py`:
 
 ```python
-def validate_required_settings(settings: Settings) -> None:
-    required = [
-        ("telegram.bot_token", settings.telegram.bot_token),
-        ("telegram.regulars.chat_id", settings.telegram.regulars.chat_id),
-        ("telegram.substitutes.chat_id", settings.telegram.substitutes.chat_id),
-        ("telegram.location", settings.telegram.location),
-    ]
-    missing = [name for name, value in required if not value]
-    if missing:
-        print(f"Error: Faltan parámetros requeridos: {', '.join(missing)}")
-        print("Copia example.config.toml a config.toml y completa los valores.")
-        sys.exit(1)
+@dataclass
+class PyballSettings:
+    location: str = ""
+    default_week_day: str = "wednesday"
+    default_hour: str = "20:00"
 ```
 
-Call this function in the module or at application startup.
+Add to `Settings`:
+```python
+@dataclass
+class Settings:
+    telegram: TelegramSettings = field(default_factory=TelegramSettings)
+    pyball: PyballSettings = field(default_factory=PyballSettings)
+    locale: LocaleSettings = field(default_factory=LocaleSettings)
+    paths: Paths = field(default_factory=Paths)
+```
 
-## Section 3: Location Default
+## Section 4: Validation Implementation
 
-Use `telegram.location` as the default meetup location when not provided via `/callup` command.
+In `load_settings()`, validate required params:
 
-## Section 4: Error Handling
+```python
+missing = []
+if not telegram.bot_token:
+    missing.append("telegram.bot_token")
+if not pyball_settings.location:
+    missing.append("pyball.location")
+if not telegram.regulars.chat_id:
+    missing.append("telegram.regulars.chat_id")
+if not telegram.substitutes.chat_id:
+    missing.append("telegram.substitutes.chat_id")
+
+if missing:
+    raise SettingsValidationError(
+        f"Faltan parámetros requeridos: {', '.join(missing)}. "
+        "Copia example.config.toml a config.toml y completa los valores."
+    )
+```
+
+## Section 5: Default Meetup Values
+
+When creating a meetup via `/callup` without explicit parameters:
+- No location provided → use `pyball.location`
+- No date/time provided → use `pyball.default_week_day` + `pyball.default_hour`
+
+## Section 6: Error Handling
 
 If validation fails:
-- Display error message listing missing parameters
-- Show helpful message about copying example.config.toml
-- Exit with non-zero code (sys.exit(1))
+- Raise `SettingsValidationError` with message listing missing parameters
+- Error message includes hint to copy example.config.toml
