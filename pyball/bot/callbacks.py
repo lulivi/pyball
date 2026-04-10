@@ -37,7 +37,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     parsed = parse_callback_data(query.data)
     if not parsed:
-        await query.edit_message_text("Invalid callback data.")
+        await query.answer("Invalid callback data.", show_alert=True)
         return
 
     action, date_str = parsed
@@ -45,7 +45,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         meetup_date = datetime.fromisoformat(date_str)
     except ValueError:
-        await query.edit_message_text("Invalid date format.")
+        await query.answer("Invalid date format.", show_alert=True)
         return
 
     meetup_repo = container.meetup_repository
@@ -58,7 +58,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             break
 
     if not meetup:
-        await query.edit_message_text("Meetup not found.")
+        await query.answer("Meetup not found.", show_alert=True)
         return
 
     player_repo = container.player_repository
@@ -68,15 +68,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     player_id_str = mapping_store.get_player_id(telegram_id)
     if not player_id_str:
-        await query.edit_message_text(
-            "No player linked to your Telegram account. Contact admin to register."
+        await query.answer(
+            "No player linked to your Telegram account. Contact admin to register.",
+            show_alert=True
         )
         return
 
     try:
         player_id = PlayerId.from_string(player_id_str)
     except Exception:
-        await query.edit_message_text("Invalid player mapping. Contact admin.")
+        await query.answer("Invalid player mapping. Contact admin.", show_alert=True)
         return
 
     if action == "join":
