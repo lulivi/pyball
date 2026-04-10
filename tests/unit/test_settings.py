@@ -40,9 +40,18 @@ class TestLoadSettings:
     def test_load_from_config_file(self, tmp_path):
         """Test loading settings from config.toml file."""
         config_content = """
+[pyball]
+location = "Test Park"
+
 [telegram]
 bot_token = "test_token"
 admins_ids = [111, 222]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
 
 [locale]
 value = "es_ES.UTF-8"
@@ -54,14 +63,24 @@ value = "es_ES.UTF-8"
         
         assert settings.telegram.bot_token == "test_token"
         assert settings.telegram.admins_ids == (111, 222)
+        assert settings.pyball.location == "Test Park"
         assert settings.locale.value == "es_ES.UTF-8"
 
     def test_env_override_bot_token(self, tmp_path, monkeypatch):
         """Test that env vars override config file values."""
         config_content = """
+[pyball]
+location = "Test Park"
+
 [telegram]
 bot_token = "config_token"
 admins_ids = [111]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
 
 [locale]
 value = "en_US.UTF-8"
@@ -78,9 +97,18 @@ value = "en_US.UTF-8"
     def test_env_override_admins_ids_comma_separated(self, tmp_path, monkeypatch):
         """Test comma-separated env var for admins_ids."""
         config_content = """
+[pyball]
+location = "Test Park"
+
 [telegram]
 bot_token = "test_token"
 admins_ids = [111]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
 
 [locale]
 value = "en_US.UTF-8"
@@ -97,9 +125,18 @@ value = "en_US.UTF-8"
     def test_missing_bot_token_raises_error(self, tmp_path):
         """Test that missing bot_token raises SettingsValidationError."""
         config_content = """
+[pyball]
+location = "Test Park"
+
 [telegram]
 bot_token = ""
 admins_ids = [111]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
 
 [locale]
 value = "en_US.UTF-8"

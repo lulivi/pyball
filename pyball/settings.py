@@ -70,6 +70,13 @@ class TelegramSettings:
 
 
 @dataclass
+class PyballSettings:
+    location: str = ""
+    default_week_day: str = "wednesday"
+    default_hour: str = "20:00"
+
+
+@dataclass
 class LocaleSettings:
     value: str = "en_US.UTF-8"
 
@@ -77,6 +84,7 @@ class LocaleSettings:
 @dataclass
 class Settings:
     telegram: TelegramSettings = field(default_factory=TelegramSettings)
+    pyball: PyballSettings = field(default_factory=PyballSettings)
     locale: LocaleSettings = field(default_factory=LocaleSettings)
     paths: Paths = field(default_factory=Paths)
 
@@ -105,7 +113,8 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         config = {}
 
     telegram_cfg = config.get("telegram", {})
-    locale_cfg = config.get("locale", {})
+    pyball_cfg = config.get("pyball", {})
+    locale_cfg = config.get("locale", "en_US.UTF-8")
 
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
@@ -136,11 +145,34 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         substitutes=substitutes,
     )
 
+    pyball_settings = PyballSettings(
+        location=_get_env_override("pyball", "location", pyball_cfg.get("location", "")),
+        default_week_day=_get_env_override(
+            "pyball", "default_week_day", pyball_cfg.get("default_week_day", "wednesday")
+        ),
+        default_hour=_get_env_override(
+            "pyball", "default_hour", pyball_cfg.get("default_hour", "20:00")
+        ),
+    )
+
+    missing = []
     if not telegram.bot_token:
-        raise SettingsValidationError("bot_token is required but not set")
+        missing.append("telegram.bot_token")
+    if not pyball_settings.location:
+        missing.append("pyball.location")
+    if not telegram.regulars.chat_id:
+        missing.append("telegram.regulars.chat_id")
+    if not telegram.substitutes.chat_id:
+        missing.append("telegram.substitutes.chat_id")
+
+    if missing:
+        raise SettingsValidationError(
+            f"Faltan parámetros requeridos: {', '.join(missing)}. "
+            "Copia example.config.toml a config.toml y completa los valores."
+        )
 
     locale = LocaleSettings(
         value=_get_env_override("locale", "value", locale_cfg.get("value", "en_US.UTF-8")),
     )
 
-    return Settings(telegram=telegram, locale=locale)
+    return Settings(telegram=telegram, pyball=pyball_settings, locale=locale)
