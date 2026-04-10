@@ -5,6 +5,7 @@ from datetime import datetime
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.repository import MeetupRepository
+from pyball.domain.player.models import PlayerId
 from pyball.domain.player.repository import PlayerRepository
 
 
@@ -16,10 +17,12 @@ class RemovePlayerFromMeetup:
         meetup_repository: MeetupRepository,
         player_repository: PlayerRepository,
     ):
+        """Initialize with repositories."""
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
 
     def execute(self, date_str: str, player_name: str) -> None:
+        """Remove a player from a meetup by date string and player name."""
         try:
             meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
         except ValueError:

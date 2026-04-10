@@ -1,3 +1,5 @@
+"""Message formatters for Telegram bot."""
+
 from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -63,7 +65,7 @@ def format_subs_message(
 
 
 def build_callback_data(action: str, meetup_date: datetime) -> str:
-    """Build callback data: action:YYYY-MM-DDTHH:MM"""
+    """Build callback data string for inline buttons."""
     return f"{action}:{meetup_date.strftime('%Y-%m-%dT%H:%M')}"
 
 

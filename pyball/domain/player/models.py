@@ -15,6 +15,7 @@ class PlayerId(ValueObject):
 
     @classmethod
     def from_string(cls, value: str) -> "PlayerId":
+        """Create a PlayerId from a string UUID."""
         try:
             return cls(UUID(value))
         except ValueError as e:
@@ -22,11 +23,12 @@ class PlayerId(ValueObject):
 
     @classmethod
     def generate(cls) -> "PlayerId":
+        """Generate a new random PlayerId."""
         return cls(uuid4())
 
 
 @dataclass
-class Player(Entity):
+class Player(Entity[PlayerId]):
     """Player entity."""
 
     id: PlayerId
@@ -41,6 +43,7 @@ class Player(Entity):
 
     @classmethod
     def create(cls, name: str, group: str = "regular") -> "Player":
+        """Create a new player with the given name and group."""
         if not name or not name.strip():
             raise ValueError("Player name cannot be empty")
         if group not in ("regular", "substitute"):
@@ -48,11 +51,13 @@ class Player(Entity):
         return cls(id=PlayerId.generate(), name=name.strip(), group=group)
 
     def rename(self, new_name: str) -> None:
+        """Rename the player to a new name."""
         if not new_name or not new_name.strip():
             raise ValueError("Player name cannot be empty")
         object.__setattr__(self, "name", new_name.strip())
 
     def set_group(self, new_group: str) -> None:
+        """Set the player's group to regular or substitute."""
         if new_group not in ("regular", "substitute"):
             raise ValueError("Player group must be 'regular' or 'substitute'")
         object.__setattr__(self, "group", new_group)

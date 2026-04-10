@@ -10,11 +10,11 @@ from pathlib import Path
 class SettingsValidationError(ValueError):
     """Raised when required settings are missing or invalid."""
 
-    pass
-
 
 @dataclass
 class Paths:
+    """File system paths for data storage."""
+
     data_dir: Path = field(default_factory=lambda: Path("data"))
     players_file: Path = field(init=False)
     meetups_dir: Path = field(init=False)
@@ -24,6 +24,9 @@ class Paths:
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
         self.mappings_file = self.data_dir / "bot" / "mappings.json"
+
+
+LOGS_DIRECTORY_PATH = Path("logs")
 
 
 def _get_env_override(section: str, key: str, default):
@@ -57,15 +60,20 @@ def _parse_chat_id(value) -> int:
 
 @dataclass
 class TelegramChatSettings:
+    """Telegram chat configuration for regulars or substitutes."""
+
     chat_id: int = 0
     thread_id: str | int = ""
 
     def has_thread(self) -> bool:
+        """Check if a thread ID is configured."""
         return bool(self.thread_id)
 
 
 @dataclass
 class TelegramSettings:
+    """Telegram bot and chat configuration."""
+
     bot_token: str = ""
     admins_ids: tuple[int, ...] = ()
     regulars: TelegramChatSettings = field(default_factory=TelegramChatSettings)
@@ -78,6 +86,8 @@ class TelegramSettings:
 
 @dataclass
 class PyballSettings:
+    """PyBall-specific configuration."""
+
     location: str = ""
     default_week_day: str = "wednesday"
     default_hour: str = "20:00"
@@ -85,11 +95,15 @@ class PyballSettings:
 
 @dataclass
 class LocaleSettings:
+    """Locale configuration."""
+
     value: str = "en_US.UTF-8"
 
 
 @dataclass
 class Settings:
+    """Application settings container."""
+
     telegram: TelegramSettings = field(default_factory=TelegramSettings)
     pyball: PyballSettings = field(default_factory=PyballSettings)
     locale: LocaleSettings = field(default_factory=LocaleSettings)

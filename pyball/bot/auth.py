@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def authorized(func: Callable) -> Callable:
-    """Decorator to restrict handler to authorized users only.
+    """Restrict handler to authorized users only.
 
     Checks if the user's Telegram ID is in ADMINS_IDS.
     """
@@ -32,9 +32,11 @@ def authorized(func: Callable) -> Callable:
 
         if not settings.telegram.is_authorized(user_id):
             logger.warning(f"Unauthorized access attempt from user ID: {user_id}")
-            await update.message.reply_text(
-                "Unauthorized. You don't have permission to run this command."
-            )
+            message = update.message
+            if message is not None:
+                await message.reply_text(
+                    "Unauthorized. You don't have permission to run this command."
+                )
             return
 
         return await func(update, context)

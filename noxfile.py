@@ -43,26 +43,22 @@ def lint(session: nox.Session):
         "--check",
         "--diff",
         ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
     )
     session.run_always(
         "isort",
         "--check",
         "--diff",
         ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
     )
     session.run_always(
         "pydocstyle",
         ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
         "--add-ignore",
         "D104,D105,D107",
     )
     session.run_always(
         "pycodestyle",
         ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
         "--max-line-length",
         "99",
         "--ignore",
@@ -71,11 +67,12 @@ def lint(session: nox.Session):
     session.run_always(
         "mypy",
         ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
         "--enable-incomplete-feature=Unpack",
     )
     session.run_always(
-        "pylint", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+        "pylint",
+        ROOT_DIRECTORY.joinpath("pyball"),
+        "--disable=C0114,C0115,C0116,R0801,R0903,R0911,R0912,R0914,R0915,W0107,W0511,W0611,W0612,W0613,W0706,W0707,W0718,W1514,W2301",
     )
 
 

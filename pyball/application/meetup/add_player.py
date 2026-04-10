@@ -6,7 +6,6 @@ from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
-from pyball.domain.player.models import PlayerId
 from pyball.domain.player.repository import PlayerRepository
 
 
@@ -40,8 +39,7 @@ class AddPlayerToMeetup:
 
         all_players = self.player_repository.find_all()
         match = fuzzy_match_player(player_name, all_players)
-        player_id = match.player_id
 
-        meetup.add_player(player_id)
+        meetup.add_player(match.player_id)
         self.meetup_repository.save(meetup)
         return meetup

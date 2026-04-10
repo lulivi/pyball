@@ -9,9 +9,11 @@ class CreatePlayer:
     """Use case for creating a new player."""
 
     def __init__(self, player_repository: PlayerRepository):
+        """Initialize with a player repository."""
         self.player_repository = player_repository
 
     def execute(self, name: str, group: str) -> Player:
+        """Create a new player with the given name and group."""
         existing = self.player_repository.find_all()
         if any(p.name.lower() == name.lower() for p in existing):
             raise PlayerAlreadyExistsError(name)

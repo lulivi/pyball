@@ -1,13 +1,17 @@
+"""Fuzzy matching for player names."""
+
 import difflib
 
 from dataclasses import dataclass
+
+from pyball.domain.player.models import PlayerId
 
 
 @dataclass
 class FuzzyMatchResult:
     """Result of fuzzy name matching."""
 
-    player_id: str
+    player_id: PlayerId
     name: str
 
 

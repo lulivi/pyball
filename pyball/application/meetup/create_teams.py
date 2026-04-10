@@ -9,17 +9,25 @@ from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 
 
+class InvalidMeetupDateError(ValueError):
+    """Raised when meetup date format is invalid."""
+
+    pass
+
+
 class CreateTeams:
     """Use case for creating balanced teams."""
 
     def __init__(self, meetup_repository: MeetupRepository):
+        """Initialize with a meetup repository."""
         self.meetup_repository = meetup_repository
 
     def execute(self, date_str: str) -> Meetup:
+        """Create balanced teams for a meetup by date string."""
         try:
             meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
         except ValueError:
-            raise ValueError("Invalid date format. Use: YYYY-MM-DD HH:MM")
+            raise InvalidMeetupDateError("Invalid date format. Use: YYYY-MM-DD HH:MM")
 
         all_meetups = self.meetup_repository.find_all()
         meetup = None

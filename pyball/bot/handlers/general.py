@@ -11,6 +11,10 @@ def setup_general_handlers(application):
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
+    message = update.message
+    if message is None:
+        return
+
     text = """<b>Available Commands:</b>
 
 <b>Player:</b>
@@ -31,4 +35,4 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 <b>Callup:</b>
 /search - Send substitutes message"""
-    await update.message.reply_text(text, parse_mode="HTML")
+    await message.reply_text(text, parse_mode="HTML")

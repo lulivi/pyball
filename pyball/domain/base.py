@@ -1,6 +1,9 @@
 """Base classes for domain objects."""
 
-from uuid import UUID, uuid4
+from typing import Generic, TypeVar
+from uuid import uuid4
+
+T = TypeVar("T")
 
 
 class ValueObject:
@@ -15,16 +18,17 @@ class ValueObject:
         return hash(self.as_tuple())
 
     def as_tuple(self) -> tuple:
+        """Return attributes as a tuple for hashing and equality."""
         return tuple(getattr(self, name) for name in self.__annotations__)
 
 
-class Entity:
+class Entity(Generic[T]):
     """Base class for entities with identity."""
 
-    id: UUID
+    id: T
 
-    def __init__(self, id: UUID | None = None) -> None:
-        object.__setattr__(self, "id", id or uuid4())
+    def __init__(self, entity_id: T | None = None) -> None:
+        object.__setattr__(self, "id", entity_id or uuid4())
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):

@@ -33,37 +33,53 @@ class JsonPlayerRepository(PlayerRepository):
             json.dump(data, f, indent=2)
 
     def save(self, player: Player) -> None:
+        """Save a player to the repository."""
         data = self._read()
         players = data.get("players", [])
         for i, p in enumerate(players):
             if p["id"] == str(player.id.value):
-                players[i] = {"id": str(player.id.value), "name": player.name, "group": player.group}
+                players[i] = {
+                    "id": str(player.id.value),
+                    "name": player.name,
+                    "group": player.group,
+                }
                 break
         else:
-            players.append({"id": str(player.id.value), "name": player.name, "group": player.group})
+            players.append(
+                {"id": str(player.id.value), "name": player.name, "group": player.group}
+            )
         self._write({"players": players})
 
     def find_by_id(self, player_id: PlayerId) -> Player | None:
+        """Find a player by their ID."""
         data = self._read()
         for p in data.get("players", []):
             if p["id"] == str(player_id.value):
-                return Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular"))
+                return Player(
+                    id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular")
+                )
         return None
 
     def find_by_name(self, name: str) -> Player | None:
+        """Find a player by their name (case-insensitive)."""
         data = self._read()
         for p in data.get("players", []):
             if p["name"].lower() == name.lower():
-                return Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular"))
+                return Player(
+                    id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular")
+                )
         return None
 
     def find_all(self) -> list[Player]:
+        """Return all players."""
         data = self._read()
         return [
-            Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular")) for p in data.get("players", [])
+            Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular"))
+            for p in data.get("players", [])
         ]
 
     def delete(self, player_id: PlayerId) -> None:
+        """Delete a player by their ID."""
         data = self._read()
         players = [p for p in data.get("players", []) if p["id"] != str(player_id.value)]
         self._write({"players": players})
@@ -104,9 +120,11 @@ class JsonMeetupRepository(MeetupRepository):
             json.dump(data, f, indent=2)
 
     def save(self, meetup: Meetup) -> None:
+        """Save a meetup to the repository."""
         self._write(meetup)
 
     def find_by_id(self, meetup_id: MeetupId) -> Meetup | None:
+        """Find a meetup by its ID."""
         for file_path in self.directory.glob("*.json"):
             data = self._read_file(file_path)
             if data and data["id"] == str(meetup_id.value):
@@ -114,6 +132,7 @@ class JsonMeetupRepository(MeetupRepository):
         return None
 
     def find_by_date(self, meetup_date: date) -> Meetup | None:
+        """Find a meetup by its date."""
         for file_path in self.directory.glob("*.json"):
             data = self._read_file(file_path)
             if data:
@@ -123,6 +142,7 @@ class JsonMeetupRepository(MeetupRepository):
         return None
 
     def find_all(self) -> list[Meetup]:
+        """Return all meetups sorted by date."""
         meetups = []
         for file_path in self.directory.glob("*.json"):
             data = self._read_file(file_path)
@@ -131,6 +151,7 @@ class JsonMeetupRepository(MeetupRepository):
         return sorted(meetups, key=lambda m: m.date)
 
     def delete(self, meetup_id: MeetupId) -> None:
+        """Delete a meetup by its ID."""
         for file_path in self.directory.glob("*.json"):
             data = self._read_file(file_path)
             if data and data["id"] == str(meetup_id.value):

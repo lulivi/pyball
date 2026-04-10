@@ -1,41 +1,45 @@
 """Inline button callback handler."""
 
+import logging
+
 from datetime import datetime
 
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from pyball.application.container import Container
-from pyball.bot.formatters import (
-    build_main_keyboard,
-    format_main_message,
-    parse_callback_data,
-)
+from pyball.bot.formatters import build_main_keyboard, format_main_message, parse_callback_data
+from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram_mapping import TelegramMappingStore
 from pyball.settings import load_settings
+
+logger = logging.getLogger(__name__)
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
     query = update.callback_query
-    
-    if not query.message:
+
+    if query is None or query.message is None:
         return
 
-    await query.answer()
-
-    container: Container = context.bot_data.get("container")
-    if not container:
+    container: Container | None = context.bot_data.get("container")
+    if container is None:
         container = Container()
 
     settings = context.bot_data.get("settings")
-    if not settings:
+    if settings is None:
         settings = load_settings()
 
     mapping_store = TelegramMappingStore(settings.paths.mappings_file)
 
-    parsed = parse_callback_data(query.data)
+    callback_data = query.data
+    if callback_data is None:
+        await query.answer("Invalid callback data.", show_alert=True)
+        return
+
+    parsed = parse_callback_data(callback_data)
     if not parsed:
         await query.answer("Invalid callback data.", show_alert=True)
         return
@@ -64,19 +68,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     player_repo = container.player_repository
     player_names = {p.id.value: p.name for p in player_repo.find_all()}
 
-    telegram_id = query.from_user.id
+    from_user = query.from_user
+    if from_user is None:
+        await query.answer("Invalid user.", show_alert=True)
+        return
+    telegram_id = from_user.id
 
     player_id_str = mapping_store.get_player_id(telegram_id)
     if not player_id_str:
         await query.answer(
             "No player linked to your Telegram account. Contact admin to register.",
-            show_alert=True
+            show_alert=True,
         )
         return
 
     try:
         player_id = PlayerId.from_string(player_id_str)
-    except Exception:
+    except InvalidPlayerIdError:
         await query.answer("Invalid player mapping. Contact admin.", show_alert=True)
         return
 
@@ -85,8 +93,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif action == "leave":
         try:
             meetup.remove_player(player_id)
-        except Exception:
-            pass
+        except Exception as error:
+            logger.warning("Player not in meetup: %s", error)
 
     meetup_repo.save(meetup)
 

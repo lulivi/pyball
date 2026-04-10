@@ -13,9 +13,11 @@ class RenamePlayer:
     """Use case for renaming a player."""
 
     def __init__(self, player_repository: PlayerRepository):
+        """Initialize with a player repository."""
         self.player_repository = player_repository
 
     def execute(self, player_id: str, new_name: str) -> Player:
+        """Rename a player to a new name."""
         try:
             parsed_id = PlayerId.from_string(player_id)
         except InvalidPlayerIdError:

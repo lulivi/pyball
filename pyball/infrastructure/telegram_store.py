@@ -1,3 +1,5 @@
+"""Telegram message tracking storage."""
+
 import json
 
 from dataclasses import dataclass
@@ -7,6 +9,8 @@ from typing import Literal
 
 @dataclass
 class MessageTracking:
+    """Stores Telegram message tracking information."""
+
     chat_id: int
     thread_id: str | int | None
     message_id: int
@@ -19,26 +23,30 @@ class TelegramMessageStore:
     """Maps meetup dates to Telegram message IDs. DDD-compliant - infrastructure only."""
 
     def __init__(self, file_path: Path):
+        """Initialize the store with the given file path."""
         self.file_path = file_path
         self._ensure_file_exists()
 
     def _ensure_file_exists(self) -> None:
+        """Ensure the storage file exists."""
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.file_path.exists():
             self._write({})
 
     def _read(self) -> dict:
+        """Read data from the JSON file."""
         with open(self.file_path) as f:
             return json.load(f)
 
     def _write(self, data: dict) -> None:
+        """Write data to the JSON file."""
         with open(self.file_path, "w") as f:
             json.dump(data, f, indent=2)
 
     def save_message(
         self, meetup_date: str, chat_type: ChatType, tracking: MessageTracking
     ) -> None:
-        """Save message info for a meetup. chat_type is 'main' or 'subs'."""
+        """Save message info for a meetup. chat_type is 'regular' or 'substitute'."""
         data = self._read()
         if meetup_date not in data:
             data[meetup_date] = {}
