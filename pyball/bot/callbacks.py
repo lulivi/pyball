@@ -23,6 +23,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not query.message:
         return
 
+    await query.answer()
+
     container: Container = context.bot_data.get("container")
     if not container:
         container = Container()
@@ -93,7 +95,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     text = format_main_message(meetup, player_names)
     keyboard = build_main_keyboard(meetup.date)
     await query.edit_message_text(text, reply_markup=keyboard)
-    await query.answer()
 
 
 def create_callback_handler() -> CallbackQueryHandler:
