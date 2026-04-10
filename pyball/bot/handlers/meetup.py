@@ -32,7 +32,6 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("create_teams", create_teams_handler))
     application.add_handler(CommandHandler("list_meetups", list_meetups_handler))
     application.add_handler(CommandHandler("show_meetup", show_meetup_handler))
-    application.add_handler(CommandHandler("callup", callup_handler))
     application.add_handler(CommandHandler("search", search_handler))
 
 
@@ -42,12 +41,71 @@ def _get_player_names(player_ids, player_repo) -> dict:
     return {p.id: p.name for p in all_players}
 
 
+async def _send_callup_messages(context, settings, container, meetup, update) -> None:
+    """Send callup messages to regulars and substitutes chats."""
+    player_repo = container.player_repository
+    player_names = {p.id: p.name for p in player_repo.find_all()}
+
+    text = format_main_message(meetup, player_names)
+    keyboard = build_main_keyboard(meetup.date)
+
+    try:
+        msg = await context.bot.send_message(
+            chat_id=settings.telegram.regulars.chat_id,
+            text=text,
+            reply_markup=keyboard,
+            message_thread_id=settings.telegram.regulars.thread_id or None,
+        )
+
+        store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+        store.save_message(
+            meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "regular",
+            MessageTracking(
+                chat_id=settings.telegram.regulars.chat_id,
+                thread_id=settings.telegram.regulars.thread_id or None,
+                message_id=msg.message_id,
+            ),
+        )
+    except Exception as e:
+        logger.exception("Error sending regulars message")
+
+    if settings.telegram.substitutes.chat_id:
+        subs_text = format_subs_message(meetup, player_names)
+        subs_keyboard = build_subs_keyboard(meetup.date)
+
+        try:
+            msg = await context.bot.send_message(
+                chat_id=settings.telegram.substitutes.chat_id,
+                text=subs_text,
+                reply_markup=subs_keyboard,
+                message_thread_id=settings.telegram.substitutes.thread_id or None,
+            )
+
+            store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+            store.save_message(
+                meetup.date.strftime("%Y-%m-%dT%H:%M"),
+                "substitute",
+                MessageTracking(
+                    chat_id=settings.telegram.substitutes.chat_id,
+                    thread_id=settings.telegram.substitutes.thread_id or None,
+                    message_id=msg.message_id,
+                ),
+            )
+        except Exception as e:
+            logger.exception("Error sending substitutes message")
+
+    await update.message.reply_text("Meetup created and callup sent!")
+
+
 @authorized
 async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /new_meetup command."""
+    """Handle /new_meetup command - creates meetup and sends callup messages."""
     container: Container = context.bot_data.get("container")
     if not container:
         container = Container()
+
+    settings = load_settings()
 
     if not context.args:
         await update.message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
@@ -61,13 +119,16 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     try:
-        meetup = container.create_meetup().execute(date)
-        await update.message.reply_text(f"Meetup created for {date.strftime('%Y-%m-%d %H:%M')}!")
+        meetup = container.create_meetup().execute(date, settings.pyball.location)
     except DuplicateMeetupError:
         await update.message.reply_text(f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}.")
+        return
     except Exception as e:
         logger.exception("Error creating meetup")
         await update.message.reply_text("An error occurred. Please try again.")
+        return
+
+    await _send_callup_messages(context, settings, container, meetup, update)
 
 
 def _get_next_weekday(default_week_day: str) -> datetime:
@@ -89,7 +150,7 @@ def _get_next_weekday(default_week_day: str) -> datetime:
 
 @authorized
 async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /next_meetup command - creates meetup for next default weekday."""
+    """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
     container: Container = context.bot_data.get("container")
     if not container:
         container = Container()
@@ -100,19 +161,19 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     next_date = _get_next_weekday(default_week_day)
 
     try:
-        meetup = container.create_meetup().execute(next_date)
-        day_name = next_date.strftime("%A")
-        await update.message.reply_text(
-            f"Meetup created for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})!"
-        )
+        meetup = container.create_meetup().execute(next_date, settings.pyball.location)
     except DuplicateMeetupError:
         day_name = next_date.strftime("%A")
         await update.message.reply_text(
             f"Meetup already exists at {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})."
         )
+        return
     except Exception as e:
         logger.exception("Error creating meetup")
         await update.message.reply_text("An error occurred. Please try again.")
+        return
+
+    await _send_callup_messages(context, settings, container, meetup, update)
 
 
 @authorized
@@ -265,96 +326,6 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 @authorized
-async def callup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /callup command - create meetup and send main message."""
-    container: Container = context.bot_data.get("container")
-    if not container:
-        container = Container()
-
-    settings = load_settings()
-
-    if not context.args:
-        date_str = settings.pyball.default_week_day
-        time_str = settings.pyball.default_hour
-        location = settings.pyball.location
-    else:
-        date_str = context.args[0]
-        time_str = context.args[1] if len(context.args) > 1 else settings.pyball.default_hour
-        location = context.args[2] if len(context.args) > 2 else settings.pyball.location
-
-    try:
-        if not context.args:
-            from datetime import timedelta
-
-            weekday_map = {
-                "monday": 0,
-                "tuesday": 1,
-                "wednesday": 2,
-                "thursday": 3,
-                "friday": 4,
-                "saturday": 5,
-                "sunday": 6,
-            }
-            today = datetime.now().date()
-            target_weekday = weekday_map.get(date_str.lower())
-            if target_weekday is not None:
-                days_until = (target_weekday - today.weekday()) % 7
-                if days_until == 0:
-                    days_until = 7
-                meetup_date = datetime.combine(
-                    today + timedelta(days=days_until),
-                    datetime.strptime(time_str, "%H:%M").time(),
-                )
-            else:
-                full_date_str = f"{date_str} {time_str}"
-                meetup_date = datetime.fromisoformat(full_date_str)
-        else:
-            full_date_str = f"{date_str} {time_str}"
-            meetup_date = datetime.fromisoformat(full_date_str)
-    except ValueError:
-        await update.message.reply_text("Invalid date. Use: /callup YYYY-MM-DD HH:MM [location]")
-        return
-
-    try:
-        meetup = container.create_meetup().execute(meetup_date, location)
-    except DuplicateMeetupError:
-        await update.message.reply_text(f"Meetup already exists at {meetup_date.strftime('%Y-%m-%d %H:%M')}.")
-        return
-    except Exception as e:
-        logger.exception("Error creating meetup")
-        await update.message.reply_text("An error occurred. Please try again.")
-        return
-
-    player_names = {p.id: p.name for p in container.player_repository.find_all()}
-    text = format_main_message(meetup, player_names)
-    keyboard = build_main_keyboard(meetup.date)
-
-    try:
-        msg = await context.bot.send_message(
-            chat_id=settings.telegram.regulars.chat_id,
-            text=text,
-            reply_markup=keyboard,
-            message_thread_id=settings.telegram.regulars.thread_id or None,
-        )
-
-        store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
-        store.save_message(
-            meetup.date.strftime("%Y-%m-%dT%H:%M"),
-            "main",
-            MessageTracking(
-                chat_id=settings.telegram.regulars.chat_id,
-                thread_id=settings.telegram.regulars.thread_id or None,
-                message_id=msg.message_id,
-            ),
-        )
-
-        await update.message.reply_text(f"Callup created! Message sent.")
-    except Exception as e:
-        logger.exception("Error sending callup message")
-        await update.message.reply_text("Meetup created but failed to send message.")
-
-
-@authorized
 async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /search command - send substitutes message."""
     container: Container = context.bot_data.get("container")
@@ -401,7 +372,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
         store.save_message(
             meetup.date.strftime("%Y-%m-%dT%H:%M"),
-            "subs",
+            "substitute",
             MessageTracking(
                 chat_id=settings.telegram.substitutes.chat_id,
                 thread_id=settings.telegram.substitutes.thread_id or None,

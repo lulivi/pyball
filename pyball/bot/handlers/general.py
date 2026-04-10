@@ -30,6 +30,5 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /show_meetup - Show meetup details
 
 <b>Callup:</b>
-/callup - Create callup message
 /search - Send substitutes message"""
     await update.message.reply_text(text, parse_mode="HTML")

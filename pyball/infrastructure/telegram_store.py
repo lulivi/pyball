@@ -12,7 +12,7 @@ class MessageTracking:
     message_id: int
 
 
-ChatType = Literal["main", "subs"]
+ChatType = Literal["regular", "substitute"]
 
 
 class TelegramMessageStore:
