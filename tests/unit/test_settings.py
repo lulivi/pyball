@@ -1,12 +1,14 @@
-import pytest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
 from pyball.settings import (
-    Settings,
-    TelegramSettings,
     LocaleSettings,
-    load_settings,
+    Settings,
     SettingsValidationError,
+    TelegramSettings,
+    load_settings,
 )
 
 
@@ -58,9 +60,9 @@ value = "es_ES.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
-        
+
         settings = load_settings(config_file)
-        
+
         assert settings.telegram.bot_token == "test_token"
         assert settings.telegram.admins_ids == (111, 222)
         assert settings.pyball.location == "Test Park"
@@ -87,11 +89,11 @@ value = "en_US.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
-        
+
         monkeypatch.setenv("PYBALL_TELEGRAM_BOT_TOKEN", "env_token")
-        
+
         settings = load_settings(config_file)
-        
+
         assert settings.telegram.bot_token == "env_token"
 
     def test_env_override_admins_ids_comma_separated(self, tmp_path, monkeypatch):
@@ -115,11 +117,11 @@ value = "en_US.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
-        
+
         monkeypatch.setenv("PYBALL_TELEGRAM_ADMINS_IDS", "333,444,555")
-        
+
         settings = load_settings(config_file)
-        
+
         assert settings.telegram.admins_ids == (333, 444, 555)
 
     def test_missing_bot_token_raises_error(self, tmp_path):
@@ -143,6 +145,6 @@ value = "en_US.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
-        
+
         with pytest.raises(SettingsValidationError):
             load_settings(config_file)
