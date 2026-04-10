@@ -11,24 +11,24 @@ def setup_general_handlers(application):
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
-    text = """*Available Commands:*
+    text = """<b>Available Commands:</b>
 
-*Player:*
-/new_player <name> <regular|substitute> - Create a new player
-/rename_player <player> <new_name> - Rename a player
-/delete_player <player> - Delete a player
+<b>Player:</b>
+/new_player - Create a new player
+/rename_player - Rename a player
+/delete_player - Delete a player
 /list_players - List all players
-/change_group <player> <regular|substitute> - Change player group
+/change_group - Change player group
 
-*Meetup:*
-/new_meetup <YYYY-MM-DD HH:MM> - Create a new meetup
-/add_player <YYYY-MM-DD HH:MM> <player> - Add player to meetup
-/remove_player <YYYY-MM-DD HH:MM> <player> - Remove player from meetup
-/create_teams <YYYY-MM-DD HH:MM> - Create balanced teams
+<b>Meetup:</b>
+/new_meetup - Create a new meetup
+/add_player - Add player to meetup
+/remove_player - Remove player from meetup
+/create_teams - Create balanced teams
 /list_meetups - List all meetups
-/show_meetup <YYYY-MM-DD HH:MM> - Show meetup details
+/show_meetup - Show meetup details
 
-*Callup:*
-/callup [YYYY-MM-DD] [HH:MM] [location] - Create callup message
-/search <YYYY-MM-DD> - Send substitutes message"""
-    await update.message.reply_text(text, parse_mode="MarkdownV2")
+<b>Callup:</b>
+/callup - Create callup message
+/search - Send substitutes message"""
+    await update.message.reply_text(text, parse_mode="HTML")
