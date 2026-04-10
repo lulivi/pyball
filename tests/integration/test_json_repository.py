@@ -1,6 +1,7 @@
 """Integration tests for JSON repositories."""
 
 import json
+import shutil
 import tempfile
 
 from datetime import datetime
@@ -22,8 +23,6 @@ class TestJsonPlayerRepository:
         self.repo = JsonPlayerRepository(self.file_path)
 
     def teardown_method(self):
-        import shutil
-
         shutil.rmtree(self.temp_dir)
 
     def test_save_and_find_by_id(self):
@@ -94,8 +93,6 @@ class TestJsonMeetupRepository:
         self.repo = JsonMeetupRepository(self.directory)
 
     def teardown_method(self):
-        import shutil
-
         shutil.rmtree(self.temp_dir)
 
     def test_save_and_find_by_id(self):

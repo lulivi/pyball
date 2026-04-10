@@ -4,8 +4,8 @@ from pyball.application.fuzzy_match import fuzzy_match_player
 
 
 class MockPlayer:
-    def __init__(self, id, name):
-        self.id = id
+    def __init__(self, player_id, name):
+        self.id = player_id
         self.name = name
 
 

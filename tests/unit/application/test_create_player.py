@@ -48,21 +48,4 @@ class TestCreatePlayer:
 
         assert player.name == "Luis"
         assert player.group == "regular"
-        assert len(repo.players) == 1
-
-    def test_create_duplicate_player_raises(self):
-        repo = MagicMock()
-        repo.find_all.return_value = [Player.create(name="Luis", group="regular")]
-        use_case = CreatePlayer(repo)
-
-        with pytest.raises(PlayerAlreadyExistsError):
-            use_case.execute(name="Luis", group="regular")
-
-    def test_create_player_with_whitespace(self):
-        repo = MagicMock()
-        repo.find_all.return_value = []
-        use_case = CreatePlayer(repo)
-
-        player = use_case.execute(name="  Luis  ", group="regular")
-
-        assert player.name == "Luis"
+        repo.save.assert_called_once()

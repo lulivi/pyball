@@ -64,9 +64,8 @@ full_log = logging.handlers.RotatingFileHandler(
 )
 
 pyball_log = timed_rotating_file_handler("pyball.log", "pyball")
-bot_log = timed_rotating_file_handler("bot.log", "pyball.legacy.bot")
-players_log = timed_rotating_file_handler("players.log", "pyball.legacy.callup.players")
-db_log = timed_rotating_file_handler("db.log", "pyball.legacy.db")
+bot_log = timed_rotating_file_handler("bot.log", "pyball.bot")
+infra_log = timed_rotating_file_handler("infrastructure.log", "pyball.infrastructure")
 
 
 logging.basicConfig(
@@ -79,8 +78,7 @@ logging.basicConfig(
         full_log,
         pyball_log,
         bot_log,
-        players_log,
-        db_log,
+        infra_log,
     ),
 )
 
