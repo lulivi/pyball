@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.player.models import Player, PlayerId
 

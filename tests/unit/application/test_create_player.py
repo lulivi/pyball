@@ -1,7 +1,8 @@
 """Tests for CreatePlayer use case."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from pyball.application.player import CreatePlayer
 from pyball.domain.player.errors import PlayerAlreadyExistsError

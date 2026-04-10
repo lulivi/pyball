@@ -4,4 +4,4 @@ services:
     user: "$UID:$UID"
     volumes:
       - "${PWD}:/pyball"
-    restart: unless-stopped
+    # restart: unless-stopped

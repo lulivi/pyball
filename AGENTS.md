@@ -2,6 +2,10 @@
 
 Telegram bot for managing non-US football meetups - players, teams, call-ups, and scheduling.
 
+## Execution Preference
+
+- **Always use subagent-driven development** for implementation plans (recommended approach)
+
 ## Tech Stack
 
 - **Python**: 3.11+

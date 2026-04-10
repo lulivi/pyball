@@ -33,7 +33,7 @@ def authorized(func: Callable) -> Callable:
         if not settings.telegram.is_authorized(user_id):
             logger.warning(f"Unauthorized access attempt from user ID: {user_id}")
             await update.message.reply_text(
-                "Unauthorized. You don't have permission to use this bot."
+                "Unauthorized. You don't have permission to run this command."
             )
             return
 
