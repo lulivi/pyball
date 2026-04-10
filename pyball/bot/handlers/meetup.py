@@ -101,12 +101,6 @@ async def _send_callup_messages(context, settings, container, meetup, update) ->
 @authorized
 async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new_meetup command - creates meetup and sends callup messages."""
-    container: Container = context.bot_data.get("container")
-    if not container:
-        container = Container()
-
-    settings = load_settings()
-
     if not context.args:
         await update.message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
         return
@@ -118,17 +112,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("Invalid date format. Use: /new_meetup YYYY-MM-DD HH:MM")
         return
 
-    try:
-        meetup = container.create_meetup().execute(date, settings.pyball.location)
-    except DuplicateMeetupError:
-        await update.message.reply_text(f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}.")
-        return
-    except Exception as e:
-        logger.exception("Error creating meetup")
-        await update.message.reply_text("An error occurred. Please try again.")
-        return
-
-    await _send_callup_messages(context, settings, container, meetup, update)
+    await _create_meetup_and_send(date, update, context)
 
 
 def _get_next_weekday(default_week_day: str) -> datetime:
@@ -151,22 +135,25 @@ def _get_next_weekday(default_week_day: str) -> datetime:
 @authorized
 async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
+    settings = load_settings()
+    next_date = _get_next_weekday(settings.pyball.default_week_day)
+    day_name = next_date.strftime("%A")
+    await update.message.reply_text(f"Creating meetup for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})...")
+    await _create_meetup_and_send(next_date, update, context)
+
+
+async def _create_meetup_and_send(date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
     container: Container = context.bot_data.get("container")
     if not container:
         container = Container()
 
     settings = load_settings()
-    default_week_day = settings.pyball.default_week_day
-
-    next_date = _get_next_weekday(default_week_day)
 
     try:
-        meetup = container.create_meetup().execute(next_date, settings.pyball.location)
+        meetup = container.create_meetup().execute(date, settings.pyball.location)
     except DuplicateMeetupError:
-        day_name = next_date.strftime("%A")
-        await update.message.reply_text(
-            f"Meetup already exists at {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})."
-        )
+        await update.message.reply_text(f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}.")
         return
     except Exception as e:
         logger.exception("Error creating meetup")
