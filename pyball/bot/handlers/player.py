@@ -25,7 +25,6 @@ def setup_player_handlers(application):
     application.add_handler(CommandHandler("delete_player", delete_player_handler))
     application.add_handler(CommandHandler("list_players", list_players_handler))
     application.add_handler(CommandHandler("change_group", change_group_handler))
-    application.add_handler(CommandHandler("help", help_handler))
 
 
 @authorized
@@ -160,28 +159,3 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.exception("Error changing player group")
         await update.message.reply_text("Error changing player group.")
-
-
-async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /help command."""
-    text = """*Available Commands:*
-
-*Player:*
-/new_player <name> <regular|substitute> - Create a new player
-/rename_player <player> <new_name> - Rename a player
-/delete_player <player> - Delete a player
-/list_players - List all players
-/change_group <player> <regular|substitute> - Change player group
-
-*Meetup:*
-/new_meetup <YYYY-MM-DD HH:MM> - Create a new meetup
-/add_player <YYYY-MM-DD HH:MM> <player> - Add player to meetup
-/remove_player <YYYY-MM-DD HH:MM> <player> - Remove player from meetup
-/create_teams <YYYY-MM-DD HH:MM> - Create balanced teams
-/list_meetups - List all meetups
-/show_meetup <YYYY-MM-DD HH:MM> - Show meetup details
-
-*Callup:*
-/callup [YYYY-MM-DD] [HH:MM] [location] - Create callup message
-/search <YYYY-MM-DD> - Send substitutes message"""
-    await update.message.reply_text(text, parse_mode="MarkdownV2")
