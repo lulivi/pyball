@@ -2,28 +2,41 @@
 # Copy this file to config.toml and fill in your values
 # Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
 
+[pyball]
+# Required: Default location for meetups
+# Override with PYBALL_PYBALL_LOCATION
+location = "Parque Central"
+
+# Optional: Default weekday for meetups (monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+# Override with PYBALL_PYBALL_DEFAULT_WEEK_DAY
+default_week_day = "wednesday"
+
+# Optional: Default hour for meetups (HH:MM format)
+# Override with PYBALL_PYBALL_DEFAULT_HOUR
+default_hour = "20:00"
+
 [telegram]
 # Required: Telegram bot token
 # Override with PYBALL_TELEGRAM_BOT_TOKEN
-bot_token = ""
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 
 # Required: List of authorized Telegram user IDs
 # Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
 admins_ids = [123456789, 987654321]
 
 [telegram.regulars]
-# Required: The main chat
-# The only group in which the bot will send callup messages
+# Required: The main chat ID (negative number for groups)
 # Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
-chat_id = ""
+chat_id = -1001234567890
 
-# Optional: The thread inside the group. If empty, it will be sent to the general thread
+# Optional: The thread inside the group
+# Override with PYBALL_TELEGRAM_REGULARS_THREAD_ID
 thread_id = ""
 
 [telegram.substitutes]
-# Required: The substitutes chat
+# Required: The substitutes chat ID (negative number for groups)
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
-chat_id = ""
+chat_id = -1001234567891
 
 [locale]
 # Player names locale for sorting

@@ -48,6 +48,13 @@ def _parse_admins_ids(value) -> tuple[int, ...]:
     return ()
 
 
+def _parse_chat_id(value) -> int:
+    """Parse chat_id from config or env, handling empty strings."""
+    if isinstance(value, str) and not value:
+        return 0
+    return int(value)
+
+
 @dataclass
 class TelegramChatSettings:
     chat_id: int = 0
@@ -114,13 +121,13 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
 
     telegram_cfg = config.get("telegram", {})
     pyball_cfg = config.get("pyball", {})
-    locale_cfg = config.get("locale", "en_US.UTF-8")
+    locale_cfg = config.get("locale", {})
 
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
 
     regulars = TelegramChatSettings(
-        chat_id=int(
+        chat_id=_parse_chat_id(
             _get_env_override("telegram_regulars", "chat_id", regulars_cfg.get("chat_id", 0))
         ),
         thread_id=_get_env_override(
@@ -128,7 +135,7 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         ),
     )
     substitutes = TelegramChatSettings(
-        chat_id=int(
+        chat_id=_parse_chat_id(
             _get_env_override("telegram_substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))
         ),
         thread_id=_get_env_override(
