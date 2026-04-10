@@ -116,7 +116,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if modified:
         try:
-            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="MarkdownV2")
+            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="HTML")
         except Exception as error:
             logger.error("Failed to edit message: %s", error)
             await query.answer("Error updating message.", show_alert=True)

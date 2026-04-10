@@ -58,7 +58,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             text=text,
             reply_markup=keyboard,
             message_thread_id=settings.telegram.regulars.thread_id or None,
-            parse_mode="MarkdownV2",
+            parse_mode="HTML",
         )
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -84,7 +84,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
                 text=subs_text,
                 reply_markup=subs_keyboard,
                 message_thread_id=settings.telegram.substitutes.thread_id or None,
-                parse_mode="MarkdownV2",
+                parse_mode="HTML",
             )
 
             store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -424,7 +424,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=text,
             reply_markup=keyboard,
             message_thread_id=int(thread_id) if thread_id else None,
-            parse_mode="MarkdownV2",
+            parse_mode="HTML",
         )
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)

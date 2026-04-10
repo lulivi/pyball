@@ -1,8 +1,8 @@
 """Message formatters for Telegram bot."""
 
 import functools
+import html
 import locale
-import re
 
 from datetime import datetime
 
@@ -16,13 +16,6 @@ try:
 except locale.Error:
     pass
 
-MARKDOWNV2_SPECIAL_CHARS = r"_*\[\]()#+-=|{}.!"
-
-
-def escape_markdownv2(text: str) -> str:
-    """Escape special characters for MarkdownV2."""
-    return re.sub(f"[{re.escape(MARKDOWNV2_SPECIAL_CHARS)}]", r"\\\g<0>", text)
-
 
 def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for main (regulars) chat.
@@ -33,12 +26,12 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
     - After results: teams + results
     """
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    escaped_date = escape_markdownv2(date_str)
-    lines = [f"*Convocatoria* {escaped_date}"]
+    escaped_date = html.escape(date_str)
+    lines = [f"<b>Convocatoria</b> {escaped_date}"]
 
     if meetup.location:
-        escaped_location = escape_markdownv2(meetup.location)
-        lines.append(f"Lugar: *{escaped_location}*")
+        escaped_location = html.escape(meetup.location)
+        lines.append(f"Lugar: <b>{escaped_location}</b>")
 
     lines.append("")
 
@@ -46,18 +39,18 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
         player_names_list = [player_names.get(str(p.value), "") for p in meetup.players]
         sorted_names = sorted(player_names_list, key=functools.cmp_to_key(locale.strcoll))
         max_players = 10
-        lines.append(f"*Jugadores ({len(meetup.players)}/{max_players}):*")
+        lines.append(f"<b>Jugadores ({len(meetup.players)}/{max_players}):</b>")
         for name in sorted_names:
-            escaped_name = escape_markdownv2(name)
+            escaped_name = html.escape(name)
             lines.append(f"- {escaped_name}")
     else:
-        lines.append("*Equipos:*")
+        lines.append("<b>Equipos:</b>")
         for team in meetup.teams:
-            escaped_team_name = escape_markdownv2(team.name)
+            escaped_team_name = html.escape(team.name)
             player_list = ", ".join(
-                escape_markdownv2(player_names.get(str(p.value), "Unknown")) for p in team.players
+                html.escape(player_names.get(str(p.value), "Unknown")) for p in team.players
             )
-            lines.append(f"{escaped_team_name}: {player_list}")
+            lines.append(f"<b>{escaped_team_name}</b>: {player_list}")
 
     return "\n".join(lines)
 
@@ -65,8 +58,8 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
 def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for substitutes chat - shows substitutes only."""
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    escaped_date = escape_markdownv2(date_str)
-    lines = [f"*Convocatoria* {escaped_date} \\- Suplentes"]
+    escaped_date = html.escape(date_str)
+    lines = [f"<b>Convocatoria</b> {escaped_date} - Suplentes"]
     lines.append("")
 
     suplentes = []
@@ -79,12 +72,12 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
     sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
 
     if sorted_suplentes:
-        lines.append(f"*Suplentes ({len(sorted_suplentes)}):*")
+        lines.append(f"<b>Suplentes ({len(sorted_suplentes)}):</b>")
         for name in sorted_suplentes:
-            escaped_name = escape_markdownv2(name)
+            escaped_name = html.escape(name)
             lines.append(f"- {escaped_name}")
     else:
-        lines.append("*No hay suplentes*")
+        lines.append("<b>No hay suplentes</b>")
 
     return "\n".join(lines)
 

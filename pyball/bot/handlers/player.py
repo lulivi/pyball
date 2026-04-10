@@ -1,6 +1,7 @@
 """Player command handlers."""
 
 import functools
+import html
 import locale
 import logging
 
@@ -10,7 +11,6 @@ from telegram.ext import CommandHandler, ContextTypes
 from pyball.application.container import Container
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.bot.auth import authorized
-from pyball.bot.formatters import escape_markdownv2
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
     NameAlreadyTakenError,
@@ -160,17 +160,17 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     sorted_regulares = sorted(regulares, key=functools.cmp_to_key(locale.strcoll))
     sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
 
-    lines = ["*Jugadores:*"]
+    lines = ["<b>Jugadores:</b>"]
     if sorted_regulares:
-        lines.append(f"*Titulares ({len(sorted_regulares)}):*")
+        lines.append(f"<b>Titulares ({len(sorted_regulares)}):</b>")
         for name in sorted_regulares:
-            lines.append(f"- {escape_markdownv2(name)}")
+            lines.append(f"- {html.escape(name)}")
     if sorted_suplentes:
-        lines.append(f"*Suplentes ({len(sorted_suplentes)}):*")
+        lines.append(f"<b>Suplentes ({len(sorted_suplentes)}):</b>")
         for name in sorted_suplentes:
-            lines.append(f"- {escape_markdownv2(name)}")
+            lines.append(f"- {html.escape(name)}")
 
-    await message.reply_text("\n".join(lines), parse_mode="MarkdownV2")
+    await message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
 @authorized
