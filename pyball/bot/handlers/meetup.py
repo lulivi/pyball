@@ -8,6 +8,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
+from pyball.application.meetup.create_meetup import DuplicateMeetupError
 from pyball.bot.auth import authorized
 from pyball.bot.formatters import (
     build_main_keyboard,
@@ -62,6 +63,8 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         meetup = container.create_meetup().execute(date)
         await update.message.reply_text(f"Meetup created for {date.strftime('%Y-%m-%d %H:%M')}!")
+    except DuplicateMeetupError:
+        await update.message.reply_text(f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}.")
     except Exception as e:
         logger.exception("Error creating meetup")
         await update.message.reply_text("An error occurred. Please try again.")
@@ -101,6 +104,11 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         day_name = next_date.strftime("%A")
         await update.message.reply_text(
             f"Meetup created for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})!"
+        )
+    except DuplicateMeetupError:
+        day_name = next_date.strftime("%A")
+        await update.message.reply_text(
+            f"Meetup already exists at {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})."
         )
     except Exception as e:
         logger.exception("Error creating meetup")
@@ -308,9 +316,10 @@ async def callup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     try:
-        meetup = container.create_meetup().execute(meetup_date)
-        meetup.location = location
-        container.meetup_repository.save(meetup)
+        meetup = container.create_meetup().execute(meetup_date, location)
+    except DuplicateMeetupError:
+        await update.message.reply_text(f"Meetup already exists at {meetup_date.strftime('%Y-%m-%d %H:%M')}.")
+        return
     except Exception as e:
         logger.exception("Error creating meetup")
         await update.message.reply_text("An error occurred. Please try again.")
