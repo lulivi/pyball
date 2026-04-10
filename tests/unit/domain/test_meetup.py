@@ -9,26 +9,24 @@ from pyball.domain.player.models import PlayerId
 
 
 class TestMeetup:
-    def test_create_meetup(self):
-        meetup = Meetup.create(datetime(2024, 1, 15, 20, 0))
-        assert isinstance(meetup.id, MeetupId)
-        assert meetup.date == datetime(2024, 1, 15, 20, 0)
+    def test_create_meetup_with_location(self):
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        assert meetup.location == "Parque Central"
+        assert meetup.players == []
 
-    def test_add_regular_player(self):
-        meetup = Meetup.create(datetime(2024, 1, 15))
+    def test_meetup_add_player(self):
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
         player_id = PlayerId.generate()
-        meetup.add_regular(player_id)
-        assert player_id in meetup.regulars
+        meetup.add_player(player_id)
+        assert player_id in meetup.players
 
-    def test_create_teams(self):
-        meetup = Meetup.create(datetime(2024, 1, 15))
-        p1, p2 = PlayerId.generate(), PlayerId.generate()
-        meetup.add_regular(p1)
-        meetup.add_regular(p2)
+    def test_meetup_remove_player(self):
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        player_id = PlayerId.generate()
+        meetup.add_player(player_id)
+        meetup.remove_player(player_id)
+        assert player_id not in meetup.players
 
-        import random
-
-        meetup.create_balanced_teams(random)
-
-        assert meetup.teams is not None
-        assert len(meetup.teams) == 2
+    def test_meetup_location_required(self):
+        with pytest.raises(ValueError):
+            Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="")
