@@ -6,7 +6,9 @@ from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import PlayerId
 
 
-def format_main_message(meetup: Meetup, player_names: dict) -> str:
+def format_main_message(
+    meetup: Meetup, player_names: dict, player_groups: dict | None = None
+) -> str:
     """Format message for main (regulars) chat.
 
     Format varies:
@@ -24,8 +26,8 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
 
     if meetup.teams is None:
         max_players = 10
-        lines.append(f"*Jugadores ({len(meetup.regulars)}/{max_players}):*")
-        for i, player_id in enumerate(meetup.regulars, 1):
+        lines.append(f"*Jugadores ({len(meetup.players)}/{max_players}):*")
+        for i, player_id in enumerate(meetup.players, 1):
             name = player_names.get(str(player_id.value), "Unknown")
             lines.append(f"{i}. {name}")
     else:
@@ -39,19 +41,23 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
     return "\n".join(lines)
 
 
-def format_subs_message(meetup: Meetup, player_names: dict, max_players: int = 10) -> str:
-    """Format message for substitutes chat."""
+def format_subs_message(
+    meetup: Meetup, player_names: dict, player_groups: dict | None = None
+) -> str:
+    """Format message for substitutes chat - regulars masked when player_groups provided."""
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
     lines = [f"*Convocatoria* {date_str} - Suplentes"]
     lines.append("")
 
-    lines.append(f"*Suplentes ({len(meetup.substitutes)}):*")
-    for i, player_id in enumerate(meetup.substitutes, 1):
+    lines.append(f"*Suplentes ({len(meetup.players)}):*")
+    for i, player_id in enumerate(meetup.players, 1):
+        if player_groups is not None:
+            group = player_groups.get(str(player_id.value), "regular")
+            if group == "regular":
+                lines.append(f"{i}. ---------")
+                continue
         name = player_names.get(str(player_id.value), "Unknown")
         lines.append(f"{i}. {name}")
-
-    remaining = max(0, max_players - len(meetup.regulars))
-    lines.append(f"\n*Plazas restantes:* {remaining}")
 
     return "\n".join(lines)
 

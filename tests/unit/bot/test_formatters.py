@@ -8,11 +8,11 @@ from pyball.domain.player.models import PlayerId
 
 
 def test_format_main_message_before_teams():
-    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0))
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
-    meetup.add_regular(p1)
-    meetup.add_regular(p2)
+    meetup.add_player(p1)
+    meetup.add_player(p2)
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
     text = format_main_message(meetup, player_names)
@@ -24,12 +24,44 @@ def test_format_main_message_before_teams():
 
 
 def test_format_subs_message():
-    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0))
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
-    meetup.add_substitute(p1)
+    meetup.add_player(p1)
 
     player_names = {str(p1.value): "Pedro"}
     text = format_subs_message(meetup, player_names)
 
     assert "Suplentes" in text
     assert "Pedro" in text
+
+
+def test_format_main_message_all_unmasked():
+    meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+    p_regular = PlayerId.generate()
+    p_substitute = PlayerId.generate()
+    meetup.add_player(p_regular)
+    meetup.add_player(p_substitute)
+
+    player_names = {str(p_regular.value): "Mario", str(p_substitute.value): "Luigi"}
+    player_groups = {str(p_regular.value): "regular", str(p_substitute.value): "substitute"}
+
+    text = format_main_message(meetup, player_names, player_groups)
+
+    assert "Mario" in text
+    assert "Luigi" in text
+
+
+def test_format_subs_message_masked_regulars():
+    meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+    p_regular = PlayerId.generate()
+    p_substitute = PlayerId.generate()
+    meetup.add_player(p_regular)
+    meetup.add_player(p_substitute)
+
+    player_names = {str(p_regular.value): "Mario", str(p_substitute.value): "Luigi"}
+    player_groups = {str(p_regular.value): "regular", str(p_substitute.value): "substitute"}
+
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "---------" in text
+    assert "Luigi" in text
