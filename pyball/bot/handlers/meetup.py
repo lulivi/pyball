@@ -8,7 +8,6 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
-from pyball.application.meetup.add_player import REGULAR, SUBSTITUTE
 from pyball.bot.auth import authorized
 from pyball.bot.formatters import (
     build_main_keyboard,
@@ -16,7 +15,6 @@ from pyball.bot.formatters import (
     format_main_message,
     format_subs_message,
 )
-from pyball.domain.meetup.models import MeetupId
 from pyball.infrastructure import TelegramMessageStore
 from pyball.infrastructure.telegram_store import MessageTracking
 from pyball.settings import load_settings
@@ -75,22 +73,18 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not container:
         container = Container()
 
-    if len(context.args) < 3:
-        await update.message.reply_text(
-            "Usage: /add_player <meetup_id> <player_id> [regular|substitute]"
-        )
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /add_player YYYY-MM-DD HH:MM <player_name>")
         return
 
-    meetup_id = context.args[0]
-    player_id = context.args[1]
-    role = context.args[2] if len(context.args) > 2 else REGULAR
-
-    if role not in (REGULAR, SUBSTITUTE):
-        role = REGULAR
+    date_str = context.args[0]
+    player_name = " ".join(context.args[1:])
 
     try:
-        container.add_player_to_meetup().execute(meetup_id, player_id, role)
-        await update.message.reply_text(f"Player added as {role}!")
+        container.add_player_to_meetup().execute(date_str, player_name)
+        await update.message.reply_text("Player added!")
+    except ValueError as e:
+        await update.message.reply_text(str(e))
     except Exception as e:
         logger.exception("Error adding player to meetup")
         await update.message.reply_text("An error occurred. Please try again.")
@@ -104,15 +98,17 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         container = Container()
 
     if len(context.args) < 2:
-        await update.message.reply_text("Usage: /remove_player <meetup_id> <player_id>")
+        await update.message.reply_text("Usage: /remove_player YYYY-MM-DD HH:MM <player_name>")
         return
 
-    meetup_id = context.args[0]
-    player_id = context.args[1]
+    date_str = context.args[0]
+    player_name = " ".join(context.args[1:])
 
     try:
-        container.remove_player_from_meetup().execute(meetup_id, player_id)
+        container.remove_player_from_meetup().execute(date_str, player_name)
         await update.message.reply_text("Player removed from meetup!")
+    except ValueError as e:
+        await update.message.reply_text(str(e))
     except Exception as e:
         logger.exception("Error removing player from meetup")
         await update.message.reply_text("An error occurred. Please try again.")
@@ -126,13 +122,13 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         container = Container()
 
     if not context.args:
-        await update.message.reply_text("Usage: /create_teams <meetup_id>")
+        await update.message.reply_text("Usage: /create_teams YYYY-MM-DD HH:MM")
         return
 
-    meetup_id = context.args[0]
+    date_str = " ".join(context.args)
 
     try:
-        meetup = container.create_teams().execute(meetup_id)
+        meetup = container.create_teams().execute(date_str)
 
         if not meetup.teams:
             await update.message.reply_text("No teams created.")
@@ -147,6 +143,8 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 lines.append(f"  - {name}")
 
         await update.message.reply_text("\n".join(lines))
+    except ValueError as e:
+        await update.message.reply_text(str(e))
     except Exception as e:
         logger.exception("Error creating teams")
         await update.message.reply_text("An error occurred. Please try again.")
@@ -167,7 +165,7 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     lines = ["*Meetups:*"]
     for m in meetups:
-        lines.append(f"- {m.date.strftime('%Y-%m-%d %H:%M')} (id: {m.id.value})")
+        lines.append(f"- {m.date.strftime('%Y-%m-%d %H:%M')} at {m.location}")
 
     await update.message.reply_text("\n".join(lines))
 
@@ -180,37 +178,41 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         container = Container()
 
     if not context.args:
-        await update.message.reply_text("Usage: /show_meetup <meetup_id>")
+        await update.message.reply_text("Usage: /show_meetup YYYY-MM-DD HH:MM")
         return
 
-    meetup_id = context.args[0]
+    date_str = " ".join(context.args)
 
     try:
-        meetup = container.meetup_repository.find_by_id(MeetupId.from_string(meetup_id))
+        meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        await update.message.reply_text("Invalid date format. Use: YYYY-MM-DD HH:MM")
+        return
 
-        if not meetup:
-            await update.message.reply_text("Meetup not found.")
-            return
+    all_meetups = container.meetup_repository.find_all()
+    meetup = None
+    for m in all_meetups:
+        if m.date == meetup_date:
+            meetup = m
+            break
 
-        player_names = _get_player_names(None, container.player_repository)
-        lines = [f"*Meetup: {meetup.date.strftime('%Y-%m-%d %H:%M')}*"]
+    if not meetup:
+        await update.message.reply_text("Meetup not found.")
+        return
 
-        if meetup.regulars:
-            lines.append("\n*Regulars:*")
-            for player_id in meetup.regulars:
-                name = player_names.get(player_id, str(player_id.value))
-                lines.append(f"  - {name}")
+    player_names = _get_player_names(None, container.player_repository)
+    lines = [f"*Meetup: {meetup.date.strftime('%Y-%m-%d %H:%M')}*"]
+    lines.append(f"📍 {meetup.location}")
 
-        if meetup.substitutes:
-            lines.append("\n*Substitutes:*")
-            for player_id in meetup.substitutes:
-                name = player_names.get(player_id, str(player_id.value))
-                lines.append(f"  - {name}")
+    if meetup.players:
+        lines.append("\n*Players:*")
+        for player_id in meetup.players:
+            name = player_names.get(player_id, str(player_id.value))
+            lines.append(f"  - {name}")
+    else:
+        lines.append("\nNo players yet.")
 
-        await update.message.reply_text("\n".join(lines))
-    except Exception as e:
-        logger.exception("Error showing meetup")
-        await update.message.reply_text("An error occurred. Please try again.")
+    await update.message.reply_text("\n".join(lines))
 
 
 @authorized

@@ -60,7 +60,7 @@ class Container:
         return AddPlayerToMeetup(self.meetup_repository, self.player_repository)
 
     def remove_player_from_meetup(self) -> RemovePlayerFromMeetup:
-        return RemovePlayerFromMeetup(self.meetup_repository)
+        return RemovePlayerFromMeetup(self.meetup_repository, self.player_repository)
 
     def create_teams(self) -> CreateTeams:
         return CreateTeams(self.meetup_repository)

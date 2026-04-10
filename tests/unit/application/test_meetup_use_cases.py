@@ -96,34 +96,38 @@ class TestAddPlayerToMeetup:
 class TestRemovePlayerFromMeetup:
     def test_remove_player_success(self):
         meetup_repo = FakeMeetupRepository()
-        meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
-        player_id = PlayerId.generate()
-        meetup.add_player(player_id)
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        player = Player.create(name="Mario", group="regular")
+        meetup.add_player(player.id)
         meetup_repo.save(meetup)
-        use_case = RemovePlayerFromMeetup(meetup_repo)
 
-        use_case.execute(str(meetup.id.value), str(player_id.value))
+        player_repo = FakePlayerRepository()
+        player_repo.save(player)
 
-        assert player_id not in meetup.players
+        use_case = RemovePlayerFromMeetup(meetup_repo, player_repo)
+        use_case.execute("2024-01-15 20:00", "Mario")
+
+        assert player.id not in meetup.players
 
     def test_remove_player_meetup_not_found(self):
         meetup_repo = FakeMeetupRepository()
-        use_case = RemovePlayerFromMeetup(meetup_repo)
+        player_repo = FakePlayerRepository()
+        use_case = RemovePlayerFromMeetup(meetup_repo, player_repo)
 
         with pytest.raises(MeetupNotFoundError):
-            use_case.execute(str(MeetupId.generate().value), str(PlayerId.generate().value))
+            use_case.execute("2024-01-15 20:00", "Mario")
 
 
 class TestCreateTeams:
     def test_create_teams_success(self):
         meetup_repo = FakeMeetupRepository()
-        meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         meetup.add_player(PlayerId.generate())
         meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
         use_case = CreateTeams(meetup_repo)
 
-        result = use_case.execute(str(meetup.id.value))
+        result = use_case.execute("2024-01-15 20:00")
 
         assert result.teams is not None
         assert len(result.teams) == 2
@@ -133,17 +137,17 @@ class TestCreateTeams:
         use_case = CreateTeams(meetup_repo)
 
         with pytest.raises(MeetupNotFoundError):
-            use_case.execute(str(MeetupId.generate().value))
+            use_case.execute("2024-01-15 20:00")
 
     def test_create_teams_not_enough_players(self):
         meetup_repo = FakeMeetupRepository()
-        meetup = Meetup.create(date=datetime(2024, 1, 15), location="Parque Central")
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
         use_case = CreateTeams(meetup_repo)
 
         with pytest.raises(ValueError, match="Need at least 2"):
-            use_case.execute(str(meetup.id.value))
+            use_case.execute("2024-01-15 20:00")
 
 
 class TestCreateMeetup:
