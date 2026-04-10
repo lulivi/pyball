@@ -32,7 +32,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if settings is None:
         settings = load_settings()
 
-    mapping_store = TelegramMappingStore(settings.paths.mappings_file)
+    mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
 
     callback_data = query.data
     if callback_data is None:
@@ -66,7 +66,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     player_repo = container.player_repository
-    player_names = {p.id.value: p.name for p in player_repo.find_all()}
+    player_names = {str(p.id.value): p.name for p in player_repo.find_all()}
 
     from_user = query.from_user
     if from_user is None:
@@ -89,20 +89,42 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if action == "join":
-        meetup.add_player(player_id)
+        if player_id not in meetup.players:
+            meetup.add_player(player_id)
+            modified = True
+        else:
+            modified = False
     elif action == "leave":
         try:
             meetup.remove_player(player_id)
+            modified = True
         except Exception as error:
             logger.warning("Player not in meetup: %s", error)
+            modified = False
+    else:
+        modified = False
 
-    meetup_repo.save(meetup)
+    if modified:
+        meetup_repo.save(meetup)
 
-    player_names = {p.id.value: p.name for p in player_repo.find_all()}
+    all_players = player_repo.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    player_groups = {str(p.id.value): p.group for p in all_players}
 
-    text = format_main_message(meetup, player_names)
+    text = format_main_message(meetup, player_names, player_groups)
     keyboard = build_main_keyboard(meetup.date)
-    await query.edit_message_text(text, reply_markup=keyboard)
+
+    if modified:
+        try:
+            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="MarkdownV2")
+        except Exception as error:
+            logger.error("Failed to edit message: %s", error)
+            await query.answer("Error updating message.", show_alert=True)
+    else:
+        if action == "join":
+            await query.answer("Ya estás unido a este meetup.", show_alert=True)
+        elif action == "leave":
+            await query.answer("No estás en este meetup.", show_alert=True)
 
 
 def create_callback_handler() -> CallbackQueryHandler:

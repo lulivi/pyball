@@ -1,5 +1,7 @@
 """Player command handlers."""
 
+import functools
+import locale
 import logging
 
 from telegram import Update
@@ -8,12 +10,20 @@ from telegram.ext import CommandHandler, ContextTypes
 from pyball.application.container import Container
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.bot.auth import authorized
+from pyball.bot.formatters import escape_markdownv2
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
     NameAlreadyTakenError,
     PlayerAlreadyExistsError,
     PlayerNotFoundError,
 )
+from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+from pyball.settings import load_settings
+
+try:
+    locale.setlocale(locale.LC_ALL, "")
+except locale.Error:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +35,8 @@ def setup_player_handlers(application):
     application.add_handler(CommandHandler("delete_player", delete_player_handler))
     application.add_handler(CommandHandler("list_players", list_players_handler))
     application.add_handler(CommandHandler("change_group", change_group_handler))
+    application.add_handler(CommandHandler("link_player", link_player_handler))
+    application.add_handler(CommandHandler("unlink_player", unlink_player_handler))
 
 
 @authorized
@@ -137,11 +149,28 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("No players found.")
         return
 
-    lines = ["*Players:*"]
+    regulares = []
+    suplentes = []
     for p in players:
-        lines.append(f"- {p.name} (id: {p.id.value})")
+        if p.group == "regular":
+            regulares.append(p.name)
+        else:
+            suplentes.append(p.name)
 
-    await message.reply_text("\n".join(lines))
+    sorted_regulares = sorted(regulares, key=functools.cmp_to_key(locale.strcoll))
+    sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
+
+    lines = ["*Jugadores:*"]
+    if sorted_regulares:
+        lines.append(f"*Titulares ({len(sorted_regulares)}):*")
+        for name in sorted_regulares:
+            lines.append(f"- {escape_markdownv2(name)}")
+    if sorted_suplentes:
+        lines.append(f"*Suplentes ({len(sorted_suplentes)}):*")
+        for name in sorted_suplentes:
+            lines.append(f"- {escape_markdownv2(name)}")
+
+    await message.reply_text("\n".join(lines), parse_mode="MarkdownV2")
 
 
 @authorized
@@ -183,3 +212,92 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as error:
         logger.exception("Error changing player group: %s", error)
         await message.reply_text("Error changing player group.")
+
+
+@authorized
+async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /link_player command."""
+    message = update.message
+    if message is None:
+        return
+
+    container: Container | None = context.bot_data.get("container")
+    if container is None:
+        container = Container()
+
+    settings = context.bot_data.get("settings")
+    if settings is None:
+        settings = load_settings()
+
+    mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+
+    args = context.args
+    if args is None or len(args) < 2:
+        await message.reply_text("Usage: /link_player <player_name> <telegram_id>")
+        return
+
+    player_name = args[0]
+    try:
+        telegram_id = int(args[1])
+    except ValueError:
+        await message.reply_text("Invalid telegram_id. Must be a number.")
+        return
+
+    player_repo = container.player_repository
+    all_players = player_repo.find_all()
+
+    try:
+        match = fuzzy_match_player(player_name, all_players)
+    except ValueError as error:
+        await message.reply_text(str(error))
+        return
+
+    player_id_str = str(match.player_id.value)
+
+    existing_telegram_id = mapping_store.get_player_id(telegram_id)
+    if existing_telegram_id:
+        if existing_telegram_id == player_id_str:
+            await message.reply_text("This Telegram ID is already linked to this player.")
+        else:
+            await message.reply_text(
+                "This Telegram ID is already linked to another player. "
+                "Remove the link first with /unlink_player <telegram_id>"
+            )
+        return
+
+    mapping_store.set_player_id(telegram_id, player_id_str)
+
+    await message.reply_text(f"Telegram ID {telegram_id} linked to player '{match.name}'!")
+
+
+@authorized
+async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /unlink_player command."""
+    message = update.message
+    if message is None:
+        return
+
+    settings = context.bot_data.get("settings")
+    if settings is None:
+        settings = load_settings()
+
+    mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+
+    args = context.args
+    if args is None or not args:
+        await message.reply_text("Usage: /unlink_player <telegram_id>")
+        return
+
+    try:
+        telegram_id = int(args[0])
+    except ValueError:
+        await message.reply_text("Invalid telegram_id. Must be a number.")
+        return
+
+    player_id = mapping_store.get_player_id(telegram_id)
+    if not player_id:
+        await message.reply_text("This Telegram ID is not linked to any player.")
+        return
+
+    mapping_store.delete_player_id(telegram_id)
+    await message.reply_text(f"Link for Telegram ID {telegram_id} removed!")

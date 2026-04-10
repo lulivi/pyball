@@ -23,6 +23,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /delete_player - Delete a player
 /list_players - List all players
 /change_group - Change player group
+/link_player - Link Telegram ID to player
+/unlink_player - Unlink Telegram ID
 
 <b>Meetup:</b>
 /new_meetup - Create a new meetup

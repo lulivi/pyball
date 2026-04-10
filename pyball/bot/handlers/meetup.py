@@ -45,9 +45,11 @@ def _get_player_names(player_ids, player_repo) -> dict:
 async def _send_callup_messages(context, settings, container, meetup) -> None:
     """Send callup messages to regulars and substitutes chats."""
     player_repo = container.player_repository
-    player_names = {p.id: p.name for p in player_repo.find_all()}
+    all_players = player_repo.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    player_groups = {str(p.id.value): p.group for p in all_players}
 
-    text = format_main_message(meetup, player_names)
+    text = format_main_message(meetup, player_names, player_groups)
     keyboard = build_main_keyboard(meetup.date)
 
     try:
@@ -56,9 +58,10 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             text=text,
             reply_markup=keyboard,
             message_thread_id=settings.telegram.regulars.thread_id or None,
+            parse_mode="MarkdownV2",
         )
 
-        store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+        store = TelegramMessageStore(settings.paths.bot_messages_file)
         store.save_message(
             meetup.date.strftime("%Y-%m-%dT%H:%M"),
             "regular",
@@ -72,7 +75,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
         logger.exception("Error sending regulars message: %s", error)
 
     if settings.telegram.substitutes.chat_id:
-        subs_text = format_subs_message(meetup, player_names)
+        subs_text = format_subs_message(meetup, player_names, player_groups)
         subs_keyboard = build_subs_keyboard(meetup.date)
 
         try:
@@ -81,9 +84,10 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
                 text=subs_text,
                 reply_markup=subs_keyboard,
                 message_thread_id=settings.telegram.substitutes.thread_id or None,
+                parse_mode="MarkdownV2",
             )
 
-            store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+            store = TelegramMessageStore(settings.paths.bot_messages_file)
             store.save_message(
                 meetup.date.strftime("%Y-%m-%dT%H:%M"),
                 "substitute",
@@ -407,8 +411,10 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("Substitutes chat not configured.")
         return
 
-    player_names = {p.id: p.name for p in container.player_repository.find_all()}
-    text = format_subs_message(meetup, player_names)
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    player_groups = {str(p.id.value): p.group for p in all_players}
+    text = format_subs_message(meetup, player_names, player_groups)
     keyboard = build_subs_keyboard(meetup.date)
 
     thread_id = settings.telegram.substitutes.thread_id
@@ -418,9 +424,10 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=text,
             reply_markup=keyboard,
             message_thread_id=int(thread_id) if thread_id else None,
+            parse_mode="MarkdownV2",
         )
 
-        store = TelegramMessageStore(settings.paths.mappings_file.parent / "messages.json")
+        store = TelegramMessageStore(settings.paths.bot_messages_file)
         store.save_message(
             meetup.date.strftime("%Y-%m-%dT%H:%M"),
             "substitute",

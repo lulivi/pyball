@@ -15,12 +15,13 @@ def test_format_main_message_before_teams():
     meetup.add_player(p2)
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
-    text = format_main_message(meetup, player_names)
+    player_groups = {str(p1.value): "regular", str(p2.value): "regular"}
+    text = format_main_message(meetup, player_names, player_groups)
 
     assert "*Convocatoria*" in text
     assert "15/Jan/2024 20:00" in text
-    assert "Luis" in text
-    assert "Carlos" in text
+    assert "- Carlos" in text
+    assert "- Luis" in text
 
 
 def test_format_subs_message():
@@ -29,7 +30,8 @@ def test_format_subs_message():
     meetup.add_player(p1)
 
     player_names = {str(p1.value): "Pedro"}
-    text = format_subs_message(meetup, player_names)
+    player_groups = {str(p1.value): "substitute"}
+    text = format_subs_message(meetup, player_names, player_groups)
 
     assert "Suplentes" in text
     assert "Pedro" in text
@@ -63,5 +65,5 @@ def test_format_subs_message_masked_regulars():
 
     text = format_subs_message(meetup, player_names, player_groups)
 
-    assert "---------" in text
+    assert "Mario" not in text
     assert "Luigi" in text

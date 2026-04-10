@@ -18,12 +18,14 @@ class Paths:
     data_dir: Path = field(default_factory=lambda: Path("data"))
     players_file: Path = field(init=False)
     meetups_dir: Path = field(init=False)
-    mappings_file: Path = field(init=False)
+    bot_mappings_file: Path = field(init=False)
+    bot_messages_file: Path = field(init=False)
 
     def __post_init__(self) -> None:
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
-        self.mappings_file = self.data_dir / "bot" / "mappings.json"
+        self.bot_mappings_file = self.data_dir / "bot" / "mappings.json"
+        self.bot_messages_file = self.data_dir / "bot" / "messages.json"
 
 
 LOGS_DIRECTORY_PATH = Path("logs")

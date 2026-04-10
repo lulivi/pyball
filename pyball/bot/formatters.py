@@ -1,5 +1,9 @@
 """Message formatters for Telegram bot."""
 
+import functools
+import locale
+import re
+
 from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -7,59 +11,80 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import PlayerId
 
+try:
+    locale.setlocale(locale.LC_ALL, "")
+except locale.Error:
+    pass
 
-def format_main_message(
-    meetup: Meetup, player_names: dict, player_groups: dict | None = None
-) -> str:
+MARKDOWNV2_SPECIAL_CHARS = r"_*\[\]()#+-=|{}.!"
+
+
+def escape_markdownv2(text: str) -> str:
+    """Escape special characters for MarkdownV2."""
+    return re.sub(f"[{re.escape(MARKDOWNV2_SPECIAL_CHARS)}]", r"\\\g<0>", text)
+
+
+def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for main (regulars) chat.
 
     Format varies:
-    - Before teams: player list only
+    - Before teams: player list sorted by name
     - After teams: teams only
     - After results: teams + results
     """
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    lines = [f"*Convocatoria* {date_str}"]
+    escaped_date = escape_markdownv2(date_str)
+    lines = [f"*Convocatoria* {escaped_date}"]
 
     if meetup.location:
-        lines.append(f"Lugar: *{meetup.location}*")
+        escaped_location = escape_markdownv2(meetup.location)
+        lines.append(f"Lugar: *{escaped_location}*")
 
     lines.append("")
 
     if meetup.teams is None:
+        player_names_list = [player_names.get(str(p.value), "") for p in meetup.players]
+        sorted_names = sorted(player_names_list, key=functools.cmp_to_key(locale.strcoll))
         max_players = 10
         lines.append(f"*Jugadores ({len(meetup.players)}/{max_players}):*")
-        for i, player_id in enumerate(meetup.players, 1):
-            name = player_names.get(str(player_id.value), "Unknown")
-            lines.append(f"{i}. {name}")
+        for name in sorted_names:
+            escaped_name = escape_markdownv2(name)
+            lines.append(f"- {escaped_name}")
     else:
         lines.append("*Equipos:*")
         for team in meetup.teams:
+            escaped_team_name = escape_markdownv2(team.name)
             player_list = ", ".join(
-                player_names.get(str(p.value), "Unknown") for p in team.players
+                escape_markdownv2(player_names.get(str(p.value), "Unknown")) for p in team.players
             )
-            lines.append(f"{team.name}: {player_list}")
+            lines.append(f"{escaped_team_name}: {player_list}")
 
     return "\n".join(lines)
 
 
-def format_subs_message(
-    meetup: Meetup, player_names: dict, player_groups: dict | None = None
-) -> str:
-    """Format message for substitutes chat - regulars masked when player_groups provided."""
+def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
+    """Format message for substitutes chat - shows substitutes only."""
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    lines = [f"*Convocatoria* {date_str} - Suplentes"]
+    escaped_date = escape_markdownv2(date_str)
+    lines = [f"*Convocatoria* {escaped_date} \\- Suplentes"]
     lines.append("")
 
-    lines.append(f"*Suplentes ({len(meetup.players)}):*")
-    for i, player_id in enumerate(meetup.players, 1):
-        if player_groups is not None:
-            group = player_groups.get(str(player_id.value), "regular")
-            if group == "regular":
-                lines.append(f"{i}. ---------")
-                continue
+    suplentes = []
+    for player_id in meetup.players:
         name = player_names.get(str(player_id.value), "Unknown")
-        lines.append(f"{i}. {name}")
+        group = player_groups.get(str(player_id.value), "regular")
+        if group != "regular":
+            suplentes.append(name)
+
+    sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
+
+    if sorted_suplentes:
+        lines.append(f"*Suplentes ({len(sorted_suplentes)}):*")
+        for name in sorted_suplentes:
+            escaped_name = escape_markdownv2(name)
+            lines.append(f"- {escaped_name}")
+    else:
+        lines.append("*No hay suplentes*")
 
     return "\n".join(lines)
 

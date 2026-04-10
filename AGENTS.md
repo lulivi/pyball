@@ -50,3 +50,8 @@ Tests in `tests/unit/` and `tests/integration/`. Run with:
 ```bash
 poetry run nox -e test
 ```
+
+## Internationalization
+
+- **Code**: Always in English (variables, functions, comments, docstrings)
+- **Telegram messages**: Always in Spanish
