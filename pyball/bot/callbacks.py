@@ -19,6 +19,10 @@ from pyball.settings import load_settings
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
     query = update.callback_query
+    
+    if not query.message:
+        return
+    
     await query.answer()
 
     container: Container = context.bot_data.get("container")
