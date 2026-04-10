@@ -53,5 +53,5 @@ async def test_authorized_blocks_non_admin_user(mock_update, mock_context):
     result = await handler(mock_update, mock_context)
     assert result is None
     mock_update.message.reply_text.assert_called_once_with(
-        "Unauthorized. You don't have permission to use this bot."
+        "Unauthorized. You don't have permission to run this command."
     )
