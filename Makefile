@@ -26,6 +26,14 @@ test:
 .PHONY: t
 t: test
 
+.PHONY: lint
+lint:
+	poetry run nox -e lint
+
+.PHONY: l
+l: lint
+
+
 .PHONY: build
 build:
 	poetry run nox -e dbuild
