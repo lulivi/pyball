@@ -11,10 +11,11 @@ class CreatePlayer:
     def __init__(self, player_repository: PlayerRepository):
         self.player_repository = player_repository
 
-    def execute(self, name: str) -> Player:
-        existing = self.player_repository.find_by_name(name)
-        if existing:
+    def execute(self, name: str, group: str) -> Player:
+        existing = self.player_repository.find_all()
+        if any(p.name.lower() == name.lower() for p in existing):
             raise PlayerAlreadyExistsError(name)
-        player = Player.create(name)
+        
+        player = Player.create(name=name, group=group)
         self.player_repository.save(player)
         return player
