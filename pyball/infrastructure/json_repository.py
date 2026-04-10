@@ -37,30 +37,30 @@ class JsonPlayerRepository(PlayerRepository):
         players = data.get("players", [])
         for i, p in enumerate(players):
             if p["id"] == str(player.id.value):
-                players[i] = {"id": str(player.id.value), "name": player.name}
+                players[i] = {"id": str(player.id.value), "name": player.name, "group": player.group}
                 break
         else:
-            players.append({"id": str(player.id.value), "name": player.name})
+            players.append({"id": str(player.id.value), "name": player.name, "group": player.group})
         self._write({"players": players})
 
     def find_by_id(self, player_id: PlayerId) -> Player | None:
         data = self._read()
         for p in data.get("players", []):
             if p["id"] == str(player_id.value):
-                return Player(id=PlayerId(UUID(p["id"])), name=p["name"])
+                return Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular"))
         return None
 
     def find_by_name(self, name: str) -> Player | None:
         data = self._read()
         for p in data.get("players", []):
             if p["name"].lower() == name.lower():
-                return Player(id=PlayerId(UUID(p["id"])), name=p["name"])
+                return Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular"))
         return None
 
     def find_all(self) -> list[Player]:
         data = self._read()
         return [
-            Player(id=PlayerId(UUID(p["id"])), name=p["name"]) for p in data.get("players", [])
+            Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular")) for p in data.get("players", [])
         ]
 
     def delete(self, player_id: PlayerId) -> None:
@@ -96,8 +96,8 @@ class JsonMeetupRepository(MeetupRepository):
         data = {
             "id": str(meetup.id.value),
             "date": meetup.date.isoformat(),
-            "regulars": [str(p.value) for p in meetup.regulars],
-            "substitutes": [str(p.value) for p in meetup.substitutes],
+            "location": meetup.location,
+            "players": [str(p.value) for p in meetup.players],
             "teams": teams_data,
         }
         with open(file_path, "w") as f:
@@ -147,7 +147,7 @@ class JsonMeetupRepository(MeetupRepository):
         return Meetup(
             id=MeetupId(UUID(data["id"])),
             date=datetime.fromisoformat(data["date"]),
-            regulars=[PlayerId(UUID(p)) for p in data.get("regulars", [])],
-            substitutes=[PlayerId(UUID(p)) for p in data.get("substitutes", [])],
+            location=data.get("location", "Parque Central"),
+            players=[PlayerId(UUID(p)) for p in data.get("players", [])],
             teams=teams,
         )
