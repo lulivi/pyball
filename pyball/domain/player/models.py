@@ -31,18 +31,28 @@ class Player(Entity):
 
     id: PlayerId
     name: str
+    group: str
 
     def __post_init__(self):
         if not self.name:
             raise ValueError("Player name cannot be empty")
+        if self.group not in ("regular", "substitute"):
+            raise ValueError("Player group must be 'regular' or 'substitute'")
 
     @classmethod
-    def create(cls, name: str) -> "Player":
+    def create(cls, name: str, group: str = "regular") -> "Player":
         if not name or not name.strip():
             raise ValueError("Player name cannot be empty")
-        return cls(id=PlayerId.generate(), name=name.strip())
+        if group not in ("regular", "substitute"):
+            raise ValueError("Player group must be 'regular' or 'substitute'")
+        return cls(id=PlayerId.generate(), name=name.strip(), group=group)
 
     def rename(self, new_name: str) -> None:
         if not new_name or not new_name.strip():
             raise ValueError("Player name cannot be empty")
         object.__setattr__(self, "name", new_name.strip())
+
+    def set_group(self, new_group: str) -> None:
+        if new_group not in ("regular", "substitute"):
+            raise ValueError("Player group must be 'regular' or 'substitute'")
+        object.__setattr__(self, "group", new_group)

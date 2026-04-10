@@ -22,6 +22,24 @@ class TestPlayer:
 
     def test_player_equality(self):
         id1 = PlayerId.generate()
-        p1 = Player(id=id1, name="Luis")
-        p2 = Player(id=id1, name="Luis")
+        p1 = Player(id=id1, name="Luis", group="regular")
+        p2 = Player(id=id1, name="Luis", group="regular")
         assert p1 == p2
+
+    def test_create_player_with_group(self):
+        player = Player.create(name="Mario", group="regular")
+        assert player.name == "Mario"
+        assert player.group == "regular"
+
+    def test_create_player_with_substitute_group(self):
+        player = Player.create(name="Luigi", group="substitute")
+        assert player.group == "substitute"
+
+    def test_create_player_invalid_group(self):
+        with pytest.raises(ValueError):
+            Player.create(name="Mario", group="invalid")
+
+    def test_set_group(self):
+        player = Player.create(name="Mario", group="regular")
+        player.set_group("substitute")
+        assert player.group == "substitute"
