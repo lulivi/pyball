@@ -8,9 +8,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 from pyball.application.container import Container
 from pyball.bot.formatters import (
     build_main_keyboard,
-    build_subs_keyboard,
     format_main_message,
-    format_subs_message,
     parse_callback_data,
 )
 from pyball.domain.player.models import PlayerId
@@ -78,15 +76,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if action == "join":
-        meetup.add_regular(player_id)
+        meetup.add_player(player_id)
     elif action == "leave":
-        try:
-            meetup.remove_player(player_id)
-        except Exception:
-            pass
-    elif action == "join_sub":
-        meetup.add_substitute(player_id)
-    elif action == "leave_sub":
         try:
             meetup.remove_player(player_id)
         except Exception:
@@ -96,14 +87,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     player_names = {p.id.value: p.name for p in player_repo.find_all()}
 
-    if action in ("join", "leave"):
-        text = format_main_message(meetup, player_names)
-        keyboard = build_main_keyboard(meetup.date)
-        await query.edit_message_text(text, reply_markup=keyboard)
-    else:
-        text = format_subs_message(meetup, player_names)
-        keyboard = build_subs_keyboard(meetup.date)
-        await query.edit_message_text(text, reply_markup=keyboard)
+    text = format_main_message(meetup, player_names)
+    keyboard = build_main_keyboard(meetup.date)
+    await query.edit_message_text(text, reply_markup=keyboard)
 
 
 def create_callback_handler() -> CallbackQueryHandler:
