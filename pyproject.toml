@@ -42,7 +42,7 @@ pydantic = "^2.0"
 [tool.poetry.group.test]
 optional = true
 [tool.poetry.group.test.dependencies]
-coverage = {version = "6.2", extras = ["toml"]}
+coverage = "*"
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
