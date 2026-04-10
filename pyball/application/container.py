@@ -9,6 +9,7 @@ from pyball.application.meetup import (
     RemovePlayerFromMeetup,
 )
 from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
+from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure import JsonMeetupRepository, JsonPlayerRepository
@@ -50,7 +51,10 @@ class Container:
         return DeletePlayer(self.player_repository)
 
     def create_meetup(self) -> CreateMeetup:
-        return CreateMeetup(self.meetup_repository)
+        return CreateMeetup(self.meetup_repository, self._settings.pyball.location)
+
+    def change_player_group(self) -> ChangePlayerGroup:
+        return ChangePlayerGroup(self.player_repository)
 
     def add_player_to_meetup(self) -> AddPlayerToMeetup:
         return AddPlayerToMeetup(self.meetup_repository, self.player_repository)
