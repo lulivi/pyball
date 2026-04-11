@@ -1,11 +1,9 @@
-from pathlib import Path
-from unittest.mock import patch
+"""Tests for settings loading and validation."""
 
 import pytest
 
 from pyball.settings import (
     LocaleSettings,
-    Settings,
     SettingsValidationError,
     TelegramSettings,
     load_settings,
@@ -13,32 +11,43 @@ from pyball.settings import (
 
 
 class TestTelegramSettings:
+    """Tests for TelegramSettings authorization logic."""
+
     def test_is_authorized_returns_true_for_admin(self):
+        """A user ID in the admins list is authorized."""
         settings = TelegramSettings(admins_ids=(123, 456, 789))
         assert settings.is_authorized(123) is True
         assert settings.is_authorized(456) is True
         assert settings.is_authorized(789) is True
 
     def test_is_authorized_returns_false_for_non_admin(self):
+        """A user ID not in the admins list is not authorized."""
         settings = TelegramSettings(admins_ids=(123, 456, 789))
         assert settings.is_authorized(999) is False
 
     def test_is_authorized_returns_false_for_empty_list(self):
+        """No admins configured means no one is authorized."""
         settings = TelegramSettings(admins_ids=())
         assert settings.is_authorized(123) is False
 
 
 class TestLocaleSettings:
+    """Tests for LocaleSettings defaults and customisation."""
+
     def test_default_locale(self):
+        """Default locale is en_US.UTF-8."""
         locale = LocaleSettings()
         assert locale.value == "en_US.UTF-8"
 
     def test_custom_locale(self):
+        """A custom locale value is stored as-is."""
         locale = LocaleSettings(value="es_ES.UTF-8")
         assert locale.value == "es_ES.UTF-8"
 
 
 class TestLoadSettings:
+    """Tests for load_settings reading config files and env-var overrides."""
+
     def test_load_from_config_file(self, tmp_path):
         """Test loading settings from config.toml file."""
         config_content = """

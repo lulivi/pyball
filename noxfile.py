@@ -56,8 +56,6 @@ def lint(session: nox.Session):
         "pydocstyle",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
-        "--add-ignore",
-        "D104,D105,D107",
     )
     session.run_always(
         "pycodestyle",
@@ -65,8 +63,6 @@ def lint(session: nox.Session):
         ROOT_DIRECTORY.joinpath("tests"),
         "--max-line-length",
         "99",
-        "--ignore",
-        "W605,W503",
     )
     session.run_always(
         "mypy",
@@ -78,7 +74,6 @@ def lint(session: nox.Session):
         "pylint",
         ROOT_DIRECTORY.joinpath("pyball"),
         ROOT_DIRECTORY.joinpath("tests"),
-        "--disable=C0114,C0115,C0116,C1803,R0801,R0903,R0911,R0912,R0914,R0915,W0107,W0201,W0511,W0611,W0612,W0613,W0706,W0707,W0718,W1514,W2301",
     )
 
 

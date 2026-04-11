@@ -1,3 +1,5 @@
+"""Tests for the authorized decorator."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,6 +12,7 @@ from pyball.bot.auth import authorized
 
 @pytest.mark.asyncio
 async def test_authorized_allows_admin_user():
+    """An admin user can call the decorated handler."""
     settings = MagicMock()
     settings.telegram.is_authorized.return_value = True
 
@@ -24,7 +27,7 @@ async def test_authorized_allows_admin_user():
     ctx.bot_data = {"settings": settings}
 
     @authorized
-    async def handler(up, co):
+    async def handler(_up, _co):
         return "success"
 
     result = await handler(upd, ctx)
@@ -33,6 +36,7 @@ async def test_authorized_allows_admin_user():
 
 @pytest.mark.asyncio
 async def test_authorized_blocks_non_admin_user():
+    """A non-admin user is rejected and receives an unauthorized message."""
     settings = MagicMock()
     settings.telegram.is_authorized.return_value = False
 
@@ -47,7 +51,7 @@ async def test_authorized_blocks_non_admin_user():
     ctx.bot_data = {"settings": settings}
 
     @authorized
-    async def handler(up, co):
+    async def handler(_up, _co):
         return "success"
 
     result = await handler(upd, ctx)

@@ -1,7 +1,5 @@
 """Create teams use case."""
 
-import random
-
 from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupNotFoundError
@@ -11,35 +9,27 @@ from pyball.exceptions import MeetupError
 
 
 class CreateTeams:
-    """Use case for creating balanced teams."""
+    """Use case for creating random teams."""
 
     def __init__(self, meetup_repository: MeetupRepository):
         """Initialize with a meetup repository."""
         self.meetup_repository = meetup_repository
 
     def execute(self, date_str: str) -> Meetup:
-        """Create balanced teams for a meetup by date string."""
+        """Create random teams for a meetup by date string."""
         try:
             meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
-        except ValueError:
-            raise InvalidMeetupDateError("Invalid date format. Use: YYYY-MM-DD HH:MM")
+        except ValueError as exc:
+            raise InvalidMeetupDateError("Invalid date format. Use: YYYY-MM-DD HH:MM") from exc
 
-        all_meetups = self.meetup_repository.find_all()
-        meetup = None
-        for m in all_meetups:
-            if m.date == meetup_date:
-                meetup = m
-                break
-
+        meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
             raise MeetupNotFoundError(date_str)
 
-        meetup.create_balanced_teams(random)
+        meetup.create_random_teams()
         self.meetup_repository.save(meetup)
         return meetup
 
 
 class InvalidMeetupDateError(ValueError, MeetupError):
     """Raised when meetup date format is invalid."""
-
-    pass

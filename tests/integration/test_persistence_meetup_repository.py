@@ -6,8 +6,8 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from pyball.domain.meetup.models import Meetup, MeetupId, Team
-from pyball.domain.player.models import Player, PlayerId
+from pyball.domain.meetup.models import Meetup
+from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.persistence.meetup_repository import JsonMeetupRepository
 
 
@@ -15,14 +15,18 @@ class TestJsonMeetupRepository:
     """Integration tests for JsonMeetupRepository."""
 
     def setup_method(self):
+        """Create a temporary directory and repository for each test."""
+        # pylint: disable=attribute-defined-outside-init
         self.temp_dir = tempfile.mkdtemp()
         self.directory = Path(self.temp_dir)
         self.repo = JsonMeetupRepository(self.directory)
 
     def teardown_method(self):
+        """Remove the temporary directory after each test."""
         shutil.rmtree(self.temp_dir)
 
     def test_save_and_find_by_id(self):
+        """Saving a meetup allows it to be retrieved by ID."""
         meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
         self.repo.save(meetup)
 
@@ -33,6 +37,7 @@ class TestJsonMeetupRepository:
         assert found.location == "Test Field"
 
     def test_find_by_date(self):
+        """A saved meetup can be found by its calendar date."""
         meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
         self.repo.save(meetup)
 
@@ -42,6 +47,7 @@ class TestJsonMeetupRepository:
         assert found.id == meetup.id
 
     def test_find_all(self):
+        """find_all returns all saved meetups ordered by date."""
         m1 = Meetup.create(datetime(2024, 1, 10), "Test Field")
         m2 = Meetup.create(datetime(2024, 1, 15), "Test Field")
         self.repo.save(m1)
@@ -53,11 +59,12 @@ class TestJsonMeetupRepository:
         assert all_meetups[0].date < all_meetups[1].date
 
     def test_save_with_teams(self):
+        """Saving a meetup with teams persists the team data."""
         meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
         p1, p2 = PlayerId.generate(), PlayerId.generate()
         meetup.add_player(p1)
         meetup.add_player(p2)
-        meetup.create_balanced_teams(__import__("random"))
+        meetup.create_random_teams()
 
         self.repo.save(meetup)
 
@@ -66,6 +73,7 @@ class TestJsonMeetupRepository:
         assert len(found.teams) == 2
 
     def test_delete(self):
+        """Deleting a meetup makes it unfindable by ID."""
         meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
         self.repo.save(meetup)
 

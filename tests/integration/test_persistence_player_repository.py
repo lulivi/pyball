@@ -1,13 +1,11 @@
 """Integration tests for JsonPlayerRepository (persistence)."""
 
-import json
 import shutil
 import tempfile
 
-from datetime import datetime
 from pathlib import Path
 
-from pyball.domain.player.models import Player, PlayerId
+from pyball.domain.player.models import Player
 from pyball.infrastructure.persistence.player_repository import JsonPlayerRepository
 
 
@@ -15,14 +13,18 @@ class TestJsonPlayerRepository:
     """Integration tests for JsonPlayerRepository."""
 
     def setup_method(self):
+        """Create a temporary file and repository for each test."""
+        # pylint: disable=attribute-defined-outside-init
         self.temp_dir = tempfile.mkdtemp()
         self.file_path = Path(self.temp_dir) / "players.json"
         self.repo = JsonPlayerRepository(self.file_path)
 
     def teardown_method(self):
+        """Remove the temporary directory after each test."""
         shutil.rmtree(self.temp_dir)
 
     def test_save_and_find_by_id(self):
+        """Saving a player allows it to be retrieved by ID."""
         player = Player.create("Luis", "regular")
         self.repo.save(player)
 
@@ -34,6 +36,7 @@ class TestJsonPlayerRepository:
         assert found.id == player.id
 
     def test_find_by_name(self):
+        """A saved player can be found by exact name."""
         player = Player.create("Carlos", "regular")
         self.repo.save(player)
 
@@ -43,6 +46,7 @@ class TestJsonPlayerRepository:
         assert found.id == player.id
 
     def test_find_by_name_case_insensitive(self):
+        """Name lookup is case-insensitive."""
         player = Player.create("Ana", "regular")
         self.repo.save(player)
 
@@ -52,6 +56,7 @@ class TestJsonPlayerRepository:
         assert found.id == player.id
 
     def test_find_all(self):
+        """find_all returns every saved player."""
         p1 = Player.create("One", "regular")
         p2 = Player.create("Two", "substitute")
         self.repo.save(p1)
@@ -62,6 +67,7 @@ class TestJsonPlayerRepository:
         assert len(all_players) == 2
 
     def test_delete(self):
+        """Deleting a player makes them unfindable by ID."""
         player = Player.create("ToDelete", "regular")
         self.repo.save(player)
 
@@ -71,6 +77,7 @@ class TestJsonPlayerRepository:
         assert found is None
 
     def test_update_player(self):
+        """Re-saving a modified player persists the updated fields."""
         player = Player.create("Original", "regular")
         self.repo.save(player)
 

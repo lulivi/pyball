@@ -16,7 +16,6 @@ from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
-from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +27,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if query is None or query.message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
-
-    settings = context.bot_data.get("settings")
-    if settings is None:
-        settings = load_settings()
-
+    container: Container = context.bot_data["container"]
+    settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
 
     callback_data = query.data
@@ -92,9 +85,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     all_players = player_repo.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
-    player_groups = {str(p.id.value): p.group for p in all_players}
 
-    text = format_main_message(meetup, player_names, player_groups)
+    text = format_main_message(meetup, player_names)
     keyboard = build_main_keyboard(meetup.date)
 
     if modified:

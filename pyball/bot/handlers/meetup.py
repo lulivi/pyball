@@ -22,7 +22,7 @@ from pyball.bot.formatters import (
 from pyball.exceptions import MeetupError, TelegramBotError
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.settings import load_settings
+from pyball.settings import PyballSettings
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +68,8 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if message is None:
         return
 
-    settings = load_settings()
-    next_date = _get_next_weekday(settings.pyball.default_week_day)
+    settings = context.bot_data["settings"]
+    next_date = _get_next_weekday(settings.pyball)
     day_name = next_date.strftime("%A")
     await message.reply_text(
         f"Creating meetup for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})..."
@@ -81,12 +81,9 @@ async def _create_meetup_and_send(
     date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
-
+    container: Container = context.bot_data["container"]
     message = update.message
-    settings = load_settings()
+    settings = context.bot_data["settings"]
 
     try:
         meetup = container.create_meetup().execute(date, settings.pyball.location)
@@ -128,7 +125,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
     player_names = {str(player.id.value): player.name for player in all_players}
     player_groups = {str(player.id.value): player.group for player in all_players}
 
-    text = format_main_message(meetup, player_names, player_groups)
+    text = format_main_message(meetup, player_names)
     keyboard = build_main_keyboard(meetup.date)
 
     try:
@@ -165,7 +162,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
                 text=subs_text,
                 reply_markup=subs_keyboard,
                 message_thread_id=settings.telegram.substitutes.thread_id or None,
-                parse_mode="HTML",
+                parse_mode="MarkdownV2",
             )
 
             store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -186,9 +183,8 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             logger.exception("Error sending substitutes message: %s", error)
 
 
-def _get_next_weekday(default_week_day: str) -> datetime:
+def _get_next_weekday(pyball_settings: PyballSettings) -> datetime:
     """Calculate next occurrence of default weekday."""
-    settings = load_settings()
     day_map = {
         "monday": 0,
         "tuesday": 1,
@@ -198,7 +194,7 @@ def _get_next_weekday(default_week_day: str) -> datetime:
         "saturday": 5,
         "sunday": 6,
     }
-    target_weekday = day_map.get(default_week_day.lower(), 2)
+    target_weekday = day_map.get(pyball_settings.default_week_day.lower(), 2)
 
     today = datetime.now()
     days_until_target = (target_weekday - today.weekday() + 7) % 7
@@ -207,7 +203,7 @@ def _get_next_weekday(default_week_day: str) -> datetime:
         days_until_target = 7
 
     next_date = today + timedelta(days=days_until_target)
-    hour, minute = map(int, settings.pyball.default_hour.split(":"))
+    hour, minute = map(int, pyball_settings.default_hour.split(":"))
     return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 
@@ -218,9 +214,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if args is None or len(args) < 2:
@@ -253,9 +247,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if args is None or len(args) < 2:
@@ -288,9 +280,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if not args:
@@ -306,12 +296,12 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text("No teams created.")
             return
 
-        player_names = _get_player_names(None, container.player_repository)
+        player_names = _get_player_names(container.player_repository)
         lines = ["*Teams:*"]
         for team in meetup.teams:
             lines.append(f"\n{team.name}:")
             for player_id in team.players:
-                name = player_names.get(player_id, str(player_id.value))
+                name = player_names.get(str(player_id.value), str(player_id.value))
                 lines.append(f"  - {name}")
 
         await message.reply_text("\n".join(lines))
@@ -335,9 +325,7 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     meetups = container.meetup_repository.find_all()
 
@@ -359,9 +347,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if not args:
@@ -376,25 +362,19 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.reply_text("Invalid date format. Use: YYYY-MM-DD HH:MM")
         return
 
-    all_meetups = container.meetup_repository.find_all()
-    meetup = None
-    for m in all_meetups:
-        if m.date == meetup_date:
-            meetup = m
-            break
-
+    meetup = container.meetup_repository.find_by_date(meetup_date.date())
     if not meetup:
         await message.reply_text("Meetup not found.")
         return
 
-    player_names = _get_player_names(None, container.player_repository)
+    player_names = _get_player_names(container.player_repository)
     lines = [f"*Meetup: {meetup.date.strftime('%Y-%m-%d %H:%M')}*"]
     lines.append(f"📍 {meetup.location}")
 
     if meetup.players:
         lines.append("\n*Players:*")
         for player_id in meetup.players:
-            name = player_names.get(player_id, str(player_id.value))
+            name = player_names.get(str(player_id.value), str(player_id.value))
             lines.append(f"  - {name}")
     else:
         lines.append("\nNo players yet.")
@@ -409,11 +389,8 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
-
-    settings = load_settings()
+    container: Container = context.bot_data["container"]
+    settings = context.bot_data["settings"]
 
     args = context.args
     if not args:
@@ -428,11 +405,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("Invalid date. Use: /search YYYY-MM-DD")
         return
 
-    meetup = None
-    for m in container.meetup_repository.find_all():
-        if m.date.date() == meetup_date.date():
-            meetup = m
-            break
+    meetup = container.meetup_repository.find_by_date(meetup_date.date())
 
     if not meetup:
         await message.reply_text("Meetup not found.")
@@ -478,7 +451,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("Failed to send message.")
 
 
-def _get_player_names(player_ids, player_repo) -> dict:
-    """Build a player name lookup dict, fetching all players at once."""
+def _get_player_names(player_repo) -> dict:
+    """Build a {str_uuid: name} lookup dict for all players."""
     all_players = player_repo.find_all()
-    return {p.id: p.name for p in all_players}
+    return {str(p.id.value): p.name for p in all_players}

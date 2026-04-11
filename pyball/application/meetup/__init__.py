@@ -7,6 +7,7 @@ from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
 
 __all__ = [
     "CreateMeetup",
+    "DuplicateMeetupError",
     "AddPlayerToMeetup",
     "RemovePlayerFromMeetup",
     "CreateTeams",

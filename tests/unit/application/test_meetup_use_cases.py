@@ -14,15 +14,17 @@ from pyball.application.meetup import (
 )
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, MeetupId, PlayerId
-from pyball.domain.player.errors import PlayerNotFoundError
 from pyball.domain.player.models import Player
 
 
 class FakeMeetupRepository:
+    """In-memory meetup repository for testing."""
+
     def __init__(self):
         self.meetups = []
 
     def save(self, meetup: Meetup):
+        """Save or update a meetup."""
         existing = [m for m in self.meetups if m.id == meetup.id]
         if existing:
             self.meetups = [m if m.id != meetup.id else meetup for m in self.meetups]
@@ -30,29 +32,36 @@ class FakeMeetupRepository:
             self.meetups.append(meetup)
 
     def find_by_id(self, meetup_id: MeetupId):
+        """Return the meetup matching the given ID, or None."""
         for m in self.meetups:
             if m.id == meetup_id:
                 return m
         return None
 
     def find_by_date(self, meetup_date):
+        """Return the meetup on the given date, or None."""
         for m in self.meetups:
             if m.date.date() == meetup_date:
                 return m
         return None
 
     def find_all(self):
+        """Return all meetups."""
         return list(self.meetups)
 
     def delete(self, meetup_id: MeetupId):
+        """Remove the meetup with the given ID."""
         self.meetups = [m for m in self.meetups if m.id != meetup_id]
 
 
 class FakePlayerRepository:
+    """In-memory player repository for testing."""
+
     def __init__(self):
         self.players = []
 
     def save(self, player: Player):
+        """Save or update a player."""
         existing = [p for p in self.players if p.id == player.id]
         if existing:
             self.players = [p if p.id != player.id else player for p in self.players]
@@ -60,33 +69,40 @@ class FakePlayerRepository:
             self.players.append(player)
 
     def find_by_id(self, player_id: PlayerId):
+        """Return the player matching the given ID, or None."""
         for p in self.players:
             if p.id == player_id:
                 return p
         return None
 
     def find_by_name(self, name: str):
+        """Return the player matching the name (case-insensitive), or None."""
         for p in self.players:
             if p.name.lower() == name.lower():
                 return p
         return None
 
     def find_all(self):
+        """Return all players."""
         return list(self.players)
 
     def delete(self, player_id: PlayerId):
+        """Remove the player with the given ID."""
         self.players = [p for p in self.players if p.id != player_id]
 
 
 class TestAddPlayerToMeetup:
+    """Tests for AddPlayerToMeetup use case."""
+
     def test_add_player_to_meetup_fuzzy(self):
+        """Adding a player by fuzzy name match inserts their ID into the meetup."""
         player_repo = MagicMock()
         player = Player.create(name="Mario", group="regular")
         player_repo.find_all.return_value = [player]
 
         meetup_repo = MagicMock()
         meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
-        meetup_repo.find_all.return_value = [meetup]
+        meetup_repo.find_by_date.return_value = meetup
 
         use_case = AddPlayerToMeetup(meetup_repo, player_repo)
         use_case.execute("2024-03-20 20:00", "Mario")
@@ -95,7 +111,10 @@ class TestAddPlayerToMeetup:
 
 
 class TestRemovePlayerFromMeetup:
+    """Tests for RemovePlayerFromMeetup use case."""
+
     def test_remove_player_success(self):
+        """Removing a player by name removes their ID from the meetup."""
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         player = Player.create(name="Mario", group="regular")
@@ -111,6 +130,7 @@ class TestRemovePlayerFromMeetup:
         assert player.id not in meetup.players
 
     def test_remove_player_meetup_not_found(self):
+        """Removing a player when the meetup does not exist raises MeetupNotFoundError."""
         meetup_repo = FakeMeetupRepository()
         player_repo = FakePlayerRepository()
         use_case = RemovePlayerFromMeetup(meetup_repo, player_repo)
@@ -120,7 +140,10 @@ class TestRemovePlayerFromMeetup:
 
 
 class TestCreateTeams:
+    """Tests for CreateTeams use case."""
+
     def test_create_teams_success(self):
+        """Creating teams for a meetup with 2 players produces two teams."""
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         meetup.add_player(PlayerId.generate())
@@ -134,6 +157,7 @@ class TestCreateTeams:
         assert len(result.teams) == 2
 
     def test_create_teams_meetup_not_found(self):
+        """Creating teams when the meetup does not exist raises MeetupNotFoundError."""
         meetup_repo = FakeMeetupRepository()
         use_case = CreateTeams(meetup_repo)
 
@@ -141,6 +165,7 @@ class TestCreateTeams:
             use_case.execute("2024-01-15 20:00")
 
     def test_create_teams_not_enough_players(self):
+        """Creating teams with fewer than 2 players raises ValueError."""
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         meetup.add_player(PlayerId.generate())
@@ -152,9 +177,12 @@ class TestCreateTeams:
 
 
 class TestCreateMeetup:
+    """Tests for CreateMeetup use case."""
+
     def test_create_meetup_with_default_location(self):
+        """Creating a meetup without a location uses the default."""
         repo = MagicMock()
-        repo.find_all.return_value = []
+        repo.find_by_date.return_value = None
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
@@ -163,8 +191,9 @@ class TestCreateMeetup:
         assert meetup.date == datetime(2024, 3, 20, 20, 0)
 
     def test_create_meetup_with_custom_location(self):
+        """Creating a meetup with a custom location overrides the default."""
         repo = MagicMock()
-        repo.find_all.return_value = []
+        repo.find_by_date.return_value = None
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0), location="Estadio Norte")
@@ -172,19 +201,21 @@ class TestCreateMeetup:
         assert meetup.location == "Estadio Norte"
 
     def test_create_meetup_duplicate_date_raises_error(self):
+        """Creating a meetup on an already-used date raises DuplicateMeetupError."""
         existing_meetup = Meetup.create(
             date=datetime(2024, 3, 20, 20, 0), location="Parque Central"
         )
         repo = MagicMock()
-        repo.find_all.return_value = [existing_meetup]
+        repo.find_by_date.return_value = existing_meetup
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         with pytest.raises(DuplicateMeetupError, match="Meetup already exists"):
             use_case.execute(date=datetime(2024, 3, 20, 20, 0))
 
     def test_create_meetup_saves_meetup(self):
+        """Creating a meetup persists it via the repository."""
         repo = MagicMock()
-        repo.find_all.return_value = []
+        repo.find_by_date.return_value = None
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))

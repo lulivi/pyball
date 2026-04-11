@@ -19,9 +19,8 @@ from pyball.domain.player.errors import (
     PlayerAlreadyExistsError,
     PlayerNotFoundError,
 )
-from pyball.exceptions import PlayerError, TelegramBotError
+from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
-from pyball.settings import load_settings
 
 try:
     locale.setlocale(locale.LC_ALL, "")
@@ -49,9 +48,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if args is None or len(args) < 2:
@@ -92,9 +89,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if args is None or len(args) < 2:
@@ -132,9 +127,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if args is None or not args:
@@ -167,9 +160,7 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     players = container.player_repository.find_all()
     if not players:
@@ -207,9 +198,7 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
     args = context.args
     if args is None or len(args) < 2:
@@ -259,14 +248,9 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if message is None:
         return
 
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
+    container: Container = context.bot_data["container"]
 
-    settings = context.bot_data.get("settings")
-    if settings is None:
-        settings = load_settings()
-
+    settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
 
     args = context.args
@@ -322,10 +306,7 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if message is None:
         return
 
-    settings = context.bot_data.get("settings")
-    if settings is None:
-        settings = load_settings()
-
+    settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
 
     args = context.args

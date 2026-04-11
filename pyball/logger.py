@@ -97,9 +97,9 @@ def log_func(func: F) -> F:
     @functools.wraps(func)
     def decorator(*args, **kwargs):
         """Wrap the function."""
-        logger.debug(f">>>>> Entering {func.__name__} function")
+        logger.debug(">>>>> Entering %s function", func.__name__)
         ret_val = func(*args, **kwargs)
-        logger.debug(f"<<<<< Exiting {func.__name__} function")
+        logger.debug("<<<<< Exiting %s function", func.__name__)
         return ret_val
 
     return cast(F, decorator)

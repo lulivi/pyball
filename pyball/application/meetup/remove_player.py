@@ -5,7 +5,6 @@ from datetime import datetime
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.repository import MeetupRepository
-from pyball.domain.player.models import PlayerId
 from pyball.domain.player.repository import PlayerRepository
 
 
@@ -25,16 +24,10 @@ class RemovePlayerFromMeetup:
         """Remove a player from a meetup by date string and player name."""
         try:
             meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
-        except ValueError:
-            raise ValueError("Invalid date format. Use: YYYY-MM-DD HH:MM")
+        except ValueError as exc:
+            raise ValueError("Invalid date format. Use: YYYY-MM-DD HH:MM") from exc
 
-        all_meetups = self.meetup_repository.find_all()
-        meetup = None
-        for m in all_meetups:
-            if m.date == meetup_date:
-                meetup = m
-                break
-
+        meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
             raise MeetupNotFoundError(date_str)
 

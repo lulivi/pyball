@@ -9,7 +9,9 @@ def setup_general_handlers(application):
     application.add_handler(CommandHandler("help", help_handler))
 
 
-async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def help_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE  # pylint: disable=unused-argument
+) -> None:
     """Handle /help command."""
     message = update.message
     if message is None:
@@ -31,7 +33,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /next_meetup - Create meetup for next default day
 /add_player - Add player to meetup
 /remove_player - Remove player from meetup
-/create_teams - Create balanced teams
+/create_teams - Create random teams
 /list_meetups - List all meetups
 /show_meetup - Show meetup details
 

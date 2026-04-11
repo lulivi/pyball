@@ -1,9 +1,6 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
-
-from telegram import Message, Update, User
-from telegram.ext import ContextTypes
 
 from pyball.bot.handlers.player import (
     change_group_handler,
@@ -15,26 +12,6 @@ from pyball.bot.handlers.player import (
     unlink_player_handler,
 )
 from pyball.domain.player.errors import PlayerAlreadyExistsError, PlayerNotFoundError
-
-
-@pytest.fixture
-def mock_update():
-    update = MagicMock(spec=Update)
-    message = AsyncMock(spec=Message)
-    update.message = message
-    user = MagicMock(spec=User)
-    user.id = 12345
-    update.effective_user = user
-    return update
-
-
-@pytest.fixture
-def mock_context():
-    context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
-    settings = MagicMock()
-    settings.telegram.is_authorized.return_value = True
-    context.bot_data = {"settings": settings}
-    return context
 
 
 @pytest.mark.asyncio

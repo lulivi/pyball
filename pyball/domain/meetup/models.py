@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random as _random
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -39,13 +41,13 @@ class Meetup(Entity["MeetupId"]):
             raise PlayerNotInMeetupError(str(player_id.value))
         self.players.remove(player_id)
 
-    def create_balanced_teams(self, random=__import__("random")) -> None:
-        """Create two balanced teams from the players."""
+    def create_random_teams(self) -> None:
+        """Create two randomly-assigned teams from the players."""
         if len(self.players) < 2:
             raise ValueError("Need at least 2 players to create teams")
 
         players_copy = list(self.players)
-        random.shuffle(players_copy)
+        _random.shuffle(players_copy)
 
         mid = len(players_copy) // 2
         self.teams = [

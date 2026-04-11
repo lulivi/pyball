@@ -31,7 +31,7 @@ def authorized(func: Callable) -> Callable:
         user_id = update.effective_user.id
 
         if not settings.telegram.is_authorized(user_id):
-            logger.warning(f"Unauthorized access attempt from user ID: {user_id}")
+            logger.warning("Unauthorized access attempt from user ID: %s", user_id)
             message = update.message
             if message is not None:
                 await message.reply_text(

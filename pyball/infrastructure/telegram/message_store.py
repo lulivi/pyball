@@ -70,10 +70,10 @@ class TelegramMessageStore:
 
     def _read(self) -> dict:
         """Read data from the JSON file."""
-        with open(self.file_path) as f:
+        with open(self.file_path, encoding="utf-8") as f:
             return json.load(f)
 
     def _write(self, data: dict) -> None:
         """Write data to the JSON file."""
-        with open(self.file_path, "w") as f:
+        with open(self.file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)

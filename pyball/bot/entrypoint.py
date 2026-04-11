@@ -9,7 +9,9 @@ from pyball.settings import load_settings
 def create_application() -> Application:
     """Create and configure the Telegram application."""
     settings = load_settings()
-    application = Application.builder().token(settings.telegram.bot_token).build()
+    application = (
+        Application.builder().token(settings.telegram.bot_token).concurrent_updates(False).build()
+    )
     application.bot_data["settings"] = settings
     application.add_handler(CallbackQueryHandler(callback_handler))
     return application

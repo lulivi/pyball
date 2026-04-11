@@ -1,0 +1,8 @@
+[MESSAGES CONTROL]
+disable=
+    W0718,  # broad-exception-caught — intentional in bot handlers to prevent crashes
+    R0801,  # duplicate-code — handler boilerplate is inherent to python-telegram-bot
+    R0914,  # too-many-locals — callback_handler is near the limit but well-structured
+    R0911,  # too-many-return-statements — guard clauses in callback_handler
+    R0912,  # too-many-branches — guard clauses in callback_handler
+    R0903,  # too-few-public-methods — use case classes and test helpers intentionally have one method

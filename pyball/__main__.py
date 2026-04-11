@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def log_startup_info() -> None:
     """Log startup information."""
     logger.info("*" * 40)
-    logger.info(f"PyBall v{__version__}")
+    logger.info("PyBall v%s", __version__)
     logger.info("*" * 40)
 
 

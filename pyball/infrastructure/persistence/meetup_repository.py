@@ -20,7 +20,7 @@ class JsonMeetupRepository(MeetupRepository):
     def _read_file(self, file_path: Path) -> dict | None:
         if not file_path.exists():
             return None
-        with open(file_path) as f:
+        with open(file_path, encoding="utf-8") as f:
             return json.load(f)
 
     def _dict_to_meetup(self, data: dict) -> Meetup:
@@ -53,7 +53,7 @@ class JsonMeetupRepository(MeetupRepository):
             "players": [str(p.value) for p in meetup.players],
             "teams": teams_data,
         }
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     def __init__(self, directory: Path):
@@ -66,11 +66,11 @@ class JsonMeetupRepository(MeetupRepository):
 
     def find_by_id(self, meetup_id: MeetupId) -> Meetup | None:
         """Find a meetup by its ID."""
-        for file_path in self.directory.glob("*.json"):
-            data = self._read_file(file_path)
-            if data and data["id"] == str(meetup_id.value):
-                return self._dict_to_meetup(data)
-        return None
+        file_path = self.directory / f"{meetup_id.value}.json"
+        data = self._read_file(file_path)
+        if data is None:
+            return None
+        return self._dict_to_meetup(data)
 
     def find_by_date(self, meetup_date: date) -> Meetup | None:
         """Find a meetup by its date."""

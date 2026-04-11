@@ -65,7 +65,8 @@ show_error_codes = true
 ignore_missing_imports = true
 module = ["decouple", "event_bus"]
 
-[tool.pylint."MESSAGES CONTROL"]
-disable = [
-  "logging-fstring-interpolation"
-]
+[tool.pydocstyle]
+add-ignore = ["D105", "D107"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"

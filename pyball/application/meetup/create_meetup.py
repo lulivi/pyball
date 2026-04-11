@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pyball.domain.meetup.models import Meetup, MeetupId
+from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.exceptions import MeetupError
 
@@ -35,10 +35,8 @@ class CreateMeetup:
         Raises:
             DuplicateMeetupError: If a meetup already exists at the given date.
         """
-        existing = self.meetup_repository.find_all()
-        for meetup in existing:
-            if meetup.date == date:
-                raise DuplicateMeetupError("Meetup already exists at this time")
+        if self.meetup_repository.find_by_date(date.date()) is not None:
+            raise DuplicateMeetupError("Meetup already exists at this time")
 
         meetup = Meetup.create(date=date, location=location or self.default_location)
         self.meetup_repository.save(meetup)
@@ -47,5 +45,3 @@ class CreateMeetup:
 
 class DuplicateMeetupError(MeetupError):
     """Raised when trying to create a meetup at a time that already exists."""
-
-    pass

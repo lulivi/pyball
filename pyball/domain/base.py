@@ -1,7 +1,6 @@
 """Base classes for domain objects."""
 
 from typing import Generic, TypeVar
-from uuid import uuid4
 
 T = TypeVar("T")
 
@@ -26,9 +25,6 @@ class Entity(Generic[T]):
     """Base class for entities with identity."""
 
     id: T
-
-    def __init__(self, entity_id: T | None = None) -> None:
-        object.__setattr__(self, "id", entity_id or uuid4())
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
