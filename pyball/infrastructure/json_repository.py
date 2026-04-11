@@ -15,15 +15,6 @@ from pyball.domain.player.repository import PlayerRepository
 class JsonPlayerRepository(PlayerRepository):
     """JSON file-based player repository."""
 
-    def __init__(self, file_path: Path):
-        self.file_path = file_path
-        self._ensure_file_exists()
-
-    def _ensure_file_exists(self) -> None:
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        if not self.file_path.exists():
-            self._write({"players": []})
-
     def _read(self) -> dict:
         with open(self.file_path) as f:
             return json.load(f)
@@ -31,6 +22,15 @@ class JsonPlayerRepository(PlayerRepository):
     def _write(self, data: dict) -> None:
         with open(self.file_path, "w") as f:
             json.dump(data, f, indent=2)
+
+    def _ensure_file_exists(self) -> None:
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.file_path.exists():
+            self._write({"players": []})
+
+    def __init__(self, file_path: Path):
+        self.file_path = file_path
+        self._ensure_file_exists()
 
     def save(self, player: Player) -> None:
         """Save a player to the repository."""
@@ -88,10 +88,6 @@ class JsonPlayerRepository(PlayerRepository):
 class JsonMeetupRepository(MeetupRepository):
     """JSON file-based meetup repository."""
 
-    def __init__(self, directory: Path):
-        self.directory = directory
-        self.directory.mkdir(parents=True, exist_ok=True)
-
     def _get_file_path(self, meetup: Meetup) -> Path:
         return self.directory / f"{meetup.id.value}.json"
 
@@ -100,6 +96,21 @@ class JsonMeetupRepository(MeetupRepository):
             return None
         with open(file_path) as f:
             return json.load(f)
+
+    def _dict_to_meetup(self, data: dict) -> Meetup:
+        teams = None
+        if data.get("teams"):
+            teams = [
+                Team.create(t["name"], [PlayerId(UUID(p)) for p in t["players"]])
+                for t in data["teams"]
+            ]
+        return Meetup(
+            id=MeetupId(UUID(data["id"])),
+            date=datetime.fromisoformat(data["date"]),
+            location=data.get("location", "Parque Central"),
+            players=[PlayerId(UUID(p)) for p in data.get("players", [])],
+            teams=teams,
+        )
 
     def _write(self, meetup: Meetup) -> None:
         file_path = self._get_file_path(meetup)
@@ -118,6 +129,10 @@ class JsonMeetupRepository(MeetupRepository):
         }
         with open(file_path, "w") as f:
             json.dump(data, f, indent=2)
+
+    def __init__(self, directory: Path):
+        self.directory = directory
+        self.directory.mkdir(parents=True, exist_ok=True)
 
     def save(self, meetup: Meetup) -> None:
         """Save a meetup to the repository."""
@@ -157,18 +172,3 @@ class JsonMeetupRepository(MeetupRepository):
             if data and data["id"] == str(meetup_id.value):
                 file_path.unlink()
                 return
-
-    def _dict_to_meetup(self, data: dict) -> Meetup:
-        teams = None
-        if data.get("teams"):
-            teams = [
-                Team.create(t["name"], [PlayerId(UUID(p)) for p in t["players"]])
-                for t in data["teams"]
-            ]
-        return Meetup(
-            id=MeetupId(UUID(data["id"])),
-            date=datetime.fromisoformat(data["date"]),
-            location=data.get("location", "Parque Central"),
-            players=[PlayerId(UUID(p)) for p in data.get("players", [])],
-            teams=teams,
-        )
