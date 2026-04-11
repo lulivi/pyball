@@ -35,6 +35,17 @@ def _find_meetup(meetup_repo, date: datetime) -> Meetup | None:
     return None
 
 
+def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str | None:
+    return mapping_store.get_player_id(telegram_id)
+
+
+def _validate_player_id(player_id_str: str) -> PlayerId | None:
+    try:
+        return PlayerId.from_string(player_id_str)
+    except InvalidPlayerIdError:
+        return None
+
+
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
     query = update.callback_query
@@ -86,7 +97,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     telegram_id = from_user.id
 
-    player_id_str = mapping_store.get_player_id(telegram_id)
+    player_id_str = _get_player_id(telegram_id, mapping_store)
     if not player_id_str:
         await query.answer(
             "No player linked to your Telegram account. Contact admin to register.",
@@ -94,9 +105,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
 
-    try:
-        player_id = PlayerId.from_string(player_id_str)
-    except InvalidPlayerIdError:
+    player_id = _validate_player_id(player_id_str)
+    if not player_id:
         await query.answer("Invalid player mapping. Contact admin.", show_alert=True)
         return
 
