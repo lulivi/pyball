@@ -52,7 +52,9 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     args = context.args
     if args is None or len(args) < 2:
-        await message.reply_text("Usage: /new_player <name> <regular|substitute>")
+        await message.reply_text(
+            r"Usage: `/new_player` <name\> <regular\|substitute\>", parse_mode="MarkdownV2"
+        )
         return
 
     name = args[0]
@@ -65,13 +67,13 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         player = container.create_player().execute(name, group)
         await message.reply_text(
-            html.escape(f"Player '{player.name}' created as {group}!"), parse_mode="HTML"
+            rf"Player `{player.name}` created as {group}\!", parse_mode="MarkdownV2"
         )
     except PlayerAlreadyExistsError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
     except Exception as error:
         logger.exception("Error creating player: %s", error)
-        await message.reply_text("An error occurred. Please try again.", parse_mode="HTML")
+        await message.reply_text("An error occurred. Please contact an admin.")
 
 
 @authorized
@@ -87,25 +89,25 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or len(args) < 2:
-        await message.reply_text("Usage: /rename_player <player_id> <new_name>")
+        await message.reply_text(
+            r"Usage: `/rename_player` <player\_id\> <new\_name\>", parse_mode="MarkdownV2"
+        )
         return
 
     player_id = args[0]
     new_name = " ".join(args[1:])
     try:
         player = container.rename_player().execute(player_id, new_name)
-        await message.reply_text(
-            html.escape(f"Player renamed to '{player.name}'!"), parse_mode="HTML"
-        )
+        await message.reply_text(rf"Player renamed to `{player.name}`\!", parse_mode="MarkdownV2")
     except InvalidPlayerIdError:
-        await message.reply_text("Invalid player ID format.", parse_mode="HTML")
+        await message.reply_text("Invalid player ID format.")
     except PlayerNotFoundError:
-        await message.reply_text("Player not found.", parse_mode="HTML")
+        await message.reply_text("Player not found.")
     except NameAlreadyTakenError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
     except Exception as error:
         logger.exception("Error renaming player: %s", error)
-        await message.reply_text("An error occurred. Please try again.", parse_mode="HTML")
+        await message.reply_text("An error occurred. Please contact an admin.")
 
 
 @authorized
@@ -121,20 +123,20 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or not args:
-        await message.reply_text("Usage: /delete_player <player_id>")
+        await message.reply_text(r"Usage: `/delete_player` <player_id\>", parse_mode="MarkdownV2")
         return
 
     player_id = args[0]
     try:
         container.delete_player().execute(player_id)
-        await message.reply_text("Player deleted!", parse_mode="HTML")
+        await message.reply_text("Player deleted!")
     except InvalidPlayerIdError:
-        await message.reply_text("Invalid player ID format.", parse_mode="HTML")
+        await message.reply_text("Invalid player ID format.")
     except PlayerNotFoundError:
-        await message.reply_text("Player not found.", parse_mode="HTML")
+        await message.reply_text("Player not found.")
     except Exception as error:
         logger.exception("Error deleting player: %s", error)
-        await message.reply_text("An error occurred. Please try again.", parse_mode="HTML")
+        await message.reply_text("An error occurred. Please contact an admin.")
 
 
 @authorized
@@ -161,20 +163,20 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             suplentes.append(p.name)
 
-    sorted_regulares = sorted(regulares, key=functools.cmp_to_key(locale.strcoll))
-    sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
+    sorted_regulars = sorted(regulares, key=functools.cmp_to_key(locale.strcoll))
+    sorted_substitutes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
 
-    lines = ["<b>Jugadores:</b>"]
-    if sorted_regulares:
-        lines.append(f"<b>Titulares ({len(sorted_regulares)}):</b>")
-        for name in sorted_regulares:
-            lines.append(f"- {html.escape(name)}")
-    if sorted_suplentes:
-        lines.append(f"<b>Suplentes ({len(sorted_suplentes)}):</b>")
-        for name in sorted_suplentes:
-            lines.append(f"- {html.escape(name)}")
+    lines = ["*Jugadores:*", ""]
+    if sorted_regulars:
+        lines.append(rf"*Titulares \({len(sorted_regulars)}\):*")
+        for name in sorted_regulars:
+            lines.append(rf"\- `{name}`")
+    if sorted_substitutes:
+        lines.append(rf"*Suplentes \({len(sorted_substitutes)}\):*")
+        for name in sorted_substitutes:
+            lines.append(rf"\- `{name}`")
 
-    await message.reply_text("\n".join(lines), parse_mode="HTML")
+    await message.reply_text("\n".join(lines), parse_mode="MarkdownV2")
 
 
 @authorized
@@ -190,7 +192,10 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     args = context.args
     if args is None or len(args) < 2:
-        await message.reply_text("Usage: /change_group <player_name> <regular|substitute>")
+        await message.reply_text(
+            r"Usage: `/change_group` <player_name\> <regular\|substitute\>",
+            parse_mode="MarkdownV2",
+        )
         return
 
     player_name = args[0]
@@ -213,11 +218,11 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         use_case = container.change_player_group()
         player = use_case.execute(str(match.player_id.value), new_group)
         await message.reply_text(
-            html.escape(f"Player {player.name} changed to {new_group}!"), parse_mode="HTML"
+            rf"Player `{player.name}` changed to `{new_group}`\!", parse_mode="MarkdownV2"
         )
     except Exception as error:
         logger.exception("Error changing player group: %s", error)
-        await message.reply_text("Error changing player group.", parse_mode="HTML")
+        await message.reply_text("Error changing player group.")
 
 
 @authorized
@@ -240,7 +245,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            "Usage: /link_player <player_name> <telegram_id>", parse_mode="HTML"
+            r"Usage: `/link_player` <player_name\> <telegram_id\>", parse_mode="MarkdownV2"
         )
         return
 
@@ -248,7 +253,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         telegram_id = int(args[1])
     except ValueError:
-        await message.reply_text("Invalid telegram_id. Must be a number.", parse_mode="HTML")
+        await message.reply_text("Invalid telegram_id. Must be a number.")
         return
 
     player_repo = container.player_repository
@@ -265,9 +270,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     existing_telegram_id = mapping_store.get_player_id(telegram_id)
     if existing_telegram_id:
         if existing_telegram_id == player_id_str:
-            await message.reply_text(
-                "This Telegram ID is already linked to this player.", parse_mode="HTML"
-            )
+            await message.reply_text("This Telegram ID is already linked to this player.")
         else:
             await message.reply_text(
                 (
@@ -281,8 +284,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     mapping_store.set_player_id(telegram_id, player_id_str)
 
     await message.reply_text(
-        html.escape(f"Telegram ID {telegram_id} linked to player '{match.name}'!"),
-        parse_mode="HTML",
+        f"Telegram ID `{telegram_id}` linked to player `{match.name}`\!", parse_mode="MarkdownV2"
     )
 
 
@@ -301,23 +303,23 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or not args:
-        await message.reply_text("Usage: /unlink_player <telegram_id>", parse_mode="HTML")
+        await message.reply_text(r"Usage: `/unlink_player <telegram_id\>", parse_mode="MarkdownV2")
         return
 
     try:
         telegram_id = int(args[0])
     except ValueError:
-        await message.reply_text("Invalid telegram_id. Must be a number.", parse_mode="HTML")
+        await message.reply_text("Invalid telegram_id. Must be a number.")
         return
 
     player_id = mapping_store.get_player_id(telegram_id)
     if not player_id:
         await message.reply_text(
-            "This Telegram ID is not linked to any player.", parse_mode="HTML"
+            "This Telegram ID is not linked to any player."
         )
         return
 
     mapping_store.delete_player_id(telegram_id)
     await message.reply_text(
-        html.escape(f"Link for Telegram ID {telegram_id} removed!"), parse_mode="HTML"
+        html.escape(f"Link for Telegram ID `{telegram_id}` removed\!"), parse_mode="MarkdownV2"
     )

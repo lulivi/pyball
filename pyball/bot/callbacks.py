@@ -3,6 +3,7 @@
 import logging
 
 from datetime import datetime
+from typing import Final
 
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
@@ -15,6 +16,14 @@ from pyball.infrastructure.telegram_mapping import TelegramMappingStore
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
+
+
+
+def _parse_meetup_date(date_str: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        return None
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -46,9 +55,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     action, date_str = parsed
 
-    try:
-        meetup_date = datetime.fromisoformat(date_str)
-    except ValueError:
+    meetup_date = _parse_meetup_date(date_str)
+    if meetup_date is None:
         await query.answer("Invalid date format.", show_alert=True)
         return
 
