@@ -11,7 +11,7 @@ import pytest
 
 from pyball.domain.meetup.models import Meetup, MeetupId, Team
 from pyball.domain.player.models import Player, PlayerId
-from pyball.infrastructure.persistence.json_repository import JsonMeetupRepository, JsonPlayerRepository
+from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository
 
 
 class TestJsonPlayerRepository:
