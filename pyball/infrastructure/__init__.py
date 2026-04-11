@@ -1,8 +1,8 @@
 """Infrastructure layer - persistence implementations."""
 
-from pyball.infrastructure.json_repository import JsonMeetupRepository, JsonPlayerRepository
-from pyball.infrastructure.telegram_mapping import TelegramMappingStore
-from pyball.infrastructure.telegram_store import MessageTracking, TelegramMessageStore
+from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository
+from pyball.infrastructure.telegram import TelegramMappingStore
+from pyball.infrastructure.telegram import MessageTracking, TelegramMessageStore
 
 __all__ = [
     "JsonPlayerRepository",
