@@ -19,47 +19,6 @@ from pyball.settings import load_settings
 logger = logging.getLogger(__name__)
 
 
-def _parse_meetup_date(date_str: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(date_str)
-    except ValueError:
-        return None
-
-
-def _find_meetup(meetup_repo, date: datetime) -> Meetup | None:
-    all_meetups = meetup_repo.find_all()
-    for m in all_meetups:
-        if m.date.date() == date.date():
-            return m
-    return None
-
-
-def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str | None:
-    return mapping_store.get_player_id(telegram_id)
-
-
-def _validate_player_id(player_id_str: str) -> PlayerId | None:
-    try:
-        return PlayerId.from_string(player_id_str)
-    except InvalidPlayerIdError:
-        return None
-
-
-def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
-    if action == "join":
-        if player_id not in meetup.players:
-            meetup.add_player(player_id)
-            return True
-        return False
-    if action == "leave":
-        try:
-            meetup.remove_player(player_id)
-            return True
-        except Exception as error:
-            logger.warning("Player not in meetup: %s", error)
-            return False
-    return False
-
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
@@ -153,3 +112,45 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 def create_callback_handler() -> CallbackQueryHandler:
     """Create the callback query handler."""
     return CallbackQueryHandler(callback_handler)
+
+
+def _parse_meetup_date(date_str: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        return None
+
+
+def _find_meetup(meetup_repo, date: datetime) -> Meetup | None:
+    all_meetups = meetup_repo.find_all()
+    for m in all_meetups:
+        if m.date.date() == date.date():
+            return m
+    return None
+
+
+def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str | None:
+    return mapping_store.get_player_id(telegram_id)
+
+
+def _validate_player_id(player_id_str: str) -> PlayerId | None:
+    try:
+        return PlayerId.from_string(player_id_str)
+    except InvalidPlayerIdError:
+        return None
+
+
+def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
+    if action == "join":
+        if player_id not in meetup.players:
+            meetup.add_player(player_id)
+            return True
+        return False
+    if action == "leave":
+        try:
+            meetup.remove_player(player_id)
+            return True
+        except Exception as error:
+            logger.warning("Player not in meetup: %s", error)
+            return False
+    return False
