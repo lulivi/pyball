@@ -76,8 +76,9 @@
 
     <script>
         // 1. APPLICATION STATE (Ahora los equipos empiezan vacíos)
-        let teamA = []; 
+        let teamA = [];
         let teamB = [];
+        let meetupDate = '';
         
         let appState = {
             goalsA: 0,
@@ -90,59 +91,35 @@
 
         // 2. INICIALIZACIÓN Y CARGA DE DATOS
         async function initializeApp() {
-            // Comprobamos si ya hay un partido guardado en memoria
             const savedState = localStorage.getItem('pyball_current_match');
             const savedTeams = localStorage.getItem('pyball_teams');
 
             if (savedState && savedTeams) {
-                // Si la memoria existe (ej. la página se recargó a mitad de partido), restauramos todo
                 appState = JSON.parse(savedState);
                 const teams = JSON.parse(savedTeams);
                 teamA = teams.teamA;
                 teamB = teams.teamB;
+                meetupDate = teams.meetupDate;
                 updateUI();
-            } else {
-                // // Si es un partido nuevo, descargamos las alineaciones de la API
-                // await fetchLineups();
-
-                // Asignar los datos del servidor a las variables locales
-                teamA = ["Paco G", "Luvo", "Manuel Orantes", "Alberto", "Antonio"];
-                teamB = ["Javi", "Cuadros", "Juanca", "Blánquez", "Julio"];
-
-                // Guardar los equipos en la memoria local por si hay cortes de red
-                localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB }));
-                
-                updateUI();
+                return;
             }
-        }
 
-        async function fetchLineups() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token') || "token_estatico_peña_2026";
+            const params = new URLSearchParams(window.location.search);
+            const teamAParam = params.get('teamA');
+            const teamBParam = params.get('teamB');
+            meetupDate = params.get('date') || '';
 
-            try {
-                const response = await fetch('/api/match/current', {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    
-                    // Asignar los datos del servidor a las variables locales
-                    teamA = result.data.teamA;
-                    teamB = result.data.teamB;
-
-                    // Guardar los equipos en la memoria local por si hay cortes de red
-                    localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB }));
-                    
-                    updateUI();
-                } else {
-                    alert("❌ Error de seguridad o no hay partido activo en el servidor.");
-                }
-            } catch (error) {
-                alert("❌ Error de red. No se pudieron cargar los jugadores. Verifica la conexión.");
+            if (!teamAParam || !teamBParam) {
+                document.getElementById('interaction-panel').innerHTML =
+                    "<p style='color:#f87171;'>❌ URL inválida. Genera el enlace con /start_match.</p>";
+                document.getElementById('save-btn').disabled = true;
+                return;
             }
+
+            teamA = teamAParam.split(',');
+            teamB = teamBParam.split(',');
+            localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, meetupDate }));
+            updateUI();
         }
 
         // 3. REGISTRATION LOGIC
@@ -235,9 +212,6 @@
         async function finishMatch() {
             if (!confirm("¿Seguro que quieres guardar el partido y enviarlo al Bot?")) return;
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token') || "token_estatico_peña_2026"; 
-
             const saveBtn = document.getElementById('save-btn');
             saveBtn.disabled = true;
             saveBtn.innerText = "Enviando datos...";
@@ -246,11 +220,10 @@
                 const response = await fetch('/api/match/finish', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        // Revertimos el array para enviarlo al backend en orden cronológico (del primero al último)
+                        meetup_date: meetupDate,
                         events: [...appState.events].reverse(),
                         finalScore: { A: appState.goalsA, B: appState.goalsB }
                     })
