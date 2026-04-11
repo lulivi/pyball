@@ -45,6 +45,7 @@ async def main_async() -> None:
     server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(server_config)
 
+    assert application.updater is not None, "Updater must be set before starting"
     async with application:
         await application.start()
         await application.updater.start_polling()

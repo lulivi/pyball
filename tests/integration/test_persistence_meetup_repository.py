@@ -87,12 +87,14 @@ class TestJsonMeetupRepositoryResult:
     """Integration tests for MatchResult persistence."""
 
     def setup_method(self):
+        """Create a temporary directory and repository for each test."""
         # pylint: disable=attribute-defined-outside-init
         self.temp_dir = tempfile.mkdtemp()
         self.directory = Path(self.temp_dir)
         self.repo = JsonMeetupRepository(self.directory)
 
     def teardown_method(self):
+        """Remove the temporary directory after each test."""
         shutil.rmtree(self.temp_dir)
 
     def test_save_and_load_meetup_with_result(self):

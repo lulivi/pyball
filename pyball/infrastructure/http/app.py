@@ -12,7 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
+from pyball.bot.handlers.meetup import close_match_messages
 from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.infrastructure.telegram import TelegramMessageStore
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
@@ -73,22 +75,19 @@ def create_app(
             meetup = use_case.execute(
                 body.meetup_date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
             )
-        except MeetupNotFoundError:
-            raise HTTPException(status_code=404, detail="Meetup not found")
-        except MeetupAlreadyClosedError:
-            raise HTTPException(status_code=409, detail="Match already closed")
+        except MeetupNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Meetup not found") from exc
+        except MeetupAlreadyClosedError as exc:
+            raise HTTPException(status_code=409, detail="Match already closed") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         all_players = container.player_repository.find_all()
         player_names = {str(p.id.value): p.name for p in all_players}
         player_groups = {str(p.id.value): p.group for p in all_players}
 
-        from pyball.bot.handlers.meetup import close_match_messages  # noqa: PLC0415
-        from pyball.infrastructure.telegram import TelegramMessageStore  # noqa: PLC0415
-
         message_store = TelegramMessageStore(settings.paths.bot_messages_file)
-        await close_match_messages(bot, settings, message_store, meetup, player_names, player_groups)
+        await close_match_messages(bot, message_store, meetup, player_names, player_groups)
 
         return {
             "meetup_date": body.meetup_date,

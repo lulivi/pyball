@@ -82,7 +82,7 @@ class Meetup(Entity["MeetupId"]):
         self.result = result
 
     def is_closed(self) -> bool:
-        """True if the match result has been recorded."""
+        """Return True if the match result has been recorded."""
         return self.result is not None
 
 

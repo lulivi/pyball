@@ -12,8 +12,10 @@ from pyball.application.meetup import (
     DuplicateMeetupError,
     RemovePlayerFromMeetup,
 )
+from pyball.application.meetup.finish_match import FinishMatch, MeetupAlreadyClosedError
+from pyball.application.meetup.start_match import MeetupHasNoTeamsError, StartMatch
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import Meetup, MeetupId, PlayerId
+from pyball.domain.meetup.models import MatchResult, Meetup, MeetupId, PlayerId, Team
 from pyball.domain.player.models import Player
 
 
@@ -227,16 +229,13 @@ class TestStartMatch:
     """Tests for StartMatch use case."""
 
     def setup_method(self):
+        """Set up StartMatch use case with fake repositories."""
         # pylint: disable=attribute-defined-outside-init
-        from pyball.application.meetup.start_match import StartMatch
-
         self.meetup_repo = FakeMeetupRepository()
         self.player_repo = FakePlayerRepository()
         self.use_case = StartMatch(self.meetup_repo, self.player_repo, "http://pyball:8000")
 
     def _add_players_and_teams(self, meetup):
-        from pyball.domain.meetup.models import Team
-
         p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
         p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
         self.player_repo.players.append(p1)
@@ -248,7 +247,7 @@ class TestStartMatch:
     def test_returns_url_with_teams_and_date(self):
         """StartMatch returns a URL containing date and team names."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        p1, p2 = self._add_players_and_teams(meetup)
+        self._add_players_and_teams(meetup)
 
         url = self.use_case.execute("2026-04-12 20:00")
 
@@ -264,8 +263,6 @@ class TestStartMatch:
 
     def test_raises_if_no_teams(self):
         """StartMatch raises MeetupHasNoTeamsError if teams have not been created."""
-        from pyball.application.meetup.start_match import MeetupHasNoTeamsError
-
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self.meetup_repo.save(meetup)
 
@@ -277,16 +274,13 @@ class TestFinishMatch:
     """Tests for FinishMatch use case."""
 
     def setup_method(self):
+        """Set up FinishMatch use case with fake repositories."""
         # pylint: disable=attribute-defined-outside-init
-        from pyball.application.meetup.finish_match import FinishMatch
-
         self.meetup_repo = FakeMeetupRepository()
         self.player_repo = FakePlayerRepository()
         self.use_case = FinishMatch(self.meetup_repo, self.player_repo)
 
     def _meetup_with_teams(self):
-        from pyball.domain.meetup.models import Team
-
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
         p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
@@ -297,7 +291,7 @@ class TestFinishMatch:
 
     def test_saves_result_with_resolved_player_ids(self):
         """FinishMatch resolves player names and persists MatchResult."""
-        meetup, p1, p2 = self._meetup_with_teams()
+        _, p1, p2 = self._meetup_with_teams()
 
         events = [
             {
@@ -320,7 +314,7 @@ class TestFinishMatch:
 
     def test_goal_without_assistant(self):
         """An event with assistant=None stores assistant_id=None."""
-        meetup, p1, _ = self._meetup_with_teams()
+        _, _, _ = self._meetup_with_teams()
 
         events = [
             {
@@ -342,9 +336,6 @@ class TestFinishMatch:
 
     def test_raises_if_already_closed(self):
         """FinishMatch raises MeetupAlreadyClosedError if result already set."""
-        from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
-        from pyball.domain.meetup.models import MatchResult
-
         meetup, _, _ = self._meetup_with_teams()
         result = MatchResult(score_a=1, score_b=0, events=())
         meetup.set_result(result)

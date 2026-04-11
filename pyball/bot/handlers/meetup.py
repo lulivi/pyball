@@ -42,7 +42,6 @@ def setup_meetup_handlers(application):
 
 async def close_match_messages(
     bot,
-    settings,
     message_store,
     meetup,
     player_names: dict,
@@ -52,7 +51,6 @@ async def close_match_messages(
 
     Args:
         bot: Telegram Bot instance.
-        settings: Application settings with chat IDs and message store path.
         message_store: TelegramMessageStore to look up tracked message IDs.
         meetup: Meetup with result already set.
         player_names: Dict of str(UUID) -> player name.

@@ -38,43 +38,29 @@ def lint(session: nox.Session):
     """Lint the code."""
     session.run("poetry", "install", "--with", "test", external=True)
 
-    session.run_always(
-        "black",
-        "--check",
-        "--diff",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
+    targets = (
+        str(ROOT_DIRECTORY.joinpath("pyball")),
+        str(ROOT_DIRECTORY.joinpath("tests")),
     )
-    session.run_always(
-        "isort",
-        "--check",
-        "--diff",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-    )
-    session.run_always(
-        "pydocstyle",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-    )
-    session.run_always(
-        "pycodestyle",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--max-line-length",
-        "99",
-    )
-    session.run_always(
-        "mypy",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--enable-incomplete-feature=Unpack",
-    )
-    session.run_always(
-        "pylint",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-    )
+
+    commands = [
+        ("black", "--check", "--diff", *targets),
+        ("isort", "--check", "--diff", *targets),
+        ("pydocstyle", *targets),
+        ("pycodestyle", *targets, "--max-line-length", "99"),
+        ("mypy", *targets, "--enable-incomplete-feature=Unpack"),
+        ("pylint", *targets),
+    ]
+
+    failed = False
+    for cmd in commands:
+        try:
+            session.run_always(*cmd)
+        except Exception:
+            failed = True
+
+    if failed:
+        session.error("Linting failed: one or more checks returned errors.")
 
 
 @nox.session(python=["3.12"])

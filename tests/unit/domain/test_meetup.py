@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 
 
@@ -83,8 +83,6 @@ class TestMeetupResult:
     """Tests for Meetup.set_result and is_closed."""
 
     def _meetup_with_teams(self):
-        from pyball.domain.meetup.models import Team
-
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()

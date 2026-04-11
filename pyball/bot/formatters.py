@@ -87,11 +87,7 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
             score = None
             if meetup.result is not None:
                 score = meetup.result.score_a if i == 0 else meetup.result.score_b
-            header = (
-                rf"*{team.name} \({score}\):*"
-                if score is not None
-                else f"\n*{team.name}:*"
-            )
+            header = rf"*{team.name} \({score}\):*" if score is not None else f"\n*{team.name}:*"
             lines.append(header)
             for player in team.players:
                 name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
