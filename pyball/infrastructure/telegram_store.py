@@ -27,22 +27,6 @@ class TelegramMessageStore:
         self.file_path = file_path
         self._ensure_file_exists()
 
-    def _ensure_file_exists(self) -> None:
-        """Ensure the storage file exists."""
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        if not self.file_path.exists():
-            self._write({})
-
-    def _read(self) -> dict:
-        """Read data from the JSON file."""
-        with open(self.file_path) as f:
-            return json.load(f)
-
-    def _write(self, data: dict) -> None:
-        """Write data to the JSON file."""
-        with open(self.file_path, "w") as f:
-            json.dump(data, f, indent=2)
-
     def save_message(
         self, meetup_date: str, chat_type: ChatType, tracking: MessageTracking
     ) -> None:
@@ -77,3 +61,19 @@ class TelegramMessageStore:
             if not data[meetup_date]:
                 del data[meetup_date]
             self._write(data)
+
+    def _ensure_file_exists(self) -> None:
+        """Ensure the storage file exists."""
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.file_path.exists():
+            self._write({})
+
+    def _read(self) -> dict:
+        """Read data from the JSON file."""
+        with open(self.file_path) as f:
+            return json.load(f)
+
+    def _write(self, data: dict) -> None:
+        """Write data to the JSON file."""
+        with open(self.file_path, "w") as f:
+            json.dump(data, f, indent=2)
