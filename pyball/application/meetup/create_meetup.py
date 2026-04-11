@@ -6,12 +6,6 @@ from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.meetup.repository import MeetupRepository
 
 
-class DuplicateMeetupError(ValueError):
-    """Raised when trying to create a meetup at a time that already exists."""
-
-    pass
-
-
 class CreateMeetup:
     """Use case for creating a new meetup."""
 
@@ -48,3 +42,9 @@ class CreateMeetup:
         meetup = Meetup.create(date=date, location=location or self.default_location)
         self.meetup_repository.save(meetup)
         return meetup
+
+
+class DuplicateMeetupError(ValueError):
+    """Raised when trying to create a meetup at a time that already exists."""
+
+    pass

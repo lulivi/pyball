@@ -9,12 +9,6 @@ from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 
 
-class InvalidMeetupDateError(ValueError):
-    """Raised when meetup date format is invalid."""
-
-    pass
-
-
 class CreateTeams:
     """Use case for creating balanced teams."""
 
@@ -42,3 +36,9 @@ class CreateTeams:
         meetup.create_balanced_teams(random)
         self.meetup_repository.save(meetup)
         return meetup
+
+
+class InvalidMeetupDateError(ValueError):
+    """Raised when meetup date format is invalid."""
+
+    pass
