@@ -83,8 +83,16 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
             lines.append(rf"\- {_escape_mdv2(name)}")
     else:
         lines.append("*Equipos:*")
-        for team in meetup.teams:
-            lines.append(f"\n*{team.name}:*")
+        for i, team in enumerate(meetup.teams):
+            score = None
+            if meetup.result is not None:
+                score = meetup.result.score_a if i == 0 else meetup.result.score_b
+            header = (
+                rf"*{team.name} \({score}\):*"
+                if score is not None
+                else f"\n*{team.name}:*"
+            )
+            lines.append(header)
             for player in team.players:
                 name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
                 lines.append(rf"\- {name}")
@@ -95,7 +103,11 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
 def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for substitutes chat - shows substitutes only."""
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    lines = [rf"*Convocatoria* {date_str} \- Suplentes"]
+    if meetup.result is not None:
+        score_line = rf"{meetup.result.score_a} \- {meetup.result.score_b}"
+        lines = [rf"*Convocatoria* {date_str} \- Suplentes \| {score_line}"]
+    else:
+        lines = [rf"*Convocatoria* {date_str} \- Suplentes"]
     lines.append("")
 
     suplentes = []
