@@ -15,7 +15,7 @@ from pyball.bot.formatters import build_main_keyboard, format_main_message, pars
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
-from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)

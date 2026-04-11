@@ -166,7 +166,7 @@ async def test_link_player_handler_success(mock_update, mock_context):
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"] = MagicMock()
 
-    from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+    from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
     with pytest.MonkeyPatch.context() as m:
         m.setattr("pyball.bot.handlers.player.TelegramMappingStore", MagicMock())
@@ -181,7 +181,7 @@ async def test_unlink_player_handler_success(mock_update, mock_context):
 
     mock_context.bot_data["settings"] = MagicMock()
 
-    from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+    from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
     mock_mapping_store = MagicMock()
     mock_mapping_store.get_player_id.return_value = "player1"

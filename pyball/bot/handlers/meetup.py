@@ -20,8 +20,8 @@ from pyball.bot.formatters import (
     format_subs_message,
 )
 from pyball.exceptions import MeetupError, TelegramBotError
-from pyball.infrastructure import TelegramMessageStore
-from pyball.infrastructure.telegram_store import MessageTracking
+from pyball.infrastructure.telegram import TelegramMessageStore
+from pyball.infrastructure.telegram.message_store import MessageTracking
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)

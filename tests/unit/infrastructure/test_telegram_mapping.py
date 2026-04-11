@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
 
 @pytest.fixture

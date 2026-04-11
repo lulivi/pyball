@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pyball.infrastructure.telegram_store import MessageTracking, TelegramMessageStore
+from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 
 
 def test_save_and_get_message():

@@ -20,7 +20,7 @@ from pyball.domain.player.errors import (
     PlayerNotFoundError,
 )
 from pyball.exceptions import PlayerError, TelegramBotError
-from pyball.infrastructure.telegram_mapping import TelegramMappingStore
+from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.settings import load_settings
 
 try:
