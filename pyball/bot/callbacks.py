@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from typing import Final
 
+from pyball.domain.meetup.models import Meetup
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
@@ -24,6 +25,14 @@ def _parse_meetup_date(date_str: str) -> datetime | None:
         return datetime.fromisoformat(date_str)
     except ValueError:
         return None
+
+
+def _find_meetup(meetup_repo, date: datetime) -> Meetup | None:
+    all_meetups = meetup_repo.find_all()
+    for m in all_meetups:
+        if m.date.date() == date.date():
+            return m
+    return None
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -62,12 +71,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     meetup_repo = container.meetup_repository
 
-    meetup = None
-    all_meetups = meetup_repo.find_all()
-    for m in all_meetups:
-        if m.date.date() == meetup_date.date():
-            meetup = m
-            break
+    meetup = _find_meetup(meetup_repo, meetup_date)
 
     if not meetup:
         await query.answer("Meetup not found.", show_alert=True)
