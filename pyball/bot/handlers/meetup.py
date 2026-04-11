@@ -4,6 +4,8 @@ import logging
 
 from datetime import datetime, timedelta
 
+import telegram
+
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -17,6 +19,7 @@ from pyball.bot.formatters import (
     format_main_message,
     format_subs_message,
 )
+from pyball.exceptions import MeetupError, TelegramBotError
 from pyball.infrastructure import TelegramMessageStore
 from pyball.infrastructure.telegram_store import MessageTracking
 from pyball.settings import load_settings
@@ -97,6 +100,16 @@ async def _create_meetup_and_send(
         if message is not None:
             await message.reply_text(str(error))
         return
+    except MeetupError as error:
+        logger.error("Error creating meetup (domain): %s", error)
+        if message is not None:
+            await message.reply_text("Meetup error. Please try again.")
+        return
+    except telegram.error.TelegramError as error:
+        logger.error("Error creating meetup (Telegram): %s", error)
+        if message is not None:
+            await message.reply_text("Telegram error. Please try again.")
+        return
     except Exception as error:
         logger.exception("Error creating meetup: %s", error)
         if message is not None:
@@ -137,6 +150,8 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
                 message_id=msg.message_id,
             ),
         )
+    except telegram.error.TelegramError as error:
+        logger.error("Error sending regulars message (Telegram): %s", error)
     except Exception as error:
         logger.exception("Error sending regulars message: %s", error)
 
@@ -163,6 +178,10 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
                     message_id=msg.message_id,
                 ),
             )
+        except telegram.error.TelegramError as error:
+            logger.error("Error sending substitutes message (Telegram): %s", error)
+        except TelegramBotError as error:
+            logger.error("Error sending substitutes message (bot): %s", error)
         except Exception as error:
             logger.exception("Error sending substitutes message: %s", error)
 
@@ -216,6 +235,12 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text("Player added!")
     except ValueError as error:
         await message.reply_text(str(error))
+    except MeetupError as error:
+        logger.error("Meetup error adding player: %s", error)
+        await message.reply_text("Meetup error. Please try again.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error adding player to meetup: %s", error)
+        await message.reply_text("Telegram error. Please try again.")
     except Exception as error:
         logger.exception("Error adding player to meetup: %s", error)
         await message.reply_text("An error occurred. Please try again.")
@@ -245,6 +270,12 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("Player removed from meetup!")
     except ValueError as error:
         await message.reply_text(str(error))
+    except MeetupError as error:
+        logger.error("Meetup error removing player: %s", error)
+        await message.reply_text("Meetup error. Please try again.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error removing player from meetup: %s", error)
+        await message.reply_text("Telegram error. Please try again.")
     except Exception as error:
         logger.exception("Error removing player from meetup: %s", error)
         await message.reply_text("An error occurred. Please try again.")
@@ -286,6 +317,12 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("\n".join(lines))
     except InvalidMeetupDateError as error:
         await message.reply_text(str(error))
+    except MeetupError as error:
+        logger.error("Meetup error creating teams: %s", error)
+        await message.reply_text("Meetup error. Please try again.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error creating teams: %s", error)
+        await message.reply_text("Telegram error. Please try again.")
     except Exception as error:
         logger.exception("Error creating teams: %s", error)
         await message.reply_text("An error occurred. Please try again.")
@@ -433,6 +470,9 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
         await message.reply_text("Substitutes message sent!")
+    except telegram.error.TelegramError as error:
+        logger.error("Error sending substitutes message (Telegram): %s", error)
+        await message.reply_text("Telegram error. Failed to send message.")
     except Exception as error:
         logger.exception("Error sending substitutes message: %s", error)
         await message.reply_text("Failed to send message.")

@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.meetup.repository import MeetupRepository
+from pyball.exceptions import MeetupError
 
 
 class CreateMeetup:
@@ -44,7 +45,7 @@ class CreateMeetup:
         return meetup
 
 
-class DuplicateMeetupError(ValueError):
+class DuplicateMeetupError(MeetupError):
     """Raised when trying to create a meetup at a time that already exists."""
 
     pass

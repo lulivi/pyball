@@ -9,6 +9,7 @@ from pyball.application.meetup import (
     AddPlayerToMeetup,
     CreateMeetup,
     CreateTeams,
+    DuplicateMeetupError,
     RemovePlayerFromMeetup,
 )
 from pyball.domain.meetup.errors import MeetupNotFoundError
@@ -178,7 +179,7 @@ class TestCreateMeetup:
         repo.find_all.return_value = [existing_meetup]
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
-        with pytest.raises(ValueError, match="Meetup already exists"):
+        with pytest.raises(DuplicateMeetupError, match="Meetup already exists"):
             use_case.execute(date=datetime(2024, 3, 20, 20, 0))
 
     def test_create_meetup_saves_meetup(self):

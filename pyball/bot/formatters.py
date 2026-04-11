@@ -61,11 +61,11 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
     - After results: teams + results
     """
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    lines = [f"*Convocatoria* {date_str}"]
+    lines = [f"*Convocatoria:* {date_str}"]
 
     if meetup.location:
         escaped_location = html.escape(meetup.location)
-        lines.append(f"Lugar: *{escaped_location}*")
+        lines.append(f"*Lugar:* {escaped_location}")
 
     lines.append("")
 
@@ -80,11 +80,10 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
     else:
         lines.append("*Equipos:*")
         for team in meetup.teams:
-            escaped_team_name = html.escape(team.name)
-            player_list = ", ".join(
-                player_names.get(str(player.value), "Unknown") for player in team.players
+            player_list = "\n".join(
+                player_names.get(rf"- `{player.value}`", r"\- Unknown") for player in team.players
             )
-            lines.append(f"*{escaped_team_name}*: {player_list}")
+            lines.append(rf"*{team.name}*:\n\- {player_list}")
 
     return "\n".join(lines)
 

@@ -1,7 +1,9 @@
 """Meetup domain errors."""
 
+from pyball.exceptions import MeetupError
 
-class MeetupNotFoundError(Exception):
+
+class MeetupNotFoundError(MeetupError):
     """Raised when a meetup is not found."""
 
     def __init__(self, meetup_id: str):
@@ -9,7 +11,7 @@ class MeetupNotFoundError(Exception):
         super().__init__(f"Meetup with id '{meetup_id}' not found")
 
 
-class PlayerNotInMeetupError(Exception):
+class PlayerNotInMeetupError(MeetupError):
     """Raised when a player is not in the meetup."""
 
     def __init__(self, player_id: str):
@@ -17,7 +19,7 @@ class PlayerNotInMeetupError(Exception):
         super().__init__(f"Player '{player_id}' is not in this meetup")
 
 
-class InvalidMeetupIdError(Exception):
+class InvalidMeetupIdError(MeetupError):
     """Raised when a meetup ID is not a valid UUID."""
 
     def __init__(self, meetup_id: str):

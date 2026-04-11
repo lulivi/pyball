@@ -5,6 +5,8 @@ import html
 import locale
 import logging
 
+import telegram
+
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -17,6 +19,7 @@ from pyball.domain.player.errors import (
     PlayerAlreadyExistsError,
     PlayerNotFoundError,
 )
+from pyball.exceptions import PlayerError, TelegramBotError
 from pyball.infrastructure.telegram_mapping import TelegramMappingStore
 from pyball.settings import load_settings
 
@@ -71,6 +74,12 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     except PlayerAlreadyExistsError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
+    except PlayerError as error:
+        logger.error("Player error creating player: %s", error)
+        await message.reply_text("Player error. Please try again.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error creating player: %s", error)
+        await message.reply_text("Telegram error. Please try again.")
     except Exception as error:
         logger.exception("Error creating player: %s", error)
         await message.reply_text("An error occurred. Please contact an admin.")
@@ -105,6 +114,12 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("Player not found.")
     except NameAlreadyTakenError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
+    except PlayerError as error:
+        logger.error("Player error renaming player: %s", error)
+        await message.reply_text("Player error. Please try again.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error renaming player: %s", error)
+        await message.reply_text("Telegram error. Please try again.")
     except Exception as error:
         logger.exception("Error renaming player: %s", error)
         await message.reply_text("An error occurred. Please contact an admin.")
@@ -134,6 +149,12 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("Invalid player ID format.")
     except PlayerNotFoundError:
         await message.reply_text("Player not found.")
+    except PlayerError as error:
+        logger.error("Player error deleting player: %s", error)
+        await message.reply_text("Player error. Please try again.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error deleting player: %s", error)
+        await message.reply_text("Telegram error. Please try again.")
     except Exception as error:
         logger.exception("Error deleting player: %s", error)
         await message.reply_text("An error occurred. Please contact an admin.")
@@ -220,6 +241,12 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text(
             rf"Player `{player.name}` changed to `{new_group}`\!", parse_mode="MarkdownV2"
         )
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error changing player group: %s", error)
+        await message.reply_text("Telegram error. Failed to change group.")
+    except PlayerError as error:
+        logger.error("Player error changing group: %s", error)
+        await message.reply_text("Player error. Failed to change group.")
     except Exception as error:
         logger.exception("Error changing player group: %s", error)
         await message.reply_text("Error changing player group.")

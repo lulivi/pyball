@@ -3,7 +3,9 @@
 import logging
 
 from datetime import datetime
-from typing import Final
+
+import telegram
+import telegram.error
 
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
@@ -97,8 +99,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if modified:
         try:
-            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="HTML")
-        except Exception as error:
+            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="MarkdownV2")
+        except (telegram.error.TelegramError, Exception) as error:
             logger.error("Failed to edit message: %s", error)
             await query.answer("Error updating message.", show_alert=True)
     else:
@@ -149,7 +151,7 @@ def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
         try:
             meetup.remove_player(player_id)
             return True
-        except Exception as error:
+        except ValueError as error:
             logger.warning("Player not in meetup: %s", error)
             return False
     return False

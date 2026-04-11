@@ -7,6 +7,7 @@ from datetime import datetime
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
+from pyball.exceptions import MeetupError
 
 
 class CreateTeams:
@@ -38,7 +39,7 @@ class CreateTeams:
         return meetup
 
 
-class InvalidMeetupDateError(ValueError):
+class InvalidMeetupDateError(ValueError, MeetupError):
     """Raised when meetup date format is invalid."""
 
     pass
