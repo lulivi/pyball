@@ -36,18 +36,84 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("search", search_handler))
 
 
-def _get_player_names(player_ids, player_repo) -> dict:
-    """Build a player name lookup dict, fetching all players at once."""
-    all_players = player_repo.find_all()
-    return {p.id: p.name for p in all_players}
+@authorized
+async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /new_meetup command - creates meetup and sends callup messages."""
+    message = update.message
+    if message is None:
+        return
+
+    args = context.args
+    if not args:
+        await message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
+        return
+
+    try:
+        date_str = " ".join(args)
+        date = datetime.fromisoformat(date_str)
+    except ValueError:
+        await message.reply_text("Invalid date format. Use: /new_meetup YYYY-MM-DD HH:MM")
+        return
+
+    await _create_meetup_and_send(date, update, context)
+
+
+@authorized
+async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
+    message = update.message
+    if message is None:
+        return
+
+    settings = load_settings()
+    next_date = _get_next_weekday(settings.pyball.default_week_day)
+    day_name = next_date.strftime("%A")
+    await message.reply_text(
+        f"Creating meetup for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})..."
+    )
+    await _create_meetup_and_send(next_date, update, context)
+
+
+async def _create_meetup_and_send(
+    date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
+    container: Container | None = context.bot_data.get("container")
+    if container is None:
+        container = Container()
+
+    message = update.message
+    settings = load_settings()
+
+    try:
+        meetup = container.create_meetup().execute(date, settings.pyball.location)
+    except DuplicateMeetupError:
+        if message is not None:
+            await message.reply_text(
+                f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}."
+            )
+        return
+    except InvalidMeetupDateError as error:
+        if message is not None:
+            await message.reply_text(str(error))
+        return
+    except Exception as error:
+        logger.exception("Error creating meetup: %s", error)
+        if message is not None:
+            await message.reply_text("An error occurred. Please try again.")
+        return
+
+    await _send_callup_messages(context, settings, container, meetup)
+    if message is not None:
+        await message.reply_text("Meetup created and callup sent!")
 
 
 async def _send_callup_messages(context, settings, container, meetup) -> None:
     """Send callup messages to regulars and substitutes chats."""
     player_repo = container.player_repository
     all_players = player_repo.find_all()
-    player_names = {str(p.id.value): p.name for p in all_players}
-    player_groups = {str(p.id.value): p.group for p in all_players}
+    player_names = {str(player.id.value): player.name for player in all_players}
+    player_groups = {str(player.id.value): player.group for player in all_players}
 
     text = format_main_message(meetup, player_names, player_groups)
     keyboard = build_main_keyboard(meetup.date)
@@ -58,7 +124,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             text=text,
             reply_markup=keyboard,
             message_thread_id=settings.telegram.regulars.thread_id or None,
-            parse_mode="HTML",
+            parse_mode="MarkdownV2",
         )
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -124,78 +190,6 @@ def _get_next_weekday(default_week_day: str) -> datetime:
     next_date = today + timedelta(days=days_until_target)
     hour, minute = map(int, settings.pyball.default_hour.split(":"))
     return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-
-
-async def _create_meetup_and_send(
-    date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
-    container: Container | None = context.bot_data.get("container")
-    if container is None:
-        container = Container()
-
-    message = update.message
-    settings = load_settings()
-
-    try:
-        meetup = container.create_meetup().execute(date, settings.pyball.location)
-    except DuplicateMeetupError:
-        if message is not None:
-            await message.reply_text(
-                f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}."
-            )
-        return
-    except InvalidMeetupDateError as error:
-        if message is not None:
-            await message.reply_text(str(error))
-        return
-    except Exception as error:
-        logger.exception("Error creating meetup: %s", error)
-        if message is not None:
-            await message.reply_text("An error occurred. Please try again.")
-        return
-
-    await _send_callup_messages(context, settings, container, meetup)
-    if message is not None:
-        await message.reply_text("Meetup created and callup sent!")
-
-
-@authorized
-async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /new_meetup command - creates meetup and sends callup messages."""
-    message = update.message
-    if message is None:
-        return
-
-    args = context.args
-    if not args:
-        await message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
-        return
-
-    try:
-        date_str = " ".join(args)
-        date = datetime.fromisoformat(date_str)
-    except ValueError:
-        await message.reply_text("Invalid date format. Use: /new_meetup YYYY-MM-DD HH:MM")
-        return
-
-    await _create_meetup_and_send(date, update, context)
-
-
-@authorized
-async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
-    message = update.message
-    if message is None:
-        return
-
-    settings = load_settings()
-    next_date = _get_next_weekday(settings.pyball.default_week_day)
-    day_name = next_date.strftime("%A")
-    await message.reply_text(
-        f"Creating meetup for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})..."
-    )
-    await _create_meetup_and_send(next_date, update, context)
 
 
 @authorized
@@ -424,7 +418,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=text,
             reply_markup=keyboard,
             message_thread_id=int(thread_id) if thread_id else None,
-            parse_mode="HTML",
+            parse_mode="MarkdownV2",
         )
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -442,3 +436,9 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as error:
         logger.exception("Error sending substitutes message: %s", error)
         await message.reply_text("Failed to send message.")
+
+
+def _get_player_names(player_ids, player_repo) -> dict:
+    """Build a player name lookup dict, fetching all players at once."""
+    all_players = player_repo.find_all()
+    return {p.id: p.name for p in all_players}
