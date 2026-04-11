@@ -6,7 +6,9 @@ from pyball.application.meetup import (
     AddPlayerToMeetup,
     CreateMeetup,
     CreateTeams,
+    FinishMatch,
     RemovePlayerFromMeetup,
+    StartMatch,
 )
 from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
 from pyball.application.player.change_group import ChangePlayerGroup
@@ -61,6 +63,18 @@ class Container:
     def create_teams(self) -> CreateTeams:
         """Create a new CreateTeams use case."""
         return CreateTeams(self.meetup_repository)
+
+    def start_match(self) -> StartMatch:
+        """Create a new StartMatch use case."""
+        return StartMatch(
+            self.meetup_repository,
+            self.player_repository,
+            self._settings.pyball.base_url,
+        )
+
+    def finish_match(self) -> FinishMatch:
+        """Create a new FinishMatch use case."""
+        return FinishMatch(self.meetup_repository, self.player_repository)
 
     @property
     def player_repository(self) -> PlayerRepository:
