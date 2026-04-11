@@ -12,7 +12,7 @@ from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
 from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
-from pyball.infrastructure import JsonMeetupRepository, JsonPlayerRepository
+from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository
 from pyball.settings import load_settings
 
 
