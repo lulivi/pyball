@@ -2,8 +2,9 @@
 
 import shutil
 import tempfile
-from pathlib import Path
+
 from datetime import datetime
+from pathlib import Path
 
 from pyball.domain.meetup.models import Meetup, MeetupId, Team
 from pyball.domain.player.models import Player, PlayerId

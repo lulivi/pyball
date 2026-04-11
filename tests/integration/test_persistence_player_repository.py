@@ -1,14 +1,13 @@
 """Integration tests for JsonPlayerRepository (persistence)."""
 
+import json
 import shutil
 import tempfile
-from pathlib import Path
+
 from datetime import datetime
+from pathlib import Path
 
-import json
-
-from pyball.domain.player.models import Player
-from pyball.domain.player.models import PlayerId
+from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.persistence.player_repository import JsonPlayerRepository
 
 
