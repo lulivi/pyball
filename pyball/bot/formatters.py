@@ -17,6 +17,41 @@ except locale.Error:
     pass
 
 
+def build_main_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
+    """Build inline keyboard for main chat."""
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Unirse", callback_data=build_callback_data("join", meetup_date)
+            ),
+            InlineKeyboardButton(
+                "❌ Salir", callback_data=build_callback_data("leave", meetup_date)
+            ),
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_subs_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
+    """Build inline keyboard for substitutes chat."""
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Unirse", callback_data=build_callback_data("join_sub", meetup_date)
+            ),
+            InlineKeyboardButton(
+                "❌ Salir", callback_data=build_callback_data("leave_sub", meetup_date)
+            ),
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_callback_data(action: str, meetup_date: datetime) -> str:
+    """Build callback data string for inline buttons."""
+    return f"{action}:{meetup_date.strftime('%Y-%m-%dT%H:%M')}"
+
+
 def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for main (regulars) chat.
 
@@ -78,41 +113,6 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
         lines.append("*No hay suplentes*")
 
     return "\n".join(lines)
-
-
-def build_callback_data(action: str, meetup_date: datetime) -> str:
-    """Build callback data string for inline buttons."""
-    return f"{action}:{meetup_date.strftime('%Y-%m-%dT%H:%M')}"
-
-
-def build_main_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
-    """Build inline keyboard for main chat."""
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "✅ Unirse", callback_data=build_callback_data("join", meetup_date)
-            ),
-            InlineKeyboardButton(
-                "❌ Salir", callback_data=build_callback_data("leave", meetup_date)
-            ),
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def build_subs_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
-    """Build inline keyboard for substitutes chat."""
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "✅ Unirse", callback_data=build_callback_data("join_sub", meetup_date)
-            ),
-            InlineKeyboardButton(
-                "❌ Salir", callback_data=build_callback_data("leave_sub", meetup_date)
-            ),
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
 
 
 def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
