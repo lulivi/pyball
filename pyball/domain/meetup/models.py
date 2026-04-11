@@ -13,6 +13,25 @@ from pyball.domain.meetup.errors import InvalidMeetupIdError, PlayerNotInMeetupE
 from pyball.domain.player.models import PlayerId
 
 
+@dataclass(frozen=True)
+class GoalEvent(ValueObject):
+    """Value object representing a single goal event."""
+
+    scorer_id: PlayerId
+    assistant_id: PlayerId | None
+    team: str
+    timestamp: datetime
+
+
+@dataclass(frozen=True)
+class MatchResult(ValueObject):
+    """Value object representing the final result of a match."""
+
+    score_a: int
+    score_b: int
+    events: tuple[GoalEvent, ...]
+
+
 @dataclass
 class Meetup(Entity["MeetupId"]):
     """Meetup entity - represents a football session."""
@@ -22,6 +41,7 @@ class Meetup(Entity["MeetupId"]):
     location: str
     players: list[PlayerId] = field(default_factory=list)
     teams: list[Team] | None = None
+    result: MatchResult | None = None
 
     @classmethod
     def create(cls, date: datetime, location: str) -> "Meetup":
@@ -54,6 +74,16 @@ class Meetup(Entity["MeetupId"]):
             Team.create("A", players_copy[:mid]),
             Team.create("B", players_copy[mid:]),
         ]
+
+    def set_result(self, result: MatchResult) -> None:
+        """Attach the match result. Requires teams to exist."""
+        if self.teams is None:
+            raise ValueError("Cannot set result without teams")
+        self.result = result
+
+    def is_closed(self) -> bool:
+        """True if the match result has been recorded."""
+        return self.result is not None
 
 
 @dataclass(frozen=True)

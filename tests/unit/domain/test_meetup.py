@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup
 from pyball.domain.player.models import PlayerId
 
 
@@ -36,3 +36,77 @@ class TestMeetup:
         """Creating a meetup with an empty location raises ValueError."""
         with pytest.raises(ValueError):
             Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="")
+
+
+class TestGoalEvent:
+    """Tests for GoalEvent value object."""
+
+    def test_goal_event_with_assistant(self):
+        """A goal event stores scorer, optional assistant, team and timestamp."""
+        scorer = PlayerId.generate()
+        assistant = PlayerId.generate()
+        ts = datetime(2026, 4, 12, 20, 15)
+        event = GoalEvent(scorer_id=scorer, assistant_id=assistant, team="A", timestamp=ts)
+        assert event.scorer_id == scorer
+        assert event.assistant_id == assistant
+        assert event.team == "A"
+        assert event.timestamp == ts
+
+    def test_goal_event_without_assistant(self):
+        """A goal event may have no assistant."""
+        scorer = PlayerId.generate()
+        event = GoalEvent(
+            scorer_id=scorer, assistant_id=None, team="B", timestamp=datetime(2026, 4, 12, 20, 5)
+        )
+        assert event.assistant_id is None
+
+
+class TestMatchResult:
+    """Tests for MatchResult value object."""
+
+    def test_match_result_stores_score_and_events(self):
+        """MatchResult holds the final score and goal events."""
+        scorer = PlayerId.generate()
+        event = GoalEvent(
+            scorer_id=scorer,
+            assistant_id=None,
+            team="A",
+            timestamp=datetime(2026, 4, 12, 20, 5),
+        )
+        result = MatchResult(score_a=1, score_b=0, events=(event,))
+        assert result.score_a == 1
+        assert result.score_b == 0
+        assert len(result.events) == 1
+
+
+class TestMeetupResult:
+    """Tests for Meetup.set_result and is_closed."""
+
+    def _meetup_with_teams(self):
+        from pyball.domain.meetup.models import Team
+
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1 = PlayerId.generate()
+        p2 = PlayerId.generate()
+        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        return meetup
+
+    def test_is_closed_false_by_default(self):
+        """A new meetup is not closed."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        assert not meetup.is_closed()
+
+    def test_set_result_closes_meetup(self):
+        """Setting a result marks the meetup as closed."""
+        meetup = self._meetup_with_teams()
+        result = MatchResult(score_a=3, score_b=2, events=())
+        meetup.set_result(result)
+        assert meetup.is_closed()
+        assert meetup.result == result
+
+    def test_set_result_requires_teams(self):
+        """set_result raises ValueError if teams have not been created."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        result = MatchResult(score_a=1, score_b=0, events=())
+        with pytest.raises(ValueError, match="Cannot set result without teams"):
+            meetup.set_result(result)
