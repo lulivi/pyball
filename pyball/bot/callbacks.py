@@ -5,19 +5,18 @@ import logging
 from datetime import datetime
 from typing import Final
 
-from pyball.domain.meetup.models import Meetup
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from pyball.application.container import Container
 from pyball.bot.formatters import build_main_keyboard, format_main_message, parse_callback_data
+from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram_mapping import TelegramMappingStore
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
-
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:
@@ -39,11 +38,20 @@ def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str
     return mapping_store.get_player_id(telegram_id)
 
 
-def _validate_player_id(player_id_str: str) -> PlayerId | None:
-    try:
-        return PlayerId.from_string(player_id_str)
-    except InvalidPlayerIdError:
-        return None
+def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
+    if action == "join":
+        if player_id not in meetup.players:
+            meetup.add_player(player_id)
+            return True
+        return False
+    elif action == "leave":
+        try:
+            meetup.remove_player(player_id)
+            return True
+        except Exception as error:
+            logger.warning("Player not in meetup: %s", error)
+            return False
+    return False
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -110,21 +118,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Invalid player mapping. Contact admin.", show_alert=True)
         return
 
-    if action == "join":
-        if player_id not in meetup.players:
-            meetup.add_player(player_id)
-            modified = True
-        else:
-            modified = False
-    elif action == "leave":
-        try:
-            meetup.remove_player(player_id)
-            modified = True
-        except Exception as error:
-            logger.warning("Player not in meetup: %s", error)
-            modified = False
-    else:
-        modified = False
+    modified = _process_action(action, meetup, player_id)
 
     if modified:
         meetup_repo.save(meetup)
