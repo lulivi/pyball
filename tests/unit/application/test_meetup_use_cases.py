@@ -221,3 +221,53 @@ class TestCreateMeetup:
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
 
         repo.save.assert_called_once_with(meetup)
+
+
+class TestStartMatch:
+    """Tests for StartMatch use case."""
+
+    def setup_method(self):
+        # pylint: disable=attribute-defined-outside-init
+        from pyball.application.meetup.start_match import StartMatch
+
+        self.meetup_repo = FakeMeetupRepository()
+        self.player_repo = FakePlayerRepository()
+        self.use_case = StartMatch(self.meetup_repo, self.player_repo, "http://pyball:8000")
+
+    def _add_players_and_teams(self, meetup):
+        from pyball.domain.meetup.models import Team
+
+        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
+        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
+        self.player_repo.players.append(p1)
+        self.player_repo.players.append(p2)
+        meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
+        self.meetup_repo.save(meetup)
+        return p1, p2
+
+    def test_returns_url_with_teams_and_date(self):
+        """StartMatch returns a URL containing date and team names."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1, p2 = self._add_players_and_teams(meetup)
+
+        url = self.use_case.execute("2026-04-12 20:00")
+
+        assert "2026-04-12T20%3A00" in url or "2026-04-12T20:00" in url
+        assert "Dani" in url
+        assert "Rafa" in url
+        assert url.startswith("http://pyball:8000")
+
+    def test_raises_if_meetup_not_found(self):
+        """StartMatch raises MeetupNotFoundError if no meetup exists on that date."""
+        with pytest.raises(MeetupNotFoundError):
+            self.use_case.execute("2026-04-12 20:00")
+
+    def test_raises_if_no_teams(self):
+        """StartMatch raises MeetupHasNoTeamsError if teams have not been created."""
+        from pyball.application.meetup.start_match import MeetupHasNoTeamsError
+
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        self.meetup_repo.save(meetup)
+
+        with pytest.raises(MeetupHasNoTeamsError):
+            self.use_case.execute("2026-04-12 20:00")
