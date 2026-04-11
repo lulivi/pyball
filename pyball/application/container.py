@@ -30,20 +30,6 @@ class Container:
         else:
             self._data_dir = self._settings.paths.data_dir
 
-    @property
-    def player_repository(self) -> PlayerRepository:
-        """Get the player repository, creating it if necessary."""
-        if self._player_repository is None:
-            self._player_repository = JsonPlayerRepository(self._settings.paths.players_file)
-        return self._player_repository
-
-    @property
-    def meetup_repository(self) -> MeetupRepository:
-        """Get the meetup repository, creating it if necessary."""
-        if self._meetup_repository is None:
-            self._meetup_repository = JsonMeetupRepository(self._settings.paths.meetups_dir)
-        return self._meetup_repository
-
     def create_player(self) -> CreatePlayer:
         """Create a new CreatePlayer use case."""
         return CreatePlayer(self.player_repository)
@@ -75,3 +61,17 @@ class Container:
     def create_teams(self) -> CreateTeams:
         """Create a new CreateTeams use case."""
         return CreateTeams(self.meetup_repository)
+
+    @property
+    def player_repository(self) -> PlayerRepository:
+        """Get the player repository, creating it if necessary."""
+        if self._player_repository is None:
+            self._player_repository = JsonPlayerRepository(self._settings.paths.players_file)
+        return self._player_repository
+
+    @property
+    def meetup_repository(self) -> MeetupRepository:
+        """Get the meetup repository, creating it if necessary."""
+        if self._meetup_repository is None:
+            self._meetup_repository = JsonMeetupRepository(self._settings.paths.meetups_dir)
+        return self._meetup_repository
