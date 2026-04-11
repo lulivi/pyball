@@ -37,6 +37,87 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("list_meetups", list_meetups_handler))
     application.add_handler(CommandHandler("show_meetup", show_meetup_handler))
     application.add_handler(CommandHandler("search", search_handler))
+    application.add_handler(CommandHandler("start_match", start_match_handler))
+
+
+async def close_match_messages(
+    bot,
+    settings,
+    message_store,
+    meetup,
+    player_names: dict,
+    player_groups: dict,
+) -> None:
+    """Edit callup messages to show final score and remove join/leave buttons.
+
+    Args:
+        bot: Telegram Bot instance.
+        settings: Application settings with chat IDs and message store path.
+        message_store: TelegramMessageStore to look up tracked message IDs.
+        meetup: Meetup with result already set.
+        player_names: Dict of str(UUID) -> player name.
+        player_groups: Dict of str(UUID) -> player group.
+    """
+    date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
+
+    regular_tracking = message_store.get_message(date_key, "regular")
+    if regular_tracking:
+        text = format_main_message(meetup, player_names)
+        try:
+            await bot.edit_message_text(
+                chat_id=regular_tracking.chat_id,
+                message_id=regular_tracking.message_id,
+                text=text,
+                reply_markup=None,
+                parse_mode="MarkdownV2",
+            )
+        except telegram.error.BadRequest as error:
+            logger.warning("Could not edit regulars message: %s", error)
+
+    sub_tracking = message_store.get_message(date_key, "substitute")
+    if sub_tracking:
+        text = format_subs_message(meetup, player_names, player_groups)
+        try:
+            await bot.edit_message_text(
+                chat_id=sub_tracking.chat_id,
+                message_id=sub_tracking.message_id,
+                text=text,
+                reply_markup=None,
+                parse_mode="MarkdownV2",
+            )
+        except telegram.error.BadRequest as error:
+            logger.warning("Could not edit substitutes message: %s", error)
+
+
+@authorized
+async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /start_match command — generate match URL and reply to admins only."""
+    message = update.message
+    if message is None:
+        return
+
+    args = context.args
+    if not args or len(args) < 2:
+        await message.reply_text("Usage: /start_match YYYY-MM-DD HH:MM")
+        return
+
+    date_str = " ".join(args)
+    container: Container = context.bot_data["container"]
+
+    try:
+        url = container.start_match().execute(date_str)
+        await message.reply_text(
+            f"🔗 Enlace del partido:\n{url}",
+            disable_web_page_preview=True,
+        )
+    except ValueError as error:
+        await message.reply_text(str(error))
+    except MeetupError as error:
+        logger.error("Meetup error starting match: %s", error)
+        await message.reply_text(str(error))
+    except Exception as error:
+        logger.exception("Error starting match: %s", error)
+        await message.reply_text("An error occurred. Please try again.")
 
 
 @authorized
