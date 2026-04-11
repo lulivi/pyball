@@ -1,5 +1,7 @@
 """Player models."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
@@ -7,28 +9,8 @@ from pyball.domain.base import Entity, ValueObject
 from pyball.domain.player.errors import InvalidPlayerIdError
 
 
-@dataclass(frozen=True)
-class PlayerId(ValueObject):
-    """Value object for player identity."""
-
-    value: UUID
-
-    @classmethod
-    def from_string(cls, value: str) -> "PlayerId":
-        """Create a PlayerId from a string UUID."""
-        try:
-            return cls(UUID(value))
-        except ValueError as e:
-            raise InvalidPlayerIdError(value) from e
-
-    @classmethod
-    def generate(cls) -> "PlayerId":
-        """Generate a new random PlayerId."""
-        return cls(uuid4())
-
-
 @dataclass
-class Player(Entity[PlayerId]):
+class Player(Entity["PlayerId"]):
     """Player entity."""
 
     id: PlayerId
@@ -61,3 +43,23 @@ class Player(Entity[PlayerId]):
         if new_group not in ("regular", "substitute"):
             raise ValueError("Player group must be 'regular' or 'substitute'")
         object.__setattr__(self, "group", new_group)
+
+
+@dataclass(frozen=True)
+class PlayerId(ValueObject):
+    """Value object for player identity."""
+
+    value: UUID
+
+    @classmethod
+    def from_string(cls, value: str) -> "PlayerId":
+        """Create a PlayerId from a string UUID."""
+        try:
+            return cls(UUID(value))
+        except ValueError as e:
+            raise InvalidPlayerIdError(value) from e
+
+    @classmethod
+    def generate(cls) -> "PlayerId":
+        """Generate a new random PlayerId."""
+        return cls(uuid4())
