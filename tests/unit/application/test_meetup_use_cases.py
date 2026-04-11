@@ -271,3 +271,99 @@ class TestStartMatch:
 
         with pytest.raises(MeetupHasNoTeamsError):
             self.use_case.execute("2026-04-12 20:00")
+
+
+class TestFinishMatch:
+    """Tests for FinishMatch use case."""
+
+    def setup_method(self):
+        # pylint: disable=attribute-defined-outside-init
+        from pyball.application.meetup.finish_match import FinishMatch
+
+        self.meetup_repo = FakeMeetupRepository()
+        self.player_repo = FakePlayerRepository()
+        self.use_case = FinishMatch(self.meetup_repo, self.player_repo)
+
+    def _meetup_with_teams(self):
+        from pyball.domain.meetup.models import Team
+
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
+        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
+        self.player_repo.players.extend([p1, p2])
+        meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
+        self.meetup_repo.save(meetup)
+        return meetup, p1, p2
+
+    def test_saves_result_with_resolved_player_ids(self):
+        """FinishMatch resolves player names and persists MatchResult."""
+        meetup, p1, p2 = self._meetup_with_teams()
+
+        events = [
+            {
+                "scorer": "Dani",
+                "assistant": "Rafa",
+                "team": "A",
+                "timestamp": "2026-04-12T20:15:00",
+            }
+        ]
+        self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
+
+        saved = self.meetup_repo.find_by_date(datetime(2026, 4, 12).date())
+        assert saved is not None
+        assert saved.is_closed()
+        assert saved.result.score_a == 1
+        assert saved.result.score_b == 0
+        assert len(saved.result.events) == 1
+        assert saved.result.events[0].scorer_id == p1.id
+        assert saved.result.events[0].assistant_id == p2.id
+
+    def test_goal_without_assistant(self):
+        """An event with assistant=None stores assistant_id=None."""
+        meetup, p1, _ = self._meetup_with_teams()
+
+        events = [
+            {
+                "scorer": "Dani",
+                "assistant": None,
+                "team": "A",
+                "timestamp": "2026-04-12T20:05:00",
+            }
+        ]
+        self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
+
+        saved = self.meetup_repo.find_by_date(datetime(2026, 4, 12).date())
+        assert saved.result.events[0].assistant_id is None
+
+    def test_raises_if_meetup_not_found(self):
+        """FinishMatch raises MeetupNotFoundError for unknown dates."""
+        with pytest.raises(MeetupNotFoundError):
+            self.use_case.execute("2026-04-12 20:00", [], {"A": 0, "B": 0})
+
+    def test_raises_if_already_closed(self):
+        """FinishMatch raises MeetupAlreadyClosedError if result already set."""
+        from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
+        from pyball.domain.meetup.models import MatchResult
+
+        meetup, _, _ = self._meetup_with_teams()
+        result = MatchResult(score_a=1, score_b=0, events=())
+        meetup.set_result(result)
+        self.meetup_repo.save(meetup)
+
+        with pytest.raises(MeetupAlreadyClosedError):
+            self.use_case.execute("2026-04-12 20:00", [], {"A": 1, "B": 0})
+
+    def test_raises_if_player_not_found(self):
+        """FinishMatch raises ValueError if a player name cannot be resolved."""
+        self._meetup_with_teams()
+
+        events = [
+            {
+                "scorer": "Unknown",
+                "assistant": None,
+                "team": "A",
+                "timestamp": "2026-04-12T20:00:00",
+            }
+        ]
+        with pytest.raises(ValueError, match="Player not found"):
+            self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
