@@ -93,6 +93,7 @@ class PyballSettings:
     location: str = ""
     default_week_day: str = "wednesday"
     default_hour: str = "20:00"
+    base_url: str = "http://localhost:8000"
 
 
 @dataclass
@@ -175,6 +176,9 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         ),
         default_hour=_get_env_override(
             "pyball", "default_hour", pyball_cfg.get("default_hour", "20:00")
+        ),
+        base_url=_get_env_override(
+            "pyball", "base_url", pyball_cfg.get("base_url", "http://localhost:8000")
         ),
     )
 

@@ -15,6 +15,10 @@ default_week_day = "wednesday"
 # Override with PYBALL_PYBALL_DEFAULT_HOUR
 default_hour = "20:00"
 
+# Optional: Base URL used to generate match links (use Tailscale hostname)
+# Override with PYBALL_PYBALL_BASE_URL
+base_url = "http://pyball:8000"
+
 [telegram]
 # Required: Telegram bot token
 # Override with PYBALL_TELEGRAM_BOT_TOKEN
