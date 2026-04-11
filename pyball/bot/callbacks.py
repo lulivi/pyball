@@ -38,13 +38,20 @@ def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str
     return mapping_store.get_player_id(telegram_id)
 
 
+def _validate_player_id(player_id_str: str) -> PlayerId | None:
+    try:
+        return PlayerId.from_string(player_id_str)
+    except InvalidPlayerIdError:
+        return None
+
+
 def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
     if action == "join":
         if player_id not in meetup.players:
             meetup.add_player(player_id)
             return True
         return False
-    elif action == "leave":
+    if action == "leave":
         try:
             meetup.remove_player(player_id)
             return True
