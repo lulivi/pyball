@@ -1,5 +1,7 @@
 """Meetup models."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -9,41 +11,8 @@ from pyball.domain.meetup.errors import InvalidMeetupIdError, PlayerNotInMeetupE
 from pyball.domain.player.models import PlayerId
 
 
-@dataclass(frozen=True)
-class MeetupId(ValueObject):
-    """Value object for meetup identity."""
-
-    value: UUID
-
-    @classmethod
-    def from_string(cls, value: str) -> "MeetupId":
-        """Create a MeetupId from a string UUID."""
-        try:
-            return cls(UUID(value))
-        except ValueError as e:
-            raise InvalidMeetupIdError(value) from e
-
-    @classmethod
-    def generate(cls) -> "MeetupId":
-        """Generate a new random MeetupId."""
-        return cls(uuid4())
-
-
-@dataclass(frozen=True)
-class Team(ValueObject):
-    """Value object representing a team."""
-
-    name: str
-    players: tuple[PlayerId, ...]
-
-    @classmethod
-    def create(cls, name: str, players: list[PlayerId]) -> "Team":
-        """Create a team with the given name and player list."""
-        return cls(name=name, players=tuple(players))
-
-
 @dataclass
-class Meetup(Entity[MeetupId]):
+class Meetup(Entity["MeetupId"]):
     """Meetup entity - represents a football session."""
 
     id: MeetupId
@@ -83,3 +52,36 @@ class Meetup(Entity[MeetupId]):
             Team.create("A", players_copy[:mid]),
             Team.create("B", players_copy[mid:]),
         ]
+
+
+@dataclass(frozen=True)
+class Team(ValueObject):
+    """Value object representing a team."""
+
+    name: str
+    players: tuple[PlayerId, ...]
+
+    @classmethod
+    def create(cls, name: str, players: list[PlayerId]) -> "Team":
+        """Create a team with the given name and player list."""
+        return cls(name=name, players=tuple(players))
+
+
+@dataclass(frozen=True)
+class MeetupId(ValueObject):
+    """Value object for meetup identity."""
+
+    value: UUID
+
+    @classmethod
+    def from_string(cls, value: str) -> "MeetupId":
+        """Create a MeetupId from a string UUID."""
+        try:
+            return cls(UUID(value))
+        except ValueError as e:
+            raise InvalidMeetupIdError(value) from e
+
+    @classmethod
+    def generate(cls) -> "MeetupId":
+        """Generate a new random MeetupId."""
+        return cls(uuid4())
