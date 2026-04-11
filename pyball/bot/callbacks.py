@@ -19,7 +19,6 @@ from pyball.settings import load_settings
 logger = logging.getLogger(__name__)
 
 
-
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
     query = update.callback_query

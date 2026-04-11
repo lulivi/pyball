@@ -26,12 +26,11 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
     - After results: teams + results
     """
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    escaped_date = html.escape(date_str)
-    lines = [f"<b>Convocatoria</b> {escaped_date}"]
+    lines = [f"*Convocatoria* {date_str}"]
 
     if meetup.location:
         escaped_location = html.escape(meetup.location)
-        lines.append(f"Lugar: <b>{escaped_location}</b>")
+        lines.append(f"Lugar: *{escaped_location}*")
 
     lines.append("")
 
@@ -39,18 +38,18 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
         player_names_list = [player_names.get(str(p.value), "") for p in meetup.players]
         sorted_names = sorted(player_names_list, key=functools.cmp_to_key(locale.strcoll))
         max_players = 10
-        lines.append(f"<b>Jugadores ({len(meetup.players)}/{max_players}):</b>")
+        lines.append(rf"*Jugadores \({len(meetup.players)}/{max_players}\):*")
         for name in sorted_names:
             escaped_name = html.escape(name)
-            lines.append(f"- {escaped_name}")
+            lines.append(rf"\- {escaped_name}")
     else:
-        lines.append("<b>Equipos:</b>")
+        lines.append("*Equipos:*")
         for team in meetup.teams:
             escaped_team_name = html.escape(team.name)
             player_list = ", ".join(
-                html.escape(player_names.get(str(p.value), "Unknown")) for p in team.players
+                player_names.get(str(player.value), "Unknown") for player in team.players
             )
-            lines.append(f"<b>{escaped_team_name}</b>: {player_list}")
+            lines.append(f"*{escaped_team_name}*: {player_list}")
 
     return "\n".join(lines)
 
@@ -58,8 +57,7 @@ def format_main_message(meetup: Meetup, player_names: dict, player_groups: dict)
 def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for substitutes chat - shows substitutes only."""
     date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    escaped_date = html.escape(date_str)
-    lines = [f"<b>Convocatoria</b> {escaped_date} - Suplentes"]
+    lines = [rf"*Convocatoria* {date_str} \- Suplentes"]
     lines.append("")
 
     suplentes = []
@@ -72,12 +70,12 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
     sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
 
     if sorted_suplentes:
-        lines.append(f"<b>Suplentes ({len(sorted_suplentes)}):</b>")
+        lines.append(rf"*Suplentes \({len(sorted_suplentes)}\):*")
         for name in sorted_suplentes:
             escaped_name = html.escape(name)
-            lines.append(f"- {escaped_name}")
+            lines.append(rf"\- {escaped_name}")
     else:
-        lines.append("<b>No hay suplentes</b>")
+        lines.append("*No hay suplentes*")
 
     return "\n".join(lines)
 

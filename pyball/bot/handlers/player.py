@@ -284,7 +284,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     mapping_store.set_player_id(telegram_id, player_id_str)
 
     await message.reply_text(
-        f"Telegram ID `{telegram_id}` linked to player `{match.name}`\!", parse_mode="MarkdownV2"
+        rf"Telegram ID `{telegram_id}` linked to player `{match.name}`\!", parse_mode="MarkdownV2"
     )
 
 
@@ -314,12 +314,10 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     player_id = mapping_store.get_player_id(telegram_id)
     if not player_id:
-        await message.reply_text(
-            "This Telegram ID is not linked to any player."
-        )
+        await message.reply_text("This Telegram ID is not linked to any player.")
         return
 
     mapping_store.delete_player_id(telegram_id)
     await message.reply_text(
-        html.escape(f"Link for Telegram ID `{telegram_id}` removed\!"), parse_mode="MarkdownV2"
+        rf"Link for Telegram ID `{telegram_id}` removed\!", parse_mode="MarkdownV2"
     )
