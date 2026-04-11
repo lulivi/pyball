@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.persistence.meetup_repository import JsonMeetupRepository
 
@@ -81,3 +81,54 @@ class TestJsonMeetupRepository:
 
         found = self.repo.find_by_id(meetup.id)
         assert found is None
+
+
+class TestJsonMeetupRepositoryResult:
+    """Integration tests for MatchResult persistence."""
+
+    def setup_method(self):
+        # pylint: disable=attribute-defined-outside-init
+        self.temp_dir = tempfile.mkdtemp()
+        self.directory = Path(self.temp_dir)
+        self.repo = JsonMeetupRepository(self.directory)
+
+    def teardown_method(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_save_and_load_meetup_with_result(self):
+        """A meetup with a MatchResult round-trips through JSON correctly."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1 = PlayerId.generate()
+        p2 = PlayerId.generate()
+        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        scorer = PlayerId.generate()
+        assistant = PlayerId.generate()
+        event = GoalEvent(
+            scorer_id=scorer,
+            assistant_id=assistant,
+            team="A",
+            timestamp=datetime(2026, 4, 12, 20, 15),
+        )
+        result = MatchResult(score_a=2, score_b=1, events=(event,))
+        meetup.set_result(result)
+
+        self.repo.save(meetup)
+        loaded = self.repo.find_by_id(meetup.id)
+
+        assert loaded is not None
+        assert loaded.result is not None
+        assert loaded.result.score_a == 2
+        assert loaded.result.score_b == 1
+        assert len(loaded.result.events) == 1
+        assert loaded.result.events[0].scorer_id == scorer
+        assert loaded.result.events[0].assistant_id == assistant
+        assert loaded.result.events[0].team == "A"
+        assert loaded.result.events[0].timestamp == datetime(2026, 4, 12, 20, 15)
+
+    def test_save_and_load_meetup_without_result(self):
+        """A meetup with no result loads with result=None."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        self.repo.save(meetup)
+        loaded = self.repo.find_by_id(meetup.id)
+        assert loaded is not None
+        assert loaded.result is None

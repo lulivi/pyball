@@ -6,7 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 from uuid import UUID
 
-from pyball.domain.meetup.models import Meetup, MeetupId, Team
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, MeetupId, Team
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.models import PlayerId
 
@@ -30,12 +30,30 @@ class JsonMeetupRepository(MeetupRepository):
                 Team.create(t["name"], [PlayerId(UUID(p)) for p in t["players"]])
                 for t in data["teams"]
             ]
+        result = None
+        if data.get("result"):
+            r = data["result"]
+            events = tuple(
+                GoalEvent(
+                    scorer_id=PlayerId(UUID(e["scorer_id"])),
+                    assistant_id=PlayerId(UUID(e["assistant_id"])) if e.get("assistant_id") else None,
+                    team=e["team"],
+                    timestamp=datetime.fromisoformat(e["timestamp"]),
+                )
+                for e in r.get("events", [])
+            )
+            result = MatchResult(
+                score_a=r["score_a"],
+                score_b=r["score_b"],
+                events=events,
+            )
         return Meetup(
             id=MeetupId(UUID(data["id"])),
             date=datetime.fromisoformat(data["date"]),
             location=data.get("location", "Parque Central"),
             players=[PlayerId(UUID(p)) for p in data.get("players", [])],
             teams=teams,
+            result=result,
         )
 
     def _write(self, meetup: Meetup) -> None:
@@ -46,12 +64,28 @@ class JsonMeetupRepository(MeetupRepository):
                 {"name": t.name, "players": [str(p.value) for p in t.players]}
                 for t in meetup.teams
             ]
+        result_data = None
+        if meetup.result:
+            result_data = {
+                "score_a": meetup.result.score_a,
+                "score_b": meetup.result.score_b,
+                "events": [
+                    {
+                        "scorer_id": str(e.scorer_id.value),
+                        "assistant_id": str(e.assistant_id.value) if e.assistant_id else None,
+                        "team": e.team,
+                        "timestamp": e.timestamp.isoformat(),
+                    }
+                    for e in meetup.result.events
+                ],
+            }
         data = {
             "id": str(meetup.id.value),
             "date": meetup.date.isoformat(),
             "location": meetup.location,
             "players": [str(p.value) for p in meetup.players],
             "teams": teams_data,
+            "result": result_data,
         }
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
