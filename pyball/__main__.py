@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import signal
 
 import uvicorn
 
@@ -16,8 +17,14 @@ from pyball.bot.handlers import (
 from pyball.infrastructure.http.app import create_app
 from pyball.settings import load_settings
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class _Server(uvicorn.Server):
+    """Uvicorn server that defers signal handling to the caller."""
+
+    def install_signal_handlers(self) -> None:
+        """No-op: signals are managed by main_async."""
 
 
 def log_startup_info() -> None:
@@ -43,17 +50,39 @@ async def main_async() -> None:
 
     fastapi_app = create_app(container, application.bot, settings)
     server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
-    server = uvicorn.Server(server_config)
+    server = _Server(server_config)
 
     assert application.updater is not None, "Updater must be set before starting"
+
+    loop = asyncio.get_running_loop()
+    stop_event = asyncio.Event()
+
+    def _handle_signal() -> None:
+        if not stop_event.is_set():
+            logger.info("Shutdown signal received")
+            stop_event.set()
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, _handle_signal)
+
     async with application:
         await application.start()
         await application.updater.start_polling()
         logger.info("Bot polling started")
-        await server.serve()
-        logger.info("HTTP server stopped — shutting down bot")
+
+        server_task = asyncio.create_task(server.serve())
+
+        await stop_event.wait()
+
+        logger.info("Stopping bot polling...")
         await application.updater.stop()
         await application.stop()
+
+        logger.info("Stopping HTTP server...")
+        server.should_exit = True
+        await server_task
+
+        logger.info("All services stopped")
 
 
 def main() -> None:

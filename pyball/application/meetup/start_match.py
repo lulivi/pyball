@@ -32,7 +32,7 @@ class StartMatch:
         """Generate the match tracking URL for the given meetup date.
 
         Args:
-            date_str: Meetup date in 'YYYY-MM-DD HH:MM' format.
+            date_str: Meetup date in 'YYYY/MM/DD HH:MM' format.
 
         Returns:
             URL string with encoded team names and date.
@@ -42,9 +42,9 @@ class StartMatch:
             MeetupHasNoTeamsError: If the meetup has no teams yet.
         """
         try:
-            meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
         except ValueError as exc:
-            raise ValueError("Invalid date format. Use: YYYY-MM-DD HH:MM") from exc
+            raise ValueError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
 
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if meetup is None:

@@ -19,7 +19,7 @@ from pyball.bot.formatters import (
     format_main_message,
     format_subs_message,
 )
-from pyball.exceptions import MeetupError, TelegramBotError
+from pyball.exceptions import MeetupError
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
 from pyball.settings import PyballSettings
@@ -69,6 +69,7 @@ async def close_match_messages(
                 reply_markup=None,
                 parse_mode="MarkdownV2",
             )
+            message_store.delete_message(date_key, "regular")
         except telegram.error.BadRequest as error:
             logger.warning("Could not edit regulars message: %s", error)
 
@@ -83,6 +84,7 @@ async def close_match_messages(
                 reply_markup=None,
                 parse_mode="MarkdownV2",
             )
+            message_store.delete_message(date_key, "substitute")
         except telegram.error.BadRequest as error:
             logger.warning("Could not edit substitutes message: %s", error)
 
@@ -96,10 +98,10 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     args = context.args
     if not args or len(args) < 2:
-        await message.reply_text("Usage: /start_match YYYY-MM-DD HH:MM")
+        await message.reply_text("Usage: /start_match `YYYY/MM/DD HH:MM`")
         return
 
-    date_str = " ".join(args)
+    date_str = f"{args[0]} {args[1]}"
     container: Container = context.bot_data["container"]
 
     try:
@@ -126,15 +128,14 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     args = context.args
-    if not args:
-        await message.reply_text("Usage: /new_meetup YYYY-MM-DD HH:MM")
+    if not args or len(args) < 2:
+        await message.reply_text("Usage: /new_meetup `YYYY/MM/DD HH:MM`")
         return
 
     try:
-        date_str = " ".join(args)
-        date = datetime.fromisoformat(date_str)
+        date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date format. Use: /new_meetup YYYY-MM-DD HH:MM")
+        await message.reply_text("Invalid date format. Use: /new_meetup `YYYY/MM/DD HH:MM`")
         return
 
     await _create_meetup_and_send(date, update, context)
@@ -151,7 +152,7 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     next_date = _get_next_weekday(settings.pyball)
     day_name = next_date.strftime("%A")
     await message.reply_text(
-        f"Creating meetup for {next_date.strftime('%Y-%m-%d %H:%M')} ({day_name})..."
+        f"Creating meetup for `{next_date.strftime('%Y/%m/%d %H:%M')}` ({day_name})..."
     )
     await _create_meetup_and_send(next_date, update, context)
 
@@ -169,7 +170,7 @@ async def _create_meetup_and_send(
     except DuplicateMeetupError:
         if message is not None:
             await message.reply_text(
-                f"Meetup already exists at {date.strftime('%Y-%m-%d %H:%M')}."
+                f"Meetup already exists at `{date.strftime('%Y/%m/%d %H:%M')}`."
             )
         return
     except InvalidMeetupDateError as error:
@@ -202,7 +203,6 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
     player_repo = container.player_repository
     all_players = player_repo.find_all()
     player_names = {str(player.id.value): player.name for player in all_players}
-    player_groups = {str(player.id.value): player.group for player in all_players}
 
     text = format_main_message(meetup, player_names)
     keyboard = build_main_keyboard(meetup.date)
@@ -230,36 +230,6 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
         logger.error("Error sending regulars message (Telegram): %s", error)
     except Exception as error:
         logger.exception("Error sending regulars message: %s", error)
-
-    if settings.telegram.substitutes.chat_id:
-        subs_text = format_subs_message(meetup, player_names, player_groups)
-        subs_keyboard = build_subs_keyboard(meetup.date)
-
-        try:
-            msg = await context.bot.send_message(
-                chat_id=settings.telegram.substitutes.chat_id,
-                text=subs_text,
-                reply_markup=subs_keyboard,
-                message_thread_id=settings.telegram.substitutes.thread_id or None,
-                parse_mode="MarkdownV2",
-            )
-
-            store = TelegramMessageStore(settings.paths.bot_messages_file)
-            store.save_message(
-                meetup.date.strftime("%Y-%m-%dT%H:%M"),
-                "substitute",
-                MessageTracking(
-                    chat_id=settings.telegram.substitutes.chat_id,
-                    thread_id=settings.telegram.substitutes.thread_id or None,
-                    message_id=msg.message_id,
-                ),
-            )
-        except telegram.error.TelegramError as error:
-            logger.error("Error sending substitutes message (Telegram): %s", error)
-        except TelegramBotError as error:
-            logger.error("Error sending substitutes message (bot): %s", error)
-        except Exception as error:
-            logger.exception("Error sending substitutes message: %s", error)
 
 
 def _get_next_weekday(pyball_settings: PyballSettings) -> datetime:
@@ -296,27 +266,44 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     container: Container = context.bot_data["container"]
 
     args = context.args
-    if args is None or len(args) < 2:
-        await message.reply_text("Usage: /add_player YYYY-MM-DD HH:MM <player_name>")
+    if args is None or len(args) < 3:
+        await message.reply_text("Usage: /add_player `YYYY/MM/DD HH:MM` <name1>, <name2>, ...")
         return
 
-    date_str = args[0]
-    player_name = " ".join(args[1:])
+    date_str = f"{args[0]} {args[1]}"
+    names = [n.strip() for n in " ".join(args[2:]).split(",") if n.strip()]
 
-    try:
-        container.add_player_to_meetup().execute(date_str, player_name)
-        await message.reply_text("Player added!")
-    except ValueError as error:
-        await message.reply_text(str(error))
-    except MeetupError as error:
-        logger.error("Meetup error adding player: %s", error)
-        await message.reply_text("Meetup error. Please try again.")
-    except telegram.error.TelegramError as error:
-        logger.error("Telegram error adding player to meetup: %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-    except Exception as error:
-        logger.exception("Error adding player to meetup: %s", error)
-        await message.reply_text("An error occurred. Please try again.")
+    if not names:
+        await message.reply_text("Usage: /add_player `YYYY/MM/DD HH:MM` <name1>, <name2>, ...")
+        return
+
+    settings = context.bot_data["settings"]
+    added, failed = [], []
+    meetup = None
+    use_case = container.add_player_to_meetup()
+
+    for name in names:
+        try:
+            meetup = use_case.execute(date_str, name)
+            added.append(name)
+        except ValueError as error:
+            failed.append(f"{name}: {error}")
+        except MeetupError as error:
+            logger.error("Meetup error adding %s: %s", name, error)
+            failed.append(f"{name}: meetup error")
+        except Exception as error:
+            logger.exception("Error adding %s: %s", name, error)
+            failed.append(f"{name}: unexpected error")
+
+    if meetup is not None:
+        await _refresh_callup_messages(context, settings, container, meetup)
+
+    lines = []
+    if added:
+        lines.append("Added: " + ", ".join(added))
+    if failed:
+        lines.append("Failed:\n" + "\n".join(f"  • {f}" for f in failed))
+    await message.reply_text("\n".join(lines) if lines else "Nothing to do.")
 
 
 @authorized
@@ -329,15 +316,17 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     container: Container = context.bot_data["container"]
 
     args = context.args
-    if args is None or len(args) < 2:
-        await message.reply_text("Usage: /remove_player YYYY-MM-DD HH:MM <player_name>")
+    if args is None or len(args) < 3:
+        await message.reply_text("Usage: /remove_player `YYYY/MM/DD HH:MM` <player_name>")
         return
 
-    date_str = args[0]
-    player_name = " ".join(args[1:])
+    date_str = f"{args[0]} {args[1]}"
+    player_name = " ".join(args[2:])
 
+    settings = context.bot_data["settings"]
     try:
-        container.remove_player_from_meetup().execute(date_str, player_name)
+        meetup = container.remove_player_from_meetup().execute(date_str, player_name)
+        await _refresh_callup_messages(context, settings, container, meetup)
         await message.reply_text("Player removed from meetup!")
     except ValueError as error:
         await message.reply_text(str(error))
@@ -362,12 +351,13 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     container: Container = context.bot_data["container"]
 
     args = context.args
-    if not args:
-        await message.reply_text("Usage: /create_teams YYYY-MM-DD HH:MM")
+    if not args or len(args) < 2:
+        await message.reply_text("Usage: /create_teams `YYYY/MM/DD HH:MM`")
         return
 
-    date_str = " ".join(args)
+    date_str = f"{args[0]} {args[1]}"
 
+    settings = context.bot_data["settings"]
     try:
         meetup = container.create_teams().execute(date_str)
 
@@ -375,15 +365,42 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text("No teams created.")
             return
 
-        player_names = _get_player_names(container.player_repository)
-        lines = ["*Teams:*"]
-        for team in meetup.teams:
-            lines.append(f"\n{team.name}:")
-            for player_id in team.players:
-                name = player_names.get(str(player_id.value), str(player_id.value))
-                lines.append(f"  - {name}")
+        all_players = container.player_repository.find_all()
+        player_names = {str(p.id.value): p.name for p in all_players}
+        player_groups = {str(p.id.value): p.group for p in all_players}
 
-        await message.reply_text("\n".join(lines))
+        date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
+        store = TelegramMessageStore(settings.paths.bot_messages_file)
+
+        regular_tracking = store.get_message(date_key, "regular")
+        if regular_tracking:
+            text = format_main_message(meetup, player_names)
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=regular_tracking.chat_id,
+                    message_id=regular_tracking.message_id,
+                    text=text,
+                    reply_markup=None,
+                    parse_mode="MarkdownV2",
+                )
+            except telegram.error.BadRequest as err:
+                logger.warning("Could not edit regulars message after teams: %s", err)
+
+        sub_tracking = store.get_message(date_key, "substitute")
+        if sub_tracking:
+            subs_text = format_subs_message(meetup, player_names, player_groups)
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=sub_tracking.chat_id,
+                    message_id=sub_tracking.message_id,
+                    text=subs_text,
+                    reply_markup=None,
+                    parse_mode="MarkdownV2",
+                )
+            except telegram.error.BadRequest as err:
+                logger.warning("Could not edit substitutes message after teams: %s", err)
+
+        await message.reply_text("Equipos creados ✅")
     except InvalidMeetupDateError as error:
         await message.reply_text(str(error))
     except MeetupError as error:
@@ -414,7 +431,7 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     lines = ["*Meetups:*"]
     for m in meetups:
-        lines.append(f"- {m.date.strftime('%Y-%m-%d %H:%M')} at {m.location}")
+        lines.append(f"- `{m.date.strftime('%Y/%m/%d %H:%M')}` at {m.location}")
 
     await message.reply_text("\n".join(lines))
 
@@ -429,16 +446,14 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     container: Container = context.bot_data["container"]
 
     args = context.args
-    if not args:
-        await message.reply_text("Usage: /show_meetup YYYY-MM-DD HH:MM")
+    if not args or len(args) < 2:
+        await message.reply_text("Usage: /show_meetup `YYYY/MM/DD HH:MM`")
         return
 
-    date_str = " ".join(args)
-
     try:
-        meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+        meetup_date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date format. Use: YYYY-MM-DD HH:MM")
+        await message.reply_text("Invalid date format. Use: /show_meetup `YYYY/MM/DD HH:MM`")
         return
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
@@ -447,7 +462,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     player_names = _get_player_names(container.player_repository)
-    lines = [f"*Meetup: {meetup.date.strftime('%Y-%m-%d %H:%M')}*"]
+    lines = [f"*Meetup: `{meetup.date.strftime('%Y/%m/%d %H:%M')}`*"]
     lines.append(f"📍 {meetup.location}")
 
     if meetup.players:
@@ -473,15 +488,13 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     args = context.args
     if not args:
-        await message.reply_text("Usage: /search YYYY-MM-DD")
+        await message.reply_text("Usage: /search `YYYY/MM/DD`")
         return
 
-    date_str = args[0]
-
     try:
-        meetup_date = datetime.strptime(date_str, "%Y-%m-%d")
+        meetup_date = datetime.strptime(args[0], "%Y/%m/%d")
     except ValueError:
-        await message.reply_text("Invalid date. Use: /search YYYY-MM-DD")
+        await message.reply_text("Invalid date. Use: /search `YYYY/MM/DD`")
         return
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
@@ -534,3 +547,44 @@ def _get_player_names(player_repo) -> dict:
     """Build a {str_uuid: name} lookup dict for all players."""
     all_players = player_repo.find_all()
     return {str(p.id.value): p.name for p in all_players}
+
+
+async def _refresh_callup_messages(context, settings, container, meetup) -> None:
+    """Edit the existing callup messages to reflect the current player list."""
+    player_repo = container.player_repository
+    all_players = player_repo.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    player_groups = {str(p.id.value): p.group for p in all_players}
+
+    date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
+    store = TelegramMessageStore(settings.paths.bot_messages_file)
+
+    regular_tracking = store.get_message(date_key, "regular")
+    if regular_tracking:
+        text = format_main_message(meetup, player_names)
+        keyboard = build_main_keyboard(meetup.date)
+        try:
+            await context.bot.edit_message_text(
+                chat_id=regular_tracking.chat_id,
+                message_id=regular_tracking.message_id,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode="MarkdownV2",
+            )
+        except telegram.error.BadRequest as error:
+            logger.warning("Could not edit regulars message: %s", error)
+
+    sub_tracking = store.get_message(date_key, "substitute")
+    if sub_tracking:
+        text = format_subs_message(meetup, player_names, player_groups)
+        keyboard = build_subs_keyboard(meetup.date)
+        try:
+            await context.bot.edit_message_text(
+                chat_id=sub_tracking.chat_id,
+                message_id=sub_tracking.message_id,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode="MarkdownV2",
+            )
+        except telegram.error.BadRequest as error:
+            logger.warning("Could not edit substitutes message: %s", error)

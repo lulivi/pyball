@@ -18,7 +18,7 @@ def test_format_main_message_before_teams():
     text = format_main_message(meetup, player_names)
 
     assert "*Convocatoria:*" in text
-    assert "15/Jan/2024 20:00" in text
+    assert "2024/01/15 20:00" in text
     assert "- Carlos" in text
     assert "- Luis" in text
 

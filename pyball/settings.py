@@ -24,7 +24,7 @@ class Paths:
     def __post_init__(self) -> None:
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
-        self.bot_mappings_file = self.data_dir / "bot" / "mappings.json"
+        self.bot_mappings_file = self.data_dir / "bot" / "telegram-uuid.json"
         self.bot_messages_file = self.data_dir / "bot" / "messages.json"
 
 

@@ -35,7 +35,7 @@ class FinishMatch:
         """Save the match result for the given meetup.
 
         Args:
-            date_str: Meetup date in 'YYYY-MM-DD HH:MM' format.
+            date_str: Meetup date in ISO format (e.g. '2026-04-15T20:00').
             events: List of goal event dicts with keys:
                     scorer (str), assistant (str|None), team (str), timestamp (str ISO).
             final_score: Dict with keys 'A' and 'B' mapping to int scores.
@@ -49,9 +49,9 @@ class FinishMatch:
             ValueError: If a player name cannot be fuzzy-matched.
         """
         try:
-            meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+            meetup_date = datetime.fromisoformat(date_str)
         except ValueError as exc:
-            raise ValueError("Invalid date format. Use: YYYY-MM-DD HH:MM") from exc
+            raise ValueError("Invalid date format. Use ISO format: YYYY-MM-DDTHH:MM") from exc
 
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if meetup is None:

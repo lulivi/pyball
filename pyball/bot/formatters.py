@@ -66,8 +66,8 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
     - After teams: teams only
     - After results: teams + results
     """
-    date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
-    lines = [f"*Convocatoria:* {date_str}"]
+    date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
+    lines = [f"*Convocatoria:* `{date_str}`"]
 
     if meetup.location:
         lines.append(f"*Lugar:* {_escape_mdv2(meetup.location)}")
@@ -98,12 +98,12 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
 
 def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for substitutes chat - shows substitutes only."""
-    date_str = meetup.date.strftime("%d/%b/%Y %H:%M")
+    date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
     if meetup.result is not None:
         score_line = rf"{meetup.result.score_a} \- {meetup.result.score_b}"
-        lines = [rf"*Convocatoria* {date_str} \- Suplentes \| {score_line}"]
+        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes \| {score_line}"]
     else:
-        lines = [rf"*Convocatoria* {date_str} \- Suplentes"]
+        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
     lines.append("")
 
     suplentes = []
@@ -121,6 +121,41 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
             lines.append(rf"\- {_escape_mdv2(name)}")
     else:
         lines.append("*No hay suplentes*")
+
+    return "\n".join(lines)
+
+
+def format_match_result_message(meetup: Meetup, player_names: dict) -> str:
+    """Format a match-finished announcement message.
+
+    Intended to be sent as a new message (not an edit) after the match ends.
+    """
+    date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
+    assert meetup.result is not None
+    assert meetup.teams is not None
+
+    score_a = meetup.result.score_a
+    score_b = meetup.result.score_b
+    name_a = _escape_mdv2(meetup.teams[0].name)
+    name_b = _escape_mdv2(meetup.teams[1].name)
+
+    lines = [
+        rf"⚽ *Partido terminado* — `{date_str}`",
+        "",
+        rf"*{name_a}* {score_a} \- {score_b} *{name_b}*",
+    ]
+
+    if meetup.result.events:
+        lines.append("")
+        lines.append(r"📋 *Goles:*")
+        for event in meetup.result.events:
+            scorer = _escape_mdv2(player_names.get(str(event.scorer_id.value), "?"))
+            team = _escape_mdv2(event.team)
+            if event.assistant_id:
+                assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
+                lines.append(rf"\- ⚽ {scorer} \(asist: {assistant}\) \[{team}\]")
+            else:
+                lines.append(rf"\- ⚽ {scorer} \[{team}\]")
 
     return "\n".join(lines)
 

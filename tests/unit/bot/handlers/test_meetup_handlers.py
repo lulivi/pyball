@@ -11,15 +11,15 @@ async def test_new_meetup_handler_no_args(mock_update, mock_context):
 
     await new_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Usage: /new_meetup YYYY-MM-DD HH:MM")
+    mock_update.message.reply_text.assert_called_with("Usage: /new_meetup `YYYY/MM/DD HH:MM`")
 
 
 @pytest.mark.asyncio
 async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
-    mock_context.args = ["invalid-date"]
+    mock_context.args = ["not-a-date", "20:00"]
 
     await new_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        "Invalid date format. Use: /new_meetup YYYY-MM-DD HH:MM"
+        "Invalid date format. Use: /new_meetup `YYYY/MM/DD HH:MM`"
     )

@@ -18,9 +18,9 @@ class CreateTeams:
     def execute(self, date_str: str) -> Meetup:
         """Create random teams for a meetup by date string."""
         try:
-            meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
         except ValueError as exc:
-            raise InvalidMeetupDateError("Invalid date format. Use: YYYY-MM-DD HH:MM") from exc
+            raise InvalidMeetupDateError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
 
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:

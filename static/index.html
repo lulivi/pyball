@@ -230,19 +230,33 @@
                 });
 
                 if (response.ok) {
-                    alert("✅ Partido guardado con éxito. Revisa Telegram.");
                     localStorage.removeItem('pyball_current_match');
-                    location.reload(); 
+                    showMatchFinished();
                 } else {
                     const errorData = await response.json();
                     alert("❌ Error del servidor: " + (errorData.detail || response.statusText));
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = "💾 CONFIRMAR Y GUARDAR PARTIDO";
                 }
             } catch (error) {
                 alert("❌ Error de red. Revisa la conexión a internet de este móvil.");
-            } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerText = "💾 CONFIRMAR Y GUARDAR PARTIDO";
             }
+        }
+
+        function showMatchFinished() {
+            document.getElementById('interaction-panel').style.display = 'none';
+            document.getElementById('save-btn').style.display = 'none';
+
+            const banner = document.createElement('div');
+            banner.style.cssText = 'background:#15803d;border-radius:12px;padding:20px;margin-bottom:20px;font-size:1.2rem;font-weight:bold;';
+            banner.innerHTML = '✅ Partido guardado y enviado a Telegram';
+
+            const goalsDiv = document.getElementById('event-list');
+            goalsDiv.parentNode.insertBefore(banner, goalsDiv);
+
+            document.querySelector('h1').innerText = '⚽ Partido finalizado';
         }
 
         // Initialize app

@@ -23,9 +23,9 @@ class AddPlayerToMeetup:
     def execute(self, date_str: str, player_name: str) -> Meetup:
         """Add player to meetup by date string and fuzzy name match."""
         try:
-            meetup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
         except ValueError as exc:
-            raise ValueError("Invalid date format. Use: YYYY-MM-DD HH:MM") from exc
+            raise ValueError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
 
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
