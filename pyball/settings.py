@@ -67,10 +67,6 @@ class TelegramChatSettings:
     chat_id: int = 0
     meetups_thread_id: str | int = ""
 
-    def has_meetups_thread(self) -> bool:
-        """Check if a meetups thread ID is configured."""
-        return bool(self.meetups_thread_id)
-
 
 @dataclass
 class RegularsChatSettings(TelegramChatSettings):
