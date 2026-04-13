@@ -16,7 +16,7 @@ make test          # or: poetry run nox -e test
 make t             # alias
 
 # Run a single test file
-poetry run nox -e test -- tests/unit/domain/test_meetup.py
+poetry run pytest tests/unit/domain/test_meetup.py
 
 # Lint
 make lint          # or: poetry run nox -e lint

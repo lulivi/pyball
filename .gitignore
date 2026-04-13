@@ -168,3 +168,6 @@ data/
 logs/
 scripts/
 .worktrees/
+
+# Claude
+.claude/settings.local.json

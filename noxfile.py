@@ -81,7 +81,6 @@ def test(session: nox.Session):
 
     session.run_always(
         "pytest",
-        "-vvv",
         *cov_parameters,
         target_dir,
     )
