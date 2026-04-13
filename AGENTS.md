@@ -1,57 +1,94 @@
-# PyBall Manager
+# CLAUDE.md
 
-Telegram bot for managing non-US football meetups - players, teams, call-ups, and scheduling.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Execution Preference
+## Implementation Approach
 
-- **Always use subagent-driven development** for implementation plans (recommended approach)
-
-## Tech Stack
-
-- **Python**: 3.11+
-- **Telegram Bot**: python-telegram-bot 22.x
-- **Data Validation**: Pydantic 2.x
-- **Testing**: pytest, pytest-asyncio, nox
-- **Code Quality**: black, isort, mypy, pylint, pydocstyle
+Always use **subagent-driven development** for implementation plans.
 
 ## Commands
 
-- `make up` - Run bot via Docker Compose
-- `make run` - Run bot container once
-- `make test` / `make t` - Run tests via nox
-- `make format` / `make f` - Format code
-- `make build` - Build Docker image
-- `make publish` - Build and push Docker image
-
-## Code Quality
-
-Run via `nox` (sessions: lint, test, format):
 ```bash
-poetry run nox -e lint
-poetry run nox -e test
-poetry run nox -e format
+# Run tests
+make test          # or: poetry run nox -e test
+make t             # alias
+
+# Run a single test file
+poetry run nox -e test -- tests/unit/domain/test_meetup.py
+
+# Lint
+make lint          # or: poetry run nox -e lint
+make l             # alias
+
+# Format
+make format        # or: poetry run nox -e format
+make f             # alias
+
+# Run via Docker Compose (production)
+make up
+
+# Build Docker image
+make build
 ```
 
 ## Architecture
 
-- `pyball/domain/` - Domain models (Player, Meetup)
-- `pyball/application/` - Use cases (add_player, create_meetup, etc.)
-- `pyball/infrastructure/` - Telegram API, JSON persistence
-- `pyball/bot/` - Telegram handlers and entrypoint
-- `pyball/settings.py` - Configuration loading from config.toml
+Clean architecture with strict layer boundaries:
+
+```
+pyball/
+  domain/          # Core models and repository interfaces (no dependencies on other layers)
+    player/        #   Player entity, PlayerId value object, errors, repository ABC
+    meetup/        #   Meetup entity, Team/MatchResult/GoalEvent value objects, MeetupId, errors
+  application/     # Use cases — one file per action, injected with repository interfaces
+    player/        #   create_player, rename_player, delete_player, change_group
+    meetup/        #   create_meetup, add_player, remove_player, create_teams, start_match, finish_match
+    container.py   #   Simple DI container — wires repositories to use cases
+    fuzzy_match.py #   Shared fuzzy player search utility
+  infrastructure/  # Concrete implementations of domain interfaces
+    persistence/   #   JsonPlayerRepository, JsonMeetupRepository (file-backed JSON)
+    telegram/      #   TelegramMappingStore (telegram_id → player UUID), TelegramMessageStore (message tracking)
+    http/app.py    #   FastAPI app — POST /api/match/finish endpoint + serves static/
+  bot/             # Telegram bot wiring
+    handlers/      #   general.py, player.py, meetup.py — register CommandHandlers
+    callbacks.py   #   Inline button callback dispatcher (join/leave meetup)
+    formatters.py  #   MarkdownV2 message builders and keyboard factories
+    auth.py        #   @authorized decorator — checks settings.telegram.admins_ids
+    entrypoint.py  #   create_application() factory
+  __main__.py      # Starts both the Telegram polling bot and FastAPI/uvicorn on port 8000
+  settings.py      # Loads config.toml + PYBALL_<SECTION>_<KEY> env var overrides
+```
+
+**Data flow:** `__main__.py` builds a `Container`, attaches it to `bot_data`, handlers pull use cases from it, use cases interact only with domain repository interfaces, infrastructure implementations handle I/O.
+
+**Two concurrent services** run in a single asyncio loop: the Telegram polling bot and the FastAPI HTTP server (port 8000). The HTTP API is consumed by the `static/index.html` match-tracking UI.
 
 ## Configuration
 
-See `config.toml` for settings. Environment variables override config values using pattern `PYBALL_<SECTION>_<KEY>` (e.g., `PYBALL_TELEGRAM_BOT_TOKEN`).
+Copy `example.config.toml` to `config.toml` and fill in values. Required fields:
+- `telegram.bot_token`
+- `telegram.admins_ids`
+- `telegram.regulars.chat_id`
+- `telegram.substitutes.chat_id`
+- `pyball.location`
+
+Any value can be overridden with env var `PYBALL_<SECTION>_<KEY>` (e.g. `PYBALL_TELEGRAM_BOT_TOKEN`). Nested sections use `_` separator (e.g. `PYBALL_TELEGRAM_REGULARS_CHAT_ID`).
 
 ## Testing
 
-Tests in `tests/unit/` and `tests/integration/`. Run with:
-```bash
-poetry run nox -e test
-```
+- Unit tests: `tests/unit/` — mock repositories with in-memory fakes
+- Integration tests: `tests/integration/` — exercise JSON persistence against temp directories
+- `pytest-asyncio` is used in strict mode (`asyncio_mode = "strict"` in pyproject.toml); async tests must be decorated with `@pytest.mark.asyncio`
+- Coverage is reported against the `pyball/` package
 
 ## Internationalization
 
-- **Code**: Always in English (variables, functions, comments, docstrings)
-- **Telegram messages**: Always in Spanish
+- **Code** (variables, functions, comments, docstrings): always in English
+- **Telegram messages** sent to users: always in Spanish
+
+## Code Quality
+
+The `lint` nox session runs all checks in sequence and reports all failures before exiting:
+`black --check`, `isort --check`, `pydocstyle`, `pycodestyle` (max-line-length 99), `mypy`, `pylint`.
+
+Line length is **99** characters. pylint must score **10.00/10**.
