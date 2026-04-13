@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Implementation Approach
 
-Always use **subagent-driven development** for implementation plans.
+Always use **subagent-driven development** for implementation plans. When the
+`writing-plans` skill asks which execution approach to use, always choose subagent-driven
+— never ask the user, never choose inline execution.
 
 ## Commands
 
