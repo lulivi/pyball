@@ -1127,18 +1127,16 @@ from __future__ import annotations
 
 import io
 
-import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
-matplotlib.use("Agg")
-
-from matplotlib import pyplot as plt  # noqa: E402
-from matplotlib.ticker import MaxNLocator  # noqa: E402
-
-from pyball.application.meetup.compute_stats import (  # noqa: E402
+from pyball.application.meetup.compute_stats import (
     PlayerStats,
     StatsScopedReport,
     StatsReport,
 )
+
+plt.switch_backend("agg")
 
 _TREND_SYMBOLS = {None: "★ ", "up": "▲ ", "down": "▼ ", "same": "─ "}
 _COLOR_GOALS = "#e74c3c"
