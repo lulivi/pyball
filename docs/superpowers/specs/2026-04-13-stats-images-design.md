@@ -105,7 +105,7 @@ current season if `meetup.date >= season_start`.
 1. Load all meetups from `meetup_repo`.
 2. Resolve all player names once from `player_repo` into a `{str(uuid): name}` dict.
 3. For each meetup **with a result set** (`meetup.result is not None`):
-   - For each `GoalEvent` in `meetup.result.goals`:
+   - For each `GoalEvent` in `meetup.result.events`:
      - Increment scorer's goals and the (scorer, assistant) pair count if assistant present.
      - Increment assistant's assists if present.
    - Determine each player's outcome: look up their team name ("A" or "B") in
