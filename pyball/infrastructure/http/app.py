@@ -1,5 +1,6 @@
 """FastAPI application factory."""
 
+import asyncio
 import logging
 
 from pathlib import Path
@@ -11,9 +12,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
 from pyball.bot.handlers.meetup import close_match_messages
 from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.infrastructure.images.stats_renderer import StatsImageRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 
 if TYPE_CHECKING:
@@ -21,6 +24,44 @@ if TYPE_CHECKING:
     from pyball.settings import Settings
 
 logger = logging.getLogger(__name__)
+
+
+async def _post_match_stats(
+    bot: "telegram.Bot",
+    container: "Container",
+    settings: "Settings",
+) -> None:
+    """Compute and post statistics images to the regulars stats topic.
+
+    Runs as a background asyncio task. Errors are logged and swallowed so
+    they never affect the match-finish response.
+
+    Args:
+        bot: Telegram Bot instance for sending photos.
+        container: DI container with repositories.
+        settings: Application settings for chat/thread IDs.
+    """
+    try:
+        report = ComputeStats(container.meetup_repository, container.player_repository).execute()
+        season_png, alltime_png = StatsImageRenderer().render(report)
+
+        stats_thread_id = settings.telegram.regulars.stats_thread_id or None
+        chat_id = settings.telegram.regulars.chat_id
+
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=season_png,
+            caption="📊 Esta temporada",
+            message_thread_id=int(stats_thread_id) if stats_thread_id else None,
+        )
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=alltime_png,
+            caption="📊 Histórico",
+            message_thread_id=int(stats_thread_id) if stats_thread_id else None,
+        )
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Error posting match stats")
 
 
 class GoalEventInput(BaseModel):
@@ -88,6 +129,8 @@ def create_app(
 
         message_store = TelegramMessageStore(settings.paths.bot_messages_file)
         await close_match_messages(bot, message_store, meetup, player_names, player_groups)
+
+        asyncio.create_task(_post_match_stats(bot, container, settings))
 
         return {
             "meetup_date": body.meetup_date,
