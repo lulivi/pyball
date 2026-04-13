@@ -8,7 +8,9 @@
 After every match finishes, automatically post two statistics images to the regulars
 Telegram group in a dedicated stats topic. One image covers the current season
 (September–September), the other covers all-time history. Both images show the same
-three charts: goal & assist ranking, points ranking, and top chemistry duos.
+three charts: goal & assist ranking, points ranking, and top chemistry duos. Player names
+in the rankings include a trend indicator showing whether they moved up, dropped, or are
+new compared to the previous match.
 
 ---
 
@@ -67,6 +69,7 @@ class PlayerStats:
     wins: int
     draws: int
     losses: int
+    rank_delta: int | None  # positive = moved up, negative = dropped, None = new entry
 
     @property
     def points(self) -> int:
@@ -111,6 +114,12 @@ current season if `meetup.date >= season_start`.
      matches_played for every player in `meetup.teams` (regardless of goals).
 4. Build `StatsScopedReport` for all-time and for season (filter meetups by date).
 5. Sort players by points desc; sort chemistry pairs by count desc, keep top 10.
+6. Compute `rank_delta` for each scope independently:
+   - Re-run aggregation excluding the most recently finished meetup (by date) to get the
+     previous ranking.
+   - For each player in the current ranking, `rank_delta = previous_position - current_position`
+     (positive means moved up; e.g. was 3rd, now 1st → delta = +2).
+   - Players absent from the previous ranking get `rank_delta = None` (new entry).
 
 Players with zero recorded stats are excluded from both scopes.
 
@@ -135,6 +144,11 @@ portrait orientation, suitable for mobile Telegram). Top 10 players per chart.
 | Goals & assists | Horizontal grouped bar chart | Goals desc |
 | Points ranking | Table (MP, W, D, L, Pts) | Points desc |
 | Chemistry duos | Horizontal bar chart (count) | Count desc |
+
+Player name labels in the goal/assist and points subplots include a trend prefix:
+`▲ Messi` (moved up), `▼ Ronaldo` (dropped), `─ Neymar` (no change), `★ Mbappé` (new
+entry, `rank_delta is None`). Chemistry duo labels are not prefixed (pairs don't have a
+meaningful rank delta).
 
 A consistent color scheme is applied across both images. Subplot titles are in Spanish
 (e.g. "Goles y asistencias", "Clasificación", "Parejas más frecuentes"). Figure titles
@@ -174,7 +188,7 @@ silently dropped — it must never prevent the match-finish flow from completing
 
 | Layer | File | What to test |
 |-------|------|--------------|
-| Application | `tests/unit/application/test_compute_stats.py` | Season boundary, goal/assist/W-D-L aggregation, chemistry pairs, players with no stats excluded, empty meetup list |
+| Application | `tests/unit/application/test_compute_stats.py` | Season boundary, goal/assist/W-D-L aggregation, chemistry pairs, players with no stats excluded, empty meetup list, rank_delta computation (moved up, dropped, new entry, no change) |
 | Infrastructure | `tests/unit/infrastructure/test_stats_renderer.py` | `render()` returns two non-empty `bytes` objects; does not raise with minimal/empty input |
 | Settings | `tests/unit/test_settings.py` | `meetups_thread_id` rename, `stats_thread_id` parsing, `RegularsChatSettings.has_stats_thread()` |
 
