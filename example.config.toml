@@ -33,14 +33,22 @@ admins_ids = [123456789, 987654321]
 # Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
 chat_id = -1001234567890
 
-# Optional: The thread inside the group
-# Override with PYBALL_TELEGRAM_REGULARS_THREAD_ID
-thread_id = ""
+# Optional: The forum topic thread for meetup callup messages
+# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_THREAD_ID
+meetups_thread_id = ""
+
+# Optional: The forum topic thread where post-match statistics are posted
+# Override with PYBALL_TELEGRAM_REGULARS_STATS_THREAD_ID
+stats_thread_id = ""
 
 [telegram.substitutes]
 # Required: The substitutes chat ID (negative number for groups)
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
 chat_id = -1001234567891
+
+# Optional: The forum topic thread for meetup callup messages
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_THREAD_ID
+meetups_thread_id = ""
 
 [locale]
 # Player names locale for sorting

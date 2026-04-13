@@ -65,11 +65,22 @@ class TelegramChatSettings:
     """Telegram chat configuration for regulars or substitutes."""
 
     chat_id: int = 0
-    thread_id: str | int = ""
+    meetups_thread_id: str | int = ""
 
-    def has_thread(self) -> bool:
-        """Check if a thread ID is configured."""
-        return bool(self.thread_id)
+    def has_meetups_thread(self) -> bool:
+        """Check if a meetups thread ID is configured."""
+        return bool(self.meetups_thread_id)
+
+
+@dataclass
+class RegularsChatSettings(TelegramChatSettings):
+    """Telegram chat configuration for the regulars group."""
+
+    stats_thread_id: str | int = ""
+
+    def has_stats_thread(self) -> bool:
+        """Check if a stats thread ID is configured."""
+        return bool(self.stats_thread_id)
 
 
 @dataclass
@@ -78,7 +89,7 @@ class TelegramSettings:
 
     bot_token: str = ""
     admins_ids: tuple[int, ...] = ()
-    regulars: TelegramChatSettings = field(default_factory=TelegramChatSettings)
+    regulars: RegularsChatSettings = field(default_factory=RegularsChatSettings)
     substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
 
     def is_authorized(self, user_id: int) -> bool:
@@ -143,20 +154,29 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
 
-    regulars = TelegramChatSettings(
+    regulars = RegularsChatSettings(
         chat_id=_parse_chat_id(
             _get_env_override("telegram_regulars", "chat_id", regulars_cfg.get("chat_id", 0))
         ),
-        thread_id=_get_env_override(
-            "telegram_regulars", "thread_id", regulars_cfg.get("thread_id", "")
+        meetups_thread_id=_get_env_override(
+            "telegram_regulars",
+            "meetups_thread_id",
+            regulars_cfg.get("meetups_thread_id", ""),
+        ),
+        stats_thread_id=_get_env_override(
+            "telegram_regulars",
+            "stats_thread_id",
+            regulars_cfg.get("stats_thread_id", ""),
         ),
     )
     substitutes = TelegramChatSettings(
         chat_id=_parse_chat_id(
             _get_env_override("telegram_substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))
         ),
-        thread_id=_get_env_override(
-            "telegram_substitutes", "thread_id", substitutes_cfg.get("thread_id", "")
+        meetups_thread_id=_get_env_override(
+            "telegram_substitutes",
+            "meetups_thread_id",
+            substitutes_cfg.get("meetups_thread_id", ""),
         ),
     )
 

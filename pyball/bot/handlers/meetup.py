@@ -212,7 +212,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             chat_id=settings.telegram.regulars.chat_id,
             text=text,
             reply_markup=keyboard,
-            message_thread_id=settings.telegram.regulars.thread_id or None,
+            message_thread_id=settings.telegram.regulars.meetups_thread_id or None,
             parse_mode="MarkdownV2",
         )
 
@@ -222,7 +222,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             "regular",
             MessageTracking(
                 chat_id=settings.telegram.regulars.chat_id,
-                thread_id=settings.telegram.regulars.thread_id or None,
+                thread_id=settings.telegram.regulars.meetups_thread_id or None,
                 message_id=msg.message_id,
             ),
         )
@@ -513,7 +513,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = format_subs_message(meetup, player_names, player_groups)
     keyboard = build_subs_keyboard(meetup.date)
 
-    thread_id = settings.telegram.substitutes.thread_id
+    thread_id = settings.telegram.substitutes.meetups_thread_id
     try:
         msg = await context.bot.send_message(
             chat_id=settings.telegram.substitutes.chat_id,
