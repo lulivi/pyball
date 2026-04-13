@@ -1,6 +1,13 @@
 """Meetup use cases."""
 
 from pyball.application.meetup.add_player import AddPlayerToMeetup
+from pyball.application.meetup.compute_stats import (
+    ChemistryPair,
+    ComputeStats,
+    PlayerStats,
+    StatsReport,
+    StatsScopedReport,
+)
 from pyball.application.meetup.create_meetup import CreateMeetup, DuplicateMeetupError
 from pyball.application.meetup.create_teams import CreateTeams, InvalidMeetupDateError
 from pyball.application.meetup.finish_match import FinishMatch, MeetupAlreadyClosedError
@@ -18,4 +25,9 @@ __all__ = [
     "MeetupHasNoTeamsError",
     "FinishMatch",
     "MeetupAlreadyClosedError",
+    "ComputeStats",
+    "StatsReport",
+    "StatsScopedReport",
+    "PlayerStats",
+    "ChemistryPair",
 ]
