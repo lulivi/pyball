@@ -16,7 +16,7 @@ from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
 from pyball.bot.handlers.meetup import close_match_messages
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.infrastructure.images.stats_renderer import StatsImageRenderer
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ async def _post_match_stats(
     """
     try:
         report = ComputeStats(container.meetup_repository, container.player_repository).execute()
-        season_png, alltime_png = StatsImageRenderer().render(report)
+        season_png, alltime_png = await StatsHtmlRenderer().render(report)
 
         stats_thread_id = settings.telegram.regulars.stats_thread_id or None
         chat_id = settings.telegram.regulars.chat_id

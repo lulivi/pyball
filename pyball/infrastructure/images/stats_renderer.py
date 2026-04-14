@@ -1,52 +1,43 @@
-"""Statistics image renderer using matplotlib."""
+"""Statistics image renderer using Playwright and a Jinja2 HTML template."""
 
 from __future__ import annotations
 
-import io
+from pathlib import Path
 
-import matplotlib.pyplot as plt
+import jinja2
 
-from matplotlib.axes import Axes
-from matplotlib.ticker import MaxNLocator
+from markupsafe import Markup
+from playwright.async_api import async_playwright
 
-from pyball.application.meetup.compute_stats import (
-    ChemistryPair,
-    PlayerStats,
-    StatsReport,
-    StatsScopedReport,
-)
+from pyball.application.meetup.compute_stats import PlayerStats, StatsReport, StatsScopedReport
 
-plt.switch_backend("agg")
-
-_TREND_SYMBOLS = {None: "★ ", "up": "▲ ", "down": "▼ ", "same": "─ "}
-_COLOR_GOALS = "#e74c3c"
-_COLOR_ASSISTS = "#3498db"
-_COLOR_CHEMISTRY = "#2ecc71"
-_COLOR_TABLE_HEADER = "#2c3e50"
-_COLOR_TABLE_ROW_ODD = "#ecf0f1"
-_COLOR_TABLE_ROW_EVEN = "#ffffff"
+_TEMPLATE_DIR = Path(__file__).parent
+_TEMPLATE_NAME = "stats_template.html"
 
 
-def _trend_prefix(rank_delta: int | None) -> str:
-    """Return a unicode trend symbol based on rank_delta."""
-    if rank_delta is None:
-        return _TREND_SYMBOLS[None]
-    if rank_delta > 0:
-        return _TREND_SYMBOLS["up"]
-    if rank_delta < 0:
-        return _TREND_SYMBOLS["down"]
-    return _TREND_SYMBOLS["same"]
+def _trend_prefix(player: PlayerStats) -> Markup:
+    """Return an HTML span with the trend symbol for the given player.
+
+    Args:
+        player: PlayerStats with rank_delta set.
+
+    Returns:
+        Safe HTML Markup with the trend span.
+    """
+    delta = player.rank_delta
+    if delta is None:
+        return Markup('<span class="trend-new">★</span>')
+    if delta > 0:
+        return Markup('<span class="trend-up">▲</span>')
+    if delta < 0:
+        return Markup('<span class="trend-down">▼</span>')
+    return Markup('<span class="trend-same">─</span>')
 
 
-def _labeled_name(player: PlayerStats) -> str:
-    """Return the player name prefixed with its trend symbol."""
-    return f"{_trend_prefix(player.rank_delta)}{player.player_name}"
+class StatsHtmlRenderer:
+    """Renders a StatsReport into two PNG images (season and all-time) via Playwright."""
 
-
-class StatsImageRenderer:
-    """Renders a StatsReport into two PNG images (season and all-time)."""
-
-    def render(self, report: StatsReport) -> tuple[bytes, bytes]:
+    async def render(self, report: StatsReport) -> tuple[bytes, bytes]:
         """Generate PNG images for season and all-time scopes.
 
         Args:
@@ -55,108 +46,76 @@ class StatsImageRenderer:
         Returns:
             Tuple of (season_png, all_time_png) as raw bytes.
         """
-        return (
-            self._render_scope(report.season, "Esta temporada"),
-            self._render_scope(report.all_time, "Histórico"),
+        season_png = await self._render_scope(report.season, "Esta temporada")
+        all_time_png = await self._render_scope(report.all_time, "Histórico")
+        return season_png, all_time_png
+
+    async def _render_scope(self, scoped: StatsScopedReport, title: str) -> bytes:
+        """Render a single scope into PNG bytes.
+
+        Args:
+            scoped: Scope-specific stats (players + chemistry).
+            title: Section title shown at the top of the image.
+
+        Returns:
+            Raw PNG bytes.
+        """
+        html = self._build_html(scoped, title)
+        return await self._screenshot(html)
+
+    def _build_html(self, scoped: StatsScopedReport, title: str) -> str:
+        """Render the Jinja2 template with the given scope data.
+
+        Args:
+            scoped: Scope-specific stats (players + chemistry).
+            title: Section title shown at the top of the image.
+
+        Returns:
+            Rendered HTML string ready for Playwright.
+        """
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(_TEMPLATE_DIR)),
+            autoescape=True,
+        )
+        env.filters["trend_prefix"] = _trend_prefix
+
+        players = scoped.players[:10]
+        players_by_goals = sorted(scoped.players, key=lambda p: p.goals, reverse=True)[:10]
+        players_by_assists = sorted(scoped.players, key=lambda p: p.assists, reverse=True)[:10]
+        chemistry = scoped.chemistry[:5]
+
+        max_goals = max((p.goals for p in players_by_goals), default=0) or 1
+        max_assists = max((p.assists for p in players_by_assists), default=0) or 1
+        max_chemistry = max((c.count for c in chemistry), default=0) or 1
+
+        template = env.get_template(_TEMPLATE_NAME)
+        return template.render(
+            title=title,
+            players=players,
+            players_by_goals=players_by_goals,
+            players_by_assists=players_by_assists,
+            chemistry=chemistry,
+            max_goals=max_goals,
+            max_assists=max_assists,
+            max_chemistry=max_chemistry,
         )
 
-    def _render_scope(self, scoped: StatsScopedReport, title: str) -> bytes:
-        """Render a single scope into a PNG bytes object."""
-        top_players = scoped.players[:10]
-        top_chemistry = scoped.chemistry[:10]
+    async def _screenshot(self, html: str) -> bytes:
+        """Launch Chromium, render the HTML, and return a full-page PNG.
 
-        fig, axes = plt.subplots(3, 1, figsize=(8, 14))
-        fig.suptitle(title, fontsize=16, fontweight="bold", y=0.98)
+        Args:
+            html: Fully rendered HTML string.
 
-        self._render_goals_assists(axes[0], top_players)
-        self._render_points_table(axes[1], top_players)
-        self._render_chemistry(axes[2], top_chemistry)
-
-        plt.tight_layout(rect=(0, 0, 1, 0.97))
-
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
-        plt.close(fig)
-        buf.seek(0)
-        return buf.read()
-
-    def _render_goals_assists(self, ax: Axes, players: list[PlayerStats]) -> None:
-        """Render the goals & assists horizontal grouped bar chart."""
-        ax.set_title("Goles y asistencias", fontweight="bold")
-
-        if not players:
-            ax.axis("off")
-            ax.text(0.5, 0.5, "Sin datos", ha="center", va="center", transform=ax.transAxes)
-            return
-
-        sorted_players = sorted(players, key=lambda p: p.goals, reverse=True)
-        names = [_labeled_name(p) for p in sorted_players]
-        goals = [p.goals for p in sorted_players]
-        assists = [p.assists for p in sorted_players]
-        y = list(range(len(names)))
-
-        ax.barh([i + 0.2 for i in y], goals, height=0.4, label="Goles", color=_COLOR_GOALS)
-        ax.barh([i - 0.2 for i in y], assists, height=0.4, label="Asist.", color=_COLOR_ASSISTS)
-        ax.set_yticks(y)
-        ax.set_yticklabels(names, fontsize=9)
-        ax.invert_yaxis()
-        ax.legend(fontsize=8)
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-    def _render_points_table(self, ax: Axes, players: list[PlayerStats]) -> None:
-        """Render the points ranking as a matplotlib table."""
-        ax.set_title("Clasificación", fontweight="bold")
-        ax.axis("off")
-
-        if not players:
-            ax.text(0.5, 0.5, "Sin datos", ha="center", va="center", transform=ax.transAxes)
-            return
-
-        col_labels = ["Jugador", "PJ", "G", "E", "P", "Pts"]
-        table_data = [
-            [
-                _labeled_name(p),
-                str(p.matches_played),
-                str(p.wins),
-                str(p.draws),
-                str(p.losses),
-                str(p.points),
-            ]
-            for p in players
-        ]
-
-        table = ax.table(
-            cellText=table_data,
-            colLabels=col_labels,
-            loc="center",
-            cellLoc="center",
-        )
-        table.auto_set_font_size(False)
-        table.set_fontsize(9)
-        table.scale(1, 1.4)
-
-        for (row, col), cell in table.get_celld().items():
-            if row == 0:
-                cell.set_facecolor(_COLOR_TABLE_HEADER)
-                cell.set_text_props(color="white", fontweight="bold")
-            else:
-                cell.set_facecolor(_COLOR_TABLE_ROW_ODD if row % 2 == 1 else _COLOR_TABLE_ROW_EVEN)
-            if col == 0:
-                cell.set_text_props(ha="left")
-
-    def _render_chemistry(self, ax: Axes, chemistry: list[ChemistryPair]) -> None:
-        """Render the top chemistry duos as a horizontal bar chart."""
-        ax.set_title("Parejas más frecuentes", fontweight="bold")
-
-        if not chemistry:
-            ax.axis("off")
-            ax.text(0.5, 0.5, "Sin datos", ha="center", va="center", transform=ax.transAxes)
-            return
-
-        labels = [f"{c.scorer_name} + {c.assistant_name}" for c in chemistry]
-        counts = [c.count for c in chemistry]
-
-        ax.barh(labels, counts, color=_COLOR_CHEMISTRY)
-        ax.invert_yaxis()
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax.tick_params(axis="y", labelsize=9)
+        Returns:
+            Raw PNG bytes of the full page screenshot.
+        """
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            page = await browser.new_page(
+                viewport={"width": 390, "height": 844},
+                device_scale_factor=2,
+            )
+            await page.set_content(html, wait_until="load")
+            png = await page.screenshot(full_page=True)
+            await browser.close()
+            return png
