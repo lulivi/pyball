@@ -34,6 +34,23 @@ def _trend_prefix(player: PlayerStats) -> Markup:
     return Markup('<span class="trend-same">─</span>')
 
 
+def _build_jinja_env() -> jinja2.Environment:
+    """Build and return the Jinja2 environment with the trend_prefix filter registered.
+
+    Returns:
+        Configured Jinja2 Environment.
+    """
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(_TEMPLATE_DIR),
+        autoescape=True,
+    )
+    env.filters["trend_prefix"] = _trend_prefix
+    return env
+
+
+_JINJA_ENV = _build_jinja_env()
+
+
 class StatsHtmlRenderer:
     """Renders a StatsReport into two PNG images (season and all-time) via Playwright."""
 
@@ -73,12 +90,6 @@ class StatsHtmlRenderer:
         Returns:
             Rendered HTML string ready for Playwright.
         """
-        env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(str(_TEMPLATE_DIR)),
-            autoescape=True,
-        )
-        env.filters["trend_prefix"] = _trend_prefix
-
         players = scoped.players[:10]
         players_by_goals = sorted(scoped.players, key=lambda p: p.goals, reverse=True)[:10]
         players_by_assists = sorted(scoped.players, key=lambda p: p.assists, reverse=True)[:10]
@@ -88,7 +99,7 @@ class StatsHtmlRenderer:
         max_assists = max((p.assists for p in players_by_assists), default=0) or 1
         max_chemistry = max((c.count for c in chemistry), default=0) or 1
 
-        template = env.get_template(_TEMPLATE_NAME)
+        template = _JINJA_ENV.get_template(_TEMPLATE_NAME)
         return template.render(
             title=title,
             players=players,
@@ -111,11 +122,10 @@ class StatsHtmlRenderer:
         """
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch()
-            page = await browser.new_page(
-                viewport={"width": 390, "height": 844},
-                device_scale_factor=2,
-            )
-            await page.set_content(html, wait_until="load")
-            png = await page.screenshot(full_page=True)
-            await browser.close()
-            return png
+            async with browser:
+                page = await browser.new_page(
+                    viewport={"width": 390, "height": 844},
+                    device_scale_factor=2,
+                )
+                await page.set_content(html, wait_until="load")
+                return await page.screenshot(full_page=True)
