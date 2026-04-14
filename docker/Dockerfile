@@ -33,7 +33,8 @@ WORKDIR /builder
 COPY dist/*.whl .
 
 RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
-    && rm -rf /builder
+    && rm -rf /builder \
+    && playwright install chromium --with-deps
 WORKDIR /pyball
 
 ENTRYPOINT ["pyball"]
