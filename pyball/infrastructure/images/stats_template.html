@@ -50,6 +50,7 @@ body {
 .ranking-table .pos.gold { color: #f0c040; }
 .ranking-table .num { text-align: center; color: #c0c0d0; }
 .ranking-table .pts { text-align: center; font-weight: 700; }
+.ranking-table .pts.gold { color: #f0c040; }
 /* Trend symbols */
 .trend-up { color: #2ecc71; }
 .trend-down { color: #e74c3c; }
@@ -120,7 +121,7 @@ body {
             <td class="num">{{ p.wins }}</td>
             <td class="num">{{ p.draws }}</td>
             <td class="num">{{ p.losses }}</td>
-            <td class="num pts{% if loop.index == 1 %}" style="color:#f0c040;{% endif %}">{{ p.points }}</td>
+            <td class="num pts{% if loop.index == 1 %} gold{% endif %}">{{ p.points }}</td>
           </tr>
           {% else %}
           <tr><td colspan="7" style="text-align:center;color:#6c6c9a;padding:8px;">Sin datos</td></tr>
