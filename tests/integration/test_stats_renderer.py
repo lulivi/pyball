@@ -23,17 +23,18 @@ def _make_full_report() -> StatsReport:
         PlayerStats(
             player_id=f"id-{i}",
             player_name=f"Player{i}",
-            goals=5 - i,
-            assists=i,
+            goals=3 - i,
+            assists=3 - i,
             matches_played=10,
-            wins=5 - i,
+            wins=3 - i,
             draws=1,
             losses=i,
-            rank_delta=i - 1,
+            points_rank_delta=0,
+            goals_rank_delta=0,
+            assists_rank_delta=0,
         )
         for i in range(3)
     ]
-    players[2].rank_delta = None  # new entry — ★ symbol
     chemistry = [
         ChemistryPair(scorer_name="Player0", assistant_name="Player1", count=3),
         ChemistryPair(scorer_name="Player1", assistant_name="Player2", count=1),
@@ -83,7 +84,9 @@ class TestStatsHtmlRenderer:
                 wins=3,
                 draws=0,
                 losses=2,
-                rank_delta=None,
+                points_rank_delta=None,
+                goals_rank_delta=None,
+                assists_rank_delta=None,
             )
         ]
         players_all = [
@@ -96,7 +99,9 @@ class TestStatsHtmlRenderer:
                 wins=12,
                 draws=2,
                 losses=6,
-                rank_delta=0,
+                points_rank_delta=0,
+                goals_rank_delta=0,
+                assists_rank_delta=0,
             )
         ]
         report = StatsReport(

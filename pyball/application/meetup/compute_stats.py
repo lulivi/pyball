@@ -21,7 +21,9 @@ class PlayerStats:  # pylint: disable=too-many-instance-attributes
     wins: int
     draws: int
     losses: int
-    rank_delta: int | None
+    points_rank_delta: int | None
+    goals_rank_delta: int | None
+    assists_rank_delta: int | None
 
     @property
     def points(self) -> int:
@@ -131,7 +133,7 @@ def _build_scoped_report(
     player_names: dict[str, str],
     prev_meetups: list | None = None,
 ) -> StatsScopedReport:
-    """Build a StatsScopedReport, computing rank_delta from prev_meetups if provided."""
+    """Build a StatsScopedReport, computing rank deltas from prev_meetups if provided."""
     player_data, chemistry_counts = _aggregate(meetups)
 
     stats_list = [
@@ -144,7 +146,9 @@ def _build_scoped_report(
             wins=d["w"],
             draws=d["d"],
             losses=d["l"],
-            rank_delta=None,
+            points_rank_delta=None,
+            goals_rank_delta=None,
+            assists_rank_delta=None,
         )
         for pid, d in player_data.items()
     ]
@@ -152,16 +156,15 @@ def _build_scoped_report(
 
     if prev_meetups is not None:
         prev_data, _ = _aggregate(prev_meetups)
-        prev_ranked = sorted(
-            prev_data.keys(),
+        prev_pts_ranked = sorted(
+            [pid for pid in prev_data if _points_from_counters(prev_data[pid]) > 0],
             key=lambda pid: _points_from_counters(prev_data[pid]),
             reverse=True,
         )
-        prev_rank = {pid: i + 1 for i, pid in enumerate(prev_ranked)}
-        for i, player in enumerate(stats_list):
-            current_pos = i + 1
-            if player.player_id in prev_rank:
-                player.rank_delta = prev_rank[player.player_id] - current_pos
+        prev_pts_rank = {pid: i + 1 for i, pid in enumerate(prev_pts_ranked)}
+        for i, player in enumerate([p for p in stats_list if p.points > 0]):
+            if player.player_id in prev_pts_rank:
+                player.points_rank_delta = prev_pts_rank[player.player_id] - (i + 1)
 
     chemistry = sorted(
         [

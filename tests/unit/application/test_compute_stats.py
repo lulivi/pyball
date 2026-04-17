@@ -285,7 +285,7 @@ class TestComputeStatsRankDelta:
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         for p in report.all_time.players:
-            assert p.rank_delta is None
+            assert p.points_rank_delta is None
 
     def test_rank_delta_zero_when_position_unchanged(self):
         """A player who stays in the same position gets delta 0."""
@@ -297,20 +297,20 @@ class TestComputeStatsRankDelta:
         meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
-        assert alice_stats.rank_delta == 0
+        assert alice_stats.points_rank_delta == 0
 
     def test_rank_delta_positive_when_moved_up(self):
         """A player who moved up in ranking gets a positive delta."""
         alice = make_player("Alice")
         bob = make_player("Bob")
-        # meetup1: Bob wins (Bob 1st, Alice 2nd)
-        # meetup2: Alice wins (Alice moves to 1st → delta = +1)
-        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1)
+        # meetup1: draw (both get 1 pt — Bob listed 1st by sort stability, Alice 2nd)
+        # meetup2: Alice wins big — Alice takes 1st overall, delta = +1
+        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [bob.id], [alice.id], 1, 1)
         meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id], [bob.id], 1, 0)
         meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
-        assert alice_stats.rank_delta == 1
+        assert alice_stats.points_rank_delta == 1
 
     def test_rank_delta_negative_when_dropped(self):
         """A player who dropped in ranking gets a negative delta."""
@@ -322,8 +322,8 @@ class TestComputeStatsRankDelta:
         meetup_repo, player_repo = make_repos([meetup1, meetup2, meetup3], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
-        assert alice_stats.rank_delta is not None
-        assert alice_stats.rank_delta < 0  # Alice dropped
+        assert alice_stats.points_rank_delta is not None
+        assert alice_stats.points_rank_delta < 0  # Alice dropped
 
     def test_rank_delta_none_for_new_player(self):
         """A player absent from the previous ranking gets rank_delta=None."""
@@ -337,4 +337,4 @@ class TestComputeStatsRankDelta:
         meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob, charlie])
         report = ComputeStats(meetup_repo, player_repo).execute()
         charlie_stats = next(p for p in report.all_time.players if p.player_name == "Charlie")
-        assert charlie_stats.rank_delta is None
+        assert charlie_stats.points_rank_delta is None
