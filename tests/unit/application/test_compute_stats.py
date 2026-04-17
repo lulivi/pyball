@@ -379,7 +379,8 @@ class TestComputeStatsRankDelta:
         """goals_rank_delta reflects the goals ranking, not the points ranking."""
         alice = make_player("Alice")
         bob = make_player("Bob")
-        # meetup1: Bob wins and scores 2 goals -> Bob 1st in goals, 1st in points
+        # meetup1: Bob wins (3 pts) and scores 2 goals -> Bob 1st in points, 1st in goals
+        # Alice loses and scores 1 goal -> Alice 2nd in points, 2nd in goals
         event_b1 = GoalEvent(
             scorer_id=bob.id,
             assistant_id=None,
@@ -392,41 +393,58 @@ class TestComputeStatsRankDelta:
             team="B",
             timestamp=datetime(2026, 1, 10, 20, 10),
         )
-        meetup1 = make_meetup(
-            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 2, [event_b1, event_b2]
-        )
-        # meetup2: Alice wins and scores 3 goals -> Alice moves to 1st in goals
         event_a1 = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="A",
+            timestamp=datetime(2026, 1, 10, 20, 15),
+        )
+        meetup1 = make_meetup(
+            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 2, [event_a1, event_b1, event_b2]
+        )
+        # meetup2: Alice wins and scores 3 goals, Bob draws and scores 1 goal
+        # Alice: now 4 pts (1st in points), 4 goals (1st in goals) -> both deltas = 0
+        # Bob: now 3 pts (2nd in points, same as before), 3 goals (2nd in goals, same as before) -> both deltas = 0
+        event_a2 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
             timestamp=datetime(2026, 1, 17, 20, 5),
         )
-        event_a2 = GoalEvent(
+        event_a3 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
             timestamp=datetime(2026, 1, 17, 20, 10),
         )
-        event_a3 = GoalEvent(
+        event_a4 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
             timestamp=datetime(2026, 1, 17, 20, 15),
+        )
+        event_b3 = GoalEvent(
+            scorer_id=bob.id,
+            assistant_id=None,
+            team="B",
+            timestamp=datetime(2026, 1, 17, 20, 20),
         )
         meetup2 = make_meetup(
             datetime(2026, 1, 17, 20, 0),
             [alice.id],
             [bob.id],
             3,
-            0,
-            [event_a1, event_a2, event_a3],
+            1,
+            [event_a2, event_a3, event_a4, event_b3],
         )
         meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
         # Alice was 2nd in goals (prev), now 1st -> delta = 2 - 1 = +1
+        # Alice was not in points ranking (prev), now 1st -> delta = None
+        # This shows goals_rank_delta and points_rank_delta are independent
         assert alice_stats.goals_rank_delta == 1
+        assert alice_stats.points_rank_delta is None
 
     def test_zero_points_player_has_none_points_rank_delta(self):
         """A player with 0 points is excluded from the points ranking, so delta is None."""
