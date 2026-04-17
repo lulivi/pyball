@@ -16,17 +16,15 @@ _TEMPLATE_NAME = "stats_template.html"
 
 
 def _trend_prefix(delta: int | None) -> Markup:
-    """Return an HTML span with the trend symbol for the given rank delta.
+    """Return an HTML span with the trend symbol for the given delta.
 
     Args:
-        delta: The rank delta value (positive=up, negative=down, None=new/not ranked).
+        delta: Rank position change (positive=up, negative=down, None=new entrant).
 
     Returns:
         Safe HTML Markup with the trend span.
     """
-    if delta is None:
-        return Markup('<span class="trend-new">★</span>')
-    if delta > 0:
+    if delta is None or delta > 0:
         return Markup('<span class="trend-up">▲</span>')
     if delta < 0:
         return Markup('<span class="trend-down">▼</span>')
@@ -89,9 +87,17 @@ class StatsHtmlRenderer:
         Returns:
             Rendered HTML string ready for Playwright.
         """
-        players = scoped.players[:10]
-        players_by_goals = sorted(scoped.players, key=lambda p: p.goals, reverse=True)[:10]
-        players_by_assists = sorted(scoped.players, key=lambda p: p.assists, reverse=True)[:10]
+        players = [p for p in scoped.players if p.points > 0][:10]
+        players_by_goals = sorted(
+            [p for p in scoped.players if p.goals > 0],
+            key=lambda p: p.goals,
+            reverse=True,
+        )[:10]
+        players_by_assists = sorted(
+            [p for p in scoped.players if p.assists > 0],
+            key=lambda p: p.assists,
+            reverse=True,
+        )[:10]
         chemistry = scoped.chemistry[:5]
 
         max_goals = max((p.goals for p in players_by_goals), default=0) or 1
