@@ -400,11 +400,17 @@ class TestComputeStatsRankDelta:
             timestamp=datetime(2026, 1, 10, 20, 15),
         )
         meetup1 = make_meetup(
-            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 2, [event_a1, event_b1, event_b2]
+            datetime(2026, 1, 10, 20, 0),
+            [alice.id],
+            [bob.id],
+            1,
+            2,
+            [event_a1, event_b1, event_b2],
         )
         # meetup2: Alice wins and scores 3 goals, Bob draws and scores 1 goal
         # Alice: now 4 pts (1st in points), 4 goals (1st in goals) -> both deltas = 0
-        # Bob: now 3 pts (2nd in points, same as before), 3 goals (2nd in goals, same as before) -> both deltas = 0
+        # Bob: now 3 pts (2nd in points, same as before), 3 goals (2nd in goals,
+        # same as before) -> both deltas = 0
         event_a2 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
