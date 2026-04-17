@@ -22,7 +22,7 @@ from pyball.bot.formatters import (
 from pyball.exceptions import MeetupError
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.settings import PyballSettings
+from pyball.settings import PyballSettings, TelegramSettings
 
 logger = logging.getLogger(__name__)
 
@@ -103,13 +103,20 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     date_str = f"{args[0]} {args[1]}"
     container: Container = context.bot_data["container"]
+    telegram_settings: TelegramSettings = context.bot_data["settings"].telegram
 
     try:
         url = container.start_match().execute(date_str)
-        await message.reply_text(
-            f"🔗 Enlace del partido:\n{url}",
-            disable_web_page_preview=True,
-        )
+        for admin in telegram_settings.admins_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin,
+                    text=f"🔗 Enlace del partido:\n{url}",
+                    disable_web_page_preview=True,
+                )
+            except telegram.error.Forbidden:
+                logger.error("Could not send message to '%s' admin", admin)
+
     except ValueError as error:
         await message.reply_text(str(error))
     except MeetupError as error:
