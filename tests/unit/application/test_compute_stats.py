@@ -338,3 +338,104 @@ class TestComputeStatsRankDelta:
         report = ComputeStats(meetup_repo, player_repo).execute()
         charlie_stats = next(p for p in report.all_time.players if p.player_name == "Charlie")
         assert charlie_stats.points_rank_delta is None
+
+    def test_goals_rank_delta_none_when_player_had_no_previous_goals(self):
+        """A player with 0 goals in the previous ranking gets goals_rank_delta=None."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        event = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="A",
+            timestamp=datetime(2026, 1, 17, 20, 5),
+        )
+        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id], [bob.id], 1, 0, [event])
+        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
+        assert alice_stats.goals_rank_delta is None
+
+    def test_assists_rank_delta_none_when_player_had_no_previous_assists(self):
+        """A player with 0 assists previously gets assists_rank_delta=None."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        event = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=bob.id,
+            team="A",
+            timestamp=datetime(2026, 1, 17, 20, 5),
+        )
+        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup2 = make_meetup(
+            datetime(2026, 1, 17, 20, 0), [alice.id, bob.id], [alice.id], 1, 0, [event]
+        )
+        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        bob_stats = next(p for p in report.all_time.players if p.player_name == "Bob")
+        assert bob_stats.assists_rank_delta is None
+
+    def test_goals_rank_delta_independent_from_points_rank(self):
+        """goals_rank_delta reflects the goals ranking, not the points ranking."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        # meetup1: Bob wins and scores 2 goals -> Bob 1st in goals, 1st in points
+        event_b1 = GoalEvent(
+            scorer_id=bob.id,
+            assistant_id=None,
+            team="B",
+            timestamp=datetime(2026, 1, 10, 20, 5),
+        )
+        event_b2 = GoalEvent(
+            scorer_id=bob.id,
+            assistant_id=None,
+            team="B",
+            timestamp=datetime(2026, 1, 10, 20, 10),
+        )
+        meetup1 = make_meetup(
+            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 2, [event_b1, event_b2]
+        )
+        # meetup2: Alice wins and scores 3 goals -> Alice moves to 1st in goals
+        event_a1 = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="A",
+            timestamp=datetime(2026, 1, 17, 20, 5),
+        )
+        event_a2 = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="A",
+            timestamp=datetime(2026, 1, 17, 20, 10),
+        )
+        event_a3 = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="A",
+            timestamp=datetime(2026, 1, 17, 20, 15),
+        )
+        meetup2 = make_meetup(
+            datetime(2026, 1, 17, 20, 0),
+            [alice.id],
+            [bob.id],
+            3,
+            0,
+            [event_a1, event_a2, event_a3],
+        )
+        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
+        # Alice was 2nd in goals (prev), now 1st -> delta = 2 - 1 = +1
+        assert alice_stats.goals_rank_delta == 1
+
+    def test_zero_points_player_has_none_points_rank_delta(self):
+        """A player with 0 points is excluded from the points ranking, so delta is None."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        bob_stats = next(p for p in report.all_time.players if p.player_name == "Bob")
+        # Bob has 0 points in both rankings -> not ranked -> delta None
+        assert bob_stats.points_rank_delta is None

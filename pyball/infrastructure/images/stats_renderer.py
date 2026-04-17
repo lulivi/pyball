@@ -9,22 +9,21 @@ import jinja2
 from markupsafe import Markup
 from playwright.async_api import async_playwright
 
-from pyball.application.meetup.compute_stats import PlayerStats, StatsReport, StatsScopedReport
+from pyball.application.meetup.compute_stats import StatsReport, StatsScopedReport
 
 _TEMPLATE_DIR = Path(__file__).parent
 _TEMPLATE_NAME = "stats_template.html"
 
 
-def _trend_prefix(player: PlayerStats) -> Markup:
-    """Return an HTML span with the trend symbol for the given player.
+def _trend_prefix(delta: int | None) -> Markup:
+    """Return an HTML span with the trend symbol for the given rank delta.
 
     Args:
-        player: PlayerStats with rank_delta set.
+        delta: The rank delta value (positive=up, negative=down, None=new/not ranked).
 
     Returns:
         Safe HTML Markup with the trend span.
     """
-    delta = player.rank_delta
     if delta is None:
         return Markup('<span class="trend-new">★</span>')
     if delta > 0:

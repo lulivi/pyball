@@ -116,7 +116,7 @@ body {
           {% for p in players %}
           <tr{% if loop.index is odd %} class="odd"{% endif %}>
             <td class="pos{% if loop.index == 1 %} gold{% endif %}">{{ loop.index }}</td>
-            <td>{{ p | trend_prefix }} {{ p.player_name }}</td>
+            <td>{{ p.points_rank_delta | trend_prefix }} {{ p.player_name }}</td>
             <td class="num">{{ p.matches_played }}</td>
             <td class="num">{{ p.wins }}</td>
             <td class="num">{{ p.draws }}</td>
@@ -141,7 +141,7 @@ body {
         <div class="section-body">
           {% for p in players_by_goals %}
           <div class="bar-row">
-            <span class="bar-name">{{ p | trend_prefix }} {{ p.player_name }}</span>
+            <span class="bar-name">{{ p.goals_rank_delta | trend_prefix }} {{ p.player_name }}</span>
             <div class="bar-track">
               <div class="bar goals" style="width:{{ (p.goals / max_goals * 100) | int }}%;"></div>
             </div>
@@ -159,7 +159,7 @@ body {
         <div class="section-body">
           {% for p in players_by_assists %}
           <div class="bar-row">
-            <span class="bar-name">{{ p | trend_prefix }} {{ p.player_name }}</span>
+            <span class="bar-name">{{ p.assists_rank_delta | trend_prefix }} {{ p.player_name }}</span>
             <div class="bar-track">
               <div class="bar assists" style="width:{{ (p.assists / max_assists * 100) | int }}%;"></div>
             </div>

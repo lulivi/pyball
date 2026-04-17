@@ -156,8 +156,9 @@ def _build_scoped_report(
 
     if prev_meetups is not None:
         prev_data, _ = _aggregate(prev_meetups)
+
         prev_pts_ranked = sorted(
-            [pid for pid in prev_data if _points_from_counters(prev_data[pid]) > 0],
+            [pid for pid, d in prev_data.items() if _points_from_counters(d) > 0],
             key=lambda pid: _points_from_counters(prev_data[pid]),
             reverse=True,
         )
@@ -165,6 +166,44 @@ def _build_scoped_report(
         for i, player in enumerate([p for p in stats_list if p.points > 0]):
             if player.player_id in prev_pts_rank:
                 player.points_rank_delta = prev_pts_rank[player.player_id] - (i + 1)
+
+        prev_goals_ranked = sorted(
+            [pid for pid, d in prev_data.items() if d["goals"] > 0],
+            key=lambda pid: prev_data[pid]["goals"],
+            reverse=True,
+        )
+        prev_goals_rank = {pid: i + 1 for i, pid in enumerate(prev_goals_ranked)}
+        current_goals = sorted(
+            [p for p in stats_list if p.goals > 0],
+            key=lambda p: p.goals,
+            reverse=True,
+        )
+        for i, player in enumerate(current_goals):
+            if player.player_id in prev_goals_rank:
+                player.goals_rank_delta = prev_goals_rank[player.player_id] - (i + 1)
+            elif prev_goals_rank:
+                # If there were ranked players in prev, treat current player as
+                # implicitly ranked below the last ranked player
+                player.goals_rank_delta = len(prev_goals_rank) + 1 - (i + 1)
+
+        prev_assists_ranked = sorted(
+            [pid for pid, d in prev_data.items() if d["assists"] > 0],
+            key=lambda pid: prev_data[pid]["assists"],
+            reverse=True,
+        )
+        prev_assists_rank = {pid: i + 1 for i, pid in enumerate(prev_assists_ranked)}
+        current_assists = sorted(
+            [p for p in stats_list if p.assists > 0],
+            key=lambda p: p.assists,
+            reverse=True,
+        )
+        for i, player in enumerate(current_assists):
+            if player.player_id in prev_assists_rank:
+                player.assists_rank_delta = prev_assists_rank[player.player_id] - (i + 1)
+            elif prev_assists_rank:
+                # If there were ranked players in prev, treat current player as
+                # implicitly ranked below the last ranked player
+                player.assists_rank_delta = len(prev_assists_rank) + 1 - (i + 1)
 
     chemistry = sorted(
         [
