@@ -20,7 +20,6 @@
 
 """Package testing and deploying tasks."""
 from pathlib import Path
-from typing import Tuple
 
 import nox
 
@@ -76,14 +75,9 @@ def test(session: nox.Session):
     ]
 
     if session.posargs:
-        target_dir = session.posargs[0]
-        cov_parameters = []
-
-    session.run_always(
-        "pytest",
-        *cov_parameters,
-        target_dir,
-    )
+        session.run_always("pytest", *session.posargs)
+    else:
+        session.run_always("pytest", *cov_parameters, str(target_dir))
 
 
 @nox.session
@@ -99,47 +93,22 @@ def format(session: nox.Session):
     )
 
 
-@nox.session
-def build(session: nox.Session) -> None:
-    """Build the Python wheel."""
-    session.run("rm", "-rf", str(ROOT_DIRECTORY.joinpath("dist")), external=True)
-    session.run("poetry", "build", "-f", "wheel", external=True)
-
-
-@nox.session(name="dbuild")
-def docker_build(session: nox.Session) -> Tuple[str, str]:
+@nox.session(name="dbuild", venv_backend=None)
+def docker_build(session: nox.Session) -> None:
     """Build the Docker image."""
-    build(session=session)
-    image_tag = (
-        session.run_always(
-            "poetry",
-            "version",
-            external=True,
-            silent=True,
-        )
-        .split()[-1]
-        .strip()
-    )
-    image_name = "lulivi/pyball"
-    session.run_always(
-        "docker",
-        "build",
-        ".",
-        "-t",
-        f"{image_name}:{image_tag}",
-        "-f",
-        str(ROOT_DIRECTORY.joinpath("docker", "Dockerfile")),
+    session.run(
+        "python",
+        str(ROOT_DIRECTORY / "scripts" / "docker_build.py"),
         external=True,
     )
-    session.run_always(
-        "docker", "tag", f"{image_name}:{image_tag}", f"{image_name}:latest", external=True
-    )
-    return image_name, image_tag
 
 
 @nox.session(name="dpublish", venv_backend=None)
 def docker_publish(session: nox.Session) -> None:
     """Publish the Docker image."""
-    image_name, image_tag = docker_build(session=session)
-    session.run_always("docker", "push", f"{image_name}:{image_tag}", external=True)
-    session.run_always("docker", "push", f"{image_name}:latest", external=True)
+    session.run(
+        "python",
+        str(ROOT_DIRECTORY / "scripts" / "docker_build.py"),
+        "--push",
+        external=True,
+    )

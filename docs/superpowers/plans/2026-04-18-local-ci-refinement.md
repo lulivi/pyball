@@ -170,19 +170,9 @@ from typing import Tuple
 
 Remove it entirely. It was only used by the old `docker_build` return type.
 
-- [ ] **Step 2: Fix `lint` session — replace `--with test` with `--only dev`**
+- [x] **Step 2: Fix `lint` session — replace `--with test` with `--only dev`** *(already done in Task 1 commit 46c1460)*
 
-Current:
-```python
-session.run("poetry", "install", "--with", "test", external=True)
-```
-
-Replace with:
-```python
-session.run("poetry", "install", "--only", "dev", external=True)
-```
-
-- [ ] **Step 3: Fix `test` session — replace `--with test` and fix posargs**
+- [ ] **Step 3: Fix `test` session — fix posargs** *(`--only dev` already done in Task 1; only posargs change remains)*
 
 Replace the entire `test` session:
 
