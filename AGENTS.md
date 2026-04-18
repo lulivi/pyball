@@ -10,29 +10,26 @@ Always use **subagent-driven development** for implementation plans. When the
 
 ## Commands
 
-**NEVER use `poetry run nox` — it breaks argument passing.** Always call nox directly:
+nox is installed globally via pipx — call it directly, never via `poetry run`.
 
 ```bash
-# Get nox binary path (use this form in scripts/Makefile/agent commands)
-NOX=$(poetry env info -p)/bin/nox
-
 # Run tests (full suite with coverage)
-make test          # or: $NOX -e test
+make test          # or: nox -e test
 make t             # alias
 
 # Run a single test file or pass pytest flags
-$NOX -e test -- tests/unit/domain/test_meetup.py -v
-$NOX -e test -- tests/unit/domain/test_meetup.py -k test_name -v
+nox -e test -- tests/unit/domain/test_meetup.py -v
+nox -e test -- tests/unit/domain/test_meetup.py -k test_name -v
 
 # Run a single test file directly (no coverage)
 $(poetry env info -p)/bin/pytest tests/unit/domain/test_meetup.py
 
 # Lint
-make lint          # or: $NOX -e lint
+make lint          # or: nox -e lint
 make l             # alias
 
 # Format
-make format        # or: $NOX -e format
+make format        # or: nox -e format
 make f             # alias
 
 # Run via Docker Compose (production)

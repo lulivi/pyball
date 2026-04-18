@@ -96,7 +96,7 @@ def format(session: nox.Session):
 @nox.session(name="dbuild", venv_backend=None)
 def docker_build(session: nox.Session) -> None:
     """Build the Docker image."""
-    session.run(
+    session.run_always(
         "python",
         str(ROOT_DIRECTORY / "scripts" / "docker_build.py"),
         external=True,
@@ -106,7 +106,7 @@ def docker_build(session: nox.Session) -> None:
 @nox.session(name="dpublish", venv_backend=None)
 def docker_publish(session: nox.Session) -> None:
     """Publish the Docker image."""
-    session.run(
+    session.run_always(
         "python",
         str(ROOT_DIRECTORY / "scripts" / "docker_build.py"),
         "--push",
