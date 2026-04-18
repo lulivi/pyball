@@ -30,9 +30,9 @@ def main() -> None:
     if dist_dir.exists():
         shutil.rmtree(dist_dir)
 
-    run("poetry", "build", "-f", "wheel")
+    run("uv", "build", "--wheel")
 
-    version = run("poetry", "version", "--short")
+    version = run("hatch", "version")
     image_tag = f"{args.image}:{version}"
     image_latest = f"{args.image}:latest"
 
