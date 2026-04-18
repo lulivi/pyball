@@ -71,7 +71,7 @@ get_version() {
 
 **Builder stage:**
 - Base: `python:3.12.13-slim-trixie`
-- Installs `uv` via pip
+- Installs `uv` via pip (`hatchling` and `hatch-vcs` are pulled automatically by `uv build` from `[build-system] requires`)
 - Receives `ARG VERSION`, sets `HATCH_VCS_PRETEND_VERSION=${VERSION}`
 - Copies full source, runs `uv build --wheel --out-dir /dist`
 
