@@ -1,6 +1,6 @@
 """Unit tests for StatsHtmlRenderer._build_html and _trend_prefix."""
 
-from pyball.application.meetup.compute_stats import ChemistryPair, PlayerStats, StatsScopedReport
+from pyball.application.meetup.compute_stats import PlayerStats, StatsScopedReport
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer, _trend_prefix
 
 
