@@ -90,13 +90,11 @@ class StatsHtmlRenderer:
         players = [p for p in scoped.players if p.points > 0][:10]
         players_by_goals = sorted(
             [p for p in scoped.players if p.goals > 0],
-            key=lambda p: p.goals,
-            reverse=True,
+            key=lambda p: (-p.goals, p.player_name),
         )[:10]
         players_by_assists = sorted(
             [p for p in scoped.players if p.assists > 0],
-            key=lambda p: p.assists,
-            reverse=True,
+            key=lambda p: (-p.assists, p.player_name),
         )[:10]
         chemistry = scoped.chemistry[:5]
 

@@ -303,11 +303,14 @@ class TestComputeStatsRankDelta:
         """A player who moved up in ranking gets a positive delta."""
         alice = make_player("Alice")
         bob = make_player("Bob")
-        # meetup1: draw (both get 1 pt — Bob listed 1st by sort stability, Alice 2nd)
-        # meetup2: Alice wins big — Alice takes 1st overall, delta = +1
-        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [bob.id], [alice.id], 1, 1)
-        meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id], [bob.id], 1, 0)
-        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
+        charlie = make_player("Charlie")
+        # meetup1: Alice draws with Charlie (1 pt each)
+        # meetup2: Bob beats Charlie — prev: Bob rank 1 (3pts), Alice rank 2 (1pt)
+        # meetup3 (latest): Alice beats Bob — Alice rank 1 (4pts), Bob rank 2 (3pts) → delta = +1
+        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [charlie.id], 1, 1)
+        meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [bob.id], [charlie.id], 1, 0)
+        meetup3 = make_meetup(datetime(2026, 1, 24, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup_repo, player_repo = make_repos([meetup1, meetup2, meetup3], [alice, bob, charlie])
         report = ComputeStats(meetup_repo, player_repo).execute()
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
         assert alice_stats.points_rank_delta == 1

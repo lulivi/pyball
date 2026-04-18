@@ -152,15 +152,14 @@ def _build_scoped_report(
         )
         for pid, d in player_data.items()
     ]
-    stats_list.sort(key=lambda p: p.points, reverse=True)
+    stats_list.sort(key=lambda p: (-p.points, p.player_name))
 
     if prev_meetups is not None:
         prev_data, _ = _aggregate(prev_meetups)
 
         prev_pts_ranked = sorted(
             [pid for pid, d in prev_data.items() if _points_from_counters(d) > 0],
-            key=lambda pid: _points_from_counters(prev_data[pid]),
-            reverse=True,
+            key=lambda pid: (-_points_from_counters(prev_data[pid]), player_names.get(pid, pid)),
         )
         prev_pts_rank = {pid: i + 1 for i, pid in enumerate(prev_pts_ranked)}
         for i, player in enumerate([p for p in stats_list if p.points > 0]):
@@ -169,14 +168,12 @@ def _build_scoped_report(
 
         prev_goals_ranked = sorted(
             [pid for pid, d in prev_data.items() if d["goals"] > 0],
-            key=lambda pid: prev_data[pid]["goals"],
-            reverse=True,
+            key=lambda pid: (-prev_data[pid]["goals"], player_names.get(pid, pid)),
         )
         prev_goals_rank = {pid: i + 1 for i, pid in enumerate(prev_goals_ranked)}
         current_goals = sorted(
             [p for p in stats_list if p.goals > 0],
-            key=lambda p: p.goals,
-            reverse=True,
+            key=lambda p: (-p.goals, p.player_name),
         )
         for i, player in enumerate(current_goals):
             if player.player_id in prev_goals_rank:
@@ -184,14 +181,12 @@ def _build_scoped_report(
 
         prev_assists_ranked = sorted(
             [pid for pid, d in prev_data.items() if d["assists"] > 0],
-            key=lambda pid: prev_data[pid]["assists"],
-            reverse=True,
+            key=lambda pid: (-prev_data[pid]["assists"], player_names.get(pid, pid)),
         )
         prev_assists_rank = {pid: i + 1 for i, pid in enumerate(prev_assists_ranked)}
         current_assists = sorted(
             [p for p in stats_list if p.assists > 0],
-            key=lambda p: p.assists,
-            reverse=True,
+            key=lambda p: (-p.assists, p.player_name),
         )
         for i, player in enumerate(current_assists):
             if player.player_id in prev_assists_rank:
