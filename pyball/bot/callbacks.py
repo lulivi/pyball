@@ -12,6 +12,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from pyball.application.container import Container
 from pyball.bot.formatters import build_main_keyboard, format_main_message, parse_callback_data
+from pyball.domain.meetup.errors import PlayerNotInMeetupError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
@@ -143,7 +144,7 @@ def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
         try:
             meetup.remove_player(player_id)
             return True
-        except ValueError as error:
+        except PlayerNotInMeetupError as error:
             logger.warning("Player not in meetup: %s", error)
             return False
     return False
