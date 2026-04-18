@@ -32,6 +32,9 @@ def real_container(tmp_data, monkeypatch):
 
     monkeypatch.setattr("pyball.application.container.load_settings", lambda: settings_mock)
 
+    # container._settings (used internally by use cases like start_match) is the
+    # settings_mock above — separate from the bot_settings fixture placed in
+    # bot_data["settings"]. Both need consistent values for settings-driven paths.
     container = Container()
     # Overwrite the lazy properties directly so Container uses tmp_data paths,
     # bypassing the settings-driven defaults set in __init__.
