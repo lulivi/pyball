@@ -16,6 +16,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+FROM python:3.12.13-slim-trixie AS builder
+
+ARG VERSION
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+
+RUN pip install uv --no-cache-dir
+
+WORKDIR /src
+COPY . .
+RUN uv build --wheel --out-dir /dist
+
+
 FROM python:3.12.13-slim-trixie
 
 ENV VIRTUAL_ENV=/opt/venv \
@@ -30,11 +42,12 @@ RUN apt-get update && apt-get install -y locales \
     && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel
 
 WORKDIR /builder
-COPY dist/*.whl .
+COPY --from=builder /dist/*.whl .
 
 RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
     && rm -rf /builder \
     && playwright install chromium --with-deps
+
 WORKDIR /pyball
 
 ENTRYPOINT ["pyball"]
