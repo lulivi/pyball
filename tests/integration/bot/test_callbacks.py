@@ -1,6 +1,6 @@
 """Integration tests for the inline callback handler."""
 
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -62,8 +62,6 @@ async def test_join_adds_player_to_meetup(
 
     await callback_handler(callback_update, bot_context)
 
-    from datetime import date  # pylint: disable=import-outside-toplevel
-
     container = bot_context.bot_data["container"]
     meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
     assert linked_player.id in meetup.players
@@ -82,8 +80,6 @@ async def test_leave_removes_player_from_meetup(
     callback_update.callback_query.data = "leave:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
-
-    from datetime import date  # pylint: disable=import-outside-toplevel
 
     meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
     assert linked_player.id not in meetup.players
