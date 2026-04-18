@@ -97,8 +97,9 @@ def format(session: nox.Session):
 def docker_build(session: nox.Session) -> None:
     """Build the Docker image."""
     session.run_always(
-        "python",
-        str(ROOT_DIRECTORY / "scripts" / "docker_build.py"),
+        "bash",
+        str(ROOT_DIRECTORY / "scripts" / "docker_build.sh"),
+        *session.posargs,
         external=True,
     )
 
@@ -107,8 +108,9 @@ def docker_build(session: nox.Session) -> None:
 def docker_publish(session: nox.Session) -> None:
     """Publish the Docker image."""
     session.run_always(
-        "python",
-        str(ROOT_DIRECTORY / "scripts" / "docker_build.py"),
+        "bash",
+        str(ROOT_DIRECTORY / "scripts" / "docker_build.sh"),
         "--push",
+        *session.posargs,
         external=True,
     )
