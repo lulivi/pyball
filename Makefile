@@ -14,21 +14,21 @@ run: build
 
 .PHONY: format
 format:
-	poetry run nox -e format
+	nox -e format
 
 .PHONY: f
 f: format
 
 .PHONY: test
 test:
-	poetry run nox -e test
+	nox -e test
 
 .PHONY: t
 t: test
 
 .PHONY: lint
 lint:
-	poetry run nox -e lint
+	nox -e lint
 
 .PHONY: l
 l: lint
@@ -36,9 +36,9 @@ l: lint
 
 .PHONY: build
 build:
-	poetry run nox -e dbuild
+	nox -e dbuild
 
 
 .PHONY: publish
 publish: build
-	poetry run nox -e dpublish
+	nox -e dpublish

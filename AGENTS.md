@@ -10,8 +10,6 @@ Always use **subagent-driven development** for implementation plans. When the
 
 ## Commands
 
-nox is installed globally via pipx — call it directly, never via `poetry run`.
-
 ```bash
 # Run tests (full suite with coverage)
 make test          # or: nox -e test
@@ -20,9 +18,6 @@ make t             # alias
 # Run a single test file or pass pytest flags
 nox -e test -- tests/unit/domain/test_meetup.py -v
 nox -e test -- tests/unit/domain/test_meetup.py -k test_name -v
-
-# Run a single test file directly (no coverage)
-$(poetry env info -p)/bin/pytest tests/unit/domain/test_meetup.py
 
 # Lint
 make lint          # or: nox -e lint

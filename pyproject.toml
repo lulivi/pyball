@@ -24,7 +24,6 @@ pyball = "pyball.__main__:main"
 [tool.poetry.group.dev.dependencies]
 black = "22.*"
 isort = "5.*"
-nox = "*"
 mypy = "*"
 pycodestyle = "*"
 pydocstyle = "*"
