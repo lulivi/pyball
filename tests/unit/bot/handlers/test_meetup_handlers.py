@@ -1,8 +1,14 @@
 """Tests for meetup bot handlers."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
-from pyball.bot.handlers.meetup import new_meetup_handler
+from pyball.bot.handlers.meetup import (
+    create_teams_handler,
+    new_meetup_handler,
+    show_meetup_handler,
+)
 
 
 @pytest.mark.asyncio
@@ -23,3 +29,54 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
     mock_update.message.reply_text.assert_called_with(
         "Invalid date format. Use: /new_meetup `YYYY/MM/DD HH:MM`"
     )
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_no_args(mock_update, mock_context):
+    mock_context.args = []
+    mock_context.bot_data["container"] = MagicMock()
+
+    await show_meetup_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_with(
+        "Usage: /show_meetup `YYYY/MM/DD HH:MM`"
+    )
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_invalid_date(mock_update, mock_context):
+    mock_context.args = ["bad", "date"]
+    mock_context.bot_data["container"] = MagicMock()
+
+    await show_meetup_handler(mock_update, mock_context)
+
+    (text, *_), _ = mock_update.message.reply_text.call_args
+    assert "Invalid date format" in text
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_not_found(mock_update, mock_context):
+    mock_context.args = ["2026/04/25", "20:00"]
+
+    container = MagicMock()
+    container.meetup_repository.find_by_date.return_value = None
+    mock_context.bot_data["container"] = container
+
+    await show_meetup_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_with("Meetup not found.")
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_no_teams(mock_update, mock_context):
+    mock_context.args = ["2026/04/25", "20:00"]
+
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    mock_meetup.teams = []
+    container.create_teams.return_value.execute.return_value = mock_meetup
+    mock_context.bot_data["container"] = container
+
+    await create_teams_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_with("No teams created.")
