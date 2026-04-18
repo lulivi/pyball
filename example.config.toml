@@ -31,7 +31,7 @@ admins_ids = [123456789, 987654321]
 [telegram.regulars]
 # Required: The main chat ID (negative number for groups)
 # Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
-chat_id = -1001234567890
+chat_id = -1000000000000
 
 # Optional: The forum topic thread for meetup callup messages
 # Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_THREAD_ID
@@ -44,7 +44,7 @@ stats_thread_id = ""
 [telegram.substitutes]
 # Required: The substitutes chat ID (negative number for groups)
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
-chat_id = -1001234567891
+chat_id = -1000000000001
 
 # Optional: The forum topic thread for meetup callup messages
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_THREAD_ID
