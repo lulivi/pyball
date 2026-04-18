@@ -22,6 +22,8 @@ dependencies = [
     "playwright>=1.44,<2",
 ]
 
+
+
 [project.scripts]
 pyball = "pyball.__main__:main"
 
