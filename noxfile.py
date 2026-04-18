@@ -25,7 +25,7 @@ import nox
 
 ROOT_DIRECTORY = Path(__file__).parent.resolve()
 
-nox.options.default_venv_backend = "venv"
+nox.options.default_venv_backend = "uv"
 nox.options.reuse_existing_virtualenvs = True
 nox.options.sessions = ["test", "lint"]
 nox.options.stop_on_first_error = False
@@ -35,7 +35,7 @@ nox.options.error_on_missing_interpreters = False
 @nox.session
 def lint(session: nox.Session):
     """Lint the code."""
-    session.run("poetry", "install", "--only", "dev", external=True)
+    session.run("uv", "sync", "--only-group", "dev", external=True)
 
     targets = (
         str(ROOT_DIRECTORY.joinpath("pyball")),
@@ -65,7 +65,7 @@ def lint(session: nox.Session):
 @nox.session(python=["3.12"])
 def test(session: nox.Session):
     """Test the code."""
-    session.run("poetry", "install", "--only", "dev", external=True)
+    session.run("uv", "sync", "--only-group", "dev", external=True)
 
     target_dir = ROOT_DIRECTORY.joinpath("tests")
     cov_dir = ROOT_DIRECTORY.joinpath("pyball")
@@ -83,7 +83,7 @@ def test(session: nox.Session):
 @nox.session
 def format(session: nox.Session):
     """Format the code."""
-    session.run("poetry", "install", "--only", "dev", external=True)
+    session.run("uv", "sync", "--only-group", "dev", external=True)
 
     session.run_always(
         "black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
