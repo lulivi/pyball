@@ -19,7 +19,8 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
     "jinja2>=3.1,<4",
-    "playwright>=1.44,<2",
+    "weasyprint>=60,<62",
+    "pymupdf>=1.24,<2",
 ]
 
 [project.scripts]
