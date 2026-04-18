@@ -38,9 +38,7 @@ async def test_show_meetup_handler_no_args(mock_update, mock_context):
 
     await show_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        "Usage: /show_meetup `YYYY/MM/DD HH:MM`"
-    )
+    mock_update.message.reply_text.assert_called_with("Usage: /show_meetup `YYYY/MM/DD HH:MM`")
 
 
 @pytest.mark.asyncio

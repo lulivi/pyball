@@ -195,7 +195,7 @@ async def test_search_handler_sends_and_stores(bot_update, bot_context):
 
 @pytest.mark.asyncio
 async def test_add_player_partial_failure(bot_update, bot_context):
-    """add_player_handler with one valid name and one unknown name replies with Added and Failed."""
+    """add_player_handler with one valid name and one unknown name replies w/ Added and Failed."""
     container = bot_context.bot_data["container"]
     player = Player.create("Luis", "regular")
     container.player_repository.save(player)

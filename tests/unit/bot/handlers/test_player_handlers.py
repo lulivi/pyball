@@ -188,9 +188,7 @@ async def test_new_player_handler_invalid_group(mock_update, mock_context):
 
     await new_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        "Group must be 'regular' or 'substitute'"
-    )
+    mock_update.message.reply_text.assert_called_with("Group must be 'regular' or 'substitute'")
 
 
 @pytest.mark.asyncio
@@ -224,9 +222,7 @@ async def test_rename_player_handler_name_taken(mock_update, mock_context):
     mock_context.args = ["pid1", "Existing Name"]
 
     container = MagicMock()
-    container.rename_player.return_value.execute.side_effect = NameAlreadyTakenError(
-        "name taken"
-    )
+    container.rename_player.return_value.execute.side_effect = NameAlreadyTakenError("name taken")
     mock_context.bot_data["container"] = container
 
     await rename_player_handler(mock_update, mock_context)
@@ -244,9 +240,7 @@ async def test_link_player_handler_non_numeric_id(mock_update, mock_context):
         m.setattr("pyball.bot.handlers.player.TelegramMappingStore", MagicMock())
         await link_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        "Invalid telegram_id. Must be a number."
-    )
+    mock_update.message.reply_text.assert_called_with("Invalid telegram_id. Must be a number.")
 
 
 @pytest.mark.asyncio
@@ -258,7 +252,7 @@ async def test_link_player_handler_already_linked_same(mock_update, mock_context
     player_id = PlayerId.generate()
     mock_player = MagicMock()
     mock_player.name = "Luis"
-    mock_player.player_id = player_id
+    mock_player.id = player_id
 
     container = MagicMock()
     container.player_repository.find_all.return_value = [mock_player]
@@ -274,8 +268,9 @@ async def test_link_player_handler_already_linked_same(mock_update, mock_context
         )
         await link_player_handler(mock_update, mock_context)
 
-    (text, *_), _ = mock_update.message.reply_text.call_args
-    assert "linked to another player" in text
+    mock_update.message.reply_text.assert_called_with(
+        "This Telegram ID is already linked to this player."
+    )
 
 
 @pytest.mark.asyncio
@@ -287,7 +282,7 @@ async def test_link_player_handler_already_linked_other(mock_update, mock_contex
     player_id = PlayerId.generate()
     mock_player = MagicMock()
     mock_player.name = "Luis"
-    mock_player.player_id = player_id
+    mock_player.id = player_id
 
     container = MagicMock()
     container.player_repository.find_all.return_value = [mock_player]
@@ -315,9 +310,7 @@ async def test_unlink_player_handler_non_numeric_id(mock_update, mock_context):
         m.setattr("pyball.bot.handlers.player.TelegramMappingStore", MagicMock())
         await unlink_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        "Invalid telegram_id. Must be a number."
-    )
+    mock_update.message.reply_text.assert_called_with("Invalid telegram_id. Must be a number.")
 
 
 @pytest.mark.asyncio
