@@ -134,3 +134,12 @@ async def test_unlink_player_removes_mapping(bot_update, bot_context):
     await unlink_player_handler(bot_update, bot_context)
 
     assert store.get_player_id(55555) is None
+
+
+@pytest.mark.asyncio
+async def test_list_players_empty_repo(bot_update, bot_context):
+    """list_players_handler with an empty repo replies with 'No players found.'"""
+    await list_players_handler(bot_update, bot_context)
+
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert text == "No players found."
