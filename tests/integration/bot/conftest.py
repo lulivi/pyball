@@ -11,6 +11,8 @@ from pyball.application.container import Container
 from pyball.infrastructure.persistence.meetup_repository import JsonMeetupRepository
 from pyball.infrastructure.persistence.player_repository import JsonPlayerRepository
 
+# pylint: disable=redefined-outer-name
+
 
 @pytest.fixture
 def tmp_data(tmp_path):
@@ -33,14 +35,16 @@ def real_container(tmp_data, monkeypatch):
     container = Container()
     # Overwrite the lazy properties directly so Container uses tmp_data paths,
     # bypassing the settings-driven defaults set in __init__.
+    # pylint: disable-next=protected-access
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
+    # pylint: disable-next=protected-access
     container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups")
     return container
 
 
 @pytest.fixture
 def bot_settings(tmp_data):
-    """Settings mock for bot_data with real temp file paths."""
+    """Build settings mock for bot_data with real temp file paths."""
     settings = MagicMock()
     settings.telegram.is_authorized.return_value = True
     settings.telegram.admins_ids = [99999]
@@ -70,7 +74,7 @@ def bot_update():
 
 @pytest.fixture
 def bot_context(real_container, bot_settings):
-    """ContextTypes mock wired to real_container and mocked bot API."""
+    """Build ContextTypes mock wired to real_container and mocked bot API."""
     context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
     context.bot_data = {"container": real_container, "settings": bot_settings}
     context.bot = AsyncMock()
