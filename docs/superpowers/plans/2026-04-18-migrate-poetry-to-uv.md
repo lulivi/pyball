@@ -273,10 +273,10 @@ Replace:
 with:
 
 ```python
-    version = run("uv", "version").split()[-1]
+    version = run("hatch", "version")
 ```
 
-Note: `uv version` outputs either `"1.2.3"` or `"pyball 1.2.3"` depending on uv version. Taking `.split()[-1]` handles both formats correctly.
+Note: `hatch version` outputs just the version string (e.g. `"1.2.3"`), no extra parsing needed.
 
 - [ ] **Step 3: Verify the script produces a wheel**
 
