@@ -13,12 +13,15 @@ from pyball.bot.handlers.meetup import (
     create_teams_handler,
     list_meetups_handler,
     new_meetup_handler,
+    next_meetup_handler,
     remove_player_handler,
+    search_handler,
     show_meetup_handler,
     start_match_handler,
 )
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import Player
+from pyball.infrastructure.telegram import TelegramMessageStore
 
 
 @pytest.mark.asyncio
@@ -157,3 +160,67 @@ async def test_start_match_forbidden_admin_does_not_raise(bot_update, bot_contex
 
     bot_context.bot.send_message.assert_called_once()
     bot_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_next_meetup_creates_meetup(bot_update, bot_context):
+    """next_meetup_handler creates a meetup for the next default weekday."""
+    await next_meetup_handler(bot_update, bot_context)
+
+    container = bot_context.bot_data["container"]
+    meetups = container.meetup_repository.find_all()
+    assert len(meetups) == 1
+    first_call_text = bot_update.message.reply_text.call_args_list[0][0][0]
+    assert "Creating meetup for" in first_call_text
+
+
+@pytest.mark.asyncio
+async def test_search_handler_sends_and_stores(bot_update, bot_context):
+    """search_handler sends the substitutes message and persists tracking to the store."""
+    container = bot_context.bot_data["container"]
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = ["2026/04/25"]
+
+    await search_handler(bot_update, bot_context)
+
+    bot_context.bot.send_message.assert_called_once()
+    settings = bot_context.bot_data["settings"]
+    store = TelegramMessageStore(settings.paths.bot_messages_file)
+    tracking = store.get_message("2026-04-25T20:00", "substitute")
+    assert tracking is not None
+    assert tracking.message_id == 42
+
+
+@pytest.mark.asyncio
+async def test_add_player_partial_failure(bot_update, bot_context):
+    """add_player_handler with one valid name and one unknown name replies with Added and Failed."""
+    container = bot_context.bot_data["container"]
+    player = Player.create("Luis", "regular")
+    container.player_repository.save(player)
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = ["2026/04/25", "20:00", "Luis,", "Ghost"]
+
+    await add_player_handler(bot_update, bot_context)
+
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert "Added: Luis" in text
+    assert "Failed:" in text
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_no_players(bot_update, bot_context):
+    """show_meetup_handler for a meetup with no players replies with 'No players yet.'"""
+    container = bot_context.bot_data["container"]
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = ["2026/04/25", "20:00"]
+
+    await show_meetup_handler(bot_update, bot_context)
+
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert "No players yet." in text
