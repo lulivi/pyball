@@ -17,6 +17,7 @@ class AddPlayerToMeetup:
         meetup_repository: MeetupRepository,
         player_repository: PlayerRepository,
     ):
+        """Initialize the use case with required repositories."""
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
 

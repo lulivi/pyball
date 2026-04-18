@@ -2,7 +2,6 @@
 
 import os
 import tomllib
-
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -22,6 +21,7 @@ class Paths:
     bot_messages_file: Path = field(init=False)
 
     def __post_init__(self) -> None:
+        """Initialize dependent path fields."""
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
         self.bot_mappings_file = self.data_dir / "bot" / "telegram-uuid.json"

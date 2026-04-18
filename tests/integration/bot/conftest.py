@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from telegram import Message, Update, User
 from telegram.ext import ContextTypes
 

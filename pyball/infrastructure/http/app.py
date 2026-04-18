@@ -2,12 +2,10 @@
 
 import asyncio
 import logging
-
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import telegram
-
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel

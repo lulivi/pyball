@@ -1,7 +1,6 @@
 """Start match use case."""
 
 import urllib.parse
-
 from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupNotFoundError

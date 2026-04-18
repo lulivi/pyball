@@ -3,7 +3,6 @@
 import functools
 import locale
 import re
-
 from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup

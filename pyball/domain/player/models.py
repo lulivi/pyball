@@ -18,6 +18,7 @@ class Player(Entity["PlayerId"]):
     group: str
 
     def __post_init__(self):
+        """Validate player attributes after initialization."""
         if not self.name:
             raise ValueError("Player name cannot be empty")
         if self.group not in ("regular", "substitute"):

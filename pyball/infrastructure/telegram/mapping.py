@@ -1,7 +1,6 @@
 """Telegram ID to player ID mapping storage."""
 
 import json
-
 from pathlib import Path
 
 
@@ -9,6 +8,7 @@ class TelegramMappingStore:
     """Store telegram_id -> player_id mappings."""
 
     def __init__(self, file_path: Path):
+        """Initialize the store with a file path."""
         self.file_path = file_path
         self._ensure_file_exists()
 

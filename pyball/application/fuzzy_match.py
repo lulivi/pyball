@@ -1,7 +1,6 @@
 """Fuzzy matching for player names."""
 
 import difflib
-
 from dataclasses import dataclass
 
 from pyball.domain.player.models import PlayerId

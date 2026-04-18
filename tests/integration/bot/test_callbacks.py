@@ -4,7 +4,6 @@ from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from telegram import CallbackQuery, Message, Update, User
 
 from pyball.bot.callbacks import callback_handler

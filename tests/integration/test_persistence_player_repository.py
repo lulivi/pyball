@@ -2,7 +2,6 @@
 
 import shutil
 import tempfile
-
 from pathlib import Path
 
 from pyball.domain.player.models import Player

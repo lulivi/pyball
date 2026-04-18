@@ -1,7 +1,6 @@
 """JSON file-based meetup repository."""
 
 import json
-
 from datetime import date, datetime
 from pathlib import Path
 from uuid import UUID
@@ -93,6 +92,7 @@ class JsonMeetupRepository(MeetupRepository):
             json.dump(data, f, indent=2)
 
     def __init__(self, directory: Path):
+        """Initialize the repository with a storage directory."""
         self.directory = directory
         self.directory.mkdir(parents=True, exist_ok=True)
 

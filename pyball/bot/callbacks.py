@@ -1,12 +1,10 @@
 """Inline button callback handler."""
 
 import logging
-
 from datetime import datetime
 
 import telegram
 import telegram.error
-
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import jinja2
-
 from markupsafe import Markup
 from playwright.async_api import async_playwright
 

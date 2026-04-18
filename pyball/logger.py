@@ -23,7 +23,6 @@ import datetime
 import functools
 import logging
 import logging.handlers
-
 from typing import Any, Callable, TypeVar, cast
 
 from pyball.settings import LOGS_DIRECTORY_PATH

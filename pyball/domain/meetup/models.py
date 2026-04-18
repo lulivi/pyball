@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random as _random
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4

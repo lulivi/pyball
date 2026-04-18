@@ -47,7 +47,7 @@ def lint(session: nox.Session):
         ("isort", "--check", "--diff", *targets),
         ("pydocstyle", *targets),
         ("pycodestyle", *targets, "--max-line-length", "99"),
-        ("mypy", *targets, "--enable-incomplete-feature=Unpack"),
+        ("mypy", *targets),
         ("pylint", *targets),
     ]
 

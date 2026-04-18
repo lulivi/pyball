@@ -1,11 +1,9 @@
 """Meetup command handlers."""
 
 import logging
-
 from datetime import datetime, timedelta
 
 import telegram
-
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 

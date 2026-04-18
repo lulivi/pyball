@@ -1,7 +1,6 @@
 """JSON file-based player repository."""
 
 import json
-
 from pathlib import Path
 from uuid import UUID
 
@@ -26,6 +25,7 @@ class JsonPlayerRepository(PlayerRepository):
             self._write({"players": []})
 
     def __init__(self, file_path: Path):
+        """Initialize the repository with a file path."""
         self.file_path = file_path
         self._ensure_file_exists()
 

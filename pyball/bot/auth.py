@@ -1,7 +1,6 @@
 """Authorization utilities for bot handlers."""
 
 import logging
-
 from functools import wraps
 from typing import Callable
 
