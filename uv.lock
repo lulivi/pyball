@@ -697,7 +697,6 @@ wheels = [
 
 [[package]]
 name = "pyball"
-version = "3.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
