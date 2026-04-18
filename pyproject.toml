@@ -2,12 +2,9 @@
 requires = ["uv_build"]
 build-backend = "uv_build"
 
-[tool.uv.build-backend]
-version-source = "vcs"
-
 [project]
 name = "pyball"
-dynamic = ["version"]
+version = "3.0.0"
 description = "Bot to play them all"
 license = { text = "MIT" }
 authors = [{ name = "Luis Liñán", email = "luislivilla@gmail.com" }]
