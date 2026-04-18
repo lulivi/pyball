@@ -110,3 +110,11 @@ class TestStatsHtmlRenderer:
         )
         season_png, alltime_png = await StatsHtmlRenderer().render(report)
         assert season_png != alltime_png
+
+    def test_no_star_symbol_in_html(self):
+        """The ★ indicator is never shown regardless of player data."""
+        report = _make_full_report()
+        scoped = report.season
+        # pylint: disable=protected-access
+        html = StatsHtmlRenderer()._build_html(scoped, "Test")
+        assert "★" not in html
