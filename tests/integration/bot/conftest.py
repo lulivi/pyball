@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from telegram import CallbackQuery, Message, Update, User
+from telegram import Message, Update, User
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
@@ -31,6 +31,8 @@ def real_container(tmp_data, monkeypatch):
     monkeypatch.setattr("pyball.application.container.load_settings", lambda: settings_mock)
 
     container = Container()
+    # Overwrite the lazy properties directly so Container uses tmp_data paths,
+    # bypassing the settings-driven defaults set in __init__.
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
     container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups")
     return container
