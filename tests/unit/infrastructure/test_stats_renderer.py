@@ -81,8 +81,8 @@ class TestBuildHtml:
         alice = _make_player("a", "Alice", goals=3, assists=1, wins=2, draws=0, losses=1)
         bob = _make_player("b", "Bob", goals=0, assists=2, wins=1, draws=0, losses=2)
         html = self._build([alice, bob])
-        goals_col_start = html.index('background:#f72585;"></span>Goles')
-        assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
+        goals_col_start = html.index('background:#f72585;"></span> Goles')
+        assists_col_start = html.index('background:#3a86ff;"></span> Asistencias')
         goals_section = html[goals_col_start:assists_col_start]
         assert "Bob" not in goals_section
 
@@ -91,8 +91,8 @@ class TestBuildHtml:
         alice = _make_player("a", "Alice", goals=3, assists=0, wins=2, draws=0, losses=1)
         bob = _make_player("b", "Bob", goals=1, assists=2, wins=1, draws=0, losses=2)
         html = self._build([alice, bob])
-        assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
-        dupla_start = html.index("La Dupla")
+        assists_col_start = html.index('background:#3a86ff;"></span> Asistencias')
+        dupla_start = html.index("Conexión Letal")
         assists_section = html[assists_col_start:dupla_start]
         assert "Alice" not in assists_section
 
@@ -110,8 +110,8 @@ class TestBuildHtml:
         """A player with goals appears in the goals section."""
         alice = _make_player("a", "Alice", goals=5, assists=2, wins=3, draws=0, losses=0)
         html = self._build([alice])
-        goals_col_start = html.index('background:#f72585;"></span>Goles')
-        assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
+        goals_col_start = html.index('background:#f72585;"></span> Goles')
+        assists_col_start = html.index('background:#3a86ff;"></span> Asistencias')
         goals_section = html[goals_col_start:assists_col_start]
         assert "Alice" in goals_section
 
@@ -120,6 +120,6 @@ class TestBuildHtml:
         alice = _make_player("a", "Alice", goals=1, assists=0, wins=2, draws=0, losses=0)
         wp = WinningPair(player_a_name="Alice", player_b_name="Bob", count=3)
         html = self._build([alice], winning_pairs=[wp])
-        duo_start = html.index("Dúo Ganador")
+        duo_start = html.index("Garantía de Victoria")
         assert "Alice" in html[duo_start:]
         assert "Bob" in html[duo_start:]
