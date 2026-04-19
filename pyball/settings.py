@@ -132,16 +132,10 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     Raises:
         SettingsValidationError: If required settings are missing
     """
-    example_path = Path("example.config.toml")
-
+    config = {}
     if config_path.exists():
         with open(config_path, "rb") as f:
             config = tomllib.load(f)
-    elif example_path.exists():
-        with open(example_path, "rb") as f:
-            config = tomllib.load(f)
-    else:
-        config = {}
 
     telegram_cfg = config.get("telegram", {})
     pyball_cfg = config.get("pyball", {})
