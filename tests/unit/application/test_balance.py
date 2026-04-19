@@ -4,7 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from pyball.application.meetup.balance import compute_player_scores, extract_winning_counts
+from pyball.application.meetup.balance import (
+    compute_player_scores,
+    extract_winning_counts,
+    optimize_teams,
+)
 from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId, Team
 
 
@@ -115,3 +119,66 @@ class TestExtractWinningCounts:
         for key in counts:
             assert isinstance(key, tuple) and len(key) == 2
             assert key[0] <= key[1]
+
+
+class TestOptimizeTeams:
+    """Tests for optimize_teams."""
+
+    def test_all_players_assigned_exactly_once(self):
+        """Every input player appears in exactly one output team."""
+        player_ids = [PlayerId.generate() for _ in range(6)]
+        scores = {pid: 0.5 for pid in player_ids}
+
+        team_a, team_b = optimize_teams(player_ids, scores, {})
+
+        all_assigned = team_a + team_b
+        assert len(all_assigned) == len(player_ids)
+        assert set(all_assigned) == set(player_ids)
+
+    def test_raises_with_fewer_than_two_players(self):
+        """optimize_teams raises ValueError for fewer than 2 players."""
+        pid = PlayerId.generate()
+        with pytest.raises(ValueError, match="Need at least 2"):
+            optimize_teams([pid], {pid: 0.5}, {})
+
+    def test_teams_split_evenly(self):
+        """Teams differ in size by at most 1 player."""
+        player_ids = [PlayerId.generate() for _ in range(7)]
+        scores = {pid: 0.5 for pid in player_ids}
+
+        team_a, team_b = optimize_teams(player_ids, scores, {})
+
+        assert abs(len(team_a) - len(team_b)) <= 1
+
+    def test_produces_varied_results(self):
+        """Repeated calls with identical input produce more than one distinct composition."""
+        player_ids = [PlayerId.generate() for _ in range(4)]
+        scores = {pid: 0.5 for pid in player_ids}
+
+        compositions = set()
+        for _ in range(30):
+            team_a, _ = optimize_teams(player_ids, scores, {})
+            compositions.add(frozenset(team_a))
+
+        assert len(compositions) > 1
+
+    def test_winning_pair_bonus_influences_balance(self):
+        """A dominant winning pair is separated when it reduces the score imbalance."""
+        # p1 and p2 have won together 10 times; p3 and p4 have no shared history
+        p1, p2, p3, p4 = [PlayerId.generate() for _ in range(4)]
+        key = tuple(sorted([str(p1.value), str(p2.value)]))
+        winning_counts = {key: 10}
+        scores = {p1: 0.5, p2: 0.5, p3: 0.5, p4: 0.5}
+
+        # Run many times: p1 and p2 should end up on different teams more often than not
+        same_team_count = 0
+        trials = 100
+        for _ in range(trials):
+            team_a, team_b = optimize_teams([p1, p2, p3, p4], scores, winning_counts)
+            if p1 in team_a and p2 in team_a:
+                same_team_count += 1
+            if p1 in team_b and p2 in team_b:
+                same_team_count += 1
+
+        # Separated more than 50% of the time (pair bonus discourages co-location)
+        assert same_team_count < trials * 0.5
