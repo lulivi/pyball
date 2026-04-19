@@ -52,7 +52,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/new_player` <name\> <regular\|substitute\>", parse_mode="MarkdownV2"
+            r"Usage: `/new_player` `<name>` `<regular|substitute>`", parse_mode="MarkdownV2"
         )
         return
 
@@ -93,7 +93,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/rename_player` <player\_id\> <new\_name\>", parse_mode="MarkdownV2"
+            r"Usage: `/rename_player` `<player_id>` `<new_name>`", parse_mode="MarkdownV2"
         )
         return
 
@@ -130,7 +130,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or not args:
-        await message.reply_text(r"Usage: `/delete_player` <player_id\>", parse_mode="MarkdownV2")
+        await message.reply_text(r"Usage: `/delete_player` `<player_id>`", parse_mode="MarkdownV2")
         return
 
     player_id = args[0]
@@ -202,7 +202,7 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/change_group` <player_name\> <regular\|substitute\>",
+            r"Usage: `/change_group` `<player_name>` `<regular|substitute>`",
             parse_mode="MarkdownV2",
         )
         return
@@ -255,7 +255,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/link_player` <player_name\> <telegram_id\>", parse_mode="MarkdownV2"
+            r"Usage: `/link_player` `<player_name>` `<telegram_id>`", parse_mode="MarkdownV2"
         )
         return
 
@@ -310,7 +310,9 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or not args:
-        await message.reply_text(r"Usage: `/unlink_player <telegram_id\>", parse_mode="MarkdownV2")
+        await message.reply_text(
+            r"Usage: `/unlink_player `<telegram_id>`", parse_mode="MarkdownV2"
+        )
         return
 
     try:

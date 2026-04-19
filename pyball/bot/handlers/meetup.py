@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 import telegram
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
@@ -65,7 +66,7 @@ async def close_match_messages(
                 message_id=regular_tracking.message_id,
                 text=text,
                 reply_markup=None,
-                parse_mode="MarkdownV2",
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
             message_store.delete_message(date_key, "regular")
         except telegram.error.BadRequest as error:
@@ -80,7 +81,7 @@ async def close_match_messages(
                 message_id=sub_tracking.message_id,
                 text=text,
                 reply_markup=None,
-                parse_mode="MarkdownV2",
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
             message_store.delete_message(date_key, "substitute")
         except telegram.error.BadRequest as error:
@@ -96,7 +97,9 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     args = context.args
     if not args or len(args) < 2:
-        await message.reply_text("Usage: /start_match `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            "Usage: `/start_match` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        )
         return
 
     date_str = f"{args[0]} {args[1]}"
@@ -134,13 +137,15 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     args = context.args
     if not args or len(args) < 2:
-        await message.reply_text("Usage: /new_meetup `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            "Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        )
         return
 
     try:
         date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date format. Use: /new_meetup `YYYY/MM/DD HH:MM`")
+        await message.reply_text("Invalid date format. Use: `/new_meetup` `YYYY/MM/DD HH:MM`")
         return
 
     await _create_meetup_and_send(date, update, context)
@@ -218,7 +223,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             text=text,
             reply_markup=keyboard,
             message_thread_id=settings.telegram.regulars.meetups_thread_id or None,
-            parse_mode="MarkdownV2",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -272,14 +277,20 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     args = context.args
     if args is None or len(args) < 3:
-        await message.reply_text("Usage: /add_player `YYYY/MM/DD HH:MM` <name1>, <name2>, ...")
+        await message.reply_text(
+            r"Usage: `/add_player` `YYYY/MM/DD HH:MM` `<name1>`, `<name2>`, \.\.\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     date_str = f"{args[0]} {args[1]}"
     names = [n.strip() for n in " ".join(args[2:]).split(",") if n.strip()]
 
     if not names:
-        await message.reply_text("Usage: /add_player `YYYY/MM/DD HH:MM` <name1>, <name2>, ...")
+        await message.reply_text(
+            r"Usage: `/add_player` `YYYY/MM/DD HH:MM` `<name1>`, `<name2>`, \.\.\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     settings = context.bot_data["settings"]
@@ -322,7 +333,10 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or len(args) < 3:
-        await message.reply_text("Usage: /remove_player `YYYY/MM/DD HH:MM` <player_name>")
+        await message.reply_text(
+            r"Usage: `/remove_player` `YYYY/MM/DD HH:MM` `<player_name>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     date_str = f"{args[0]} {args[1]}"
@@ -357,7 +371,9 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     args = context.args
     if not args or len(args) < 2:
-        await message.reply_text("Usage: /create_teams `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            r"Usage: `/create_teams` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        )
         return
 
     date_str = f"{args[0]} {args[1]}"
@@ -386,7 +402,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                     message_id=regular_tracking.message_id,
                     text=text,
                     reply_markup=None,
-                    parse_mode="MarkdownV2",
+                    parse_mode=ParseMode.MARKDOWN_V2,
                 )
             except telegram.error.BadRequest as err:
                 logger.warning("Could not edit regulars message after teams: %s", err)
@@ -400,7 +416,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                     message_id=sub_tracking.message_id,
                     text=subs_text,
                     reply_markup=None,
-                    parse_mode="MarkdownV2",
+                    parse_mode=ParseMode.MARKDOWN_V2,
                 )
             except telegram.error.BadRequest as err:
                 logger.warning("Could not edit substitutes message after teams: %s", err)
@@ -452,13 +468,15 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     args = context.args
     if not args or len(args) < 2:
-        await message.reply_text("Usage: /show_meetup `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        )
         return
 
     try:
         meetup_date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date format. Use: /show_meetup `YYYY/MM/DD HH:MM`")
+        await message.reply_text("Invalid date format. Use: `/show_meetup` `YYYY/MM/DD HH:MM`")
         return
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
@@ -493,13 +511,15 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     args = context.args
     if not args:
-        await message.reply_text("Usage: /search `YYYY/MM/DD`")
+        await message.reply_text(
+            r"Usage: `/search` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        )
         return
 
     try:
-        meetup_date = datetime.strptime(args[0], "%Y/%m/%d")
+        meetup_date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date. Use: /search `YYYY/MM/DD`")
+        await message.reply_text(r"Invalid date. Use: `/search` `YYYY/MM/DD HH:MM`")
         return
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
@@ -525,7 +545,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=text,
             reply_markup=keyboard,
             message_thread_id=int(thread_id) if thread_id else None,
-            parse_mode="MarkdownV2",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
@@ -574,7 +594,7 @@ async def _refresh_callup_messages(context, settings, container, meetup) -> None
                 message_id=regular_tracking.message_id,
                 text=text,
                 reply_markup=keyboard,
-                parse_mode="MarkdownV2",
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
         except telegram.error.BadRequest as error:
             logger.warning("Could not edit regulars message: %s", error)
@@ -589,7 +609,7 @@ async def _refresh_callup_messages(context, settings, container, meetup) -> None
                 message_id=sub_tracking.message_id,
                 text=text,
                 reply_markup=keyboard,
-                parse_mode="MarkdownV2",
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
         except telegram.error.BadRequest as error:
             logger.warning("Could not edit substitutes message: %s", error)
