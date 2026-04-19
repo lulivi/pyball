@@ -35,7 +35,14 @@ ENV VIRTUAL_ENV=/opt/venv \
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y locales \
+RUN apt-get update && apt-get install -y \
+    locales \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
     && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
     && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
@@ -45,8 +52,7 @@ WORKDIR /builder
 COPY --from=builder /dist/*.whl .
 
 RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
-    && rm -rf /builder \
-    && playwright install chromium --with-deps
+    && rm -rf /builder
 
 WORKDIR /pyball
 
