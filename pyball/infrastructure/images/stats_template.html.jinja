@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=390">
 <style>
-@page { size: 390px 1200px; margin: 0; }
+@page { 
+  size: 390px 1200px; 
+  margin: 0; 
+  background: {{ bg_color }}; /* Propaga el color al lienzo base del PDF */
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: {{ bg_color }};
@@ -82,14 +86,20 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   width: 80px;
+  line-height: 1;
 }
 .bar-track { flex: 1; }
-.bar { height: 7px; border-radius: 3px; min-width: 3px; }
+.bar { height: 8px; border-radius: 3px; min-width: 3px; }
 .bar.goals { background: linear-gradient(90deg, #f72585, #7209b7); }
 .bar.assists { background: linear-gradient(90deg, #3a86ff, #4cc9f0); }
 .bar.chemistry { background: linear-gradient(90deg, #06d6a0, #118ab2); }
 .bar.winning { background: linear-gradient(90deg, #ffd166, #ef476f); }
-.bar-value { font-size: 9px; color: #6c6c9a; white-space: nowrap; }
+.bar-value { 
+  font-size: 11px;       /* Incrementado desde 9px */
+  font-weight: 500;      /* Añadido para dar mayor peso visual a la métrica */
+  /*color: #c0c0d0;*/        /* Opcional: Aclarado ligeramente respecto al #6c6c9a original para mayor contraste */
+  white-space: nowrap; 
+}
 /* Wide bar rows */
 .bar-row-wide { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
 .bar-row-wide:last-child { margin-bottom: 0; }
@@ -100,6 +110,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   width: 160px;
+  line-height: 1;
 }
 </style>
 </head>
