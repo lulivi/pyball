@@ -46,7 +46,7 @@ def lint(session: nox.Session):
         ("black", "--check", "--diff", *targets),
         ("isort", "--check", "--diff", *targets),
         ("pydocstyle", *targets),
-        ("pycodestyle", *targets, "--max-line-length", "99"),
+        ("pycodestyle", *targets, "--max-line-length", "99", "--ignore", "E203,E701"),
         ("mypy", *targets),
         ("pylint", *targets),
     ]

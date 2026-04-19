@@ -1,4 +1,4 @@
-"""Integration tests for StatsHtmlRenderer (requires Playwright + Chromium)."""
+"""Integration tests for StatsHtmlRenderer (requires WeasyPrint + pymupdf)."""
 
 import pytest
 

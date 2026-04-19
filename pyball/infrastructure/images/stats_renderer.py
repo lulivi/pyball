@@ -1,17 +1,20 @@
-"""Statistics image renderer using Playwright and a Jinja2 HTML template."""
+"""Statistics image renderer using WeasyPrint and a Jinja2 HTML template."""
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
+import fitz  # pymupdf
 import jinja2
+import weasyprint
 from markupsafe import Markup
-from playwright.async_api import async_playwright
 
 from pyball.application.meetup.compute_stats import StatsReport, StatsScopedReport
 
 _TEMPLATE_DIR = Path(__file__).parent
 _TEMPLATE_NAME = "stats_template.html"
+_BG_COLOR = bytes([15, 15, 26])  # #0f0f1a — used to detect content rows during crop
 
 
 def _trend_prefix(delta: int | None) -> Markup:
@@ -48,7 +51,7 @@ _JINJA_ENV = _build_jinja_env()
 
 
 class StatsHtmlRenderer:
-    """Renders a StatsReport into two PNG images (season and all-time) via Playwright."""
+    """Renders a StatsReport into two PNG images (season and all-time) via WeasyPrint."""
 
     async def render(self, report: StatsReport) -> tuple[bytes, bytes]:
         """Generate PNG images for season and all-time scopes.
@@ -74,7 +77,7 @@ class StatsHtmlRenderer:
             Raw PNG bytes.
         """
         html = self._build_html(scoped, title)
-        return await self._screenshot(html)
+        return await asyncio.to_thread(self._screenshot, html)
 
     def _build_html(self, scoped: StatsScopedReport, title: str) -> str:
         """Render the Jinja2 template with the given scope data.
@@ -84,7 +87,7 @@ class StatsHtmlRenderer:
             title: Section title shown at the top of the image.
 
         Returns:
-            Rendered HTML string ready for Playwright.
+            Rendered HTML string ready for WeasyPrint.
         """
         players = [p for p in scoped.players if p.points > 0][:10]
         players_by_goals = sorted(
@@ -113,21 +116,59 @@ class StatsHtmlRenderer:
             max_chemistry=max_chemistry,
         )
 
-    async def _screenshot(self, html: str) -> bytes:
-        """Launch Chromium, render the HTML, and return a full-page PNG.
+    def _screenshot(self, html: str) -> bytes:
+        """Render HTML to PNG bytes via WeasyPrint (PDF) and pymupdf.
 
         Args:
             html: Fully rendered HTML string.
 
         Returns:
-            Raw PNG bytes of the full page screenshot.
+            Raw PNG bytes, cropped to content height.
         """
-        async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch()
-            async with browser:
-                page = await browser.new_page(
-                    viewport={"width": 390, "height": 844},
-                    device_scale_factor=2,
-                )
-                await page.set_content(html, wait_until="load")
-                return await page.screenshot(full_page=True)
+        pdf = weasyprint.HTML(string=html).write_pdf()
+        doc = fitz.open(stream=pdf, filetype="pdf")
+        mat = fitz.Matrix(2, 2)
+        pixmaps = [page.get_pixmap(matrix=mat) for page in doc]
+
+        if len(pixmaps) == 1:
+            full = pixmaps[0]
+        else:
+            total_h = sum(p.height for p in pixmaps)
+            w = pixmaps[0].width
+            full = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, total_h), False)
+            y = 0
+            for p in pixmaps:
+                full.copy(p, fitz.IRect(0, y, w, y + p.height))
+                y += p.height
+
+        return self._crop_whitespace(full).tobytes("png")
+
+    def _crop_whitespace(self, pix: fitz.Pixmap) -> fitz.Pixmap:
+        """Return a new Pixmap with trailing background rows removed.
+
+        Scans from the bottom of the pixmap upward to find the last row
+        containing a pixel that differs from the page background color (#0f0f1a).
+        Adds 20 px of padding below the last content row.
+
+        Args:
+            pix: Source pixmap (RGB, no alpha).
+
+        Returns:
+            Cropped pixmap, or the original if no whitespace is found.
+        """
+        w, h = pix.width, pix.height
+        samples = bytes(pix.samples)
+        n = pix.n
+        last_row = h - 1
+        for row in range(h - 1, -1, -1):
+            start, end = row * w * n, (row + 1) * w * n
+            row_bytes = samples[start:end]
+            if any(row_bytes[i * n : i * n + 3] != _BG_COLOR for i in range(w)):
+                last_row = row
+                break
+        crop_h = min(last_row + 21, h)
+        if crop_h >= h:
+            return pix
+        result = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, crop_h), False)
+        result.copy(pix, fitz.IRect(0, 0, w, crop_h))
+        return result
