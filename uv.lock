@@ -895,6 +895,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pymupdf" },
     { name = "python-telegram-bot" },
+    { name = "qrcode", extra = ["pil"] },
     { name = "uvicorn", extra = ["standard"] },
     { name = "weasyprint" },
 ]
@@ -911,6 +912,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "types-qrcode" },
 ]
 
 [package.metadata]
@@ -920,6 +922,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0,<3" },
     { name = "pymupdf", specifier = ">=1.24,<2" },
     { name = "python-telegram-bot", specifier = ">=22,<23" },
+    { name = "qrcode", extras = ["pil"], specifier = ">=8,<9" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
     { name = "weasyprint", specifier = ">=61,<70" },
 ]
@@ -936,6 +939,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "types-qrcode", specifier = ">=8.2.0.20260408" },
 ]
 
 [[package]]
@@ -1267,6 +1271,23 @@ wheels = [
 ]
 
 [[package]]
+name = "qrcode"
+version = "8.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8f/b2/7fc2931bfae0af02d5f53b174e9cf701adbb35f39d69c2af63d4a39f81a9/qrcode-8.2.tar.gz", hash = "sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c", size = 43317, upload-time = "2025-05-01T15:44:24.726Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/b8/d2d6d731733f51684bbf76bf34dab3b70a9148e8f2cef2bb544fccec681a/qrcode-8.2-py3-none-any.whl", hash = "sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f", size = 45986, upload-time = "2025-05-01T15:44:22.781Z" },
+]
+
+[package.optional-dependencies]
+pil = [
+    { name = "pillow" },
+]
+
+[[package]]
 name = "snowballstemmer"
 version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1373,6 +1394,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/af/14b24e41977adb296d6bd1fb59402cf7d60ce364f90c890bd2ec65c43b5a/tomlkit-0.14.0.tar.gz", hash = "sha256:cf00efca415dbd57575befb1f6634c4f42d2d87dbba376128adb42c121b87064", size = 187167, upload-time = "2026-01-13T01:14:53.304Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl", hash = "sha256:592064ed85b40fa213469f81ac584f67a4f2992509a7c3ea2d632208623a3680", size = 39310, upload-time = "2026-01-13T01:14:51.965Z" },
+]
+
+[[package]]
+name = "types-qrcode"
+version = "8.2.0.20260408"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/46/d1334f341c658adca57e66af7b699fd5dbb801556e78303bfd5146729813/types_qrcode-8.2.0.20260408.tar.gz", hash = "sha256:074478558852fd327728008a08ff1ef2b7bada29f6ec94df5fa91e1f2c1d2df5", size = 15213, upload-time = "2026-04-08T04:36:11.283Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/36/05/d9bab35be450b2c93bb288d5d4fdc849f8a812fb829c4b3c4ae99c4ef473/types_qrcode-8.2.0.20260408-py3-none-any.whl", hash = "sha256:19027b5db4bb9b46731ab91588f6ca5a8c0eeaaf794c3269a4b0643a9611bc25", size = 19864, upload-time = "2026-04-08T04:36:10.194Z" },
 ]
 
 [[package]]

@@ -39,6 +39,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
+    "types-qrcode>=8.2.0.20260408",
 ]
 
 [tool.black]

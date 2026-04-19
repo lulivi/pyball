@@ -34,7 +34,7 @@ def generate_qr_bytes(url: str) -> BytesIO:
     """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
     img = qrcode.make(url)
     buf = BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf)
     buf.seek(0)
     return buf
 

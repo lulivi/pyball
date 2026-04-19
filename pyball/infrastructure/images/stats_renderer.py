@@ -154,33 +154,33 @@ class StatsHtmlRenderer:
         return self._crop_whitespace(full).tobytes("png")
 
     def _crop_whitespace(self, pix: fitz.Pixmap) -> fitz.Pixmap:
-            """Return a new Pixmap with trailing background rows removed."""
-            w, h = pix.width, pix.height
-            samples = bytes(pix.samples)
-            n = pix.n
-            
-            # EL CAMBIO CLAVE: Tomamos la última fila COMPLETA como referencia matemática.
-            # Si hay distorsiones en los bordes debido al escalado x3, esta fila
-            # ya las contiene, haciendo que la comparación sea perfectamente simétrica.
-            start_last_row = (h - 1) * w * n
-            reference_row = samples[start_last_row:]
-            
-            last_row = h - 1
-            for row in range(h - 1, -1, -1):
-                start = row * w * n
-                end = start + (w * n)
-                
-                # Comparamos la fila actual contra nuestra fila de referencia
-                if samples[start:end] != reference_row:
-                    last_row = row
-                    break
-                    
-            # Mantengo 40px de padding porque al escalar x3, los píxeles son más pequeños
-            crop_h = min(last_row + 40, h)
-            
-            if crop_h >= h:
-                return pix
-                
-            result = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, crop_h), False)
-            result.copy(pix, fitz.IRect(0, 0, w, crop_h))
-            return result
+        """Return a new Pixmap with trailing background rows removed."""
+        w, h = pix.width, pix.height
+        samples = bytes(pix.samples)
+        n = pix.n
+
+        # EL CAMBIO CLAVE: Tomamos la última fila COMPLETA como referencia matemática.
+        # Si hay distorsiones en los bordes debido al escalado x3, esta fila
+        # ya las contiene, haciendo que la comparación sea perfectamente simétrica.
+        start_last_row = (h - 1) * w * n
+        reference_row = samples[start_last_row:]
+
+        last_row = h - 1
+        for row in range(h - 1, -1, -1):
+            start = row * w * n
+            end = start + (w * n)
+
+            # Comparamos la fila actual contra nuestra fila de referencia
+            if samples[start:end] != reference_row:
+                last_row = row
+                break
+
+        # Mantengo 40px de padding porque al escalar x3, los píxeles son más pequeños
+        crop_h = min(last_row + 80, h)
+
+        if crop_h >= h:
+            return pix
+
+        result = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, crop_h), False)
+        result.copy(pix, fitz.IRect(0, 0, w, crop_h))
+        return result
