@@ -66,6 +66,21 @@ pyball/
 
 **Two concurrent services** run in a single asyncio loop: the Telegram polling bot and the FastAPI HTTP server (port 8000). The HTTP API is consumed by the `static/index.html` match-tracking UI.
 
+## Package Management
+
+This project uses **uv** for dependency management.
+
+```bash
+# Sync all dependencies (including dev extras)
+uv sync --all-extras
+
+# Run a command inside the uv-managed environment
+uv run python -c "..."
+uv run pytest ...
+```
+
+Prefer uv run over activating the virtualenv manually. After editing pyproject.toml, run uv sync --all-extras to apply changes.
+
 ## Configuration
 
 Copy `example.config.toml` to `config.toml` and fill in values. Required fields:
