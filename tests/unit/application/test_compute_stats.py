@@ -466,3 +466,62 @@ class TestComputeStatsRankDelta:
         bob_stats = next(p for p in report.all_time.players if p.player_name == "Bob")
         # Bob has 0 points in both rankings -> not ranked -> delta None
         assert bob_stats.points_rank_delta is None
+
+
+class TestComputeStatsWinningPairs:
+    """Winning teammate pair counting."""
+
+    def test_winning_pair_counted_from_winning_team(self):
+        """Two players on the winning team increment their winning-pair count."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        charlie = make_player("Charlie")
+        meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id, bob.id], [charlie.id], 2, 1)
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob, charlie])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        assert len(report.all_time.winning_pairs) == 1
+        wp = report.all_time.winning_pairs[0]
+        assert {wp.player_a_name, wp.player_b_name} == {"Alice", "Bob"}
+        assert wp.count == 1
+
+    def test_draw_produces_no_winning_pairs(self):
+        """A drawn match contributes no winning pairs."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 1)
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        assert not report.all_time.winning_pairs
+
+    def test_winning_pairs_sorted_by_count_desc(self):
+        """Winning pairs are returned sorted by count descending."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        charlie = make_player("Charlie")
+        # alice+bob win together twice; alice+charlie win once
+        m1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id, bob.id], [charlie.id], 1, 0)
+        m2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id, bob.id], [charlie.id], 1, 0)
+        m3 = make_meetup(datetime(2026, 1, 24, 20, 0), [alice.id, charlie.id], [bob.id], 1, 0)
+        meetup_repo, player_repo = make_repos([m1, m2, m3], [alice, bob, charlie])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        pairs = report.all_time.winning_pairs
+        assert {pairs[0].player_a_name, pairs[0].player_b_name} == {"Alice", "Bob"}
+        assert pairs[0].count == 2
+
+    def test_winning_pairs_capped_at_five(self):
+        """Only top 5 winning pairs are returned."""
+        players = [make_player(f"P{i}") for i in range(12)]
+        meetups = []
+        day = 1
+        # Create 6 distinct winning pairs with different counts
+        for i in range(6):
+            pa, pb = players[i * 2], players[i * 2 + 1]
+            for _ in range(i + 1):
+                m = make_meetup(
+                    datetime(2026, 3, day, 20, 0), [pa.id, pb.id], [players[0].id], 1, 0
+                )
+                meetups.append(m)
+                day = (day % 28) + 1
+        meetup_repo, player_repo = make_repos(meetups, players)
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        assert len(report.all_time.winning_pairs) == 5

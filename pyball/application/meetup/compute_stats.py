@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import itertools
+from dataclasses import dataclass, field
 from datetime import date
 
 from pyball.domain.meetup.repository import MeetupRepository
@@ -41,11 +42,21 @@ class ChemistryPair:
 
 
 @dataclass
+class WinningPair:
+    """A pair of players who won together most often."""
+
+    player_a_name: str
+    player_b_name: str
+    count: int
+
+
+@dataclass
 class StatsScopedReport:
     """Statistics for a single time scope (season or all-time)."""
 
     players: list[PlayerStats]
     chemistry: list[ChemistryPair]
+    winning_pairs: list[WinningPair] = field(default_factory=list)
 
 
 @dataclass
@@ -75,16 +86,18 @@ def _points_from_counters(counters: dict) -> int:
 
 def _aggregate(
     meetups: list,
-) -> tuple[dict[str, dict], dict[tuple[str, str], int]]:
+) -> tuple[dict[str, dict], dict[tuple[str, str], int], dict[tuple[str, str], int]]:
     """Aggregate raw stats from a list of meetups.
 
     Returns:
-        Tuple of (player_data, chemistry_counts) where player_data maps
-        player_id to stat counters and chemistry_counts maps (scorer_id, assistant_id)
-        to occurrence count.
+        Tuple of (player_data, chemistry_counts, winning_counts) where
+        player_data maps player_id to stat counters, chemistry_counts maps
+        (scorer_id, assistant_id) to occurrence count, and winning_counts maps
+        sorted (player_id_a, player_id_b) to co-win count.
     """
     player_data: dict[str, dict] = {}
     chemistry_counts: dict[tuple[str, str], int] = {}
+    winning_counts: dict[tuple[str, str], int] = {}
 
     for meetup in meetups:
         if meetup.result is None or meetup.teams is None:
@@ -111,6 +124,11 @@ def _aggregate(
                 else:
                     player_data[pid]["l"] += 1
 
+            if team_wins:
+                for pid_a, pid_b in itertools.combinations(team.players, 2):
+                    a, b = sorted([str(pid_a.value), str(pid_b.value)])
+                    winning_counts[(a, b)] = winning_counts.get((a, b), 0) + 1
+
         for event in meetup.result.events:
             scorer_id = str(event.scorer_id.value)
             if scorer_id not in player_data:
@@ -122,10 +140,10 @@ def _aggregate(
                 if assistant_id not in player_data:
                     player_data[assistant_id] = _empty_counters()
                 player_data[assistant_id]["assists"] += 1
-                pair = (scorer_id, assistant_id)
-                chemistry_counts[pair] = chemistry_counts.get(pair, 0) + 1
+                pair_chem = (scorer_id, assistant_id)
+                chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
 
-    return player_data, chemistry_counts
+    return player_data, chemistry_counts, winning_counts
 
 
 def _build_scoped_report(
@@ -134,7 +152,7 @@ def _build_scoped_report(
     prev_meetups: list | None = None,
 ) -> StatsScopedReport:
     """Build a StatsScopedReport, computing rank deltas from prev_meetups if provided."""
-    player_data, chemistry_counts = _aggregate(meetups)
+    player_data, chemistry_counts, winning_counts = _aggregate(meetups)
 
     stats_list = [
         PlayerStats(
@@ -155,7 +173,7 @@ def _build_scoped_report(
     stats_list.sort(key=lambda p: (-p.points, p.player_name))
 
     if prev_meetups is not None:
-        prev_data, _ = _aggregate(prev_meetups)
+        prev_data, _, _ = _aggregate(prev_meetups)
 
         prev_pts_ranked = sorted(
             [pid for pid, d in prev_data.items() if _points_from_counters(d) > 0],
@@ -205,7 +223,20 @@ def _build_scoped_report(
         reverse=True,
     )[:10]
 
-    return StatsScopedReport(players=stats_list, chemistry=chemistry)
+    winning_pairs = sorted(
+        [
+            WinningPair(
+                player_a_name=player_names.get(pid_a, pid_a),
+                player_b_name=player_names.get(pid_b, pid_b),
+                count=cnt,
+            )
+            for (pid_a, pid_b), cnt in winning_counts.items()
+        ],
+        key=lambda wp: wp.count,
+        reverse=True,
+    )[:5]
+
+    return StatsScopedReport(players=stats_list, chemistry=chemistry, winning_pairs=winning_pairs)
 
 
 class ComputeStats:
