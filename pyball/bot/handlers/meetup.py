@@ -122,12 +122,14 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         url = container.start_match().execute(date_str)
+        qr = generate_qr_bytes(url)
         for admin in telegram_settings.admins_ids:
             try:
-                await context.bot.send_message(
+                qr.seek(0)
+                await context.bot.send_photo(
                     chat_id=admin,
-                    text=f"🔗 Enlace del partido:\n{url}",
-                    disable_web_page_preview=True,
+                    photo=qr,
+                    caption=f"🔗 Enlace del partido:\n{url}",
                 )
             except telegram.error.Forbidden:
                 logger.error("Could not send message to '%s' admin", admin)

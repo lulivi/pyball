@@ -1,7 +1,7 @@
 """Tests for meetup bot handlers."""
 
 from io import BytesIO
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from telegram.constants import ParseMode
@@ -11,6 +11,7 @@ from pyball.bot.handlers.meetup import (
     generate_qr_bytes,
     new_meetup_handler,
     show_meetup_handler,
+    start_match_handler,
 )
 
 
@@ -77,6 +78,32 @@ async def test_show_meetup_handler_not_found(mock_update, mock_context):
     await show_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with("Meetup not found.")
+
+
+@pytest.mark.asyncio
+async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
+    url = "https://pyball.example.com/?date=2026-04-19T20%3A00&teamA=Ana&teamB=Bob"
+    admin_id = 99999
+
+    container = MagicMock()
+    container.start_match.return_value.execute.return_value = url
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026/04/19", "20:00"]
+    mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
+    mock_context.bot = AsyncMock()
+    mock_context.bot.send_photo = AsyncMock()
+
+    fake_buf = BytesIO(b"fakepng")
+
+    with patch("pyball.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf) as mock_qr:
+        await start_match_handler(mock_update, mock_context)
+
+    mock_qr.assert_called_once_with(url)
+    mock_context.bot.send_photo.assert_called_once_with(
+        chat_id=admin_id,
+        photo=fake_buf,
+        caption=f"🔗 Enlace del partido:\n{url}",
+    )
 
 
 @pytest.mark.asyncio

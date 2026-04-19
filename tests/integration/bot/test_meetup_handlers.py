@@ -153,14 +153,14 @@ async def test_start_match_forbidden_admin_does_not_raise(bot_update, bot_contex
     meetup.create_random_teams()
     container.meetup_repository.save(meetup)
 
-    bot_context.bot.send_message = AsyncMock(
+    bot_context.bot.send_photo = AsyncMock(
         side_effect=telegram.error.Forbidden("bot was blocked by the user")
     )
     bot_context.args = ["2026/04/25", "20:00"]
 
     await start_match_handler(bot_update, bot_context)
 
-    bot_context.bot.send_message.assert_called_once()
+    bot_context.bot.send_photo.assert_called_once()
     bot_update.message.reply_text.assert_not_called()
 
 
