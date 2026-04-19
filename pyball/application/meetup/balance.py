@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import itertools
+
 from pyball.domain.meetup.models import Meetup, PlayerId
 
 _SEASON_MIN_MATCHES = 3
@@ -84,3 +86,23 @@ def compute_player_scores(
 
     mean_score = sum(known_scores.values()) / len(known_scores)
     return {pid: known_scores.get(pid, mean_score) for pid in player_ids}
+
+
+def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
+    """Return sorted (pid_a, pid_b) → shared win count for all player pairs."""
+    counts: dict[tuple[str, str], int] = {}
+    for meetup in meetups:
+        if meetup.result is None or meetup.teams is None:
+            continue
+        score_a = meetup.result.score_a
+        score_b = meetup.result.score_b
+        for team in meetup.teams:
+            team_wins = (team.name == "A" and score_a > score_b) or (
+                team.name == "B" and score_b > score_a
+            )
+            if team_wins:
+                for pid_a, pid_b in itertools.combinations(team.players, 2):
+                    key_list = [str(pid_a.value), str(pid_b.value)]
+                    key: tuple[str, str] = tuple(sorted(key_list))  # type: ignore[assignment]
+                    counts[key] = counts.get(key, 0) + 1
+    return counts
