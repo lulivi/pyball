@@ -79,6 +79,24 @@ class TestMatchResult:
         assert len(result.events) == 1
 
 
+class TestSetTeams:
+    """Tests for Meetup.set_teams."""
+
+    def test_set_teams_assigns_two_teams(self):
+        """set_teams stores two teams on the meetup."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        meetup.set_teams(teams)
+        assert meetup.teams == teams
+
+    def test_set_teams_requires_exactly_two(self):
+        """set_teams raises ValueError when not given exactly two teams."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        with pytest.raises(ValueError, match="Exactly two teams required"):
+            meetup.set_teams([Team.create("A", [])])
+
+
 class TestMeetupResult:
     """Tests for Meetup.set_result and is_closed."""
 

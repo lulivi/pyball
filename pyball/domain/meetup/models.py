@@ -84,6 +84,12 @@ class Meetup(Entity["MeetupId"]):
         """Return True if the match result has been recorded."""
         return self.result is not None
 
+    def set_teams(self, teams: list[Team]) -> None:
+        """Assign pre-computed teams to this meetup."""
+        if len(teams) != 2:
+            raise ValueError("Exactly two teams required")
+        self.teams = teams
+
 
 @dataclass(frozen=True)
 class Team(ValueObject):
