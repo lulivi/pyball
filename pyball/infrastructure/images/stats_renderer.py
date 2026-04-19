@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 
 import fitz  # pymupdf
@@ -11,6 +12,8 @@ import weasyprint
 from markupsafe import Markup
 
 from pyball.application.meetup.compute_stats import StatsReport, StatsScopedReport
+
+logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).parent
 _TEMPLATE_NAME = "stats_template.html"
@@ -65,6 +68,8 @@ class StatsHtmlRenderer:
         """
         if scope == "alltime":
             return await self._render_scope(report.all_time, "Histórico")
+        if scope != "season":
+            logger.warning("Unknown scope %r passed to render(); defaulting to 'season'", scope)
         return await self._render_scope(report.season, "Esta temporada")
 
     async def _render_scope(self, scoped: StatsScopedReport, title: str) -> bytes:
