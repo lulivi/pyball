@@ -8,7 +8,7 @@ from pyball.application.meetup.balance import compute_player_scores
 from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId, Team
 
 
-def _finished_meetup(
+def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     date_str: str,
     team_a: list[PlayerId],
     team_b: list[PlayerId],
@@ -31,10 +31,7 @@ class TestComputePlayerScores:
     def test_winner_scores_higher_than_loser(self):
         """Player who always wins gets a higher score than player who always loses."""
         p1, p2 = PlayerId.generate(), PlayerId.generate()
-        meetups = [
-            _finished_meetup(f"2025-10-0{i} 20:00", [p1], [p2], 2, 0)
-            for i in range(1, 4)
-        ]
+        meetups = [_finished_meetup(f"2025-10-0{i} 20:00", [p1], [p2], 2, 0) for i in range(1, 4)]
         scores = compute_player_scores([p1, p2], meetups, meetups)
         assert scores[p1] > scores[p2]
 
@@ -60,10 +57,7 @@ class TestComputePlayerScores:
     def test_no_history_player_gets_group_average(self):
         """Player with no match history receives the mean of all other players' scores."""
         p1, p2, p_new = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
-        meetups = [
-            _finished_meetup(f"2025-10-0{i} 20:00", [p1], [p2], 2, 0)
-            for i in range(1, 4)
-        ]
+        meetups = [_finished_meetup(f"2025-10-0{i} 20:00", [p1], [p2], 2, 0) for i in range(1, 4)]
         scores = compute_player_scores([p1, p2, p_new], meetups, meetups)
         expected_mean = (scores[p1] + scores[p2]) / 2
         assert abs(scores[p_new] - expected_mean) < 1e-9

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import itertools
-import random
-
 from pyball.domain.meetup.models import Meetup, PlayerId
 
 _SEASON_MIN_MATCHES = 3
