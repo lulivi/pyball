@@ -1,5 +1,6 @@
 """Tests for meetup bot handlers."""
 
+from io import BytesIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,9 +8,17 @@ from telegram.constants import ParseMode
 
 from pyball.bot.handlers.meetup import (
     create_teams_handler,
+    generate_qr_bytes,
     new_meetup_handler,
     show_meetup_handler,
 )
+
+
+def test_generate_qr_bytes_returns_png_buffer():
+    buf = generate_qr_bytes("https://example.com/match?date=2026-04-19")
+    assert isinstance(buf, BytesIO)
+    header = buf.read(4)
+    assert header == b"\x89PNG"
 
 
 @pytest.mark.asyncio

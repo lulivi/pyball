@@ -2,7 +2,9 @@
 
 import logging
 from datetime import datetime, timedelta
+from io import BytesIO
 
+import qrcode
 import telegram
 from telegram import Update
 from telegram.constants import ParseMode
@@ -26,6 +28,15 @@ from pyball.infrastructure.telegram.message_store import MessageTracking
 from pyball.settings import PyballSettings, TelegramSettings
 
 logger = logging.getLogger(__name__)
+
+
+def generate_qr_bytes(url: str) -> BytesIO:
+    """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
+    img = qrcode.make(url)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
 
 
 def setup_meetup_handlers(application):
