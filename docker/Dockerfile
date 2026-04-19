@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libpangocairo-1.0-0 \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
+    fonts-noto-core \
     fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \

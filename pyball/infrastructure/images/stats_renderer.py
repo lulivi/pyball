@@ -6,7 +6,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-import fitz  # pymupdf
+import fitz
 import jinja2
 import weasyprint
 from markupsafe import Markup
@@ -16,8 +16,10 @@ from pyball.application.meetup.compute_stats import StatsReport, StatsScopedRepo
 logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).parent
-_TEMPLATE_NAME = "stats_template.html"
-_BG_COLOR = bytes([15, 15, 26])  # #0f0f1a — used to detect content rows during crop
+_TEMPLATE_NAME = "stats_template.html.jinja"
+
+_BG_COLOR_HEX = "#0f0f1a"
+_BG_COLOR_BYTES = bytes(int(_BG_COLOR_HEX[i : i + 2], 16) for i in (1, 3, 5))
 
 
 def _trend_prefix(delta: int | None) -> Markup:
@@ -115,6 +117,7 @@ class StatsHtmlRenderer:
         template = _JINJA_ENV.get_template(_TEMPLATE_NAME)
         return template.render(
             title=title,
+            bg_color=_BG_COLOR_HEX,
             players=players,
             players_by_goals=players_by_goals,
             players_by_assists=players_by_assists,
@@ -154,7 +157,7 @@ class StatsHtmlRenderer:
         """Return a new Pixmap with trailing background rows removed.
 
         Scans from the bottom of the pixmap upward to find the last row
-        containing a pixel that differs from the page background color (#0f0f1a).
+        containing a pixel that differs from the page background color.
         Adds 20 px of padding below the last content row.
 
         Args:
@@ -170,7 +173,7 @@ class StatsHtmlRenderer:
         for row in range(h - 1, -1, -1):
             start, end = row * w * n, (row + 1) * w * n
             row_bytes = samples[start:end]
-            if any(row_bytes[i * n : i * n + 3] != _BG_COLOR for i in range(w)):
+            if any(row_bytes[i * n : i * n + 3] != _BG_COLOR_BYTES for i in range(w)):
                 last_row = row
                 break
         crop_h = min(last_row + 21, h)

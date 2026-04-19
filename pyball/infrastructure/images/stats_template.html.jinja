@@ -7,11 +7,11 @@
 @page { size: 390px 1200px; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  background: #080810;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: {{ bg_color }};
+  font-family: 'Noto Sans', system-ui, -apple-system, sans-serif;
   color: #fff;
 }
-.card { background: #0f0f20; padding: 20px; }
+.card { background: {{ bg_color }}; padding: 20px; }
 .card-title {
   text-align: center;
   font-size: 13px;
@@ -107,7 +107,6 @@ body {
 <div class="card">
   <div class="card-title">{{ title }}</div>
 
-  <!-- Clasificación -->
   <div class="section">
     <div class="section-title" style="color:#3a86ff;">🏆 Clasificación</div>
     <div class="section-body" style="border-left-color:#3a86ff;">
@@ -142,7 +141,6 @@ body {
     </div>
   </div>
 
-  <!-- Goles y Asistencias lado a lado -->
   <div class="section">
     <div class="split-cols">
       <div>
@@ -184,7 +182,6 @@ body {
     </div>
   </div>
 
-  <!-- La Dupla -->
   <div class="section">
     <div class="section-title" style="color:#06d6a0;">🤝 La Dupla</div>
     <div class="section-body" style="border-left-color:#06d6a0;">
@@ -202,7 +199,6 @@ body {
     </div>
   </div>
 
-  <!-- Dúo Ganador -->
   <div class="section" style="margin-bottom:0;">
     <div class="section-title" style="color:#ffd166;">🏅 Dúo Ganador</div>
     <div class="section-body" style="border-left-color:#ffd166;">
