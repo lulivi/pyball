@@ -107,6 +107,32 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
+async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_context):
+    url = "https://pyball.example.com/?date=2026-04-19T20%3A00&teamA=Ana&teamB=Bob"
+    admin_ids = [11111, 22222]
+
+    container = MagicMock()
+    container.start_match.return_value.execute.return_value = url
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026/04/19", "20:00"]
+    mock_context.bot_data["settings"].telegram.admins_ids = admin_ids
+    mock_context.bot = AsyncMock()
+    mock_context.bot.send_photo = AsyncMock()
+
+    fake_buf = BytesIO(b"fakepng")
+
+    with patch("pyball.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf):
+        await start_match_handler(mock_update, mock_context)
+
+    assert mock_context.bot.send_photo.call_count == 2
+    calls = mock_context.bot.send_photo.call_args_list
+    assert calls[0].kwargs["chat_id"] == 11111
+    assert calls[1].kwargs["chat_id"] == 22222
+    assert calls[0].kwargs["photo"] is fake_buf
+    assert calls[1].kwargs["photo"] is fake_buf
+
+
+@pytest.mark.asyncio
 async def test_create_teams_handler_no_teams(mock_update, mock_context):
     mock_context.args = ["2026/04/25", "20:00"]
 
