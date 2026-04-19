@@ -183,7 +183,7 @@ async def test_search_handler_sends_and_stores(bot_update, bot_context):
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25"]
+    bot_context.args = ["2026/04/25", "20:00"]
 
     await search_handler(bot_update, bot_context)
 

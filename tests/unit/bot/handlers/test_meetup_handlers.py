@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from telegram.constants import ParseMode
 
 from pyball.bot.handlers.meetup import (
     create_teams_handler,
@@ -17,7 +18,9 @@ async def test_new_meetup_handler_no_args(mock_update, mock_context):
 
     await new_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Usage: /new_meetup `YYYY/MM/DD HH:MM`")
+    mock_update.message.reply_text.assert_called_with(
+        "Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+    )
 
 
 @pytest.mark.asyncio
@@ -27,7 +30,7 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
     await new_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        "Invalid date format. Use: /new_meetup `YYYY/MM/DD HH:MM`"
+        "Invalid date format. Use: `/new_meetup` `YYYY/MM/DD HH:MM`"
     )
 
 
@@ -38,7 +41,9 @@ async def test_show_meetup_handler_no_args(mock_update, mock_context):
 
     await show_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Usage: /show_meetup `YYYY/MM/DD HH:MM`")
+    mock_update.message.reply_text.assert_called_with(
+        r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+    )
 
 
 @pytest.mark.asyncio
