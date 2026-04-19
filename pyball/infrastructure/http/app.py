@@ -29,7 +29,7 @@ async def _post_match_stats(
     container: "Container",
     settings: "Settings",
 ) -> None:
-    """Compute and post statistics images to the regulars stats topic.
+    """Compute and post the season stats image to the regulars stats topic.
 
     Runs as a background asyncio task. Errors are logged and swallowed so
     they never affect the match-finish response.
@@ -41,7 +41,7 @@ async def _post_match_stats(
     """
     try:
         report = ComputeStats(container.meetup_repository, container.player_repository).execute()
-        season_png, alltime_png = await StatsHtmlRenderer().render(report)
+        season_png = await StatsHtmlRenderer().render(report, scope="season")
 
         stats_thread_id = settings.telegram.regulars.stats_thread_id or None
         chat_id = settings.telegram.regulars.chat_id
@@ -50,12 +50,6 @@ async def _post_match_stats(
             chat_id=chat_id,
             photo=season_png,
             caption="📊 Esta temporada",
-            message_thread_id=int(stats_thread_id) if stats_thread_id else None,
-        )
-        await bot.send_photo(
-            chat_id=chat_id,
-            photo=alltime_png,
-            caption="📊 Histórico",
             message_thread_id=int(stats_thread_id) if stats_thread_id else None,
         )
     except Exception:  # pylint: disable=broad-except

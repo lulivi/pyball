@@ -71,7 +71,7 @@ class StatsHtmlRenderer:
         """Render a single scope into PNG bytes.
 
         Args:
-            scoped: Scope-specific stats (players + chemistry).
+            scoped: Scope-specific stats (players, chemistry, winning pairs).
             title: Section title shown at the top of the image.
 
         Returns:
