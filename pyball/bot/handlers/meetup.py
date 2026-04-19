@@ -28,31 +28,6 @@ from pyball.settings import PyballSettings, TelegramSettings
 logger = logging.getLogger(__name__)
 
 
-@authorized
-async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /stats command — send a stats image for the requested scope."""
-    message = update.message
-    if message is None:
-        return
-
-    args = context.args
-    if not args or args[0] not in ("temporada", "historico"):
-        await message.reply_text("Usa /stats temporada o /stats historico")
-        return
-
-    scope = "season" if args[0] == "temporada" else "alltime"
-    container: Container = context.bot_data["container"]
-    caption = "📊 Esta temporada" if scope == "season" else "📊 Histórico"
-
-    try:
-        report = ComputeStats(container.meetup_repository, container.player_repository).execute()
-        png = await StatsHtmlRenderer().render(report, scope=scope)
-        await message.reply_photo(photo=png, caption=caption)
-    except Exception as error:
-        logger.exception("Error sending stats: %s", error)
-        await message.reply_text("Error al generar las estadísticas.")
-
-
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
     application.add_handler(CommandHandler("new_meetup", new_meetup_handler))
@@ -594,6 +569,31 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as error:
         logger.exception("Error sending substitutes message: %s", error)
         await message.reply_text("Failed to send message.")
+
+
+@authorized
+async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /stats command — send a stats image for the requested scope."""
+    message = update.message
+    if message is None:
+        return
+
+    args = context.args
+    if not args or args[0] not in ("temporada", "historico"):
+        await message.reply_text("Usa /stats temporada o /stats historico")
+        return
+
+    scope = "season" if args[0] == "temporada" else "alltime"
+    container: Container = context.bot_data["container"]
+    caption = "📊 Esta temporada" if scope == "season" else "📊 Histórico"
+
+    try:
+        report = ComputeStats(container.meetup_repository, container.player_repository).execute()
+        png = await StatsHtmlRenderer().render(report, scope=scope)
+        await message.reply_photo(photo=png, caption=caption)
+    except Exception as error:
+        logger.exception("Error sending stats: %s", error)
+        await message.reply_text("Error al generar las estadísticas.")
 
 
 def _get_player_names(player_repo) -> dict:
