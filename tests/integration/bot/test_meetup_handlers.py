@@ -18,9 +18,11 @@ from pyball.bot.handlers.meetup import (
     search_handler,
     show_meetup_handler,
     start_match_handler,
+    stats_handler,
 )
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import Player
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 
 
@@ -224,3 +226,62 @@ async def test_show_meetup_no_players(bot_update, bot_context):
 
     (text, *_), _ = bot_update.message.reply_text.call_args
     assert "No players yet." in text
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_temporada_sends_photo(bot_update, bot_context, monkeypatch):
+    """stats_handler with 'temporada' sends one photo with season caption."""
+    fake_png = b"\x89PNG\r\n\x1a\n"
+    captured = {}
+
+    async def fake_render(_self, _report, scope="season"):
+        captured["scope"] = scope
+        return fake_png
+
+    monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
+    bot_context.args = ["temporada"]
+    await stats_handler(bot_update, bot_context)
+    bot_update.message.reply_photo.assert_called_once()
+    assert captured["scope"] == "season"
+    kwargs = bot_update.message.reply_photo.call_args.kwargs
+    assert kwargs["photo"] == fake_png
+    assert "Esta temporada" in kwargs["caption"]
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_historico_sends_photo(bot_update, bot_context, monkeypatch):
+    """stats_handler with 'historico' sends one photo with all-time caption."""
+    fake_png = b"\x89PNG\r\n\x1a\n"
+    captured = {}
+
+    async def fake_render(_self, _report, scope="season"):
+        captured["scope"] = scope
+        return fake_png
+
+    monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
+    bot_context.args = ["historico"]
+    await stats_handler(bot_update, bot_context)
+    bot_update.message.reply_photo.assert_called_once()
+    assert captured["scope"] == "alltime"
+    kwargs = bot_update.message.reply_photo.call_args.kwargs
+    assert "Histórico" in kwargs["caption"]
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_no_args_replies_help(bot_update, bot_context):
+    """stats_handler with no args replies with a help message."""
+    bot_context.args = []
+    await stats_handler(bot_update, bot_context)
+    bot_update.message.reply_text.assert_called_once()
+    text = bot_update.message.reply_text.call_args.args[0]
+    assert "temporada" in text and "historico" in text
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_bad_arg_replies_help(bot_update, bot_context):
+    """stats_handler with an unknown arg replies with a help message."""
+    bot_context.args = ["unknown"]
+    await stats_handler(bot_update, bot_context)
+    bot_update.message.reply_text.assert_called_once()
+    text = bot_update.message.reply_text.call_args.args[0]
+    assert "temporada" in text and "historico" in text
