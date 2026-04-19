@@ -51,20 +51,21 @@ _JINJA_ENV = _build_jinja_env()
 
 
 class StatsHtmlRenderer:
-    """Renders a StatsReport into two PNG images (season and all-time) via WeasyPrint."""
+    """Renders a StatsReport into a PNG image for the requested scope via WeasyPrint."""
 
-    async def render(self, report: StatsReport) -> tuple[bytes, bytes]:
-        """Generate PNG images for season and all-time scopes.
+    async def render(self, report: StatsReport, scope: str = "season") -> bytes:
+        """Generate a PNG image for the requested scope.
 
         Args:
             report: Fully computed StatsReport.
+            scope: Either "season" or "alltime".
 
         Returns:
-            Tuple of (season_png, all_time_png) as raw bytes.
+            Raw PNG bytes for the requested scope.
         """
-        season_png = await self._render_scope(report.season, "Esta temporada")
-        all_time_png = await self._render_scope(report.all_time, "Histórico")
-        return season_png, all_time_png
+        if scope == "alltime":
+            return await self._render_scope(report.all_time, "Histórico")
+        return await self._render_scope(report.season, "Esta temporada")
 
     async def _render_scope(self, scoped: StatsScopedReport, title: str) -> bytes:
         """Render a single scope into PNG bytes.
@@ -83,7 +84,7 @@ class StatsHtmlRenderer:
         """Render the Jinja2 template with the given scope data.
 
         Args:
-            scoped: Scope-specific stats (players + chemistry).
+            scoped: Scope-specific stats (players, chemistry, winning pairs).
             title: Section title shown at the top of the image.
 
         Returns:
@@ -99,10 +100,12 @@ class StatsHtmlRenderer:
             key=lambda p: (-p.assists, p.player_name),
         )[:10]
         chemistry = scoped.chemistry[:5]
+        winning_pairs = scoped.winning_pairs[:5]
 
         max_goals = max((p.goals for p in players_by_goals), default=0) or 1
         max_assists = max((p.assists for p in players_by_assists), default=0) or 1
         max_chemistry = max((c.count for c in chemistry), default=0) or 1
+        max_winning = max((wp.count for wp in winning_pairs), default=0) or 1
 
         template = _JINJA_ENV.get_template(_TEMPLATE_NAME)
         return template.render(
@@ -111,9 +114,11 @@ class StatsHtmlRenderer:
             players_by_goals=players_by_goals,
             players_by_assists=players_by_assists,
             chemistry=chemistry,
+            winning_pairs=winning_pairs,
             max_goals=max_goals,
             max_assists=max_assists,
             max_chemistry=max_chemistry,
+            max_winning=max_winning,
         )
 
     def _screenshot(self, html: str) -> bytes:

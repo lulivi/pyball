@@ -1,6 +1,6 @@
 """Unit tests for StatsHtmlRenderer._build_html and _trend_prefix."""
 
-from pyball.application.meetup.compute_stats import PlayerStats, StatsScopedReport
+from pyball.application.meetup.compute_stats import PlayerStats, StatsScopedReport, WinningPair
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer, _trend_prefix
 
 
@@ -67,11 +67,12 @@ class TestTrendPrefix:
 class TestBuildHtml:
     """Unit tests for StatsHtmlRenderer._build_html zero-stat filtering."""
 
-    def _build(self, players, chemistry=None) -> str:
+    def _build(self, players, chemistry=None, winning_pairs=None) -> str:
         """Build HTML from a player list."""
         scoped = StatsScopedReport(
             players=sorted(players, key=lambda p: p.points, reverse=True),
             chemistry=chemistry or [],
+            winning_pairs=winning_pairs or [],
         )
         return StatsHtmlRenderer()._build_html(scoped, "Test")
 

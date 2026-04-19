@@ -7,18 +7,19 @@ from pyball.application.meetup.compute_stats import (
     PlayerStats,
     StatsReport,
     StatsScopedReport,
+    WinningPair,
 )
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 
 
 def _make_empty_report() -> StatsReport:
-    """Return a StatsReport with no players or chemistry."""
-    empty = StatsScopedReport(players=[], chemistry=[])
+    """Return a StatsReport with no players, chemistry, or winning pairs."""
+    empty = StatsScopedReport(players=[], chemistry=[], winning_pairs=[])
     return StatsReport(season=empty, all_time=empty)
 
 
 def _make_full_report() -> StatsReport:
-    """Return a StatsReport with 3 players and 2 chemistry pairs."""
+    """Return a StatsReport with 3 players, 2 chemistry pairs, and 1 winning pair."""
     players = [
         PlayerStats(
             player_id=f"id-{i}",
@@ -39,7 +40,8 @@ def _make_full_report() -> StatsReport:
         ChemistryPair(scorer_name="Player0", assistant_name="Player1", count=3),
         ChemistryPair(scorer_name="Player1", assistant_name="Player2", count=1),
     ]
-    scoped = StatsScopedReport(players=players, chemistry=chemistry)
+    winning_pairs = [WinningPair(player_a_name="Player0", player_b_name="Player1", count=5)]
+    scoped = StatsScopedReport(players=players, chemistry=chemistry, winning_pairs=winning_pairs)
     return StatsReport(season=scoped, all_time=scoped)
 
 
@@ -47,33 +49,36 @@ class TestStatsHtmlRenderer:
     """Integration tests for StatsHtmlRenderer.render()."""
 
     @pytest.mark.asyncio
-    async def test_render_returns_two_bytes_objects(self):
-        """render() returns a tuple of two non-empty bytes objects."""
+    async def test_render_season_returns_bytes(self):
+        """render(scope='season') returns non-empty bytes."""
         report = _make_full_report()
-        season_png, alltime_png = await StatsHtmlRenderer().render(report)
-        assert isinstance(season_png, bytes) and len(season_png) > 0
-        assert isinstance(alltime_png, bytes) and len(alltime_png) > 0
+        png = await StatsHtmlRenderer().render(report, scope="season")
+        assert isinstance(png, bytes) and len(png) > 0
+
+    @pytest.mark.asyncio
+    async def test_render_alltime_returns_bytes(self):
+        """render(scope='alltime') returns non-empty bytes."""
+        report = _make_full_report()
+        png = await StatsHtmlRenderer().render(report, scope="alltime")
+        assert isinstance(png, bytes) and len(png) > 0
 
     @pytest.mark.asyncio
     async def test_render_produces_valid_png(self):
         """render() output starts with the PNG magic bytes."""
         report = _make_full_report()
-        season_png, alltime_png = await StatsHtmlRenderer().render(report)
-        png_magic = b"\x89PNG"
-        assert season_png[:4] == png_magic
-        assert alltime_png[:4] == png_magic
+        png = await StatsHtmlRenderer().render(report, scope="season")
+        assert png[:4] == b"\x89PNG"
 
     @pytest.mark.asyncio
     async def test_render_empty_report_does_not_raise(self):
         """render() handles an empty report without raising."""
         report = _make_empty_report()
-        season_png, alltime_png = await StatsHtmlRenderer().render(report)
-        assert isinstance(season_png, bytes) and len(season_png) > 0
-        assert isinstance(alltime_png, bytes) and len(alltime_png) > 0
+        png = await StatsHtmlRenderer().render(report, scope="season")
+        assert isinstance(png, bytes) and len(png) > 0
 
     @pytest.mark.asyncio
-    async def test_season_and_alltime_images_differ(self):
-        """season and all_time images are different bytes when data differs."""
+    async def test_season_and_alltime_produce_different_images_when_data_differs(self):
+        """season and alltime scopes produce different PNG bytes when data differs."""
         players_season = [
             PlayerStats(
                 player_id="id-0",
@@ -105,10 +110,11 @@ class TestStatsHtmlRenderer:
             )
         ]
         report = StatsReport(
-            season=StatsScopedReport(players=players_season, chemistry=[]),
-            all_time=StatsScopedReport(players=players_all, chemistry=[]),
+            season=StatsScopedReport(players=players_season, chemistry=[], winning_pairs=[]),
+            all_time=StatsScopedReport(players=players_all, chemistry=[], winning_pairs=[]),
         )
-        season_png, alltime_png = await StatsHtmlRenderer().render(report)
+        season_png = await StatsHtmlRenderer().render(report, scope="season")
+        alltime_png = await StatsHtmlRenderer().render(report, scope="alltime")
         assert season_png != alltime_png
 
     def test_no_star_symbol_in_html(self):
