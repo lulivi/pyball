@@ -114,3 +114,12 @@ class TestBuildHtml:
         assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
         goals_section = html[goals_col_start:assists_col_start]
         assert "Alice" in goals_section
+
+    def test_winning_pair_appears_in_duo_ganador_section(self):
+        """A winning pair appears in the Dúo Ganador section."""
+        alice = _make_player("a", "Alice", goals=1, assists=0, wins=2, draws=0, losses=0)
+        wp = WinningPair(player_a_name="Alice", player_b_name="Bob", count=3)
+        html = self._build([alice], winning_pairs=[wp])
+        duo_start = html.index("Dúo Ganador")
+        assert "Alice" in html[duo_start:]
+        assert "Bob" in html[duo_start:]
