@@ -135,11 +135,8 @@ class StatsHtmlRenderer:
         else:
             total_h = sum(p.height for p in pixmaps)
             w = pixmaps[0].width
-            full = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, total_h), False)
-            y = 0
-            for p in pixmaps:
-                full.copy(p, fitz.IRect(0, y, w, y + p.height))
-                y += p.height
+            all_samples = b"".join(bytes(p.samples) for p in pixmaps)
+            full = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, total_h), all_samples)
 
         return self._crop_whitespace(full).tobytes("png")
 
