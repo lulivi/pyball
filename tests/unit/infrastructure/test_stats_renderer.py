@@ -81,9 +81,8 @@ class TestBuildHtml:
         alice = _make_player("a", "Alice", goals=3, assists=1, wins=2, draws=0, losses=1)
         bob = _make_player("b", "Bob", goals=0, assists=2, wins=1, draws=0, losses=2)
         html = self._build([alice, bob])
-        # The goals mini-title uses a red dot; use it as an anchor to find the goals column
-        goals_col_start = html.index('background:#e74c3c;"></span>Goles')
-        assists_col_start = html.index('background:#3498db;"></span>Asistencias')
+        goals_col_start = html.index('background:#f72585;"></span>Goles')
+        assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
         goals_section = html[goals_col_start:assists_col_start]
         assert "Bob" not in goals_section
 
@@ -92,10 +91,9 @@ class TestBuildHtml:
         alice = _make_player("a", "Alice", goals=3, assists=0, wins=2, draws=0, losses=1)
         bob = _make_player("b", "Bob", goals=1, assists=2, wins=1, draws=0, losses=2)
         html = self._build([alice, bob])
-        # The assists mini-title uses a blue dot; use it as an anchor to find the assists column
-        assists_col_start = html.index('background:#3498db;"></span>Asistencias')
-        parejas_start = html.index("Parejas")
-        assists_section = html[assists_col_start:parejas_start]
+        assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
+        dupla_start = html.index("La Dupla")
+        assists_section = html[assists_col_start:dupla_start]
         assert "Alice" not in assists_section
 
     def test_player_with_zero_points_excluded_from_classification(self):
@@ -103,18 +101,16 @@ class TestBuildHtml:
         alice = _make_player("a", "Alice", goals=1, assists=0, wins=0, draws=0, losses=3)
         bob = _make_player("b", "Bob", goals=2, assists=1, wins=2, draws=0, losses=1)
         html = self._build([alice, bob])
-        # The classification section title uses a trophy emoji
         clasificacion_start = html.index("Clasificación</div>")
-        # The goals+assists section starts with a distinctive comment
-        goles_asistencias_start = html.index("Goles y Asistencias")
-        classification_section = html[clasificacion_start:goles_asistencias_start]
+        split_cols_start = html.index('class="split-cols"')
+        classification_section = html[clasificacion_start:split_cols_start]
         assert "Alice" not in classification_section
 
     def test_player_with_goals_appears_in_goals_section(self):
         """A player with goals appears in the goals section."""
         alice = _make_player("a", "Alice", goals=5, assists=2, wins=3, draws=0, losses=0)
         html = self._build([alice])
-        goals_col_start = html.index('background:#e74c3c;"></span>Goles')
-        assists_col_start = html.index('background:#3498db;"></span>Asistencias')
+        goals_col_start = html.index('background:#f72585;"></span>Goles')
+        assists_col_start = html.index('background:#3a86ff;"></span>Asistencias')
         goals_section = html[goals_col_start:assists_col_start]
         assert "Alice" in goals_section

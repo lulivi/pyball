@@ -7,33 +7,35 @@
 @page { size: 390px 1200px; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  background: #0f0f1a;
+  background: #080810;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   color: #fff;
 }
-.card { background: #0f0f1a; padding: 20px; }
+.card { background: #080810; padding: 20px; }
 .card-title {
   text-align: center;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: 3px;
-  color: #a0a0c0;
+  color: #fff;
   text-transform: uppercase;
   margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f72585;
 }
 .section { margin-bottom: 16px; }
 .section-title {
   font-size: 10px;
   font-weight: 700;
-  color: #6c6c9a;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   margin-bottom: 6px;
 }
 .section-body {
-  background: #1a1a2e;
+  background: #0f0f20;
   border-radius: 6px;
   padding: 8px 10px;
+  border-left: 2px solid currentColor;
 }
 /* Clasificación table */
 .ranking-table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -45,13 +47,13 @@ body {
   padding: 0 4px 5px 4px;
 }
 .ranking-table tbody tr { border-top: 1px solid rgba(255,255,255,0.05); }
-.ranking-table tbody tr.odd { background: #1f1f38; }
+.ranking-table tbody tr.odd { background: #141428; }
 .ranking-table tbody td { padding: 4px; }
 .ranking-table .pos { color: #6c6c9a; width: 18px; }
-.ranking-table .pos.gold { color: #f0c040; }
+.ranking-table .pos.gold { color: #ffd166; }
 .ranking-table .num { text-align: center; color: #c0c0d0; }
 .ranking-table .pts { text-align: center; font-weight: 700; }
-.ranking-table .pts.gold { color: #f0c040; }
+.ranking-table .pts.gold { color: #ffd166; }
 /* Trend symbols */
 .trend-up { color: #2ecc71; }
 .trend-down { color: #e74c3c; }
@@ -83,14 +85,22 @@ body {
 }
 .bar-track { flex: 1; }
 .bar { height: 7px; border-radius: 3px; min-width: 3px; }
-.bar.goals { background: #e74c3c; }
-.bar.assists { background: #3498db; }
-.bar.chemistry { background: #2ecc71; }
+.bar.goals { background: linear-gradient(90deg, #f72585, #7209b7); }
+.bar.assists { background: linear-gradient(90deg, #3a86ff, #4cc9f0); }
+.bar.chemistry { background: linear-gradient(90deg, #06d6a0, #118ab2); }
+.bar.winning { background: linear-gradient(90deg, #ffd166, #ef476f); }
 .bar-value { font-size: 9px; color: #6c6c9a; white-space: nowrap; }
-/* Wide bar rows (parejas) */
+/* Wide bar rows */
 .bar-row-wide { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
 .bar-row-wide:last-child { margin-bottom: 0; }
-.bar-name-wide { font-size: 11px; color: #d0d0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 160px; }
+.bar-name-wide {
+  font-size: 11px;
+  color: #d0d0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 160px;
+}
 </style>
 </head>
 <body>
@@ -99,8 +109,8 @@ body {
 
   <!-- Clasificación -->
   <div class="section">
-    <div class="section-title">🏆 Clasificación</div>
-    <div class="section-body">
+    <div class="section-title" style="color:#3a86ff;">🏆 Clasificación</div>
+    <div class="section-body" style="border-left-color:#3a86ff;">
       <table class="ranking-table">
         <thead>
           <tr>
@@ -110,7 +120,7 @@ body {
             <td class="num">G</td>
             <td class="num">E</td>
             <td class="num">P</td>
-            <td class="num" style="color:#f0c040;">Pts</td>
+            <td class="num" style="color:#ffd166;">Pts</td>
           </tr>
         </thead>
         <tbody>
@@ -136,10 +146,10 @@ body {
   <div class="section">
     <div class="split-cols">
       <div>
-        <div class="mini-title" style="color:#e74c3c;">
-          <span class="dot" style="background:#e74c3c;"></span>Goles
+        <div class="mini-title" style="color:#f72585;">
+          <span class="dot" style="background:#f72585;"></span>Goles
         </div>
-        <div class="section-body">
+        <div class="section-body" style="border-left-color:#f72585;">
           {% for p in players_by_goals %}
           <div class="bar-row">
             <span class="bar-name">{{ p.goals_rank_delta | trend_prefix }} {{ p.player_name }}</span>
@@ -154,10 +164,10 @@ body {
         </div>
       </div>
       <div>
-        <div class="mini-title" style="color:#3498db;">
-          <span class="dot" style="background:#3498db;"></span>Asistencias
+        <div class="mini-title" style="color:#3a86ff;">
+          <span class="dot" style="background:#3a86ff;"></span>Asistencias
         </div>
-        <div class="section-body">
+        <div class="section-body" style="border-left-color:#3a86ff;">
           {% for p in players_by_assists %}
           <div class="bar-row">
             <span class="bar-name">{{ p.assists_rank_delta | trend_prefix }} {{ p.player_name }}</span>
@@ -174,10 +184,10 @@ body {
     </div>
   </div>
 
-  <!-- Parejas -->
-  <div class="section" style="margin-bottom:0;">
-    <div class="section-title">🤝 Parejas más frecuentes</div>
-    <div class="section-body">
+  <!-- La Dupla -->
+  <div class="section">
+    <div class="section-title" style="color:#06d6a0;">🤝 La Dupla</div>
+    <div class="section-body" style="border-left-color:#06d6a0;">
       {% for c in chemistry %}
       <div class="bar-row-wide">
         <span class="bar-name-wide">{{ c.scorer_name }} + {{ c.assistant_name }}</span>
@@ -185,6 +195,24 @@ body {
           <div class="bar chemistry" style="width:{{ (c.count / max_chemistry * 100) | int }}%;"></div>
         </div>
         <span class="bar-value">{{ c.count }}</span>
+      </div>
+      {% else %}
+      <div style="text-align:center;color:#6c6c9a;font-size:10px;padding:8px 0;">Sin datos</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Dúo Ganador -->
+  <div class="section" style="margin-bottom:0;">
+    <div class="section-title" style="color:#ffd166;">🏅 Dúo Ganador</div>
+    <div class="section-body" style="border-left-color:#ffd166;">
+      {% for wp in winning_pairs %}
+      <div class="bar-row-wide">
+        <span class="bar-name-wide">{{ wp.player_a_name }} + {{ wp.player_b_name }}</span>
+        <div class="bar-track">
+          <div class="bar winning" style="width:{{ (wp.count / max_winning * 100) | int }}%;"></div>
+        </div>
+        <span class="bar-value">{{ wp.count }}</span>
       </div>
       {% else %}
       <div style="text-align:center;color:#6c6c9a;font-size:10px;padding:8px 0;">Sin datos</div>
