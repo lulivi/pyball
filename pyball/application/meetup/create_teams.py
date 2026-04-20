@@ -3,6 +3,7 @@
 from datetime import date, datetime
 
 from pyball.application.meetup.balance import (
+    compute_player_roles,
     compute_player_scores,
     extract_winning_counts,
     optimize_teams,
@@ -44,8 +45,11 @@ class CreateTeams:
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
         player_scores = compute_player_scores(meetup.players, season_meetups, finished)
+        player_roles = compute_player_roles(meetup.players, season_meetups, finished)
         winning_counts = extract_winning_counts(finished)
-        team_a_ids, team_b_ids = optimize_teams(meetup.players, player_scores, winning_counts)
+        team_a_ids, team_b_ids = optimize_teams(
+            meetup.players, player_scores, winning_counts, player_roles
+        )
 
         meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
         self.meetup_repository.save(meetup)

@@ -4,12 +4,13 @@ from datetime import datetime
 
 import pytest
 
-from pyball.application.meetup.balance import (
+from pyball.application.meetup.balance import (  # noqa: F401
+    _player_role,
     compute_player_scores,
     extract_winning_counts,
     optimize_teams,
 )
-from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
 
 
 def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -182,3 +183,137 @@ class TestOptimizeTeams:
 
         # Separated more than 50% of the time (pair bonus discourages co-location)
         assert same_team_count < trials * 0.5
+
+
+class TestPlayerRoleClassification:
+    """Tests for _player_role classification."""
+
+    def test_scorer_when_goals_greater_than_assists(self):
+        """Player with more goals than assists is classified as scorer."""
+        p1 = PlayerId.generate()
+        meetups = []
+        for i in range(3):
+            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = [
+                GoalEvent(
+                    scorer_id=p1,
+                    assistant_id=PlayerId.generate(),
+                    team="A",
+                    timestamp=datetime(2025, 10, i + 1, 20, 10),
+                )
+                for _ in range(2)
+            ]
+            events.append(
+                GoalEvent(
+                    scorer_id=PlayerId.generate(),
+                    assistant_id=p1,
+                    team="B",
+                    timestamp=datetime(2025, 10, i + 1, 20, 15),
+                )
+            )
+            m.set_result(MatchResult(score_a=3, score_b=0, events=events))
+            meetups.append(m)
+
+        role = _player_role(p1, meetups)
+        assert role == "scorer"
+
+    def test_assister_when_assists_greater_than_goals(self):
+        """Player with more assists than goals is classified as assister."""
+        p1 = PlayerId.generate()
+        meetups = []
+        for i in range(3):
+            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = [
+                GoalEvent(
+                    scorer_id=PlayerId.generate(),
+                    assistant_id=p1,
+                    team="B",
+                    timestamp=datetime(2025, 10, i + 1, 20, 10),
+                )
+                for _ in range(2)
+            ]
+            events.append(
+                GoalEvent(
+                    scorer_id=p1,
+                    assistant_id=PlayerId.generate(),
+                    team="A",
+                    timestamp=datetime(2025, 10, i + 1, 20, 15),
+                )
+            )
+            m.set_result(MatchResult(score_a=3, score_b=0, events=events))
+            meetups.append(m)
+
+        role = _player_role(p1, meetups)
+        assert role == "assister"
+
+    def test_neutral_when_goals_equal_assists(self):
+        """Player with equal goals and assists is classified as neutral."""
+        p1 = PlayerId.generate()
+        m = Meetup.create(datetime(2025, 10, 1, 20, 0), "Campo")
+        m.add_player(p1)
+        m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+        events = [
+            GoalEvent(
+                scorer_id=p1,
+                assistant_id=PlayerId.generate(),
+                team="A",
+                timestamp=datetime(2025, 10, 1, 20, 10),
+            ),
+            GoalEvent(
+                scorer_id=PlayerId.generate(),
+                assistant_id=p1,
+                team="B",
+                timestamp=datetime(2025, 10, 1, 20, 20),
+            ),
+        ]
+        m.set_result(MatchResult(score_a=2, score_b=0, events=events))
+
+        role = _player_role(p1, [m])
+        assert role == "neutral"
+
+    def test_falls_back_to_season_then_history(self):
+        """Uses season first (<3 matches), then full history if available."""
+        p1 = PlayerId.generate()
+        season = []
+        for i in range(2):
+            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = [
+                GoalEvent(
+                    scorer_id=p1,
+                    assistant_id=PlayerId.generate(),
+                    team="A",
+                    timestamp=datetime(2025, 10, i + 1, 20, 10),
+                )
+            ]
+            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            season.append(m)
+        history = []
+        for i in range(3):
+            m = Meetup.create(datetime(2024, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = [
+                GoalEvent(
+                    scorer_id=PlayerId.generate(),
+                    assistant_id=p1,
+                    team="B",
+                    timestamp=datetime(2024, 10, i + 1, 20, 10),
+                )
+            ]
+            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            history.append(m)
+
+        role = _player_role(p1, season, history)
+        assert role == "assister"
+
+    def test_no_history_returns_neutral(self):
+        """Player with no history returns neutral."""
+        p1 = PlayerId.generate()
+        role = _player_role(p1, [], [])
+        assert role == "neutral"

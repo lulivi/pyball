@@ -8,6 +8,8 @@ import random
 from pyball.domain.meetup.models import Meetup, PlayerId
 
 _SEASON_MIN_MATCHES = 3
+_ROLE_WEIGHT = 0.15
+_ROLE_HARD_THRESHOLD = 0.2
 _W_GOALS = 0.40
 _W_ASSISTS = 0.30
 _W_WINS = 0.30
@@ -42,6 +44,48 @@ def _player_stats(
     if mp == 0:
         return 0, 0.0, 0.0, 0.0
     return mp, goals / mp, assists / mp, wins / mp
+
+
+def _player_role(
+    player_id: PlayerId,
+    season_meetups: list[Meetup],
+    all_meetups: list[Meetup] | None = None,
+) -> str:
+    """Classify player as 'scorer', 'assister', or 'neutral' based on goals vs assists.
+
+    Uses season data when player has >= 3 matches, otherwise falls back to
+    full history. If no history exists, returns 'neutral'.
+    """
+    if all_meetups is None:
+        all_meetups = []
+
+    def _count_events(meetups: list[Meetup]) -> tuple[int, int]:
+        goals = assists = 0
+        for meetup in meetups:
+            if meetup.result is None:
+                continue
+            for event in meetup.result.events:
+                if event.scorer_id == player_id:
+                    goals += 1
+                if event.assistant_id == player_id:
+                    assists += 1
+        return goals, assists
+
+    goals_s, assists_s = _count_events(season_meetups)
+    if sum((goals_s, assists_s)) > 0 and len(season_meetups) >= _SEASON_MIN_MATCHES:
+        goals, assists = goals_s, assists_s
+    else:
+        goals_h, assists_h = _count_events(all_meetups)
+        if goals_h + assists_h > 0:
+            goals, assists = goals_h, assists_h
+        else:
+            return "neutral"
+
+    if goals > assists:
+        return "scorer"
+    if assists > goals:
+        return "assister"
+    return "neutral"
 
 
 def _normalize(values: list[float]) -> list[float]:
@@ -89,6 +133,19 @@ def compute_player_scores(
     return {pid: known_scores.get(pid, mean_score) for pid in player_ids}
 
 
+def compute_player_roles(
+    player_ids: list[PlayerId],
+    season_meetups: list[Meetup],
+    all_meetups: list[Meetup],
+) -> dict[PlayerId, str]:
+    """Return role classification ('scorer', 'assister', 'neutral') for each player.
+
+    Uses season data when player has >= 3 matches, otherwise falls back to
+    full history. Players with no history return 'neutral'.
+    """
+    return {pid: _player_role(pid, season_meetups, all_meetups) for pid in player_ids}
+
+
 def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
     """Return sorted (pid_a, pid_b) → shared win count for all player pairs."""
     counts: dict[tuple[str, str], int] = {}
@@ -114,6 +171,7 @@ def _team_score(
     player_scores: dict[PlayerId, float],
     winning_counts: dict[tuple[str, str], int],
     max_pair_wins: int,
+    role_penalty: float = 0.0,
 ) -> float:
     """Compute the aggregate strength score for a team."""
     total = sum(player_scores.get(pid, 0.5) for pid in team)
@@ -125,22 +183,29 @@ def _team_score(
         )
         pair_wins = winning_counts.get(key, 0)
         total += (pair_wins / max_pair_wins) * _PAIR_WEIGHT
-    return total
+    return total + role_penalty
 
 
 def optimize_teams(
     player_ids: list[PlayerId],
     player_scores: dict[PlayerId, float],
     winning_counts: dict[tuple[str, str], int],
+    role_scores: dict[PlayerId, str] | None = None,
 ) -> tuple[list[PlayerId], list[PlayerId]]:
     """Assign players to two balanced teams using local-search optimization.
 
     Starts from a random split and iterates _ITERATIONS times, accepting swaps
     that reduce the score difference between teams. Each call starts from a
     fresh random state, producing varied but balanced results.
+
+    Role balancing: attempts to keep scorer/assister ratio within _ROLE_HARD_THRESHOLD.
+    If not achievable, applies soft penalty after _ITERATIONS iterations.
     """
     if len(player_ids) < 2:
         raise ValueError("Need at least 2 players to create teams")
+
+    if role_scores is None:
+        role_scores = {}
 
     players = list(player_ids)
     random.shuffle(players)
@@ -165,6 +230,80 @@ def optimize_teams(
         new_diff = abs(new_score_a - new_score_b)
 
         if new_diff > current_diff:
+            team_a[i], team_b[j] = team_b[j], team_a[i]
+
+    if role_scores:
+        config: RoleBalanceConfig = (player_scores, winning_counts, max_pair_wins, role_scores)
+        team_a, team_b = _apply_role_balance(team_a, team_b, config)
+
+    return team_a, team_b
+
+
+RoleBalanceConfig = tuple[
+    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
+]
+
+
+def _apply_role_balance(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    config: RoleBalanceConfig,
+) -> tuple[list[PlayerId], list[PlayerId]]:
+    """Apply role balancing to teams after initial score optimization."""
+    player_scores, winning_counts, max_pair_wins, role_scores = config
+
+    def _count_scorers(team: list[PlayerId]) -> int:
+        return sum(1 for pid in team if role_scores.get(pid) == "scorer")
+
+    def _role_ratio(team: list[PlayerId]) -> float:
+        if not team:
+            return 0.0
+        return _count_scorers(team) / len(team)
+
+    def _role_penalty(team: list[PlayerId], other: list[PlayerId]) -> float:
+        ratio_a = _role_ratio(team)
+        ratio_b = _role_ratio(other)
+        return _ROLE_WEIGHT * abs(ratio_a - ratio_b)
+
+    for _ in range(_ITERATIONS):
+        i = random.randrange(len(team_a))
+        j = random.randrange(len(team_b))
+
+        score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
+        score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
+        current_diff = abs(score_a - score_b)
+
+        team_a_copy = team_a.copy()
+        team_b_copy = team_b.copy()
+        team_a_copy[i], team_b_copy[j] = team_b[j], team_a[i]
+
+        ratio_a = _role_ratio(team_a_copy)
+        ratio_b = _role_ratio(team_b_copy)
+
+        if abs(ratio_a - ratio_b) <= _ROLE_HARD_THRESHOLD:
+            team_a[i], team_b[j] = team_b[j], team_a[i]
+            new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
+            new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
+            new_diff = abs(new_score_a - new_score_b)
+
+            if new_diff > current_diff:
+                team_a[i], team_b[j] = team_b[j], team_a[i]
+
+    for _ in range(200):
+        i = random.randrange(len(team_a))
+        j = random.randrange(len(team_b))
+
+        score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
+        score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
+        current_total = score_a + score_b + _role_penalty(team_a, team_b)
+
+        team_a[i], team_b[j] = team_b[j], team_a[i]
+
+        new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
+        new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
+        new_total = new_score_a + new_score_b + _role_penalty(team_a, team_b)
+
+        if new_total < current_total:
             team_a[i], team_b[j] = team_b[j], team_a[i]
 
     return team_a, team_b
