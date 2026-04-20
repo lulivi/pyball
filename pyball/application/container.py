@@ -14,7 +14,7 @@ from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
 from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
-from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository
+from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository, LegacyStats
 from pyball.settings import load_settings
 
 
@@ -26,6 +26,7 @@ class Container:
         self._settings = load_settings()
         self._player_repository: PlayerRepository | None = None
         self._meetup_repository: MeetupRepository | None = None
+        self._legacy_stats: LegacyStats | None = None
 
         if data_dir:
             self._data_dir = data_dir
@@ -90,3 +91,11 @@ class Container:
         if self._meetup_repository is None:
             self._meetup_repository = JsonMeetupRepository(self._settings.paths.meetups_dir)
         return self._meetup_repository
+
+    @property
+    def legacy_stats(self) -> LegacyStats:
+        """Get the legacy stats, loading from file if necessary."""
+        if self._legacy_stats is None:
+            legacy_path = self._data_dir / "legacy_stats.json"
+            self._legacy_stats = LegacyStats.from_file(str(legacy_path))
+        return self._legacy_stats
