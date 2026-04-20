@@ -6,6 +6,7 @@ import itertools
 import random
 
 from pyball.domain.meetup.models import Meetup, PlayerId
+from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _SEASON_MIN_MATCHES = 3
 _ROLE_WEIGHT = 0.15
@@ -20,6 +21,7 @@ _ITERATIONS = 500
 def _player_stats(
     player_id: PlayerId,
     meetups: list[Meetup],
+    legacy_stats: LegacyStats | None = None,
 ) -> tuple[int, float, float, float]:
     """Return (matches_played, goals_per_match, assists_per_match, win_rate)."""
     goals = assists = wins = mp = 0
@@ -41,6 +43,10 @@ def _player_stats(
                 goals += 1
             if event.assistant_id == player_id:
                 assists += 1
+    if legacy_stats and mp > 0:
+        legacy = legacy_stats.get(str(player_id.value))
+        assists += legacy["assists"]
+
     if mp == 0:
         return 0, 0.0, 0.0, 0.0
     return mp, goals / mp, assists / mp, wins / mp
@@ -50,6 +56,7 @@ def _player_role(
     player_id: PlayerId,
     season_meetups: list[Meetup],
     all_meetups: list[Meetup] | None = None,
+    legacy_stats: LegacyStats | None = None,  # pylint: disable=unused-argument
 ) -> str:
     """Classify player as 'scorer', 'assister', or 'neutral' based on goals vs assists.
 
@@ -100,6 +107,7 @@ def compute_player_scores(
     player_ids: list[PlayerId],
     season_meetups: list[Meetup],
     all_meetups: list[Meetup],
+    legacy_stats: LegacyStats | None = None,
 ) -> dict[PlayerId, float]:
     """Return a normalized [0, 1] strength score for each player.
 
@@ -108,11 +116,11 @@ def compute_player_scores(
     """
     components: dict[PlayerId, tuple[float, float, float] | None] = {}
     for pid in player_ids:
-        mp_s, gpm_s, apm_s, wr_s = _player_stats(pid, season_meetups)
+        mp_s, gpm_s, apm_s, wr_s = _player_stats(pid, season_meetups, legacy_stats)
         if mp_s >= _SEASON_MIN_MATCHES:
             components[pid] = (gpm_s, apm_s, wr_s)
         else:
-            mp_a, gpm_a, apm_a, wr_a = _player_stats(pid, all_meetups)
+            mp_a, gpm_a, apm_a, wr_a = _player_stats(pid, all_meetups, legacy_stats)
             components[pid] = (gpm_a, apm_a, wr_a) if mp_a > 0 else None
 
     known = [(pid, c) for pid, c in components.items() if c is not None]
@@ -137,13 +145,16 @@ def compute_player_roles(
     player_ids: list[PlayerId],
     season_meetups: list[Meetup],
     all_meetups: list[Meetup],
+    legacy_stats: LegacyStats | None = None,
 ) -> dict[PlayerId, str]:
     """Return role classification ('scorer', 'assister', 'neutral') for each player.
 
     Uses season data when player has >= 3 matches, otherwise falls back to
     full history. Players with no history return 'neutral'.
     """
-    return {pid: _player_role(pid, season_meetups, all_meetups) for pid in player_ids}
+    return {
+        pid: _player_role(pid, season_meetups, all_meetups, legacy_stats) for pid in player_ids
+    }
 
 
 def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
