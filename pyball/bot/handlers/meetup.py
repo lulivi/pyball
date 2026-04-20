@@ -53,12 +53,14 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("stats", stats_handler))
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 async def close_match_messages(
     bot,
     message_store,
     meetup,
     player_names: dict,
     player_groups: dict,
+    team_display_names: tuple[str, str] = ("A", "B"),
 ) -> None:
     """Edit callup messages to show final score and remove join/leave buttons.
 
@@ -73,7 +75,7 @@ async def close_match_messages(
 
     regular_tracking = message_store.get_message(date_key, "regular")
     if regular_tracking:
-        text = format_main_message(meetup, player_names)
+        text = format_main_message(meetup, player_names, team_display_names=team_display_names)
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
@@ -230,7 +232,9 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
     all_players = player_repo.find_all()
     player_names = {str(player.id.value): player.name for player in all_players}
 
-    text = format_main_message(meetup, player_names)
+    text = format_main_message(
+        meetup, player_names, team_display_names=settings.pyball.team_display_names
+    )
     keyboard = build_main_keyboard(meetup.date)
 
     try:
@@ -411,7 +415,9 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
         regular_tracking = store.get_message(date_key, "regular")
         if regular_tracking:
-            text = format_main_message(meetup, player_names)
+            text = format_main_message(
+                meetup, player_names, team_display_names=settings.pyball.team_display_names
+            )
             try:
                 await context.bot.edit_message_text(
                     chat_id=regular_tracking.chat_id,
@@ -627,7 +633,9 @@ async def _refresh_callup_messages(context, settings, container, meetup) -> None
 
     regular_tracking = store.get_message(date_key, "regular")
     if regular_tracking:
-        text = format_main_message(meetup, player_names)
+        text = format_main_message(
+            meetup, player_names, team_display_names=settings.pyball.team_display_names
+        )
         keyboard = build_main_keyboard(meetup.date)
         try:
             await context.bot.edit_message_text(

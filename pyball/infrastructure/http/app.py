@@ -120,7 +120,14 @@ def create_app(
         player_groups = {str(p.id.value): p.group for p in all_players}
 
         message_store = TelegramMessageStore(settings.paths.bot_messages_file)
-        await close_match_messages(bot, message_store, meetup, player_names, player_groups)
+        await close_match_messages(
+            bot,
+            message_store,
+            meetup,
+            player_names,
+            player_groups,
+            team_display_names=settings.pyball.team_display_names,
+        )
 
         asyncio.create_task(_post_match_stats(bot, container, settings))
 

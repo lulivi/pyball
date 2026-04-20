@@ -166,7 +166,7 @@ def format_match_result_message(
                 team = _escape_mdv2(team_display_names[1])
             else:
                 team = _escape_mdv2(event.team)
-            
+
             if event.assistant_id:
                 assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
                 lines.append(rf"\- ⚽ {scorer} \(asist: {assistant}\) \[{team}\]")

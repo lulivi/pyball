@@ -119,9 +119,11 @@ def test_format_match_result_message_uses_display_names():
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
     meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
-    
+
     # Include an event to ensure 'A' or 'B' aren't used in the goals list
-    event = GoalEvent(scorer_id=p1, assistant_id=None, team="A", timestamp=datetime(2026, 4, 12, 20, 15))
+    event = GoalEvent(
+        scorer_id=p1, assistant_id=None, team="A", timestamp=datetime(2026, 4, 12, 20, 15)
+    )
     meetup.set_result(MatchResult(score_a=2, score_b=1, events=(event,)))
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
