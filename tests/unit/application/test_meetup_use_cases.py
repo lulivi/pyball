@@ -1,5 +1,6 @@
 """Tests for meetup use cases."""
 
+import urllib.parse
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -291,7 +292,12 @@ class TestStartMatch:
         # pylint: disable=attribute-defined-outside-init
         self.meetup_repo = FakeMeetupRepository()
         self.player_repo = FakePlayerRepository()
-        self.use_case = StartMatch(self.meetup_repo, self.player_repo, "http://pyball:8000")
+        self.use_case = StartMatch(
+            self.meetup_repo,
+            self.player_repo,
+            "http://pyball:8000",
+            team_display_names=("Claro", "Oscuro"),
+        )
 
     def _add_players_and_teams(self, meetup):
         p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
@@ -326,6 +332,16 @@ class TestStartMatch:
 
         with pytest.raises(MeetupHasNoTeamsError):
             self.use_case.execute("2026/04/12 20:00")
+
+    def test_url_contains_name_params(self):
+        """StartMatch URL contains nameA and nameB query params with display names."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        self._add_players_and_teams(meetup)
+
+        url = self.use_case.execute("2026/04/12 20:00")
+
+        assert "nameA=Claro" in url or "nameA=Claro" in urllib.parse.unquote(url)
+        assert "nameB=Oscuro" in url or "nameB=Oscuro" in urllib.parse.unquote(url)
 
 
 class TestFinishMatch:

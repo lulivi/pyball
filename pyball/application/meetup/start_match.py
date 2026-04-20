@@ -21,11 +21,13 @@ class StartMatch:
         meetup_repository: MeetupRepository,
         player_repository: PlayerRepository,
         base_url: str,
+        team_display_names: tuple[str, str] = ("A", "B"),
     ):
-        """Initialize with repositories and the base URL."""
+        """Initialize with repositories, the base URL, and team display names."""
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
         self.base_url = base_url
+        self.team_display_names = team_display_names
 
     def execute(self, date_str: str) -> str:
         """Generate the match tracking URL for the given meetup date.
@@ -63,6 +65,8 @@ class StartMatch:
                 "date": meetup_date.strftime("%Y-%m-%dT%H:%M"),
                 "teamA": ",".join(team_a_names),
                 "teamB": ",".join(team_b_names),
+                "nameA": self.team_display_names[0],
+                "nameB": self.team_display_names[1],
             }
         )
         return f"{self.base_url}/?{params}"

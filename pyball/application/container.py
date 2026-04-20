@@ -70,6 +70,7 @@ class Container:
             self.meetup_repository,
             self.player_repository,
             self._settings.pyball.base_url,
+            team_display_names=self._settings.pyball.team_display_names,
         )
 
     def finish_match(self) -> FinishMatch:
