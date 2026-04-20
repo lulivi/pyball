@@ -40,7 +40,11 @@ async def _post_match_stats(
         settings: Application settings for chat/thread IDs.
     """
     try:
-        report = ComputeStats(container.meetup_repository, container.player_repository).execute()
+        report = ComputeStats(
+            container.meetup_repository,
+            container.player_repository,
+            container.legacy_stats,
+        ).execute()
         season_png = await StatsHtmlRenderer().render(report, scope="season")
 
         stats_thread_id = settings.telegram.regulars.stats_thread_id or None
