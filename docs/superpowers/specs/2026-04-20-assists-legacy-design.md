@@ -1,22 +1,22 @@
-# Diseño: Asistencias Legacy
+# Design: Legacy Assists Support
 
-## Problema
+## Problem
 
-El script de migración `scripts/migrate_legacy_sqlite_to_json.py` migra datos históricos de SQLite a JSON, pero las asistencias se migran como `assistant_id: None` porque el schema legacy solo almacena counts agregados por jugador, no la asistencia específica para cada gol.
+The migration script `scripts/migrate_legacy_sqlite_to_json.py` migrates historical data from SQLite to JSON, but assists are stored as `assistant_id: None` because the legacy schema only stores aggregate counts per player, not which scorer each assist belonged to.
 
-Esto afecta:
-1. **Balanceo de equipos**: Los jugadores con muchas asistencias históricas no se benefician al crear equipos equilibrados.
-2. **Estadísticas**: Las estadísticas históricas muestran 0 asistencias para jugadores que tuvieron muchas en la era legacy.
+This affects:
+1. **Team balancing**: Players with many historical assists don't get credited when creating balanced teams.
+2. **Statistics**: Historical stats show 0 assists for players who had many in the legacy era.
 
-## Solución
+## Solution
 
-Separar los datos agregados legacy del modelo DDD, manteniéndolos como referencia externa.
+Keep legacy aggregate data separate from the DDD model, as an external reference.
 
-### 1. Archivo de estadísticas legacy
+### 1. Legacy Stats File
 
-**Ubicación**: `data/legacy_stats.json`
+**Location**: `data/legacy_stats.json`
 
-**Estructura**:
+**Structure**:
 ```json
 {
   "players": {
@@ -29,11 +29,11 @@ Separar los datos agregados legacy del modelo DDD, manteniéndolos como referenc
 }
 ```
 
-**Generación**: El script de migración ya lee `goals` y `assists` de `match_statistic`. Solo hay que escribir este archivo adicional.
+**Generation**: The migration script already reads `goals` and `assists` from `match_statistic`. It just needs to write this additional file.
 
-### 2. Carga de estadísticas legacy
+### 2. Legacy Stats Loader
 
-**Nueva clase**: `pyball.infrastructure.persistence.legacy_stats.LegacyStats`
+**New class**: `pyball.infrastructure.persistence.legacy_stats.LegacyStats`
 
 ```python
 class LegacyStats:
@@ -45,57 +45,57 @@ class LegacyStats:
     def all_players(self) -> list[str]: ...
 ```
 
-**Carga**: Se carga una vez al iniciar la aplicación via `Container`.
+**Loading**: Loaded once at app startup via `Container`.
 
-### 3. Integración en balance.py
+### 3. Integration in balance.py
 
-En `_player_stats()`:
+In `_player_stats()`:
 
 ```python
 def _player_stats(
     player_id: PlayerId,
     meetups: list[Meetup],
-    legacy_stats: LegacyStats | None = None,  # nuevo parámetro
+    legacy_stats: LegacyStats | None = None,  # new parameter
 ) -> tuple[int, float, float, float]:
-    # ... lógica existente ...
+    # ... existing logic ...
     for event in meetup.result.events:
         if event.scorer_id == player_id:
             goals += 1
         if event.assistant_id == player_id:
             assists += 1
 
-    # Añadir assists legacy
+    # Add legacy assists
     if legacy_stats and mp > 0:
         legacy = legacy_stats.get(player_id)
         assists += legacy["assists"]
 ```
 
-Actualizar `_player_role()` igual.
+Update `_player_role()` similarly.
 
-### 4. Integración en compute_stats.py
+### 4. Integration in compute_stats.py
 
-En `_compute_player_stats()` (línea ~150), añadir parámetro `legacy_stats: LegacyStats | None` y сумar assists legacy.
+In `_compute_player_stats()` (~line 150), add `legacy_stats: LegacyStats | None` parameter and sum legacy assists.
 
-### 5. Actualización del Container
+### 5. Container Update
 
-En `pyball/application/container.py`:
+In `pyball/application/container.py`:
 
-1. Añadir `legacy_stats: LegacyStats` como dependencia.
-2. Cargar desde `data/legacy_stats.json` si existe (si no existe, `LegacyStats({})`).
+1. Add `legacy_stats: LegacyStats` as a dependency.
+2. Load from `data/legacy_stats.json` if it exists (if not, `LegacyStats({})`).
 
-### 6. Script de migración
+### 6. Migration Script
 
-Modificar `scripts/migrate_legacy_sqlite_to_json.py`:
+Modify `scripts/migrate_legacy_sqlite_to_json.py`:
 
-- Ya lee `goals` y `assists` de `match_statistic` (línea 88).
-- Añadir función que aggregate por jugador y escriba `legacy_stats.json` en `data/`.
+- It already reads `goals` and `assists` from `match_statistic` (line 88).
+- Add a function to aggregate by player and write `legacy_stats.json` to `data/`.
 
-## Datos de prueba
+## Test Data
 
-El test existente `tests/unit/application/test_balance.py` usa `GoalEvent` sin `assistant_id`. Los tests deben seguir pasando — la lógica solo añade assists cuando `legacy_stats` tiene datos.
+Existing test `tests/unit/application/test_balance.py` uses `GoalEvent` without `assistant_id`. Tests must continue to pass — the logic only adds assists when `legacy_stats` has data.
 
-## Notas
+## Notes
 
-- Los datos legacy son **solo lectura** — no se modifican nunca.
-- Si un jugador tiene stats tanto en meetups como en legacy, se сумan.
-- Si no existe `legacy_stats.json`, el sistema funciona igual (compatibilidad hacia atrás).
+- Legacy data is **read-only** — never modified.
+- If a player has stats in both meetups and legacy, they are summed.
+- If `legacy_stats.json` doesn't exist, the system works the same (backwards compatibility).
