@@ -256,3 +256,75 @@ value = "en_US.UTF-8"
 
         with pytest.raises(SettingsValidationError):
             load_settings(config_file)
+
+    def test_team_display_names_default(self, tmp_path):
+        """team_display_names defaults to ('Claro', 'Oscuro') when not set."""
+        config_content = """
+[pyball]
+location = "Test Park"
+
+[telegram]
+bot_token = "test_token"
+admins_ids = [111]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
+"""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(config_content)
+
+        settings = load_settings(config_file)
+
+        assert settings.pyball.team_display_names == ("Claro", "Oscuro")
+
+    def test_team_display_names_custom(self, tmp_path):
+        """team_display_names is loaded from config when set."""
+        config_content = """
+[pyball]
+location = "Test Park"
+team_display_names = ["Blancos", "Negros"]
+
+[telegram]
+bot_token = "test_token"
+admins_ids = [111]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
+"""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(config_content)
+
+        settings = load_settings(config_file)
+
+        assert settings.pyball.team_display_names == ("Blancos", "Negros")
+
+    def test_team_display_names_env_override(self, tmp_path, monkeypatch):
+        """PYBALL_PYBALL_TEAM_DISPLAY_NAMES env var overrides config."""
+        config_content = """
+[pyball]
+location = "Test Park"
+team_display_names = ["Blancos", "Negros"]
+
+[telegram]
+bot_token = "test_token"
+admins_ids = [111]
+
+[telegram.regulars]
+chat_id = -1001234567890
+
+[telegram.substitutes]
+chat_id = -1001234567891
+"""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(config_content)
+        monkeypatch.setenv("PYBALL_PYBALL_TEAM_DISPLAY_NAMES", "Rojos,Azules")
+
+        settings = load_settings(config_file)
+
+        assert settings.pyball.team_display_names == ("Rojos", "Azules")

@@ -60,6 +60,17 @@ def _parse_chat_id(value) -> int:
     return int(value)
 
 
+def _parse_team_display_names(value) -> tuple[str, str]:
+    """Parse team_display_names from config list or comma-separated env string."""
+    if isinstance(value, list) and len(value) == 2:
+        return (str(value[0]), str(value[1]))
+    if isinstance(value, str):
+        parts = [p.strip() for p in value.split(",") if p.strip()]
+        if len(parts) == 2:
+            return (parts[0], parts[1])
+    return ("Claro", "Oscuro")
+
+
 @dataclass
 class TelegramChatSettings:
     """Telegram chat configuration for regulars or substitutes."""
@@ -101,6 +112,7 @@ class PyballSettings:
     default_week_day: str = "wednesday"
     default_hour: str = "20:00"
     base_url: str = "http://localhost:8000"
+    team_display_names: tuple[str, str] = ("Claro", "Oscuro")
 
 
 @dataclass
@@ -189,6 +201,13 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         ),
         base_url=_get_env_override(
             "pyball", "base_url", pyball_cfg.get("base_url", "http://localhost:8000")
+        ),
+        team_display_names=_parse_team_display_names(
+            _get_env_override(
+                "pyball",
+                "team_display_names",
+                pyball_cfg.get("team_display_names", ["Claro", "Oscuro"]),
+            )
         ),
     )
 
