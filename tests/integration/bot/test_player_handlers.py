@@ -82,7 +82,8 @@ async def test_list_players_includes_names(bot_update, bot_context):
 
     await list_players_handler(bot_update, bot_context)
 
-    (text, *_), _ = bot_update.message.reply_text.call_args
+    call = bot_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "Ana" in text
     assert "Pedro" in text
 
@@ -141,5 +142,6 @@ async def test_list_players_empty_repo(bot_update, bot_context):
     """list_players_handler with an empty repo replies with 'No players found.'"""
     await list_players_handler(bot_update, bot_context)
 
-    (text, *_), _ = bot_update.message.reply_text.call_args
+    call = bot_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert text == "No players found."

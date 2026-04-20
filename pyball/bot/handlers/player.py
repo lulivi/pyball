@@ -7,6 +7,7 @@ import logging
 
 import telegram
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
@@ -52,7 +53,8 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/new_player` `<name>` `<regular|substitute>`", parse_mode="MarkdownV2"
+            text=r"Usage: `/new_player` `<name>` `<regular|substitute>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
@@ -60,13 +62,16 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     group = args[1]
 
     if group not in ("regular", "substitute"):
-        await message.reply_text("Group must be 'regular' or 'substitute'")
+        await message.reply_text(
+            text="Group must be `regular` or `substitute`", parse_mode=ParseMode.MARKDOWN_V2
+        )
         return
 
     try:
         player = container.create_player().execute(name, group)
         await message.reply_text(
-            rf"Player `{player.name}` created as {group}\!", parse_mode="MarkdownV2"
+            text=rf"Player `{player.name}` created as {group}\!",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
     except PlayerAlreadyExistsError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
@@ -93,7 +98,8 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/rename_player` `<player_id>` `<new_name>`", parse_mode="MarkdownV2"
+            text=r"Usage: `/rename_player` `<player_id>` `<new_name>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
@@ -101,7 +107,10 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     new_name = " ".join(args[1:])
     try:
         player = container.rename_player().execute(player_id, new_name)
-        await message.reply_text(rf"Player renamed to `{player.name}`\!", parse_mode="MarkdownV2")
+        await message.reply_text(
+            text=rf"Player renamed to `{player.name}`\!",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except InvalidPlayerIdError:
         await message.reply_text("Invalid player ID format.")
     except PlayerNotFoundError:
@@ -130,7 +139,10 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     args = context.args
     if args is None or not args:
-        await message.reply_text(r"Usage: `/delete_player` `<player_id>`", parse_mode="MarkdownV2")
+        await message.reply_text(
+            text=r"Usage: `/delete_player` `<player_id>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     player_id = args[0]
@@ -187,7 +199,10 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         for name in sorted_substitutes:
             lines.append(rf"\- `{name}`")
 
-    await message.reply_text("\n".join(lines), parse_mode="MarkdownV2")
+    await message.reply_text(
+        text="\n".join(lines),
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
 
 
 @authorized
@@ -202,8 +217,8 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/change_group` `<player_name>` `<regular|substitute>`",
-            parse_mode="MarkdownV2",
+            text=r"Usage: `/change_group` `<player_name>` `<regular|substitute>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
@@ -227,7 +242,8 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         use_case = container.change_player_group()
         player = use_case.execute(str(match.player_id.value), new_group)
         await message.reply_text(
-            rf"Player `{player.name}` changed to `{new_group}`\!", parse_mode="MarkdownV2"
+            text=rf"Player `{player.name}` changed to `{new_group}`\!",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
     except telegram.error.TelegramError as error:
         logger.error("Telegram error changing player group: %s", error)
@@ -255,7 +271,8 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/link_player` `<player_name>` `<telegram_id>`", parse_mode="MarkdownV2"
+            text=r"Usage: `/link_player` `<player_name>` `<telegram_id>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
@@ -294,7 +311,8 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     mapping_store.set_player_id(telegram_id, player_id_str)
 
     await message.reply_text(
-        rf"Telegram ID `{telegram_id}` linked to player `{match.name}`\!", parse_mode="MarkdownV2"
+        text=rf"Telegram ID `{telegram_id}` linked to player `{match.name}`\!",
+        parse_mode=ParseMode.MARKDOWN_V2,
     )
 
 
@@ -311,7 +329,8 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     args = context.args
     if args is None or not args:
         await message.reply_text(
-            r"Usage: `/unlink_player `<telegram_id>`", parse_mode="MarkdownV2"
+            text=r"Usage: `/unlink_player `<telegram_id>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
@@ -328,5 +347,6 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     mapping_store.delete_player_id(telegram_id)
     await message.reply_text(
-        rf"Link for Telegram ID `{telegram_id}` removed\!", parse_mode="MarkdownV2"
+        text=rf"Link for Telegram ID `{telegram_id}` removed\!",
+        parse_mode=ParseMode.MARKDOWN_V2,
     )

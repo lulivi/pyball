@@ -33,7 +33,7 @@ async def test_new_player_handler_success(mock_update, mock_context):
     await new_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        r"Player `Luis` created as regular\!", parse_mode="MarkdownV2"
+        text=r"Player `Luis` created as regular\!", parse_mode="MarkdownV2"
     )
 
 
@@ -69,7 +69,7 @@ async def test_rename_player_handler_success(mock_update, mock_context):
     await rename_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        r"Player renamed to `New Name`\!", parse_mode="MarkdownV2"
+        text=r"Player renamed to `New Name`\!", parse_mode="MarkdownV2"
     )
 
 
@@ -102,12 +102,13 @@ async def test_list_players_handler_success(mock_update, mock_context):
     await list_players_handler(mock_update, mock_context)
 
     assert mock_update.message.reply_text.called
-    args, _ = mock_update.message.reply_text.call_args
-    assert "*Jugadores:*" in args[0]
-    assert r"*Titulares \(1\):*" in args[0]
-    assert r"- `Luis`" in args[0]
-    assert r"*Suplentes \(1\):*" in args[0]
-    assert r"- `Pedro`" in args[0]
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "*Jugadores:*" in text
+    assert r"*Titulares \(1\):*" in text
+    assert r"- `Luis`" in text
+    assert r"*Suplentes \(1\):*" in text
+    assert r"- `Pedro`" in text
 
 
 @pytest.mark.asyncio
@@ -129,7 +130,7 @@ async def test_change_group_handler_success(mock_update, mock_context):
     await change_group_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        r"Player `Luis` changed to `substitute`\!", parse_mode="MarkdownV2"
+        text=r"Player `Luis` changed to `substitute`\!", parse_mode="MarkdownV2"
     )
 
 
@@ -177,7 +178,7 @@ async def test_unlink_player_handler_success(mock_update, mock_context):
         await unlink_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        r"Link for Telegram ID `12345` removed\!", parse_mode="MarkdownV2"
+        text=r"Link for Telegram ID `12345` removed\!", parse_mode="MarkdownV2"
     )
 
 
@@ -188,7 +189,9 @@ async def test_new_player_handler_invalid_group(mock_update, mock_context):
 
     await new_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Group must be 'regular' or 'substitute'")
+    mock_update.message.reply_text.assert_called_with(
+        text="Group must be `regular` or `substitute`", parse_mode="MarkdownV2"
+    )
 
 
 @pytest.mark.asyncio

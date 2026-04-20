@@ -114,7 +114,8 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            "Usage: `/start_match` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+            text="Usage: `/start_match` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
@@ -156,14 +157,18 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            "Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+            text="Usage: `/new_meetup` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
     try:
         date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date format. Use: `/new_meetup` `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            r"Invalid date format\. Use: `/new_meetup` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     await _create_meetup_and_send(date, update, context)
@@ -180,7 +185,8 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     next_date = _get_next_weekday(settings.pyball)
     day_name = next_date.strftime("%A")
     await message.reply_text(
-        f"Creating meetup for `{next_date.strftime('%Y/%m/%d %H:%M')}` ({day_name})..."
+        text=rf"Creating meetup for `{next_date.strftime('%Y/%m/%d %H:%M')}` \({day_name}\)\.\.\.",
+        parse_mode=ParseMode.MARKDOWN_V2,
     )
     await _create_meetup_and_send(next_date, update, context)
 
@@ -198,7 +204,8 @@ async def _create_meetup_and_send(
     except DuplicateMeetupError:
         if message is not None:
             await message.reply_text(
-                f"Meetup already exists at `{date.strftime('%Y/%m/%d %H:%M')}`."
+                text=rf"Meetup already exists at `{date.strftime('%Y/%m/%d %H:%M')}`\.",
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
         return
     except InvalidMeetupDateError as error:
@@ -491,14 +498,18 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+            text=r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
     try:
         meetup_date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text("Invalid date format. Use: `/show_meetup` `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            text=r"Invalid date format\. Use: `/show_meetup` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
@@ -534,14 +545,18 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     args = context.args
     if not args:
         await message.reply_text(
-            r"Usage: `/search` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+            text="Usage: `/search` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
     try:
         meetup_date = datetime.strptime(f"{args[0]} {args[1]}", "%Y/%m/%d %H:%M")
     except ValueError:
-        await message.reply_text(r"Invalid date. Use: `/search` `YYYY/MM/DD HH:MM`")
+        await message.reply_text(
+            text=r"Invalid date\. Use: `/search` `YYYY/MM/DD HH:MM`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
@@ -599,7 +614,10 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     args = context.args
     if not args or args[0] not in ("temporada", "historico"):
-        await message.reply_text("Usa /stats temporada o /stats historico")
+        await message.reply_text(
+            text="Usa `/stats temporada` o `/stats historico`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
     scope = "season" if args[0] == "temporada" else "alltime"

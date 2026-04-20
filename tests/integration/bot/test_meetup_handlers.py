@@ -48,7 +48,8 @@ async def test_new_meetup_duplicate_replies_error(bot_update, bot_context):
     bot_update.message.reply_text.reset_mock()
     await new_meetup_handler(bot_update, bot_context)
 
-    (text, *_), _ = bot_update.message.reply_text.call_args
+    call = bot_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "already exists" in text
 
 
@@ -177,7 +178,8 @@ async def test_next_meetup_creates_meetup(bot_update, bot_context):
     container = bot_context.bot_data["container"]
     meetups = container.meetup_repository.find_all()
     assert len(meetups) == 1
-    first_call_text = bot_update.message.reply_text.call_args_list[0][0][0]
+    call = bot_update.message.reply_text.call_args_list[0]
+    first_call_text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "Creating meetup for" in first_call_text
 
 
@@ -278,7 +280,8 @@ async def test_stats_handler_no_args_replies_help(bot_update, bot_context):
     bot_context.args = []
     await stats_handler(bot_update, bot_context)
     bot_update.message.reply_text.assert_called_once()
-    text = bot_update.message.reply_text.call_args.args[0]
+    call = bot_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "temporada" in text and "historico" in text
 
 
@@ -288,5 +291,6 @@ async def test_stats_handler_bad_arg_replies_help(bot_update, bot_context):
     bot_context.args = ["unknown"]
     await stats_handler(bot_update, bot_context)
     bot_update.message.reply_text.assert_called_once()
-    text = bot_update.message.reply_text.call_args.args[0]
+    call = bot_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "temporada" in text and "historico" in text

@@ -9,17 +9,15 @@ def setup_general_handlers(application):
     application.add_handler(CommandHandler("help", help_handler))
 
 
-async def help_handler(
-    update: Update, context: ContextTypes.DEFAULT_TYPE  # pylint: disable=unused-argument
-) -> None:
+async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
     message = update.message
     if message is None:
         return
 
-    text = """<b>Available Commands:</b>
+    text = """*Available Commands:*
 
-<b>Player:</b>
+*Player:*
 /new_player - Create a new player
 /rename_player - Rename a player
 /delete_player - Delete a player
@@ -28,15 +26,14 @@ async def help_handler(
 /link_player - Link Telegram ID to player
 /unlink_player - Unlink Telegram ID
 
-<b>Meetup:</b>
+*Meetup:*
 /new_meetup - Create a new meetup
 /next_meetup - Create meetup for next default day
-/add_player - Add player to meetup
-/remove_player - Remove player from meetup
-/create_teams - Create random teams
 /list_meetups - List all meetups
 /show_meetup - Show meetup details
-
-<b>Callup:</b>
-/search - Send substitutes message"""
+/add_player - Add player to meetup
+/remove_player - Remove player from meetup
+/search - Send substitutes message
+/create_teams - Create random teams
+/start_match - Initialize match page"""
     await message.reply_text(text, parse_mode="HTML")

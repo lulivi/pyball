@@ -29,7 +29,7 @@ async def test_new_meetup_handler_no_args(mock_update, mock_context):
     await new_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        "Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        text="Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
     )
 
 
@@ -39,9 +39,9 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
 
     await new_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        "Invalid date format. Use: `/new_meetup` `YYYY/MM/DD HH:MM`"
-    )
+    call = mock_update.message.reply_text.call_args
+    assert call.args[0] == r"Invalid date format\. Use: `/new_meetup` `YYYY/MM/DD HH:MM`"
+    assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
 @pytest.mark.asyncio
@@ -52,7 +52,7 @@ async def test_show_meetup_handler_no_args(mock_update, mock_context):
     await show_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        text=r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
     )
 
 
@@ -63,7 +63,8 @@ async def test_show_meetup_handler_invalid_date(mock_update, mock_context):
 
     await show_meetup_handler(mock_update, mock_context)
 
-    (text, *_), _ = mock_update.message.reply_text.call_args
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "Invalid date format" in text
 
 
