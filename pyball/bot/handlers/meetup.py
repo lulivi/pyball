@@ -25,7 +25,7 @@ from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.settings import PyballSettings, TelegramSettings
+from pyball.settings import CoreSettings, TelegramSettings
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +269,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
         logger.exception("Error sending regulars message: %s", error)
 
 
-def _get_next_weekday(pyball_settings: PyballSettings) -> datetime:
+def _get_next_weekday(pyball_settings: CoreSettings) -> datetime:
     """Calculate next occurrence of default weekday."""
     day_map = {
         "monday": 0,
@@ -575,13 +575,11 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = format_subs_message(meetup, player_names, player_groups)
     keyboard = build_subs_keyboard(meetup.date)
 
-    thread_id = settings.telegram.substitutes.meetups_thread_id
     try:
         msg = await context.bot.send_message(
             chat_id=settings.telegram.substitutes.chat_id,
             text=text,
             reply_markup=keyboard,
-            message_thread_id=int(thread_id) if thread_id else None,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
 
@@ -591,7 +589,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "substitute",
             MessageTracking(
                 chat_id=settings.telegram.substitutes.chat_id,
-                thread_id=thread_id or None,
                 message_id=msg.message_id,
             ),
         )

@@ -53,7 +53,6 @@ def bot_settings(tmp_data):
     settings.telegram.regulars.chat_id = -100111
     settings.telegram.regulars.meetups_thread_id = None
     settings.telegram.substitutes.chat_id = -100222
-    settings.telegram.substitutes.meetups_thread_id = None
     settings.paths.bot_messages_file = tmp_data / "bot_messages.json"
     settings.paths.bot_mappings_file = tmp_data / "bot_mappings.json"
     settings.pyball.location = "Test Field"

@@ -3,7 +3,7 @@
 import pytest
 
 from pyball.settings import (
-    LocaleSettings,
+    CoreSettings,
     RegularsChatSettings,
     SettingsValidationError,
     TelegramChatSettings,
@@ -32,9 +32,10 @@ class TestTelegramSettings:
         settings = TelegramSettings(admins_ids=())
         assert settings.is_authorized(123) is False
 
-    def test_substitutes_has_no_stats_thread_id(self):
-        """Substitutes settings do not have a stats_thread_id attribute."""
-        subs = TelegramChatSettings(chat_id=123, meetups_thread_id="")
+    def test_substitutes_has_no_thread_ids(self):
+        """Substitutes settings do not have thread IDs."""
+        subs = TelegramChatSettings(chat_id=123)
+        assert not hasattr(subs, "meetups_thread_id")
         assert not hasattr(subs, "stats_thread_id")
 
     def test_regulars_chat_settings_is_subclass_of_telegram_chat_settings(self):
@@ -47,13 +48,13 @@ class TestLocaleSettings:
 
     def test_default_locale(self):
         """Default locale is en_US.UTF-8."""
-        locale = LocaleSettings()
-        assert locale.value == "en_US.UTF-8"
+        settings = CoreSettings()
+        assert settings.locale == "en_US.UTF-8"
 
     def test_custom_locale(self):
         """A custom locale value is stored as-is."""
-        locale = LocaleSettings(value="es_ES.UTF-8")
-        assert locale.value == "es_ES.UTF-8"
+        settings = CoreSettings(locale="es_ES.UTF-8")
+        assert settings.locale == "es_ES.UTF-8"
 
 
 class TestLoadSettings:
@@ -62,21 +63,19 @@ class TestLoadSettings:
     def test_load_from_config_file(self, tmp_path):
         """Test loading settings from config.toml file."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
+locale = "es_ES.UTF-8"
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111, 222]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
-
-[locale]
-value = "es_ES.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
@@ -86,26 +85,23 @@ value = "es_ES.UTF-8"
         assert settings.telegram.bot_token == "test_token"
         assert settings.telegram.admins_ids == (111, 222)
         assert settings.pyball.location == "Test Park"
-        assert settings.locale.value == "es_ES.UTF-8"
+        assert settings.pyball.locale == "es_ES.UTF-8"
 
     def test_env_override_bot_token(self, tmp_path, monkeypatch):
         """Test that env vars override config file values."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 
-[telegram]
+[pyball.telegram]
 bot_token = "config_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
-
-[locale]
-value = "en_US.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
@@ -119,21 +115,18 @@ value = "en_US.UTF-8"
     def test_env_override_admins_ids_comma_separated(self, tmp_path, monkeypatch):
         """Test comma-separated env var for admins_ids."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
-
-[locale]
-value = "en_US.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
@@ -147,18 +140,18 @@ value = "en_US.UTF-8"
     def test_meetups_thread_id_loaded_from_config(self, tmp_path):
         """meetups_thread_id is read from config."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 meetups_thread_id = "42"
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
 """
         config_file = tmp_path / "config.toml"
@@ -169,18 +162,18 @@ chat_id = -1001234567891
     def test_stats_thread_id_loaded_from_config(self, tmp_path):
         """stats_thread_id is read from config for regulars."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 stats_thread_id = "99"
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
 """
         config_file = tmp_path / "config.toml"
@@ -188,68 +181,21 @@ chat_id = -1001234567891
         settings = load_settings(config_file)
         assert settings.telegram.regulars.stats_thread_id == "99"
 
-    def test_stats_thread_id_defaults_to_empty(self, tmp_path):
-        """stats_thread_id is empty string when not configured."""
-        config_content = """
-[pyball]
-location = "Test Park"
-
-[telegram]
-bot_token = "test_token"
-admins_ids = [111]
-
-[telegram.regulars]
-chat_id = -1001234567890
-
-[telegram.substitutes]
-chat_id = -1001234567891
-"""
-        config_file = tmp_path / "config.toml"
-        config_file.write_text(config_content)
-        settings = load_settings(config_file)
-        assert settings.telegram.regulars.stats_thread_id == ""
-        assert settings.telegram.regulars.has_stats_thread() is False
-
-    def test_has_stats_thread_true_when_set(self, tmp_path):
-        """has_stats_thread() returns True when stats_thread_id is set."""
-        config_content = """
-[pyball]
-location = "Test Park"
-
-[telegram]
-bot_token = "test_token"
-admins_ids = [111]
-
-[telegram.regulars]
-chat_id = -1001234567890
-stats_thread_id = "55"
-
-[telegram.substitutes]
-chat_id = -1001234567891
-"""
-        config_file = tmp_path / "config.toml"
-        config_file.write_text(config_content)
-        settings = load_settings(config_file)
-        assert settings.telegram.regulars.has_stats_thread() is True
-
     def test_missing_bot_token_raises_error(self, tmp_path):
         """Test that missing bot_token raises SettingsValidationError."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 
-[telegram]
+[pyball.telegram]
 bot_token = ""
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
-
-[locale]
-value = "en_US.UTF-8"
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
@@ -260,17 +206,17 @@ value = "en_US.UTF-8"
     def test_team_display_names_default(self, tmp_path):
         """team_display_names defaults to ('Claro', 'Oscuro') when not set."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
 """
         config_file = tmp_path / "config.toml"
@@ -283,18 +229,18 @@ chat_id = -1001234567891
     def test_team_display_names_custom(self, tmp_path):
         """team_display_names is loaded from config when set."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 team_display_names = ["Blancos", "Negros"]
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
 """
         config_file = tmp_path / "config.toml"
@@ -305,25 +251,25 @@ chat_id = -1001234567891
         assert settings.pyball.team_display_names == ("Blancos", "Negros")
 
     def test_team_display_names_env_override(self, tmp_path, monkeypatch):
-        """PYBALL_PYBALL_TEAM_DISPLAY_NAMES env var overrides config."""
+        """PYBALL_CORE_TEAM_DISPLAY_NAMES env var overrides config."""
         config_content = """
-[pyball]
+[pyball.core]
 location = "Test Park"
 team_display_names = ["Blancos", "Negros"]
 
-[telegram]
+[pyball.telegram]
 bot_token = "test_token"
 admins_ids = [111]
 
-[telegram.regulars]
+[pyball.telegram.regulars]
 chat_id = -1001234567890
 
-[telegram.substitutes]
+[pyball.telegram.substitutes]
 chat_id = -1001234567891
 """
         config_file = tmp_path / "config.toml"
         config_file.write_text(config_content)
-        monkeypatch.setenv("PYBALL_PYBALL_TEAM_DISPLAY_NAMES", "Rojos,Azules")
+        monkeypatch.setenv("PYBALL_CORE_TEAM_DISPLAY_NAMES", "Rojos,Azules")
 
         settings = load_settings(config_file)
 

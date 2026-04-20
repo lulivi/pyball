@@ -11,8 +11,8 @@ class MessageTracking:
     """Stores Telegram message tracking information."""
 
     chat_id: int
-    thread_id: str | int | None
     message_id: int
+    thread_id: str | int | None = None
 
 
 ChatType = Literal["regular", "substitute"]

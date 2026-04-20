@@ -19,9 +19,12 @@ class Paths:
     meetups_dir: Path = field(init=False)
     bot_mappings_file: Path = field(init=False)
     bot_messages_file: Path = field(init=False)
+    _data_dir_override: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize dependent path fields."""
+        if self._data_dir_override:
+            self.data_dir = Path(self._data_dir_override)
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
         self.bot_mappings_file = self.data_dir / "bot" / "telegram-uuid.json"
@@ -35,9 +38,16 @@ def _get_env_override(section: str, key: str, default):
     """Get environment variable override for config value.
 
     Env var format: PYBALL_<SECTION>_<KEY>
-    Example: PYBALL_TELEGRAM_BOT_TOKEN
+    Example: PYBALL_TELEGRAM_BOT_TOKEN, PYBALL_CORE_LOCATION
+
+    The section maps from TOML to env var:
+    - "pyball.telegram" -> "telegram"
+    - "pyball.telegram.regulars" -> "telegram.regulars"
+    - "pyball.telegram.substitutes" -> "telegram.substitutes"
+    - "core" -> "core"
     """
-    env_key = f"PYBALL_{section.upper()}_{key.upper()}"
+    section_for_env = section.replace("pyball.", "")
+    env_key = f"PYBALL_{section_for_env.upper()}_{key.upper()}"
     env_value = os.environ.get(env_key)
     if env_value is None:
         return default
@@ -76,18 +86,14 @@ class TelegramChatSettings:
     """Telegram chat configuration for regulars or substitutes."""
 
     chat_id: int = 0
-    meetups_thread_id: str | int = ""
 
 
 @dataclass
 class RegularsChatSettings(TelegramChatSettings):
     """Telegram chat configuration for the regulars group."""
 
+    meetups_thread_id: str | int = ""
     stats_thread_id: str | int = ""
-
-    def has_stats_thread(self) -> bool:
-        """Check if a stats thread ID is configured."""
-        return bool(self.stats_thread_id)
 
 
 @dataclass
@@ -105,7 +111,7 @@ class TelegramSettings:
 
 
 @dataclass
-class PyballSettings:
+class CoreSettings:
     """PyBall-specific configuration."""
 
     location: str = ""
@@ -113,13 +119,8 @@ class PyballSettings:
     default_hour: str = "20:00"
     base_url: str = "http://localhost:8000"
     team_display_names: tuple[str, str] = ("Claro", "Oscuro")
-
-
-@dataclass
-class LocaleSettings:
-    """Locale configuration."""
-
-    value: str = "en_US.UTF-8"
+    locale: str = "en_US.UTF-8"
+    data_dir: str = "data"
 
 
 @dataclass
@@ -127,8 +128,7 @@ class Settings:
     """Application settings container."""
 
     telegram: TelegramSettings = field(default_factory=TelegramSettings)
-    pyball: PyballSettings = field(default_factory=PyballSettings)
-    locale: LocaleSettings = field(default_factory=LocaleSettings)
+    pyball: CoreSettings = field(default_factory=CoreSettings)
     paths: Paths = field(default_factory=Paths)
 
 
@@ -149,66 +149,68 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         with open(config_path, "rb") as f:
             config = tomllib.load(f)
 
-    telegram_cfg = config.get("telegram", {})
-    pyball_cfg = config.get("pyball", {})
-    locale_cfg = config.get("locale", {})
+    telegram_cfg = config.get("pyball", {}).get("telegram", {})
+    core_cfg = config.get("pyball", {}).get("core", {})
 
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
 
     regulars = RegularsChatSettings(
         chat_id=_parse_chat_id(
-            _get_env_override("telegram_regulars", "chat_id", regulars_cfg.get("chat_id", 0))
+            _get_env_override(
+                "pyball.telegram.regulars", "chat_id", regulars_cfg.get("chat_id", 0)
+            )
         ),
         meetups_thread_id=_get_env_override(
-            "telegram_regulars",
+            "pyball.telegram.regulars",
             "meetups_thread_id",
             regulars_cfg.get("meetups_thread_id", ""),
         ),
         stats_thread_id=_get_env_override(
-            "telegram_regulars",
+            "pyball.telegram.regulars",
             "stats_thread_id",
             regulars_cfg.get("stats_thread_id", ""),
         ),
     )
     substitutes = TelegramChatSettings(
         chat_id=_parse_chat_id(
-            _get_env_override("telegram_substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))
-        ),
-        meetups_thread_id=_get_env_override(
-            "telegram_substitutes",
-            "meetups_thread_id",
-            substitutes_cfg.get("meetups_thread_id", ""),
+            _get_env_override(
+                "pyball.telegram.substitutes", "chat_id", substitutes_cfg.get("chat_id", 0)
+            )
         ),
     )
 
     telegram = TelegramSettings(
-        bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
+        bot_token=_get_env_override(
+            "pyball.telegram", "bot_token", telegram_cfg.get("bot_token", "")
+        ),
         admins_ids=_parse_admins_ids(
-            _get_env_override("telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
+            _get_env_override("pyball.telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
         ),
         regulars=regulars,
         substitutes=substitutes,
     )
 
-    pyball = PyballSettings(
-        location=_get_env_override("pyball", "location", pyball_cfg.get("location", "")),
+    pyball = CoreSettings(
+        location=_get_env_override("core", "location", core_cfg.get("location", "")),
         default_week_day=_get_env_override(
-            "pyball", "default_week_day", pyball_cfg.get("default_week_day", "wednesday")
+            "core", "default_week_day", core_cfg.get("default_week_day", "wednesday")
         ),
         default_hour=_get_env_override(
-            "pyball", "default_hour", pyball_cfg.get("default_hour", "20:00")
+            "core", "default_hour", core_cfg.get("default_hour", "20:00")
         ),
         base_url=_get_env_override(
-            "pyball", "base_url", pyball_cfg.get("base_url", "http://localhost:8000")
+            "core", "base_url", core_cfg.get("base_url", "http://localhost:8000")
         ),
         team_display_names=_parse_team_display_names(
             _get_env_override(
-                "pyball",
+                "core",
                 "team_display_names",
-                pyball_cfg.get("team_display_names", ["Claro", "Oscuro"]),
+                core_cfg.get("team_display_names", ["Claro", "Oscuro"]),
             )
         ),
+        locale=_get_env_override("core", "locale", core_cfg.get("locale", "en_US.UTF-8")),
+        data_dir=_get_env_override("core", "data_dir", core_cfg.get("data_dir", "data")),
     )
 
     missing = []
@@ -227,8 +229,6 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
             "Copia example.config.toml a config.toml y completa los valores."
         )
 
-    locale = LocaleSettings(
-        value=_get_env_override("locale", "value", locale_cfg.get("value", "en_US.UTF-8")),
+    return Settings(
+        telegram=telegram, pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir)
     )
-
-    return Settings(telegram=telegram, pyball=pyball, locale=locale)
