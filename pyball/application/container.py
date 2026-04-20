@@ -14,7 +14,11 @@ from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
 from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
-from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository, LegacyStats
+from pyball.infrastructure.persistence import (
+    JsonMeetupRepository,
+    JsonPlayerRepository,
+    LegacyStats,
+)
 from pyball.settings import load_settings
 
 
@@ -63,7 +67,7 @@ class Container:
 
     def create_teams(self) -> CreateTeams:
         """Create a new CreateTeams use case."""
-        return CreateTeams(self.meetup_repository)
+        return CreateTeams(self.meetup_repository, self._legacy_stats)
 
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""

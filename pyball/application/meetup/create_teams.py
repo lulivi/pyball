@@ -12,6 +12,7 @@ from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.exceptions import MeetupError
+from pyball.infrastructure.persistence import LegacyStats
 
 
 def _season_start(today: date) -> date:
@@ -24,9 +25,14 @@ def _season_start(today: date) -> date:
 class CreateTeams:
     """Use case for creating history-aware balanced teams."""
 
-    def __init__(self, meetup_repository: MeetupRepository):
+    def __init__(
+        self,
+        meetup_repository: MeetupRepository,
+        legacy_stats: LegacyStats | None = None,
+    ):
         """Initialize with a meetup repository."""
         self.meetup_repository = meetup_repository
+        self.legacy_stats = legacy_stats
 
     def execute(self, date_str: str) -> Meetup:
         """Create balanced teams for a meetup by date string."""
@@ -44,8 +50,12 @@ class CreateTeams:
         season_start = _season_start(date.today())
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
-        player_scores = compute_player_scores(meetup.players, season_meetups, finished)
-        player_roles = compute_player_roles(meetup.players, season_meetups, finished)
+        player_scores = compute_player_scores(
+            meetup.players, season_meetups, finished, self.legacy_stats
+        )
+        player_roles = compute_player_roles(
+            meetup.players, season_meetups, finished, self.legacy_stats
+        )
         winning_counts = extract_winning_counts(finished)
         team_a_ids, team_b_ids = optimize_teams(
             meetup.players, player_scores, winning_counts, player_roles
