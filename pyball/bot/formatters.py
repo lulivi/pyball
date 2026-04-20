@@ -57,7 +57,11 @@ def build_callback_data(action: str, meetup_date: datetime) -> str:
     return f"{action}:{meetup_date.strftime('%Y-%m-%dT%H:%M')}"
 
 
-def format_main_message(meetup: Meetup, player_names: dict) -> str:
+def format_main_message(
+    meetup: Meetup,
+    player_names: dict,
+    team_display_names: tuple[str, str] = ("A", "B"),
+) -> str:
     """Format message for main (regulars) chat.
 
     Format varies:
@@ -83,10 +87,12 @@ def format_main_message(meetup: Meetup, player_names: dict) -> str:
     else:
         lines.append("*Equipos:*")
         for i, team in enumerate(meetup.teams):
+            display_name = team_display_names[i] if i < len(team_display_names) else team.name
             score = None
             if meetup.result is not None:
                 score = meetup.result.score_a if i == 0 else meetup.result.score_b
-            header = rf"*{team.name} \({score}\):*" if score is not None else f"\n*{team.name}:*"
+            escaped = _escape_mdv2(display_name)
+            header = rf"*{escaped} \({score}\):*" if score is not None else f"\n*{escaped}:*"
             lines.append(header)
             for player in team.players:
                 name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
@@ -124,7 +130,11 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
     return "\n".join(lines)
 
 
-def format_match_result_message(meetup: Meetup, player_names: dict) -> str:
+def format_match_result_message(
+    meetup: Meetup,
+    player_names: dict,
+    team_display_names: tuple[str, str] = ("A", "B"),
+) -> str:
     """Format a match-finished announcement message.
 
     Intended to be sent as a new message (not an edit) after the match ends.
@@ -135,8 +145,8 @@ def format_match_result_message(meetup: Meetup, player_names: dict) -> str:
 
     score_a = meetup.result.score_a
     score_b = meetup.result.score_b
-    name_a = _escape_mdv2(meetup.teams[0].name)
-    name_b = _escape_mdv2(meetup.teams[1].name)
+    name_a = _escape_mdv2(team_display_names[0])
+    name_b = _escape_mdv2(team_display_names[1])
 
     lines = [
         rf"⚽ *Partido terminado* — `{date_str}`",

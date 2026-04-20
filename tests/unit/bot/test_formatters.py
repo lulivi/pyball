@@ -2,7 +2,12 @@ from datetime import datetime
 
 import pytest
 
-from pyball.bot.formatters import _escape_mdv2, format_main_message, format_subs_message
+from pyball.bot.formatters import (
+    _escape_mdv2,
+    format_main_message,
+    format_match_result_message,
+    format_subs_message,
+)
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 
@@ -82,10 +87,49 @@ def test_format_main_message_with_teams():
     meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
-    text = format_main_message(meetup, player_names)
+    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
 
     assert "*Equipos:*" in text
+    assert "Claro" in text
+    assert "Oscuro" in text
     assert "Luis" in text or "Carlos" in text
+
+
+def test_format_main_message_with_teams_shows_custom_display_names():
+    """format_main_message uses team_display_names instead of internal 'A'/'B'."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names, team_display_names=("Blancos", "Negros"))
+
+    assert "Blancos" in text
+    assert "Negros" in text
+    assert "*A:*" not in text
+    assert "*B:*" not in text
+
+
+def test_format_match_result_message_uses_display_names():
+    """format_match_result_message uses team_display_names for score line."""
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+    meetup.set_result(MatchResult(score_a=2, score_b=1, events=()))
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
+    text = format_match_result_message(
+        meetup, player_names, team_display_names=("Claro", "Oscuro")
+    )
+
+    assert "Claro" in text
+    assert "Oscuro" in text
+    assert "*A*" not in text
+    assert "*B*" not in text
 
 
 def test_format_main_message_with_result_shows_score():
@@ -100,7 +144,7 @@ def test_format_main_message_with_result_shows_score():
     meetup.set_result(MatchResult(score_a=3, score_b=1, events=(event,)))
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
-    text = format_main_message(meetup, player_names)
+    text = format_main_message(meetup, player_names, team_display_names=("A", "B"))
 
     assert "A (3)" in text or r"A \(3\)" in text
     assert "B (1)" in text or r"B \(1\)" in text
