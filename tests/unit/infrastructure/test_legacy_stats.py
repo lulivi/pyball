@@ -66,3 +66,53 @@ def test_from_file_returns_empty_for_nonexistent_file(tmp_path):
     assert stats.get_assists("any") == 0
     assert stats.get_matches("any") == 0
     assert stats.all_players() == []
+
+
+def test_get_goals_since_filters_by_date():
+    data = {
+        "players": {
+            "uuid-1": {
+                "goals": 10,
+                "assists": 5,
+                "matches": 3,
+                "goals_by_match": [
+                    {"date": "2023-01-01T10:00:00", "count": 3},
+                    {"date": "2023-02-01T10:00:00", "count": 5},
+                    {"date": "2023-03-01T10:00:00", "count": 2},
+                ],
+                "assists_by_match": [
+                    {"date": "2023-01-01T10:00:00", "count": 2},
+                    {"date": "2023-02-01T10:00:00", "count": 3},
+                ],
+            }
+        }
+    }
+    stats = LegacyStats(data)
+    from datetime import datetime
+
+    # Filter from Feb 2023 - should only count Feb + Mar
+    assert stats.get_goals_since("uuid-1", datetime(2023, 2, 1)) == 7
+    assert stats.get_assists_since("uuid-1", datetime(2023, 2, 1)) == 3
+    # Filter from Mar 2023 - should only count Mar
+    assert stats.get_goals_since("uuid-1", datetime(2023, 3, 1)) == 2
+
+
+def test_get_matches_since_filters_by_date():
+    data = {
+        "players": {
+            "uuid-1": {
+                "goals_by_match": [
+                    {"date": "2023-01-01T10:00:00", "count": 3},
+                    {"date": "2023-02-01T10:00:00", "count": 5},
+                ],
+                "assists_by_match": [
+                    {"date": "2023-01-01T10:00:00", "count": 2},
+                ],
+            }
+        }
+    }
+    stats = LegacyStats(data)
+    from datetime import datetime
+
+    # From Feb should count only Feb match
+    assert stats.get_matches_since("uuid-1", datetime(2023, 2, 1)) == 1

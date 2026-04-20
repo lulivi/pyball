@@ -34,6 +34,7 @@ Notes:
 import argparse
 import json
 import sqlite3
+from typing import Any
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -182,25 +183,49 @@ def _generate_legacy_stats(
     old_id_to_uuid: dict[int, str],
     output_dir: Path,
 ) -> None:
-    """Generate legacy_stats.json with aggregate goals/assists/matches per player."""
+    """Generate legacy_stats.json with granular goals/assists per match."""
     cur = conn.execute(
-        "SELECT player_id, team, goals, assists FROM match_statistic ORDER BY player_id"
+        "SELECT date, player_id, team, goals, assists FROM match_statistic ORDER BY date"
     )
     rows = cur.fetchall()
 
-    legacy: dict[str, dict[str, int]] = {"players": {}}
+    players_data: dict[str, dict[str, Any]] = {}
 
     for row in rows:
         player_uuid = old_id_to_uuid.get(row["player_id"])
         if player_uuid is None:
             continue
+        date_iso = row["date"]  # format: "2023-01-15"
 
-        if player_uuid not in legacy["players"]:
-            legacy["players"][player_uuid] = {"goals": 0, "assists": 0, "matches": 0}
+        if player_uuid not in players_data:
+            players_data[player_uuid] = {
+                "goals_by_match": [],
+                "assists_by_match": [],
+            }
 
-        legacy["players"][player_uuid]["goals"] += row["goals"]
-        legacy["players"][player_uuid]["assists"] += row["assists"]
-        legacy["players"][player_uuid]["matches"] += 1
+        players_data[player_uuid]["goals_by_match"].append({
+            "date": date_iso + "T10:00:00",
+            "count": row["goals"],
+        })
+        players_data[player_uuid]["assists_by_match"].append({
+            "date": date_iso + "T10:00:00",
+            "count": row["assists"],
+        })
+
+    # Compute totals for backward compatibility
+    legacy: dict[str, dict[str, Any]] = {"players": {}}
+    for player_uuid, data in players_data.items():
+        goals = sum(e["count"] for e in data["goals_by_match"])
+        assists = sum(e["count"] for e in data["assists_by_match"])
+        matches = len(set(e["date"] for e in data["goals_by_match"]))
+
+        legacy["players"][player_uuid] = {
+            "goals": goals,
+            "assists": assists,
+            "matches": matches,
+            "goals_by_match": data["goals_by_match"],
+            "assists_by_match": data["assists_by_match"],
+        }
 
     legacy_file = output_dir / "legacy_stats.json"
     with open(legacy_file, "w", encoding="utf-8") as f:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
@@ -88,6 +88,7 @@ def _points_from_counters(counters: dict) -> int:
 def _aggregate(
     meetups: list,
     legacy_stats: LegacyStats | None = None,
+    from_date: datetime | None = None,
 ) -> tuple[dict[str, dict], dict[tuple[str, str], int], dict[tuple[str, str], int]]:
     """Aggregate raw stats from a list of meetups.
 
@@ -147,8 +148,11 @@ def _aggregate(
 
     if legacy_stats:
         for pid, data in player_data.items():
-            legacy = legacy_stats.get(pid)
-            data["assists"] += legacy.get("assists", 0)
+            if from_date is not None:
+                data["assists"] += legacy_stats.get_assists_since(pid, from_date)
+            else:
+                legacy = legacy_stats.get(pid)
+                data["assists"] += legacy.get("assists", 0)
 
     return player_data, chemistry_counts, winning_counts
 
@@ -158,9 +162,10 @@ def _build_scoped_report(
     player_names: dict[str, str],
     prev_meetups: list | None = None,
     legacy_stats: LegacyStats | None = None,
+    from_date: datetime | None = None,
 ) -> StatsScopedReport:
     """Build a StatsScopedReport, computing rank deltas from prev_meetups if provided."""
-    player_data, chemistry_counts, winning_counts = _aggregate(meetups, legacy_stats)
+    player_data, chemistry_counts, winning_counts = _aggregate(meetups, legacy_stats, from_date)
 
     stats_list = [
         PlayerStats(
@@ -285,9 +290,11 @@ class ComputeStats:
             prev_all = None
             prev_season = None
 
+        season_start_dt = datetime.combine(season_start, datetime.min.time())
+
         return StatsReport(
             season=_build_scoped_report(
-                season_meetups, player_names, prev_season, self.legacy_stats
+                season_meetups, player_names, prev_season, self.legacy_stats, season_start_dt
             ),
             all_time=_build_scoped_report(finished, player_names, prev_all, self.legacy_stats),
         )

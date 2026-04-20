@@ -50,11 +50,13 @@ class CreateTeams:
         season_start = _season_start(date.today())
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
+        season_start_dt = datetime.combine(season_start, datetime.min.time())
+
         player_scores = compute_player_scores(
-            meetup.players, season_meetups, finished, self.legacy_stats
+            meetup.players, season_meetups, finished, self.legacy_stats, season_start_dt
         )
         player_roles = compute_player_roles(
-            meetup.players, season_meetups, finished, self.legacy_stats
+            meetup.players, season_meetups, finished, self.legacy_stats, season_start_dt
         )
         winning_counts = extract_winning_counts(finished)
         team_a_ids, team_b_ids = optimize_teams(
