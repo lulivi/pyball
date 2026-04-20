@@ -79,7 +79,7 @@ def test_format_main_message_with_teams():
     p2 = PlayerId.generate()
     meetup.add_player(p1)
     meetup.add_player(p2)
-    meetup.create_random_teams()
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
     text = format_main_message(meetup, player_names)

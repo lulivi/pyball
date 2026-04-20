@@ -63,7 +63,7 @@ class TestJsonMeetupRepository:
         p1, p2 = PlayerId.generate(), PlayerId.generate()
         meetup.add_player(p1)
         meetup.add_player(p2)
-        meetup.create_random_teams()
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
         self.repo.save(meetup)
 

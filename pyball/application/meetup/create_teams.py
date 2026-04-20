@@ -1,22 +1,34 @@
-"""Create teams use case."""
+"""Create balanced teams use case."""
 
-from datetime import datetime
+from datetime import date, datetime
 
+from pyball.application.meetup.balance import (
+    compute_player_scores,
+    extract_winning_counts,
+    optimize_teams,
+)
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.exceptions import MeetupError
 
 
+def _season_start(today: date) -> date:
+    """Return Sep 1 of the current season year."""
+    if today.month >= 9:
+        return date(today.year, 9, 1)
+    return date(today.year - 1, 9, 1)
+
+
 class CreateTeams:
-    """Use case for creating random teams."""
+    """Use case for creating history-aware balanced teams."""
 
     def __init__(self, meetup_repository: MeetupRepository):
         """Initialize with a meetup repository."""
         self.meetup_repository = meetup_repository
 
     def execute(self, date_str: str) -> Meetup:
-        """Create random teams for a meetup by date string."""
+        """Create balanced teams for a meetup by date string."""
         try:
             meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
         except ValueError as exc:
@@ -26,7 +38,16 @@ class CreateTeams:
         if not meetup:
             raise MeetupNotFoundError(date_str)
 
-        meetup.create_random_teams()
+        all_meetups = self.meetup_repository.find_all()
+        finished = [m for m in all_meetups if m.result is not None]
+        season_start = _season_start(date.today())
+        season_meetups = [m for m in finished if m.date.date() >= season_start]
+
+        player_scores = compute_player_scores(meetup.players, season_meetups, finished)
+        winning_counts = extract_winning_counts(finished)
+        team_a_ids, team_b_ids = optimize_teams(meetup.players, player_scores, winning_counts)
+
+        meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
         self.meetup_repository.save(meetup)
         return meetup
 

@@ -20,7 +20,7 @@ from pyball.bot.handlers.meetup import (
     start_match_handler,
     stats_handler,
 )
-from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
@@ -150,7 +150,12 @@ async def test_start_match_forbidden_admin_does_not_raise(bot_update, bot_contex
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     for player in players:
         meetup.add_player(player.id)
-    meetup.create_random_teams()
+    meetup.set_teams(
+        [
+            Team.create("A", [players[0].id, players[1].id]),
+            Team.create("B", [players[2].id, players[3].id]),
+        ]
+    )
     container.meetup_repository.save(meetup)
 
     bot_context.bot.send_photo = AsyncMock(

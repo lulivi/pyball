@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import random as _random
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -59,20 +58,6 @@ class Meetup(Entity["MeetupId"]):
         if player_id not in self.players:
             raise PlayerNotInMeetupError(str(player_id.value))
         self.players.remove(player_id)
-
-    def create_random_teams(self) -> None:
-        """Create two randomly-assigned teams from the players."""
-        if len(self.players) < 2:
-            raise ValueError("Need at least 2 players to create teams")
-
-        players_copy = list(self.players)
-        _random.shuffle(players_copy)
-
-        mid = len(players_copy) // 2
-        self.teams = [
-            Team.create("A", players_copy[:mid]),
-            Team.create("B", players_copy[mid:]),
-        ]
 
     def set_result(self, result: MatchResult) -> None:
         """Attach the match result. Requires teams to exist."""

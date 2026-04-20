@@ -177,6 +177,38 @@ class TestCreateTeams:
         with pytest.raises(ValueError, match="Need at least 2"):
             use_case.execute("2024/01/15 20:00")
 
+    def test_create_teams_all_players_assigned(self):
+        """All meetup players appear in exactly one team after create_teams."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        player_ids = [PlayerId.generate() for _ in range(6)]
+        for pid in player_ids:
+            meetup.add_player(pid)
+        meetup_repo.save(meetup)
+
+        result = CreateTeams(meetup_repo).execute("2024/01/15 20:00")
+
+        all_assigned = list(result.teams[0].players) + list(result.teams[1].players)
+        assert sorted(str(p.value) for p in all_assigned) == sorted(
+            str(p.value) for p in player_ids
+        )
+
+    def test_create_teams_produces_varied_results(self):
+        """Repeated calls on the same meetup produce more than one distinct assignment."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        for _ in range(6):
+            meetup.add_player(PlayerId.generate())
+        meetup_repo.save(meetup)
+        use_case = CreateTeams(meetup_repo)
+
+        compositions = set()
+        for _ in range(30):
+            result = use_case.execute("2024/01/15 20:00")
+            compositions.add(frozenset(result.teams[0].players))
+
+        assert len(compositions) > 1
+
 
 class TestCreateMeetup:
     """Tests for CreateMeetup use case."""
