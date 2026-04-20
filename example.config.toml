@@ -50,10 +50,6 @@ stats_thread_id = ""
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
 chat_id = -1000000000001
 
-# Optional: The forum topic thread for meetup callup messages
-# Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_THREAD_ID
-meetups_thread_id = ""
-
 [locale]
 # Player names locale for sorting
 # Override with PYBALL_LOCALE_VALUE
