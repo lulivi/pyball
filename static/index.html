@@ -46,12 +46,12 @@
     <h1>⚽ Partido en curso</h1>
     <div class="scoreboard" id="scoreboard-ui">
         <div class="team-score">
-            <div class="team-name">Claro</div>
+            <div class="team-name" id="name-a">—</div>
             <div class="score-number score-a" id="score-a">0</div>
         </div>
         <div class="score-separator">-</div>
         <div class="team-score">
-            <div class="team-name">Oscuro</div>
+            <div class="team-name" id="name-b">—</div>
             <div class="score-number score-b" id="score-b">0</div>
         </div>
     </div>
@@ -100,6 +100,8 @@
                 teamA = teams.teamA;
                 teamB = teams.teamB;
                 meetupDate = teams.meetupDate;
+                document.getElementById('name-a').innerText = teams.nameA || 'A';
+                document.getElementById('name-b').innerText = teams.nameB || 'B';
                 updateUI();
                 return;
             }
