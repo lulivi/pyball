@@ -1,4 +1,4 @@
-default: build
+default: format test lint
 
 # Production
 
