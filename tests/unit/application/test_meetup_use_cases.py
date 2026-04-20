@@ -209,6 +209,32 @@ class TestCreateTeams:
 
         assert len(compositions) > 1
 
+    def test_create_teams_with_history_uses_all_meetups(self):
+        """CreateTeams loads all finished meetups and assigns all current players to teams."""
+        meetup_repo = FakeMeetupRepository()
+
+        # Create two historical finished meetups
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        past_meetup = Meetup.create(date=datetime(2024, 10, 1, 20, 0), location="Parque Central")
+        past_meetup.add_player(p1)
+        past_meetup.add_player(p2)
+        past_meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        past_meetup.set_result(MatchResult(score_a=2, score_b=0, events=()))
+        meetup_repo.save(past_meetup)
+
+        # Create the current meetup with the same players
+        current = Meetup.create(date=datetime(2024, 11, 15, 20, 0), location="Parque Central")
+        current.add_player(p1)
+        current.add_player(p2)
+        meetup_repo.save(current)
+
+        result = CreateTeams(meetup_repo).execute("2024/11/15 20:00")
+
+        assert result.teams is not None
+        assert len(result.teams) == 2
+        all_assigned = list(result.teams[0].players) + list(result.teams[1].players)
+        assert set(all_assigned) == {p1, p2}
+
 
 class TestCreateMeetup:
     """Tests for CreateMeetup use case."""
