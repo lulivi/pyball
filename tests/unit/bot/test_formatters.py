@@ -114,12 +114,15 @@ def test_format_main_message_with_teams_shows_custom_display_names():
 
 
 def test_format_match_result_message_uses_display_names():
-    """format_match_result_message uses team_display_names for score line."""
+    """format_match_result_message uses team_display_names for score line and events."""
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
     meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
-    meetup.set_result(MatchResult(score_a=2, score_b=1, events=()))
+    
+    # Include an event to ensure 'A' or 'B' aren't used in the goals list
+    event = GoalEvent(scorer_id=p1, assistant_id=None, team="A", timestamp=datetime(2026, 4, 12, 20, 15))
+    meetup.set_result(MatchResult(score_a=2, score_b=1, events=(event,)))
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
     text = format_match_result_message(
@@ -130,6 +133,7 @@ def test_format_match_result_message_uses_display_names():
     assert "Oscuro" in text
     assert "*A*" not in text
     assert "*B*" not in text
+    assert r"\[Claro\]" in text
 
 
 def test_format_main_message_with_result_shows_score():

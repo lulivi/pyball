@@ -159,7 +159,14 @@ def format_match_result_message(
         lines.append(r"📋 *Goles:*")
         for event in meetup.result.events:
             scorer = _escape_mdv2(player_names.get(str(event.scorer_id.value), "?"))
-            team = _escape_mdv2(event.team)
+            # Map "A" -> team_display_names[0], "B" -> team_display_names[1]
+            if event.team == "A":
+                team = _escape_mdv2(team_display_names[0])
+            elif event.team == "B":
+                team = _escape_mdv2(team_display_names[1])
+            else:
+                team = _escape_mdv2(event.team)
+            
             if event.assistant_id:
                 assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
                 lines.append(rf"\- ⚽ {scorer} \(asist: {assistant}\) \[{team}\]")
