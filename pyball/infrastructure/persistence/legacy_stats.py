@@ -16,7 +16,7 @@ class LegacyStats:
     def get(self, player_id: str) -> dict[str, int]:
         """Return {goals, assists, matches} for player_id, or zeros if not found."""
         if player_id in self._data.get("players", {}):
-            return self._data["players"][player_id]
+            return dict(self._data["players"][player_id])
         return {"goals": 0, "assists": 0, "matches": 0}
 
     def get_assists(self, player_id: str) -> int:
