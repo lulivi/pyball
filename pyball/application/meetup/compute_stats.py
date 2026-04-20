@@ -8,6 +8,7 @@ from datetime import date
 
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
+from pyball.infrastructure.persistence import LegacyStats
 
 
 @dataclass
@@ -86,6 +87,7 @@ def _points_from_counters(counters: dict) -> int:
 
 def _aggregate(
     meetups: list,
+    legacy_stats: LegacyStats | None = None,
 ) -> tuple[dict[str, dict], dict[tuple[str, str], int], dict[tuple[str, str], int]]:
     """Aggregate raw stats from a list of meetups.
 
@@ -143,6 +145,11 @@ def _aggregate(
                 pair_chem = (scorer_id, assistant_id)
                 chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
 
+    if legacy_stats:
+        for pid, data in player_data.items():
+            legacy = legacy_stats.get(pid)
+            data["assists"] += legacy.get("assists", 0)
+
     return player_data, chemistry_counts, winning_counts
 
 
@@ -150,9 +157,10 @@ def _build_scoped_report(
     meetups: list,
     player_names: dict[str, str],
     prev_meetups: list | None = None,
+    legacy_stats: LegacyStats | None = None,
 ) -> StatsScopedReport:
     """Build a StatsScopedReport, computing rank deltas from prev_meetups if provided."""
-    player_data, chemistry_counts, winning_counts = _aggregate(meetups)
+    player_data, chemistry_counts, winning_counts = _aggregate(meetups, legacy_stats)
 
     stats_list = [
         PlayerStats(
@@ -173,7 +181,7 @@ def _build_scoped_report(
     stats_list.sort(key=lambda p: (-p.points, p.player_name))
 
     if prev_meetups is not None:
-        prev_data, _, _ = _aggregate(prev_meetups)
+        prev_data, _, _ = _aggregate(prev_meetups, legacy_stats)
 
         prev_pts_ranked = sorted(
             [pid for pid, d in prev_data.items() if _points_from_counters(d) > 0],
@@ -246,10 +254,12 @@ class ComputeStats:
         self,
         meetup_repository: MeetupRepository,
         player_repository: PlayerRepository,
+        legacy_stats: LegacyStats | None = None,
     ) -> None:
         """Initialize with repositories."""
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
+        self.legacy_stats = legacy_stats
 
     def execute(self) -> StatsReport:
         """Compute and return season and all-time statistics.
@@ -276,6 +286,8 @@ class ComputeStats:
             prev_season = None
 
         return StatsReport(
-            season=_build_scoped_report(season_meetups, player_names, prev_season),
-            all_time=_build_scoped_report(finished, player_names, prev_all),
+            season=_build_scoped_report(
+                season_meetups, player_names, prev_season, self.legacy_stats
+            ),
+            all_time=_build_scoped_report(finished, player_names, prev_all, self.legacy_stats),
         )
