@@ -117,9 +117,7 @@ def format_main_message(
                 meetup.date.hour * 60 + meetup.date.minute
             )
             if event.assistant_id:
-                assistant = _escape_mdv2(
-                    player_names.get(str(event.assistant_id.value), "?")
-                )
+                assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
                 lines.append(rf"- ⚽ {minutes}' {scorer} ({assistant})")
             else:
                 lines.append(rf"- ⚽ {minutes}' {scorer}")
@@ -130,24 +128,53 @@ def format_main_message(
 def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
     """Format message for substitutes chat - shows substitutes only."""
     date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
+
     if meetup.result is not None:
-        score_line = rf"{meetup.result.score_a} \- {meetup.result.score_b}"
-        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes \| {score_line}"]
-    else:
-        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
-
-    lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
-
-    lines.append("")
+        return "*Partido terminado*"
 
     suplentes = []
     for player_id in meetup.players:
-        name = player_names.get(str(player_id.value), "Unknown")
-        group = player_groups.get(str(player_id.value), "regular")
-        if group != "regular":
-            suplentes.append(name)
+        player_group = player_groups.get(str(player_id.value), "regular")
+        if player_group != "regular":
+            name = player_names.get(str(player_id.value), "Unknown")
+            suplentes.append((player_id, name))
 
-    sorted_suplentes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
+    if meetup.teams is not None and suplentes:
+        team_map = {}
+        for i, team in enumerate(meetup.teams):
+            for player in team.players:
+                team_map[str(player.value)] = i
+
+        team_emojis = ("⚪", "⚫")
+        team_display = ("Equipo Claro:", "Equipo Oscuro:")
+        subs_by_team: dict[int, list[str]] = {}
+        for player_id, name in suplentes:
+            team_idx = team_map.get(str(player_id.value), -1)
+            if team_idx not in subs_by_team:
+                subs_by_team[team_idx] = []
+            subs_by_team[team_idx].append(name)
+
+        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+        lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
+        lines.append("")
+
+        for team_idx in sorted(subs_by_team.keys()):
+            emoji = team_emojis[team_idx] if team_idx < len(team_emojis) else ""
+            display_name = (
+                team_display[team_idx] if team_idx < len(team_display) else f"Equipo {team_idx}:"
+            )
+            names = ", ".join(sorted(subs_by_team[team_idx]))
+            lines.append(rf"{emoji} {display_name} {names}")
+
+        return "\n".join(lines)
+
+    sorted_suplentes = sorted(
+        [name for _, name in suplentes], key=functools.cmp_to_key(locale.strcoll)
+    )
+
+    lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+    lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
+    lines.append("")
 
     if sorted_suplentes:
         lines.append(rf"*Suplentes \({len(sorted_suplentes)}\):*")

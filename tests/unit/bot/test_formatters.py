@@ -66,6 +66,55 @@ def test_format_main_message_before_teams():
     assert "- Luis" in text
 
 
+def test_format_subs_message_with_teams_shows_team_assignment():
+    """When there's teams, show substitutes with their team color."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    p3 = PlayerId.generate()
+    p4 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.add_player(p3)
+    meetup.add_player(p4)
+    meetup.set_teams([Team.create("A", [p1, p3]), Team.create("B", [p2, p4])])
+
+    player_names = {
+        str(p1.value): "Luis",
+        str(p2.value): "Carlos",
+        str(p3.value): "Pedro",
+        str(p4.value): "Juan",
+    }
+    player_groups = {
+        str(p1.value): "regular",
+        str(p2.value): "regular",
+        str(p3.value): "substitute",
+        str(p4.value): "substitute",
+    }
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "⚪" in text
+    assert "⚫" in text
+    assert "Pedro" in text
+    assert "Juan" in text
+
+
+def test_format_subs_message_with_result_simple():
+    """When there's a result, show simple 'Partido terminado'."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [])])
+    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+
+    player_names = {str(p1.value): "Luis"}
+    player_groups = {str(p1.value): "regular"}
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "*Partido terminado*" in text
+    assert "Suplentes" not in text
+
+
 def test_format_subs_message():
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
@@ -244,7 +293,7 @@ def test_format_main_message_with_result_shows_score():
 
 
 def test_format_subs_message_with_result_shows_score():
-    """When meetup has a result, format_subs_message shows score next to team name."""
+    """When meetup has a result, format_subs_message shows simple terminated message."""
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
@@ -255,5 +304,4 @@ def test_format_subs_message_with_result_shows_score():
     player_groups = {str(p1.value): "regular", str(p2.value): "regular"}
     text = format_subs_message(meetup, player_names, player_groups)
 
-    assert "2" in text
-    assert "0" in text
+    assert "*Partido terminado*" in text
