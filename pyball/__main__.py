@@ -15,6 +15,7 @@ from pyball.bot.handlers import (
     setup_player_handlers,
 )
 from pyball.infrastructure.http.app import create_app
+from pyball.logger import config_logging
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ def log_startup_info() -> None:
 
 async def main_async() -> None:
     """Start the bot and HTTP server under the same asyncio event loop."""
+    config_logging()
     log_startup_info()
 
     settings = load_settings()

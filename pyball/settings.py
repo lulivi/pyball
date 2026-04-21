@@ -144,6 +144,8 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     Raises:
         SettingsValidationError: If required settings are missing
     """
+    LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
+
     config = {}
     if config_path.exists():
         with open(config_path, "rb") as f:

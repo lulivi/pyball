@@ -27,12 +27,41 @@ from typing import Any, Callable, TypeVar, cast
 
 from pyball.settings import LOGS_DIRECTORY_PATH
 
-LOG_MESSAGE_FORMAT = "{asctime}|{levelname}|{name}:{lineno: 4d}| {message}"
-DATE_FORMAT = "%Y/%m/%d-%H:%M"
-ADVANCED_FORMATTER = logging.Formatter(fmt=LOG_MESSAGE_FORMAT, datefmt=DATE_FORMAT, style="{")
 
-stream_log = logging.StreamHandler()
-stream_log.setLevel(logging.INFO)
+def config_logging() -> None:
+    """Configure log files."""
+    LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
+    stream_log = logging.StreamHandler()
+    stream_log.setLevel(logging.INFO)
+
+    full_log = logging.handlers.RotatingFileHandler(
+        LOGS_DIRECTORY_PATH.joinpath("full.log"),
+        maxBytes=1024 * 1024,
+        backupCount=5,
+    )
+
+    pyball_log = timed_rotating_file_handler("pyball.log", "pyball")
+    bot_log = timed_rotating_file_handler("bot.log", "pyball.bot")
+    infra_log = timed_rotating_file_handler("infrastructure.log", "pyball.infrastructure")
+
+    logging.basicConfig(
+        format="{asctime}|{levelname}|{name}:{lineno: 4d}| {message}",
+        datefmt="%Y/%m/%d-%H:%M",
+        style="{",
+        level=logging.DEBUG,
+        handlers=(
+            stream_log,
+            full_log,
+            pyball_log,
+            bot_log,
+            infra_log,
+        ),
+    )
+
+    # Third-party loggers
+    logging.getLogger("httpx").setLevel(logging.ERROR)
+    logging.getLogger("httpcore").setLevel(logging.ERROR)
+    logging.getLogger("fontTools").setLevel(logging.ERROR)
 
 
 def timed_rotating_file_handler(
@@ -55,35 +84,6 @@ def timed_rotating_file_handler(
     log.addFilter(logging.Filter(filter_string))
     return log
 
-
-full_log = logging.handlers.RotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("full.log"),
-    maxBytes=1024 * 1024,
-    backupCount=5,
-)
-
-pyball_log = timed_rotating_file_handler("pyball.log", "pyball")
-bot_log = timed_rotating_file_handler("bot.log", "pyball.bot")
-infra_log = timed_rotating_file_handler("infrastructure.log", "pyball.infrastructure")
-
-
-logging.basicConfig(
-    format=LOG_MESSAGE_FORMAT,
-    datefmt=DATE_FORMAT,
-    style="{",
-    level=logging.DEBUG,
-    handlers=(
-        stream_log,
-        full_log,
-        pyball_log,
-        bot_log,
-        infra_log,
-    ),
-)
-
-# Third-party loggers
-logging.getLogger("httpx").setLevel(logging.ERROR)
-logging.getLogger("httpcore").setLevel(logging.ERROR)
 
 # Function type definition to preserve typing of the wrapped function
 F = TypeVar("F", bound=Callable[..., Any])

@@ -118,12 +118,12 @@ def _validate_player_id(player_id_str: str) -> PlayerId | None:
 
 
 def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
-    if action == "join":
+    if "join" in action:
         if player_id not in meetup.players:
             meetup.add_player(player_id)
             return True
         return False
-    if action == "leave":
+    if "leave" in action:
         try:
             meetup.remove_player(player_id)
             return True
