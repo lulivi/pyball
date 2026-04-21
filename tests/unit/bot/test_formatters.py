@@ -116,6 +116,22 @@ def test_escape_mdv2_special_characters():
     assert _escape_mdv2("player_name") == r"player\_name"
 
 
+def test_format_main_message_team_emojis():
+    """Teams should show ⚪ and ⚫ emojis."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+
+    assert "⚪" in text
+    assert "⚫" in text
+
+
 def test_format_main_message_with_teams():
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
@@ -130,6 +146,8 @@ def test_format_main_message_with_teams():
     assert "*Equipos:*" in text
     assert "Claro" in text
     assert "Oscuro" in text
+    assert "⚪" in text
+    assert "⚫" in text
     assert "Luis" in text or "Carlos" in text
 
 

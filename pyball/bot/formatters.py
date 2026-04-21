@@ -90,13 +90,19 @@ def format_main_message(
             lines.append(rf"\- {_escape_mdv2(name)}")
     else:
         lines.append("*Equipos:*")
+        team_emojis = ("⚪", "⚫")
         for i, team in enumerate(meetup.teams):
             display_name = team_display_names[i] if i < len(team_display_names) else team.name
             score = None
             if meetup.result is not None:
                 score = meetup.result.score_a if i == 0 else meetup.result.score_b
             escaped = _escape_mdv2(display_name)
-            header = rf"*{escaped} \({score}\):*" if score is not None else f"\n*{escaped}:*"
+            emoji = team_emojis[i] if i < len(team_emojis) else ""
+            header = (
+                rf"{emoji} *{escaped} \({score}\):*"
+                if score is not None
+                else f"\n{emoji} *{escaped}:*"
+            )
             lines.append(header)
             for player in team.players:
                 name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
