@@ -463,19 +463,12 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.reply_text("Meetup not found.")
         return
 
+    settings: Settings = context.bot_data["settings"]
     player_names = _get_player_names(container.player_repository)
-    lines = [f"*Meetup: `{meetup.date.strftime('%Y/%m/%d %H:%M')}`*"]
-    lines.append(f"📍 {meetup.location}")
-
-    if meetup.players:
-        lines.append("\n*Players:*")
-        for player_id in meetup.players:
-            name = player_names.get(str(player_id.value), str(player_id.value))
-            lines.append(f"  - {name}")
-    else:
-        lines.append("\nNo players yet.")
-
-    await message.reply_text("\n".join(lines))
+    text = format_main_message(
+        meetup, player_names, team_display_names=settings.pyball.team_display_names
+    )
+    await message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
 
 
 @authorized

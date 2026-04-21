@@ -232,7 +232,7 @@ async def test_show_meetup_no_players(bot_update, bot_context):
     await show_meetup_handler(bot_update, bot_context)
 
     (text, *_), _ = bot_update.message.reply_text.call_args
-    assert "No players yet." in text
+    assert "*Jugadores \\(0/10\\):*" in text
 
 
 @pytest.mark.asyncio
