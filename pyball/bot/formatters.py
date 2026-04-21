@@ -118,14 +118,19 @@ def format_main_message(
             )
             if event.assistant_id:
                 assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
-                lines.append(rf"- ⚽ {minutes}' {scorer} ({assistant})")
+                lines.append(rf"\- ⚽ {minutes}' {scorer} \({assistant}\)")
             else:
-                lines.append(rf"- ⚽ {minutes}' {scorer}")
+                lines.append(rf"\- ⚽ {minutes}' {scorer}")
 
     return "\n".join(lines)
 
 
-def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict) -> str:
+def format_subs_message(
+    meetup: Meetup,
+    player_names: dict,
+    player_groups: dict,
+    team_display_names: tuple[str, str] = ("Equipo A", "Equipo B"),
+) -> str:
     """Format message for substitutes chat - shows substitutes only."""
     date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
 
@@ -146,7 +151,6 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
                 team_map[str(player.value)] = i
 
         team_emojis = ("⚪", "⚫")
-        team_display = ("Equipo Claro:", "Equipo Oscuro:")
         subs_by_team: dict[int, list[str]] = {}
         for player_id, name in suplentes:
             team_idx = team_map.get(str(player_id.value), -1)
@@ -161,7 +165,9 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
         for team_idx in sorted(subs_by_team.keys()):
             emoji = team_emojis[team_idx] if team_idx < len(team_emojis) else ""
             display_name = (
-                team_display[team_idx] if team_idx < len(team_display) else f"Equipo {team_idx}:"
+                f"{team_display_names[team_idx]}:"
+                if team_idx < len(team_display_names)
+                else f"Equipo {team_idx}:"
             )
             names = ", ".join(sorted(subs_by_team[team_idx]))
             lines.append(rf"{emoji} {display_name} {names}")

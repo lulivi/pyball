@@ -518,7 +518,9 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
     player_groups = {str(p.id.value): p.group for p in all_players}
-    text = format_subs_message(meetup, player_names, player_groups)
+    text = format_subs_message(
+        meetup, player_names, player_groups, team_display_names=settings.pyball.team_display_names
+    )
     keyboard = build_subs_keyboard(meetup.date)
 
     try:
@@ -625,13 +627,18 @@ async def refresh_callup_messages(
 
     sub_tracking = store.get_message(date_key, "substitute")
     if sub_tracking:
-        text = format_subs_message(meetup, player_names, player_groups)
+        subs_text = format_subs_message(
+            meetup,
+            player_names,
+            player_groups,
+            team_display_names=settings.pyball.team_display_names,
+        )
         kb = build_subs_keyboard(meetup.date) if include_keyboard else None
         try:
             await bot.edit_message_text(
                 chat_id=sub_tracking.chat_id,
                 message_id=sub_tracking.message_id,
-                text=text,
+                text=subs_text,
                 reply_markup=kb,
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
