@@ -64,7 +64,7 @@ async def test_join_adds_player_to_meetup(
     container = bot_context.bot_data["container"]
     meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
     assert linked_player.id in meetup.players
-    callback_update.callback_query.edit_message_text.assert_called_once()
+    callback_update.callback_query.answer.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -82,7 +82,7 @@ async def test_leave_removes_player_from_meetup(
 
     meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
     assert linked_player.id not in meetup.players
-    callback_update.callback_query.edit_message_text.assert_called_once()
+    callback_update.callback_query.answer.assert_called_once()
 
 
 @pytest.mark.asyncio

@@ -21,11 +21,12 @@ from pyball.bot.formatters import (
     format_main_message,
     format_subs_message,
 )
+from pyball.domain.meetup.models import Meetup
 from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.settings import CoreSettings, TelegramSettings
+from pyball.settings import CoreSettings, Settings, TelegramSettings
 
 logger = logging.getLogger(__name__)
 
@@ -55,53 +56,26 @@ def setup_meetup_handlers(application):
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 async def close_match_messages(
-    bot,
-    message_store,
-    meetup,
-    player_names: dict,
-    player_groups: dict,
-    team_display_names: tuple[str, str] = ("A", "B"),
+    bot: telegram.Bot,
+    settings: Settings,
+    container: Container,
+    meetup: Meetup,
+    message_store: TelegramMessageStore,
 ) -> None:
-    """Edit callup messages to show final score and remove join/leave buttons.
+    """Edit callup messages to show final score and delete tracking.
 
     Args:
         bot: Telegram Bot instance.
-        message_store: TelegramMessageStore to look up tracked message IDs.
+        settings: Bot settings.
+        container: DI container.
         meetup: Meetup with result already set.
-        player_names: Dict of str(UUID) -> player name.
-        player_groups: Dict of str(UUID) -> player group.
+        message_store: TelegramMessageStore to delete tracked messages.
     """
+    await refresh_callup_messages(bot, settings, container, meetup, include_keyboard=False)
+
     date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
-
-    regular_tracking = message_store.get_message(date_key, "regular")
-    if regular_tracking:
-        text = format_main_message(meetup, player_names, team_display_names=team_display_names)
-        try:
-            await bot.edit_message_text(
-                chat_id=regular_tracking.chat_id,
-                message_id=regular_tracking.message_id,
-                text=text,
-                reply_markup=None,
-                parse_mode=ParseMode.MARKDOWN_V2,
-            )
-            message_store.delete_message(date_key, "regular")
-        except telegram.error.BadRequest as error:
-            logger.warning("Could not edit regulars message: %s", error)
-
-    sub_tracking = message_store.get_message(date_key, "substitute")
-    if sub_tracking:
-        text = format_subs_message(meetup, player_names, player_groups)
-        try:
-            await bot.edit_message_text(
-                chat_id=sub_tracking.chat_id,
-                message_id=sub_tracking.message_id,
-                text=text,
-                reply_markup=None,
-                parse_mode=ParseMode.MARKDOWN_V2,
-            )
-            message_store.delete_message(date_key, "substitute")
-        except telegram.error.BadRequest as error:
-            logger.warning("Could not edit substitutes message: %s", error)
+    message_store.delete_message(date_key, "regular")
+    message_store.delete_message(date_key, "substitute")
 
 
 @authorized
@@ -339,7 +313,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             failed.append(f"{name}: unexpected error")
 
     if meetup is not None:
-        await _refresh_callup_messages(context, settings, container, meetup)
+        await refresh_callup_messages(context.bot, settings, container, meetup)
 
     lines = []
     if added:
@@ -372,7 +346,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     settings = context.bot_data["settings"]
     try:
         meetup = container.remove_player_from_meetup().execute(date_str, player_name)
-        await _refresh_callup_messages(context, settings, container, meetup)
+        await refresh_callup_messages(context.bot, settings, container, meetup)
         await message.reply_text("Player removed from meetup!")
     except ValueError as error:
         await message.reply_text(str(error))
@@ -413,42 +387,9 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text("No teams created.")
             return
 
-        all_players = container.player_repository.find_all()
-        player_names = {str(p.id.value): p.name for p in all_players}
-        player_groups = {str(p.id.value): p.group for p in all_players}
-
-        date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
-        store = TelegramMessageStore(settings.paths.bot_messages_file)
-
-        regular_tracking = store.get_message(date_key, "regular")
-        if regular_tracking:
-            text = format_main_message(
-                meetup, player_names, team_display_names=settings.pyball.team_display_names
-            )
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=regular_tracking.chat_id,
-                    message_id=regular_tracking.message_id,
-                    text=text,
-                    reply_markup=None,
-                    parse_mode=ParseMode.MARKDOWN_V2,
-                )
-            except telegram.error.BadRequest as err:
-                logger.warning("Could not edit regulars message after teams: %s", err)
-
-        sub_tracking = store.get_message(date_key, "substitute")
-        if sub_tracking:
-            subs_text = format_subs_message(meetup, player_names, player_groups)
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=sub_tracking.chat_id,
-                    message_id=sub_tracking.message_id,
-                    text=subs_text,
-                    reply_markup=None,
-                    parse_mode=ParseMode.MARKDOWN_V2,
-                )
-            except telegram.error.BadRequest as err:
-                logger.warning("Could not edit substitutes message after teams: %s", err)
+        await refresh_callup_messages(
+            context.bot, settings, container, meetup, include_keyboard=False
+        )
 
         await message.reply_text("Equipos creados ✅")
     except InvalidMeetupDateError as error:
@@ -481,9 +422,14 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     lines = ["*Meetups:*"]
     for m in meetups:
-        lines.append(f"- `{m.date.strftime('%Y/%m/%d %H:%M')}` at {m.location}")
+        lines.append(
+            rf"\- `{m.date.strftime('%Y/%m/%d %H:%M')}` at {m.location.replace('-', r'\-')}"
+        )
 
-    await message.reply_text("\n".join(lines))
+    await message.reply_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
 
 
 @authorized
@@ -636,8 +582,22 @@ def _get_player_names(player_repo) -> dict:
     return {str(p.id.value): p.name for p in all_players}
 
 
-async def _refresh_callup_messages(context, settings, container, meetup) -> None:
-    """Edit the existing callup messages to reflect the current player list."""
+async def refresh_callup_messages(
+    bot: telegram.Bot,
+    settings: Settings,
+    container: Container,
+    meetup: Meetup,
+    include_keyboard: bool = True,
+) -> None:
+    """Edit the existing callup messages to reflect the current player list.
+
+    Args:
+        bot: Telegram Bot instance.
+        settings: Bot settings.
+        container: DI container.
+        meetup: Meetup to display.
+        include_keyboard: Whether to include join/leave buttons (default True).
+    """
     player_repo = container.player_repository
     all_players = player_repo.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -651,13 +611,13 @@ async def _refresh_callup_messages(context, settings, container, meetup) -> None
         text = format_main_message(
             meetup, player_names, team_display_names=settings.pyball.team_display_names
         )
-        keyboard = build_main_keyboard(meetup.date)
+        kb = build_main_keyboard(meetup.date) if include_keyboard else None
         try:
-            await context.bot.edit_message_text(
+            await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
                 message_id=regular_tracking.message_id,
                 text=text,
-                reply_markup=keyboard,
+                reply_markup=kb,
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
         except telegram.error.BadRequest as error:
@@ -666,13 +626,13 @@ async def _refresh_callup_messages(context, settings, container, meetup) -> None
     sub_tracking = store.get_message(date_key, "substitute")
     if sub_tracking:
         text = format_subs_message(meetup, player_names, player_groups)
-        keyboard = build_subs_keyboard(meetup.date)
+        kb = build_subs_keyboard(meetup.date) if include_keyboard else None
         try:
-            await context.bot.edit_message_text(
+            await bot.edit_message_text(
                 chat_id=sub_tracking.chat_id,
                 message_id=sub_tracking.message_id,
                 text=text,
-                reply_markup=keyboard,
+                reply_markup=kb,
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
         except telegram.error.BadRequest as error:

@@ -109,6 +109,9 @@ def format_subs_message(meetup: Meetup, player_names: dict, player_groups: dict)
         lines = [rf"*Convocatoria* `{date_str}` \- Suplentes \| {score_line}"]
     else:
         lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+
+    lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
+
     lines.append("")
 
     suplentes = []

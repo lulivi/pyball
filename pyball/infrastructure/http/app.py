@@ -119,18 +119,13 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-        all_players = container.player_repository.find_all()
-        player_names = {str(p.id.value): p.name for p in all_players}
-        player_groups = {str(p.id.value): p.group for p in all_players}
-
         message_store = TelegramMessageStore(settings.paths.bot_messages_file)
         await close_match_messages(
             bot,
-            message_store,
+            settings,
+            container,
             meetup,
-            player_names,
-            player_groups,
-            team_display_names=settings.pyball.team_display_names,
+            message_store,
         )
 
         asyncio.create_task(_post_match_stats(bot, container, settings))

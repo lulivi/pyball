@@ -3,13 +3,12 @@
 import logging
 from datetime import datetime
 
-import telegram
-import telegram.error
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from pyball.application.container import Container
-from pyball.bot.formatters import build_main_keyboard, format_main_message, parse_callback_data
+from pyball.bot.formatters import parse_callback_data
+from pyball.bot.handlers.meetup import refresh_callup_messages
 from pyball.domain.meetup.errors import PlayerNotInMeetupError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
@@ -55,9 +54,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Meetup not found.", show_alert=True)
         return
 
-    player_repo = container.player_repository
-    player_names = {str(p.id.value): p.name for p in player_repo.find_all()}
-
     from_user = query.from_user
     if from_user is None:
         await query.answer("Invalid user.", show_alert=True)
@@ -81,19 +77,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if modified:
         meetup_repo.save(meetup)
-
-    all_players = player_repo.find_all()
-    player_names = {str(p.id.value): p.name for p in all_players}
-
-    text = format_main_message(meetup, player_names)
-    keyboard = build_main_keyboard(meetup.date)
-
-    if modified:
-        try:
-            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="MarkdownV2")
-        except (telegram.error.TelegramError, Exception) as error:
-            logger.error("Failed to edit message: %s", error)
-            await query.answer("Error updating message.", show_alert=True)
+        await refresh_callup_messages(context.bot, settings, container, meetup)
+        await query.answer()
     else:
         if action == "join":
             await query.answer("Ya estás unido a este meetup.", show_alert=True)
