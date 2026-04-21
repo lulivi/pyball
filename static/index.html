@@ -142,7 +142,7 @@
                 scorer: appState.tempScorer,
                 assistant: assistantName,
                 team: appState.tempScorerTeam,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
             };
 
             // Insertamos el evento al principio del array (unshift) para que el más reciente salga arriba del todo en el log
