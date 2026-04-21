@@ -194,6 +194,35 @@ def test_format_match_result_message_uses_display_names():
     assert r"\[Claro\]" in text
 
 
+def test_format_main_message_with_result_shows_events():
+    """When there's a result, show goals section with timestamps."""
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+
+    event1 = GoalEvent(
+        scorer_id=p1,
+        assistant_id=p2,
+        team="A",
+        timestamp=datetime(2026, 4, 12, 20, 10),
+    )
+    event2 = GoalEvent(
+        scorer_id=p2,
+        assistant_id=None,
+        team="B",
+        timestamp=datetime(2026, 4, 12, 20, 25),
+    )
+    meetup.set_result(MatchResult(score_a=1, score_b=1, events=(event1, event2)))
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
+    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+
+    assert "⏱️ *Goles:*" in text
+    assert "⚽ 10' Dani (Rafa)" in text
+    assert "⚽ 25' Rafa" in text
+
+
 def test_format_main_message_with_result_shows_score():
     """When meetup has a result, format_main_message shows score next to team name."""
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")

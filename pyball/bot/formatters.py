@@ -108,6 +108,22 @@ def format_main_message(
                 name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
                 lines.append(rf"\- {name}")
 
+    if meetup.result is not None and meetup.result.events:
+        lines.append("")
+        lines.append(r"⏱️ *Goles:*")
+        for event in meetup.result.events:
+            scorer = _escape_mdv2(player_names.get(str(event.scorer_id.value), "?"))
+            minutes = (event.timestamp.hour * 60 + event.timestamp.minute) - (
+                meetup.date.hour * 60 + meetup.date.minute
+            )
+            if event.assistant_id:
+                assistant = _escape_mdv2(
+                    player_names.get(str(event.assistant_id.value), "?")
+                )
+                lines.append(rf"- ⚽ {minutes}' {scorer} ({assistant})")
+            else:
+                lines.append(rf"- ⚽ {minutes}' {scorer}")
+
     return "\n".join(lines)
 
 
