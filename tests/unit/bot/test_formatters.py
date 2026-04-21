@@ -2,12 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from pyball.bot.formatters import (
-    _escape_mdv2,
-    format_main_message,
-    format_match_result_message,
-    format_subs_message,
-)
+from pyball.bot.formatters import _escape_mdv2, format_main_message, format_subs_message
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 
@@ -218,31 +213,6 @@ def test_format_main_message_with_teams_shows_custom_display_names():
     assert "*B:*" not in text
 
 
-def test_format_match_result_message_uses_display_names():
-    """format_match_result_message uses team_display_names for score line and events."""
-    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-    p1 = PlayerId.generate()
-    p2 = PlayerId.generate()
-    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
-
-    # Include an event to ensure 'A' or 'B' aren't used in the goals list
-    event = GoalEvent(
-        scorer_id=p1, assistant_id=None, team="A", timestamp=datetime(2026, 4, 12, 20, 15)
-    )
-    meetup.set_result(MatchResult(score_a=2, score_b=1, events=(event,)))
-
-    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
-    text = format_match_result_message(
-        meetup, player_names, team_display_names=("Claro", "Oscuro")
-    )
-
-    assert "Claro" in text
-    assert "Oscuro" in text
-    assert "*A*" not in text
-    assert "*B*" not in text
-    assert r"\[Claro\]" in text
-
-
 def test_format_main_message_with_result_shows_events():
     """When there's a result, show goals section with timestamps."""
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
@@ -268,8 +238,8 @@ def test_format_main_message_with_result_shows_events():
     text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
 
     assert "⏱️ *Goles:*" in text
-    assert "⚽ 10' Dani (Rafa)" in text
-    assert "⚽ 25' Rafa" in text
+    assert r"\- ⚽ 10' Dani \(Rafa\)" in text
+    assert r"\- ⚽ 25' Rafa" in text
 
 
 def test_format_main_message_with_result_shows_score():

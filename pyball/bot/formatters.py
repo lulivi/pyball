@@ -87,7 +87,7 @@ def format_main_message(
         max_players = 10
         lines.append(rf"*Jugadores \({len(meetup.players)}/{max_players}\):*")
         for name in sorted_names:
-            lines.append(rf"\- {_escape_mdv2(name)}")
+            lines.append(rf"  \- {_escape_mdv2(name)}")
     else:
         lines.append("*Equipos:*")
         team_emojis = ("⚪", "⚫")
@@ -99,14 +99,14 @@ def format_main_message(
             escaped = _escape_mdv2(display_name)
             emoji = team_emojis[i] if i < len(team_emojis) else ""
             header = (
-                rf"{emoji} *{escaped} \({score}\):*"
+                rf"{emoji} Equipo *{escaped} \({score}\):*"
                 if score is not None
                 else f"\n{emoji} *{escaped}:*"
             )
             lines.append(header)
             for player in team.players:
                 name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
-                lines.append(rf"\- {name}")
+                lines.append(rf"  \- {name}")
 
     if meetup.result is not None and meetup.result.events:
         lines.append("")
@@ -118,9 +118,9 @@ def format_main_message(
             )
             if event.assistant_id:
                 assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
-                lines.append(rf"\- ⚽ {minutes}' {scorer} \({assistant}\)")
+                lines.append(rf"  \- ⚽ {minutes}' {scorer} \({assistant}\)")
             else:
-                lines.append(rf"\- ⚽ {minutes}' {scorer}")
+                lines.append(rf"  \- ⚽ {minutes}' {scorer}")
 
     return "\n".join(lines)
 
@@ -185,55 +185,9 @@ def format_subs_message(
     if sorted_suplentes:
         lines.append(rf"*Suplentes \({len(sorted_suplentes)}\):*")
         for name in sorted_suplentes:
-            lines.append(rf"\- {_escape_mdv2(name)}")
+            lines.append(rf"  \- {_escape_mdv2(name)}")
     else:
         lines.append("*No hay suplentes*")
-
-    return "\n".join(lines)
-
-
-def format_match_result_message(
-    meetup: Meetup,
-    player_names: dict,
-    team_display_names: tuple[str, str] = ("A", "B"),
-) -> str:
-    """Format a match-finished announcement message.
-
-    Intended to be sent as a new message (not an edit) after the match ends.
-    """
-    date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
-    assert meetup.result is not None
-    assert meetup.teams is not None
-
-    score_a = meetup.result.score_a
-    score_b = meetup.result.score_b
-    name_a = _escape_mdv2(team_display_names[0])
-    name_b = _escape_mdv2(team_display_names[1])
-
-    lines = [
-        rf"⚽ *Partido terminado* — `{date_str}`",
-        "",
-        rf"*{name_a}* {score_a} \- {score_b} *{name_b}*",
-    ]
-
-    if meetup.result.events:
-        lines.append("")
-        lines.append(r"📋 *Goles:*")
-        for event in meetup.result.events:
-            scorer = _escape_mdv2(player_names.get(str(event.scorer_id.value), "?"))
-            # Map "A" -> team_display_names[0], "B" -> team_display_names[1]
-            if event.team == "A":
-                team = _escape_mdv2(team_display_names[0])
-            elif event.team == "B":
-                team = _escape_mdv2(team_display_names[1])
-            else:
-                team = _escape_mdv2(event.team)
-
-            if event.assistant_id:
-                assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
-                lines.append(rf"\- ⚽ {scorer} \(asist: {assistant}\) \[{team}\]")
-            else:
-                lines.append(rf"\- ⚽ {scorer} \[{team}\]")
 
     return "\n".join(lines)
 

@@ -203,14 +203,18 @@ def _generate_legacy_stats(
                 "assists_by_match": [],
             }
 
-        players_data[player_uuid]["goals_by_match"].append({
-            "date": date_iso + "T10:00:00",
-            "count": row["goals"],
-        })
-        players_data[player_uuid]["assists_by_match"].append({
-            "date": date_iso + "T10:00:00",
-            "count": row["assists"],
-        })
+        players_data[player_uuid]["goals_by_match"].append(
+            {
+                "date": date_iso + "T10:00:00",
+                "count": row["goals"],
+            }
+        )
+        players_data[player_uuid]["assists_by_match"].append(
+            {
+                "date": date_iso + "T10:00:00",
+                "count": row["assists"],
+            }
+        )
 
     # Compute totals for backward compatibility
     legacy: dict[str, dict[str, Any]] = {"players": {}}
