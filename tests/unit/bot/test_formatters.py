@@ -12,6 +12,44 @@ from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 
 
+def test_format_main_message_header_emoji_no_result():
+    """When there's no result, header should show 📅 Convocatoria."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+
+    player_names = {str(p1.value): "Luis"}
+    text = format_main_message(meetup, player_names)
+
+    assert "📅 *Convocatoria:*" in text
+
+
+def test_format_main_message_header_emoji_with_result():
+    """When there's a result, header should show 🎉 Partido terminado."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names)
+
+    assert "🎉 *Partido terminado:*" in text
+
+
+def test_format_main_message_location_emoji():
+    """Location should have 📍 prefix."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+    player_names = {str(p1.value): "Luis"}
+    text = format_main_message(meetup, player_names)
+
+    assert "📍 *Lugar:* Parque Central" in text
+
+
 def test_format_main_message_before_teams():
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
@@ -22,7 +60,7 @@ def test_format_main_message_before_teams():
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
     text = format_main_message(meetup, player_names)
 
-    assert "*Convocatoria:*" in text
+    assert "📅 *Convocatoria:*" in text
     assert "2024/01/15 20:00" in text
     assert "- Carlos" in text
     assert "- Luis" in text

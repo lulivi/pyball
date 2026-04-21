@@ -70,10 +70,14 @@ def format_main_message(
     - After results: teams + results
     """
     date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
-    lines = [f"*Convocatoria:* `{date_str}`"]
+    if meetup.result is not None:
+        header = f"🎉 *Partido terminado:* `{date_str}`"
+    else:
+        header = f"📅 *Convocatoria:* `{date_str}`"
+    lines = [header]
 
     if meetup.location:
-        lines.append(f"*Lugar:* {_escape_mdv2(meetup.location)}")
+        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
 
     lines.append("")
 
