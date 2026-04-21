@@ -2,7 +2,7 @@
 
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, time
 from pathlib import Path
 
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
@@ -108,7 +108,7 @@ class TestJsonMeetupRepositoryResult:
             scorer_id=scorer,
             assistant_id=assistant,
             team="A",
-            timestamp=datetime(2026, 4, 12, 20, 15),
+            timestamp=time(20, 15),
         )
         result = MatchResult(score_a=2, score_b=1, events=(event,))
         meetup.set_result(result)
@@ -124,7 +124,7 @@ class TestJsonMeetupRepositoryResult:
         assert loaded.result.events[0].scorer_id == scorer
         assert loaded.result.events[0].assistant_id == assistant
         assert loaded.result.events[0].team == "A"
-        assert loaded.result.events[0].timestamp == datetime(2026, 4, 12, 20, 15)
+        assert loaded.result.events[0].timestamp == time(20, 15)
 
     def test_save_and_load_meetup_without_result(self):
         """A meetup with no result loads with result=None."""

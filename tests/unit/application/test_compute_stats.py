@@ -1,6 +1,6 @@
 """Tests for ComputeStats use case."""
 
-from datetime import datetime
+from datetime import datetime, time
 from unittest.mock import MagicMock
 
 from pyball.application.meetup.compute_stats import ComputeStats, StatsReport
@@ -72,7 +72,7 @@ class TestComputeStatsGoalsAndAssists:
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 10, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0, [event])
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
@@ -89,7 +89,7 @@ class TestComputeStatsGoalsAndAssists:
             scorer_id=alice.id,
             assistant_id=bob.id,
             team="A",
-            timestamp=datetime(2026, 1, 10, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup = make_meetup(
             datetime(2026, 1, 10, 20, 0), [alice.id, bob.id], [charlie.id], 1, 0, [event]
@@ -107,7 +107,7 @@ class TestComputeStatsGoalsAndAssists:
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 10, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0, [event])
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
@@ -214,7 +214,7 @@ class TestComputeStatsChemistry:
             scorer_id=alice.id,
             assistant_id=bob.id,
             team="A",
-            timestamp=datetime(2026, 1, 10, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup = make_meetup(
             datetime(2026, 1, 10, 20, 0), [alice.id, bob.id], [charlie.id], 1, 0, [event]
@@ -235,7 +235,7 @@ class TestComputeStatsChemistry:
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 10, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0, [event])
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
@@ -257,7 +257,7 @@ class TestComputeStatsChemistry:
                     scorer_id=scorer.id,
                     assistant_id=assistant.id,
                     team="A",
-                    timestamp=datetime(2026, 1, 10, 20, 5),
+                    timestamp=time(20, 5),
                 )
                 m = make_meetup(
                     datetime(2026, 3, day_counter, 20, 0),
@@ -350,7 +350,7 @@ class TestComputeStatsRankDelta:
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 17, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
         meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id], [bob.id], 1, 0, [event])
@@ -367,7 +367,7 @@ class TestComputeStatsRankDelta:
             scorer_id=alice.id,
             assistant_id=bob.id,
             team="A",
-            timestamp=datetime(2026, 1, 17, 20, 5),
+            timestamp=time(20, 5),
         )
         meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
         meetup2 = make_meetup(
@@ -388,19 +388,19 @@ class TestComputeStatsRankDelta:
             scorer_id=bob.id,
             assistant_id=None,
             team="B",
-            timestamp=datetime(2026, 1, 10, 20, 5),
+            timestamp=time(20, 5),
         )
         event_b2 = GoalEvent(
             scorer_id=bob.id,
             assistant_id=None,
             team="B",
-            timestamp=datetime(2026, 1, 10, 20, 10),
+            timestamp=time(20, 10),
         )
         event_a1 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 10, 20, 15),
+            timestamp=time(20, 15),
         )
         meetup1 = make_meetup(
             datetime(2026, 1, 10, 20, 0),
@@ -418,25 +418,25 @@ class TestComputeStatsRankDelta:
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 17, 20, 5),
+            timestamp=time(20, 5),
         )
         event_a3 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 17, 20, 10),
+            timestamp=time(20, 10),
         )
         event_a4 = GoalEvent(
             scorer_id=alice.id,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 1, 17, 20, 15),
+            timestamp=time(20, 15),
         )
         event_b3 = GoalEvent(
             scorer_id=bob.id,
             assistant_id=None,
             team="B",
-            timestamp=datetime(2026, 1, 17, 20, 20),
+            timestamp=time(20, 20),
         )
         meetup2 = make_meetup(
             datetime(2026, 1, 17, 20, 0),

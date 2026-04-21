@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 
 import pytest
 
@@ -224,13 +224,13 @@ def test_format_main_message_with_result_shows_events():
         scorer_id=p1,
         assistant_id=p2,
         team="A",
-        timestamp=datetime(2026, 4, 12, 20, 10),
+        timestamp=time(20, 10),
     )
     event2 = GoalEvent(
         scorer_id=p2,
         assistant_id=None,
         team="B",
-        timestamp=datetime(2026, 4, 12, 20, 25),
+        timestamp=time(20, 25),
     )
     meetup.set_result(MatchResult(score_a=1, score_b=1, events=(event1, event2)))
 
@@ -248,9 +248,7 @@ def test_format_main_message_with_result_shows_score():
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
     meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
-    event = GoalEvent(
-        scorer_id=p1, assistant_id=None, team="A", timestamp=datetime(2026, 4, 12, 20, 15)
-    )
+    event = GoalEvent(scorer_id=p1, assistant_id=None, team="A", timestamp=time(20, 15))
     meetup.set_result(MatchResult(score_a=3, score_b=1, events=(event,)))
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}

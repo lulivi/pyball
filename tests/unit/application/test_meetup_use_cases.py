@@ -372,7 +372,7 @@ class TestFinishMatch:
                 "scorer": "Dani",
                 "assistant": "Rafa",
                 "team": "A",
-                "timestamp": "2026-04-12T20:15:00",
+                "timestamp": "20:15",
             }
         ]
         self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
@@ -395,7 +395,7 @@ class TestFinishMatch:
                 "scorer": "Dani",
                 "assistant": None,
                 "team": "A",
-                "timestamp": "2026-04-12T20:05:00",
+                "timestamp": "20:05",
             }
         ]
         self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
@@ -427,7 +427,7 @@ class TestFinishMatch:
                 "scorer": "Unknown",
                 "assistant": None,
                 "team": "A",
-                "timestamp": "2026-04-12T20:00:00",
+                "timestamp": "20:00",
             }
         ]
         with pytest.raises(ValueError, match="Player not found"):

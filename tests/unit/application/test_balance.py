@@ -1,6 +1,6 @@
 """Tests for the balanced-teams scoring logic."""
 
-from datetime import datetime
+from datetime import datetime, time
 
 import pytest
 
@@ -201,7 +201,7 @@ class TestPlayerRoleClassification:
                     scorer_id=p1,
                     assistant_id=PlayerId.generate(),
                     team="A",
-                    timestamp=datetime(2025, 10, i + 1, 20, 10),
+                    timestamp=time(20, 10),
                 )
                 for _ in range(2)
             ]
@@ -210,7 +210,7 @@ class TestPlayerRoleClassification:
                     scorer_id=PlayerId.generate(),
                     assistant_id=p1,
                     team="B",
-                    timestamp=datetime(2025, 10, i + 1, 20, 15),
+                    timestamp=time(20, 15),
                 )
             )
             m.set_result(MatchResult(score_a=3, score_b=0, events=events))
@@ -232,7 +232,7 @@ class TestPlayerRoleClassification:
                     scorer_id=PlayerId.generate(),
                     assistant_id=p1,
                     team="B",
-                    timestamp=datetime(2025, 10, i + 1, 20, 10),
+                    timestamp=time(20, 10),
                 )
                 for _ in range(2)
             ]
@@ -241,7 +241,7 @@ class TestPlayerRoleClassification:
                     scorer_id=p1,
                     assistant_id=PlayerId.generate(),
                     team="A",
-                    timestamp=datetime(2025, 10, i + 1, 20, 15),
+                    timestamp=time(20, 15),
                 )
             )
             m.set_result(MatchResult(score_a=3, score_b=0, events=events))
@@ -261,13 +261,13 @@ class TestPlayerRoleClassification:
                 scorer_id=p1,
                 assistant_id=PlayerId.generate(),
                 team="A",
-                timestamp=datetime(2025, 10, 1, 20, 10),
+                timestamp=time(20, 10),
             ),
             GoalEvent(
                 scorer_id=PlayerId.generate(),
                 assistant_id=p1,
                 team="B",
-                timestamp=datetime(2025, 10, 1, 20, 20),
+                timestamp=time(20, 20),
             ),
         ]
         m.set_result(MatchResult(score_a=2, score_b=0, events=events))
@@ -288,7 +288,7 @@ class TestPlayerRoleClassification:
                     scorer_id=p1,
                     assistant_id=PlayerId.generate(),
                     team="A",
-                    timestamp=datetime(2025, 10, i + 1, 20, 10),
+                    timestamp=time(20, 10),
                 )
             ]
             m.set_result(MatchResult(score_a=1, score_b=0, events=events))
@@ -303,7 +303,7 @@ class TestPlayerRoleClassification:
                     scorer_id=PlayerId.generate(),
                     assistant_id=p1,
                     team="B",
-                    timestamp=datetime(2024, 10, i + 1, 20, 10),
+                    timestamp=time(20, 10),
                 )
             ]
             m.set_result(MatchResult(score_a=1, score_b=0, events=events))
