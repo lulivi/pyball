@@ -9,8 +9,10 @@
 ### 1.1 Header emoji
 
 - **Sin resultado (antes de equipos y con equipos):** 📅 antes de "Convocatoria"
-- **Con resultado (partido terminado):** 🎉 antes de "Convocatoria"
+- **Con resultado (partido terminado):** 🎉 antes de "Partido terminado"
 
+```
+🎉 *Partido terminado:* `2026/04/21 20:00`
 ```
 📅 *Convocatoria:* `2026/04/21 20:00`
 ```
@@ -43,11 +45,12 @@
 ### 1.4 Eventos con resultado
 
 - Cuando hay resultado: añadir sección de eventos debajo de equipos
-- Formato: `⚽ 10' Mateo (Juan)` donde 10' es el minuto, Mateo es el goleador y (Juan) es el asistente (solo si existe)
+- Formato: `⚽ 10' Mateo (Juan)` donde 10' es el minuto, Mateo es el goles y (Juan) es el asistente (solo si existe)
+- Usar ⏱️ como emoji de la sección
 - Los eventos se muestran en orden cronológico (sin ordenar por equipo)
 
 ```
-⚽ *Goles:*
+⏱️ *Goles:*
 - ⚽ 10' Mateo (Juan)
 - ⚽ 25' Carlos
 - ⚽ 30' Pedro (Luis)
