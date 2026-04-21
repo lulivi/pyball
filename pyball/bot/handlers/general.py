@@ -19,7 +19,7 @@ async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if message is None:
         return
 
-    text = """*Available Commands:*
+    text = r"""*Available Commands:*
 
 *Player:*
 `/new_player` \- Create a new player

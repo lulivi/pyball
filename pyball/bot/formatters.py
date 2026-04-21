@@ -113,7 +113,7 @@ def format_main_message(
         lines.append(r"⏱️ *Goles:*")
         for event in meetup.result.events:
             scorer = _escape_mdv2(player_names.get(str(event.scorer_id.value), "?"))
-            minutes =  event.timestamp.strftime("%M")
+            minutes = event.timestamp.strftime("%M")
             if event.assistant_id:
                 assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
                 lines.append(rf"  \- ⚽ {minutes}' {scorer} \({assistant}\)")
