@@ -1,6 +1,6 @@
 """Tests for Meetup domain model."""
 
-from datetime import datetime
+from datetime import datetime, time
 
 import pytest
 
@@ -45,7 +45,7 @@ class TestGoalEvent:
         """A goal event stores scorer, optional assistant, team and timestamp."""
         scorer = PlayerId.generate()
         assistant = PlayerId.generate()
-        ts = datetime(2026, 4, 12, 20, 15)
+        ts = time(20, 15)
         event = GoalEvent(scorer_id=scorer, assistant_id=assistant, team="A", timestamp=ts)
         assert event.scorer_id == scorer
         assert event.assistant_id == assistant
@@ -55,9 +55,7 @@ class TestGoalEvent:
     def test_goal_event_without_assistant(self):
         """A goal event may have no assistant."""
         scorer = PlayerId.generate()
-        event = GoalEvent(
-            scorer_id=scorer, assistant_id=None, team="B", timestamp=datetime(2026, 4, 12, 20, 5)
-        )
+        event = GoalEvent(scorer_id=scorer, assistant_id=None, team="B", timestamp=time(20, 5))
         assert event.assistant_id is None
 
 
@@ -71,7 +69,7 @@ class TestMatchResult:
             scorer_id=scorer,
             assistant_id=None,
             team="A",
-            timestamp=datetime(2026, 4, 12, 20, 5),
+            timestamp=time(20, 5),
         )
         result = MatchResult(score_a=1, score_b=0, events=(event,))
         assert result.score_a == 1

@@ -1,7 +1,7 @@
 """JSON file-based meetup repository."""
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from uuid import UUID
 
@@ -39,7 +39,7 @@ class JsonMeetupRepository(MeetupRepository):
                     if e.get("assistant_id")
                     else None,
                     team=e["team"],
-                    timestamp=datetime.fromisoformat(e["timestamp"]),
+                    timestamp=time.fromisoformat(e["timestamp"]),
                 )
                 for e in r.get("events", [])
             )

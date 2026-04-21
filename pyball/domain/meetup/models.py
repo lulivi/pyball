@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
@@ -18,7 +18,7 @@ class GoalEvent(ValueObject):
     scorer_id: PlayerId
     assistant_id: PlayerId | None
     team: str
-    timestamp: datetime
+    timestamp: time
 
 
 @dataclass(frozen=True)

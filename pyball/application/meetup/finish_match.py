@@ -1,6 +1,6 @@
 """Finish match use case."""
 
-from datetime import datetime
+from datetime import datetime, time
 
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.meetup.errors import MeetupNotFoundError
@@ -74,7 +74,7 @@ class FinishMatch:
                     scorer_id=scorer_match.player_id,
                     assistant_id=assistant_id,
                     team=e["team"],
-                    timestamp=datetime.fromisoformat(e["timestamp"]),
+                    timestamp=time.fromisoformat(e["timestamp"]),
                 )
             )
 
