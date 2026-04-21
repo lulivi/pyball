@@ -21,6 +21,7 @@ from pyball.domain.player.errors import (
 )
 from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
+from pyball.logger import log_func
 
 try:
     locale.setlocale(locale.LC_ALL, "")
@@ -41,6 +42,7 @@ def setup_player_handlers(application):
     application.add_handler(CommandHandler("unlink_player", unlink_player_handler))
 
 
+@log_func
 @authorized
 async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new_player command."""
@@ -86,6 +88,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text("An error occurred. Please contact an admin.")
 
 
+@log_func
 @authorized
 async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /rename_player command."""
@@ -128,6 +131,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("An error occurred. Please contact an admin.")
 
 
+@log_func
 @authorized
 async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /delete_player command."""
@@ -164,6 +168,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("An error occurred. Please contact an admin.")
 
 
+@log_func
 @authorized
 async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /list_players command."""
@@ -205,6 +210,7 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
+@log_func
 @authorized
 async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /change_group command."""
@@ -256,6 +262,7 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("Error changing player group.")
 
 
+@log_func
 @authorized
 async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /link_player command."""
@@ -316,6 +323,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
+@log_func
 @authorized
 async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /unlink_player command."""

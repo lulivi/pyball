@@ -53,7 +53,7 @@ async def _post_match_stats(
         await bot.send_photo(
             chat_id=chat_id,
             photo=season_png,
-            caption="📊 Esta temporada",
+            caption="📊 Estadísticas",
             message_thread_id=int(stats_thread_id) if stats_thread_id else None,
         )
     except Exception:  # pylint: disable=broad-except
@@ -106,12 +106,16 @@ def create_app(
     @app.post("/api/match/finish")
     async def finish_match(body: FinishMatchInput):
         """Record match result and update Telegram callup messages."""
+        logger.info(
+            "finish_match called: meetup_date=%s, finalScore=%s", body.meetup_date, body.finalScore
+        )
         use_case = container.finish_match()
         events = [e.model_dump() for e in body.events]
         try:
             meetup = use_case.execute(
                 body.meetup_date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
             )
+            logger.info("finish_match: meetup result set: %s", meetup.result)
         except MeetupNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Meetup not found") from exc
         except MeetupAlreadyClosedError as exc:

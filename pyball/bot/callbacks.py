@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 from telegram import Update
-from telegram.ext import CallbackQueryHandler, ContextTypes
+from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
 from pyball.bot.formatters import parse_callback_data
@@ -14,10 +14,12 @@ from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
+from pyball.logger import log_func
 
 logger = logging.getLogger(__name__)
 
 
+@log_func
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
     query = update.callback_query
@@ -84,11 +86,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.answer("Ya estás unido a este meetup.", show_alert=True)
         elif action == "leave":
             await query.answer("No estás en este meetup.", show_alert=True)
-
-
-def create_callback_handler() -> CallbackQueryHandler:
-    """Create the callback query handler."""
-    return CallbackQueryHandler(callback_handler)
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:

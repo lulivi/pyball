@@ -26,6 +26,7 @@ from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
+from pyball.logger import log_func
 from pyball.settings import CoreSettings, Settings, TelegramSettings
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,9 @@ async def close_match_messages(
         meetup: Meetup with result already set.
         message_store: TelegramMessageStore to delete tracked messages.
     """
+    logger.info(
+        "close_match_messages called: meetup.date=%s, result=%s", meetup.date, meetup.result
+    )
     await refresh_callup_messages(bot, settings, container, meetup, include_keyboard=False)
 
     date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
@@ -78,6 +82,7 @@ async def close_match_messages(
     message_store.delete_message(date_key, "substitute")
 
 
+@log_func
 @authorized
 async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start_match command — generate match URL and reply to admins only."""
@@ -121,6 +126,7 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.reply_text("An error occurred. Please try again.")
 
 
+@log_func
 @authorized
 async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new_meetup command - creates meetup and sends callup messages."""
@@ -148,6 +154,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await _create_meetup_and_send(date, update, context)
 
 
+@log_func
 @authorized
 async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
@@ -267,6 +274,7 @@ def _get_next_weekday(pyball_settings: CoreSettings) -> datetime:
     return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 
+@log_func
 @authorized
 async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /add_player command."""
@@ -323,6 +331,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await message.reply_text("\n".join(lines) if lines else "Nothing to do.")
 
 
+@log_func
 @authorized
 async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /remove_player command."""
@@ -361,6 +370,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("An error occurred. Please try again.")
 
 
+@log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /create_teams command."""
@@ -405,6 +415,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("An error occurred. Please try again.")
 
 
+@log_func
 @authorized
 async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /list_meetups command."""
@@ -432,6 +443,7 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
+@log_func
 @authorized
 async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /show_meetup command."""
@@ -471,6 +483,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
 
 
+@log_func
 @authorized
 async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /search command - send substitutes message."""
@@ -543,6 +556,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("Failed to send message.")
 
 
+@log_func
 @authorized
 async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /stats command — send a stats image for the requested scope."""
@@ -600,8 +614,10 @@ async def refresh_callup_messages(
 
     date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
     store = TelegramMessageStore(settings.paths.bot_messages_file)
+    logger.info("refresh_callup_messages: date_key=%s, meetup.result=%s", date_key, meetup.result)
 
     regular_tracking = store.get_message(date_key, "regular")
+    logger.info("refresh_callup_messages: regular_tracking=%s", regular_tracking)
     if regular_tracking:
         text = format_main_message(
             meetup, player_names, team_display_names=settings.pyball.team_display_names
@@ -617,8 +633,11 @@ async def refresh_callup_messages(
             )
         except telegram.error.BadRequest as error:
             logger.warning("Could not edit regulars message: %s", error)
+        except Exception as error:
+            logger.error("Error editing regulars message: %s", error)
 
     sub_tracking = store.get_message(date_key, "substitute")
+    logger.info("refresh_callup_messages: sub_tracking=%s", sub_tracking)
     if sub_tracking:
         subs_text = format_subs_message(
             meetup,

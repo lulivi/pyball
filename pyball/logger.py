@@ -61,7 +61,7 @@ def config_logging() -> None:
     # Third-party loggers
     logging.getLogger("httpx").setLevel(logging.ERROR)
     logging.getLogger("httpcore").setLevel(logging.ERROR)
-    logging.getLogger("fontTools").setLevel(logging.ERROR)
+    logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
 
 
 def timed_rotating_file_handler(
