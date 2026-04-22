@@ -167,8 +167,8 @@ def format_subs_message(
                 if team_idx < len(team_display_names)
                 else f"Equipo {team_idx}:"
             )
-            names = ", ".join(sorted(subs_by_team[team_idx]))
-            lines.append(rf"{emoji} {display_name} {names}")
+            names = ", ".join([_escape_mdv2(player) for player in sorted(subs_by_team[team_idx])])
+            lines.append(rf"{emoji} *{display_name}* {names}")
 
         return "\n".join(lines)
 

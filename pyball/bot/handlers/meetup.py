@@ -176,42 +176,42 @@ async def _create_meetup_and_send(
     date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
-    container: Container = context.bot_data["container"]
     message = update.message
-    settings = context.bot_data["settings"]
+    if message is None:
+        return
+
+    container: Container = context.bot_data["container"]
+    settings: Settings = context.bot_data["settings"]
 
     try:
         meetup = container.create_meetup().execute(date, settings.pyball.location)
     except DuplicateMeetupError:
-        if message is not None:
-            await message.reply_text(
-                text=rf"Meetup already exists at `{date.strftime('%Y/%m/%d %H:%M')}`\.",
-                parse_mode=ParseMode.MARKDOWN_V2,
-            )
+        await message.reply_text(
+            text=rf"Meetup already exists at `{date.strftime('%Y/%m/%d %H:%M')}`\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
     except InvalidMeetupDateError as error:
-        if message is not None:
-            await message.reply_text(str(error))
+        await message.reply_text(str(error))
         return
     except MeetupError as error:
         logger.error("Error creating meetup (domain): %s", error)
-        if message is not None:
-            await message.reply_text("Meetup error. Please try again.")
+        await message.reply_text("Meetup error. Please try again.")
         return
     except telegram.error.TelegramError as error:
         logger.error("Error creating meetup (Telegram): %s", error)
-        if message is not None:
-            await message.reply_text("Telegram error. Please try again.")
+        await message.reply_text("Telegram error. Please try again.")
         return
     except Exception as error:
         logger.exception("Error creating meetup: %s", error)
-        if message is not None:
-            await message.reply_text("An error occurred. Please try again.")
+        await message.reply_text("An error occurred. Please try again.")
         return
 
     await _send_callup_messages(context, settings, container, meetup)
-    if message is not None:
-        await message.reply_text("Meetup created and callup sent!")
+    await message.reply_text(
+        text=rf"Meetup `{date.strftime('%Y/%m/%d %H:%M')}` created and callup sent\!",
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
 
 
 async def _send_callup_messages(context, settings, container, meetup) -> None:
