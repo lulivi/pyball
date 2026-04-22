@@ -574,12 +574,23 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     scope = "season" if args[0] == "temporada" else "alltime"
     container: Container = context.bot_data["container"]
+    telegram_settings: TelegramSettings = context.bot_data["settings"].telegram
+
+    message_thread_id: str | int | None = None
+    if message.chat_id == telegram_settings.regulars.chat_id:
+        message_thread_id = telegram_settings.regulars.stats_thread_id
+
     caption = "📊 Esta temporada" if scope == "season" else "📊 Histórico"
 
     try:
         report = ComputeStats(container.meetup_repository, container.player_repository).execute()
         png = await StatsHtmlRenderer().render(report, scope=scope)
-        await message.reply_photo(photo=png, caption=caption)
+        await context.bot.send_photo(
+            chat_id=message.chat_id,
+            message_thread_id=int(message_thread_id) if message_thread_id else None,
+            photo=png,
+            caption=caption,
+        )
     except Exception as error:
         logger.exception("Error sending stats: %s", error)
         await message.reply_text("Error al generar las estadísticas.")

@@ -248,9 +248,9 @@ async def test_stats_handler_temporada_sends_photo(bot_update, bot_context, monk
     monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
     bot_context.args = ["temporada"]
     await stats_handler(bot_update, bot_context)
-    bot_update.message.reply_photo.assert_called_once()
+    bot_context.bot.send_photo.assert_called_once()
     assert captured["scope"] == "season"
-    kwargs = bot_update.message.reply_photo.call_args.kwargs
+    kwargs = bot_context.bot.send_photo.call_args.kwargs
     assert kwargs["photo"] == fake_png
     assert "Esta temporada" in kwargs["caption"]
 
@@ -268,9 +268,9 @@ async def test_stats_handler_historico_sends_photo(bot_update, bot_context, monk
     monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
     bot_context.args = ["historico"]
     await stats_handler(bot_update, bot_context)
-    bot_update.message.reply_photo.assert_called_once()
+    bot_context.bot.send_photo.assert_called_once()
     assert captured["scope"] == "alltime"
-    kwargs = bot_update.message.reply_photo.call_args.kwargs
+    kwargs = bot_context.bot.send_photo.call_args.kwargs
     assert "Histórico" in kwargs["caption"]
 
 
