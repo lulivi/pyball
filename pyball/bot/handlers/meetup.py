@@ -583,7 +583,11 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     caption = "📊 Esta temporada" if scope == "season" else "📊 Histórico"
 
     try:
-        report = ComputeStats(container.meetup_repository, container.player_repository).execute()
+        report = ComputeStats(
+            container.meetup_repository,
+            container.player_repository,
+            container.legacy_stats,
+        ).execute()
         png = await StatsHtmlRenderer().render(report, scope=scope)
         await context.bot.send_photo(
             chat_id=message.chat_id,
