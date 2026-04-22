@@ -56,5 +56,6 @@ RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
     && rm -rf /builder
 
 WORKDIR /pyball
+COPY static/ static/
 
 ENTRYPOINT ["pyball"]
