@@ -36,7 +36,7 @@ get_version() {
     fi
     tag_clean="${tag#v}"
     commits=$(git rev-list "${tag}..HEAD" --count)
-    
+
     if [ "$commits" -eq 0 ]; then
         echo "$tag_clean"
     else
@@ -58,9 +58,9 @@ docker build \
     "${ROOT_DIR}"
 
 if $PUSH; then
-    echo docker push "${IMAGE_TAG}"
+    docker push "${IMAGE_TAG}"
     if $RELEASE; then
-        echo docker tag "${IMAGE_TAG}" "${IMAGE_LATEST}"
-        echo docker push "${IMAGE_LATEST}"
+        docker tag "${IMAGE_TAG}" "${IMAGE_LATEST}"
+        docker push "${IMAGE_LATEST}"
     fi
 fi
