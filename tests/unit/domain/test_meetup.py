@@ -95,6 +95,21 @@ class TestSetTeams:
             meetup.set_teams([Team.create("A", [])])
 
 
+class TestClearTeams:
+    """Tests for Meetup.clear_teams."""
+
+    def test_clear_teams_sets_teams_to_none(self):
+        """clear_teams removes any previously assigned teams."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        assert meetup.teams is not None
+
+        meetup.clear_teams()
+
+        assert meetup.teams is None
+
+
 class TestMeetupResult:
     """Tests for Meetup.set_result and is_closed."""
 

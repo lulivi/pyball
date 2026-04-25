@@ -7,8 +7,8 @@ import pytest
 from telegram import CallbackQuery, Message, Update, User
 
 from pyball.bot.callbacks import callback_handler
-from pyball.domain.meetup.models import Meetup
-from pyball.domain.player.models import Player
+from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
 # pylint: disable=redefined-outer-name
@@ -135,6 +135,45 @@ async def test_unlinked_player_answers_registration_message(
     call_kwargs = callback_update.callback_query.answer.call_args
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
     assert "No player linked" in text or "Contact admin" in text
+
+
+@pytest.mark.asyncio
+async def test_join_clears_teams_when_teams_exist(
+    callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
+):
+    """Join callback clears existing teams from the meetup."""
+    container = bot_context.bot_data["container"]
+    extra_id = PlayerId.generate()
+    saved_meetup.add_player(extra_id)
+    saved_meetup.set_teams([Team.create("A", [extra_id]), Team.create("B", [])])
+    container.meetup_repository.save(saved_meetup)
+
+    callback_update.callback_query.data = "join:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    assert meetup.teams is None
+
+
+@pytest.mark.asyncio
+async def test_leave_clears_teams_when_teams_exist(
+    callback_update, bot_context, linked_player, saved_meetup
+):
+    """Leave callback clears existing teams from the meetup."""
+    container = bot_context.bot_data["container"]
+    extra_id = PlayerId.generate()
+    saved_meetup.add_player(linked_player.id)
+    saved_meetup.add_player(extra_id)
+    saved_meetup.set_teams([Team.create("A", [linked_player.id]), Team.create("B", [extra_id])])
+    container.meetup_repository.save(saved_meetup)
+
+    callback_update.callback_query.data = "leave:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    assert meetup.teams is None
 
 
 @pytest.mark.asyncio
