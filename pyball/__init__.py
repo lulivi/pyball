@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Luis Liñán
+# Copyright (c) 2026 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -17,7 +17,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+"""PyBall - Telegram bot for managing football meetups."""
 
-"""PyBall module."""
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = "0.0.0"
+try:
+    __version__ = version("pyball")
+except PackageNotFoundError:
+    __version__ = "0.0.0"

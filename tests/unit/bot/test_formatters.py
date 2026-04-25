@@ -1,0 +1,275 @@
+from datetime import datetime, time
+
+import pytest
+
+from pyball.bot.formatters import _escape_mdv2, format_main_message, format_subs_message
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
+from pyball.domain.player.models import PlayerId
+
+
+def test_format_main_message_header_emoji_no_result():
+    """When there's no result, header should show 📅 Convocatoria."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+
+    player_names = {str(p1.value): "Luis"}
+    text = format_main_message(meetup, player_names)
+
+    assert "📅 *Convocatoria:*" in text
+
+
+def test_format_main_message_header_emoji_with_result():
+    """When there's a result, header should show 🎉 Partido terminado."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names)
+
+    assert "🎉 *Partido terminado:*" in text
+
+
+def test_format_main_message_location_emoji():
+    """Location should have 📍 prefix."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+    player_names = {str(p1.value): "Luis"}
+    text = format_main_message(meetup, player_names)
+
+    assert "📍 *Lugar:* Parque Central" in text
+
+
+def test_format_main_message_before_teams():
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names)
+
+    assert "📅 *Convocatoria:*" in text
+    assert "2024/01/15 20:00" in text
+    assert "- Carlos" in text
+    assert "- Luis" in text
+
+
+def test_format_subs_message_with_teams_shows_team_assignment():
+    """When there's teams, show substitutes with their team color."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    p3 = PlayerId.generate()
+    p4 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.add_player(p3)
+    meetup.add_player(p4)
+    meetup.set_teams([Team.create("A", [p1, p3]), Team.create("B", [p2, p4])])
+
+    player_names = {
+        str(p1.value): "Luis",
+        str(p2.value): "Carlos",
+        str(p3.value): "Pedro",
+        str(p4.value): "Juan",
+    }
+    player_groups = {
+        str(p1.value): "regular",
+        str(p2.value): "regular",
+        str(p3.value): "substitute",
+        str(p4.value): "substitute",
+    }
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "⚪" in text
+    assert "⚫" in text
+    assert "Pedro" in text
+    assert "Juan" in text
+
+
+def test_format_subs_message_with_result_simple():
+    """When there's a result, show simple 'Partido terminado'."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [])])
+    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+
+    player_names = {str(p1.value): "Luis"}
+    player_groups = {str(p1.value): "regular"}
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "*Partido terminado*" in text
+    assert "Suplentes" not in text
+
+
+def test_format_subs_message():
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+
+    player_names = {str(p1.value): "Pedro"}
+    player_groups = {str(p1.value): "substitute"}
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "Suplentes" in text
+    assert "Pedro" in text
+
+
+def test_format_main_message_all_unmasked():
+    meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+    p_regular = PlayerId.generate()
+    p_substitute = PlayerId.generate()
+    meetup.add_player(p_regular)
+    meetup.add_player(p_substitute)
+
+    player_names = {str(p_regular.value): "Mario", str(p_substitute.value): "Luigi"}
+
+    text = format_main_message(meetup, player_names)
+
+    assert "Mario" in text
+    assert "Luigi" in text
+
+
+def test_format_subs_message_masked_regulars():
+    meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+    p_regular = PlayerId.generate()
+    p_substitute = PlayerId.generate()
+    meetup.add_player(p_regular)
+    meetup.add_player(p_substitute)
+
+    player_names = {str(p_regular.value): "Mario", str(p_substitute.value): "Luigi"}
+    player_groups = {str(p_regular.value): "regular", str(p_substitute.value): "substitute"}
+
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "Mario" not in text
+    assert "Luigi" in text
+
+
+def test_escape_mdv2_special_characters():
+    assert _escape_mdv2("Hello (world)") == r"Hello \(world\)"
+    assert _escape_mdv2("score: 1.0") == r"score: 1\.0"
+    assert _escape_mdv2("player_name") == r"player\_name"
+
+
+def test_format_main_message_team_emojis():
+    """Teams should show ⚪ and ⚫ emojis."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+
+    assert "⚪" in text
+    assert "⚫" in text
+
+
+def test_format_main_message_with_teams():
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+
+    assert "*Equipos:*" in text
+    assert "Claro" in text
+    assert "Oscuro" in text
+    assert "⚪" in text
+    assert "⚫" in text
+    assert "Luis" in text or "Carlos" in text
+
+
+def test_format_main_message_with_teams_shows_custom_display_names():
+    """format_main_message uses team_display_names instead of internal 'A'/'B'."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
+    text = format_main_message(meetup, player_names, team_display_names=("Blancos", "Negros"))
+
+    assert "Blancos" in text
+    assert "Negros" in text
+    assert "*A:*" not in text
+    assert "*B:*" not in text
+
+
+def test_format_main_message_with_result_shows_events():
+    """When there's a result, show goals section with timestamps."""
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+
+    event1 = GoalEvent(
+        scorer_id=p1,
+        assistant_id=p2,
+        team="A",
+        timestamp=time(20, 10),
+    )
+    event2 = GoalEvent(
+        scorer_id=p2,
+        assistant_id=None,
+        team="B",
+        timestamp=time(20, 25),
+    )
+    meetup.set_result(MatchResult(score_a=1, score_b=1, events=(event1, event2)))
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
+    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+
+    assert "⏱️ *Goles:*" in text
+    assert r"\- ⚽ 10' Dani \(Rafa\)" in text
+    assert r"\- ⚽ 25' Rafa" in text
+
+
+def test_format_main_message_with_result_shows_score():
+    """When meetup has a result, format_main_message shows score next to team name."""
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+    event = GoalEvent(scorer_id=p1, assistant_id=None, team="A", timestamp=time(20, 15))
+    meetup.set_result(MatchResult(score_a=3, score_b=1, events=(event,)))
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
+    text = format_main_message(meetup, player_names, team_display_names=("A", "B"))
+
+    assert "A (3)" in text or r"A \(3\)" in text
+    assert "B (1)" in text or r"B \(1\)" in text
+    assert "Dani" in text
+    assert "Rafa" in text
+
+
+def test_format_subs_message_with_result_shows_score():
+    """When meetup has a result, format_subs_message shows simple terminated message."""
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    p1 = PlayerId.generate()
+    p2 = PlayerId.generate()
+    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+    meetup.set_result(MatchResult(score_a=2, score_b=0, events=()))
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
+    player_groups = {str(p1.value): "regular", str(p2.value): "regular"}
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "*Partido terminado*" in text

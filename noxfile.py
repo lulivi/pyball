@@ -19,12 +19,13 @@
 # SOFTWARE.
 
 """Package testing and deploying tasks."""
-import nox
 from pathlib import Path
+
+import nox
 
 ROOT_DIRECTORY = Path(__file__).parent.resolve()
 
-nox.options.default_venv_backend = "venv"
+nox.options.default_venv_backend = "uv"
 nox.options.reuse_existing_virtualenvs = True
 nox.options.sessions = ["test", "lint"]
 nox.options.stop_on_first_error = False
@@ -32,73 +33,86 @@ nox.options.error_on_missing_interpreters = False
 
 
 @nox.session
-def lint(session):
+def lint(session: nox.Session):
     """Lint the code."""
-    session.run("poetry", "install", external=True)
+    session.run("uv", "sync", "--group", "dev", external=True)
 
-    session.run(
-        "black",
-        "--check",
-        "--diff",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
+    targets = (
+        str(ROOT_DIRECTORY.joinpath("pyball")),
+        str(ROOT_DIRECTORY.joinpath("tests")),
     )
-    session.run(
-        "isort",
-        "--check",
-        "--diff",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-    )
-    session.run(
-        "pydocstyle",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--add-ignore",
-        "D104,D105,D107",
-    )
-    session.run(
-        "pycodestyle",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--max-line-length",
-        "99",
-        "--ignore",
-        "W605,W503",
-    )
-    session.run(
-        "mypy",
-        ROOT_DIRECTORY.joinpath("pyball"),
-        ROOT_DIRECTORY.joinpath("tests"),
-        "--enable-incomplete-feature=Unpack",
-    )
-    session.run("pylint", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
+    if session.posargs
+        targets = session.posargs
+
+    commands = [
+        ("black", "--check", "--diff", *targets),
+        ("isort", "--check", "--diff", *targets),
+        ("pydocstyle", *targets),
+        ("pycodestyle", *targets, "--max-line-length", "99", "--ignore", "E203,E701"),
+        ("mypy", *targets),
+        ("pylint", *targets),
+    ]
+
+    failed = False
+    for cmd in commands:
+        try:
+            session.run_always(*cmd)
+        except Exception:
+            failed = True
+
+    if failed:
+        session.error("Linting failed: one or more checks returned errors.")
 
 
-@nox.session(python=["3.8"])
-def test(session):
+@nox.session(python=["3.12"])
+def test(session: nox.Session):
     """Test the code."""
-    session.run("poetry", "install", "--with", "test", external=True)
+    session.run("uv", "sync", "--group", "dev", external=True)
 
     target_dir = ROOT_DIRECTORY.joinpath("tests")
     cov_dir = ROOT_DIRECTORY.joinpath("pyball")
-
-    if session.posargs:
-        target_dir = session.posargs[0]
-
-    session.run(
-        "pytest",
-        target_dir,
+    cov_parameters = [
         "--cov-report=term-missing",
         f"--cov={cov_dir}",
-        "-vvv",
+    ]
+
+    if session.posargs:
+        session.run_always("pytest", *session.posargs)
+    else:
+        session.run_always("pytest", *cov_parameters, str(target_dir))
+
+
+@nox.session
+def format(session: nox.Session):
+    """Format the code."""
+    session.run("uv", "sync", "--group", "dev", external=True)
+
+    session.run_always(
+        "black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
+    )
+    session.run_always(
+        "isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
     )
 
 
-@nox.session()
-def format(session):
-    """Format the code."""
-    session.run("poetry", "install", "--only", "dev", external=True)
+@nox.session(name="dbuild", venv_backend=None)
+def docker_build(session: nox.Session) -> None:
+    """Build the Docker image."""
+    session.run_always(
+        "bash",
+        str(ROOT_DIRECTORY / "scripts" / "docker_build.sh"),
+        *session.posargs,
+        external=True,
+    )
 
-    session.run("black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
-    session.run("isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests"))
+
+@nox.session(name="dpublish", venv_backend=None)
+def docker_publish(session: nox.Session) -> None:
+    """Publish the Docker image."""
+    session.run_always(
+        "bash",
+        str(ROOT_DIRECTORY / "scripts" / "docker_build.sh"),
+        "--push",
+        *session.posargs,
+        external=True,
+    )
