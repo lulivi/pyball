@@ -23,78 +23,67 @@ import datetime
 import functools
 import logging
 import logging.handlers
-
 from typing import Any, Callable, TypeVar, cast
 
 from pyball.settings import LOGS_DIRECTORY_PATH
 
-ADVANCED_FMT = "{asctime}|{levelname}|{name}:{lineno: 4d}| {message}"
-ADVANCED_FORMATTER = logging.Formatter(fmt=ADVANCED_FMT, datefmt="%Y/%m/%d-%H:%M", style="{")
 
-stream_log = logging.StreamHandler()
-stream_log.setLevel(logging.INFO)
+def config_logging() -> None:
+    """Configure log files."""
+    LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
+    stream_log = logging.StreamHandler()
+    stream_log.setLevel(logging.INFO)
 
+    full_log = logging.handlers.RotatingFileHandler(
+        LOGS_DIRECTORY_PATH.joinpath("full.log"),
+        maxBytes=1024 * 1024,
+        backupCount=5,
+    )
 
-full_log = logging.handlers.RotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("full.log"),
-    maxBytes=1024 * 1024,
-    backupCount=5,
-)
+    pyball_log = timed_rotating_file_handler("pyball.log", "pyball")
+    bot_log = timed_rotating_file_handler("bot.log", "pyball.bot")
+    infra_log = timed_rotating_file_handler("infrastructure.log", "pyball.infrastructure")
 
+    logging.basicConfig(
+        format="{asctime}|{levelname}|{name}:{lineno: 4d}| {message}",
+        datefmt="%Y/%m/%d-%H:%M",
+        style="{",
+        level=logging.DEBUG,
+        handlers=(
+            stream_log,
+            full_log,
+            pyball_log,
+            bot_log,
+            infra_log,
+        ),
+    )
 
-pyball_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("pyball.log"),
-    when="W2",
-    backupCount=5,
-    atTime=datetime.time(hour=23, minute=59),
-)
-pyball_log.addFilter(logging.Filter("pyball"))
-
-
-bot_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("bot.log"),
-    when="W2",
-    backupCount=5,
-    atTime=datetime.time(hour=23, minute=59),
-)
-bot_log.addFilter(logging.Filter("pyball.bot"))
-
-
-players_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("players.log"),
-    when="W2",
-    backupCount=2,
-    atTime=datetime.time(hour=23, minute=59),
-)
-players_log.addFilter(logging.Filter("pyball.callup.players"))
+    # Third-party loggers
+    logging.getLogger("httpx").setLevel(logging.ERROR)
+    logging.getLogger("httpcore").setLevel(logging.ERROR)
+    logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
 
 
-db_log = logging.handlers.TimedRotatingFileHandler(
-    LOGS_DIRECTORY_PATH.joinpath("db.log"),
-    when="W2",
-    backupCount=5,
-    atTime=datetime.time(hour=23, minute=59),
-)
-db_log.addFilter(logging.Filter("pyball.db"))
+def timed_rotating_file_handler(
+    file_name: str,
+    filter_string: str,
+) -> logging.handlers.TimedRotatingFileHandler:
+    """Create a log file handler with filter.
 
+    :param file_name: Name of the file inside the logs directory.
+    :param filter_string: Log file.
+    :returns: The newly created log handler.
 
-logging.basicConfig(
-    format=ADVANCED_FMT,
-    datefmt="%Y/%m/%d-%H:%M",
-    style="{",
-    level=logging.DEBUG,
-    handlers=(
-        stream_log,
-        full_log,
-        pyball_log,
-        bot_log,
-        players_log,
-        db_log,
-    ),
-)
+    """
+    log = logging.handlers.TimedRotatingFileHandler(
+        LOGS_DIRECTORY_PATH.joinpath(file_name),
+        when="W2",
+        backupCount=5,
+        atTime=datetime.time(hour=23, minute=59),
+    )
+    log.addFilter(logging.Filter(filter_string))
+    return log
 
-# Third-party loggers
-logging.getLogger("httpx").setLevel(logging.ERROR)
 
 # Function type definition to preserve typing of the wrapped function
 F = TypeVar("F", bound=Callable[..., Any])
@@ -107,9 +96,9 @@ def log_func(func: F) -> F:
     @functools.wraps(func)
     def decorator(*args, **kwargs):
         """Wrap the function."""
-        logger.debug(f">>>>> Entering {func.__name__} function")
+        logger.debug(">>>>> Entering %s function", func.__name__)
         ret_val = func(*args, **kwargs)
-        logger.debug(f"<<<<< Exiting {func.__name__} function")
+        logger.debug("<<<<< Exiting %s function", func.__name__)
         return ret_val
 
     return cast(F, decorator)

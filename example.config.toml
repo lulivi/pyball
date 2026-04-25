@@ -1,0 +1,59 @@
+# PyBall Configuration
+# Copy this file to config.toml and fill in your values
+# Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
+
+[pyball.core]
+# Required: Default location for meetups
+# Override with PYBALL_CORE_LOCATION
+location = "Parque Central"
+
+# Optional: Default weekday for meetups (monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+# Override with PYBALL_CORE_DEFAULT_WEEK_DAY
+default_week_day = "wednesday"
+
+# Optional: Default hour for meetups (HH:MM format)
+# Override with PYBALL_CORE_DEFAULT_HOUR
+default_hour = "20:00"
+
+# Optional: Base URL used to generate match links (use Tailscale hostname)
+# Override with PYBALL_CORE_BASE_URL
+base_url = "http://pyball:8000"
+
+# Optional: Display names for the two teams (shown in Telegram messages and the match UI)
+# Override with PYBALL_CORE_TEAM_DISPLAY_NAMES (comma-separated, e.g. "Claro,Oscuro")
+team_display_names = ["Claro", "Oscuro"]
+
+# Optional: Locale for player name sorting
+# Override with PYBALL_CORE_LOCALE
+locale = "es_ES.UTF-8"
+
+# Optional: Directory for data files (players, meetups, etc.)
+# Override with PYBALL_CORE_DATA_DIR
+data_dir = "data"
+
+[pyball.telegram]
+# Required: Telegram bot token
+# Override with PYBALL_TELEGRAM_BOT_TOKEN
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+
+# Required: List of authorized Telegram user IDs
+# Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
+admins_ids = [123456789, 987654321]
+
+[pyball.telegram.regulars]
+# Required: The main chat ID (negative number for groups)
+# Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
+chat_id = -1000000000000
+
+# Optional: The forum topic thread for meetup callup messages
+# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_THREAD_ID
+meetups_thread_id = ""
+
+# Optional: The forum topic thread where post-match statistics are posted
+# Override with PYBALL_TELEGRAM_REGULARS_STATS_THREAD_ID
+stats_thread_id = ""
+
+[pyball.telegram.substitutes]
+# Required: The substitutes chat ID (negative number for groups)
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
+chat_id = -1000000000001

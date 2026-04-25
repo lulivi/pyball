@@ -127,6 +127,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+config.toml
 
 # Spyder project settings
 .spyderproject
@@ -166,3 +167,7 @@ cython_debug/
 data/
 logs/
 scripts/
+.worktrees/
+
+# Claude
+.claude/settings.local.json
