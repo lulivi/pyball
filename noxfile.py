@@ -41,6 +41,8 @@ def lint(session: nox.Session):
         str(ROOT_DIRECTORY.joinpath("pyball")),
         str(ROOT_DIRECTORY.joinpath("tests")),
     )
+    if session.posargs
+        targets = session.posargs
 
     commands = [
         ("black", "--check", "--diff", *targets),
