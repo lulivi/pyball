@@ -30,7 +30,7 @@ deploy/
 .gitlab-ci.yml         # Two-stage pipeline: publish → deploy
 ```
 
-`scripts/` is removed. `docker_build.sh` moves to `deploy/`.
+`docker_build.sh` moves from `scripts/` to `deploy/`. The `scripts/` folder is kept as-is (contains personal scripts not related to the release).
 
 `tg_notify.env` lives only on the server at `$APP_DIR/tg_notify.env` and is never
 committed to the repo. Add to `.gitignore`.
