@@ -27,7 +27,7 @@ ROOT_DIRECTORY = Path(__file__).parent.resolve()
 
 nox.options.default_venv_backend = "uv"
 nox.options.reuse_existing_virtualenvs = True
-nox.options.sessions = ["test", "lint"]
+nox.options.sessions = ["format", "test", "lint"]
 nox.options.stop_on_first_error = False
 nox.options.error_on_missing_interpreters = False
 
@@ -95,24 +95,3 @@ def format(session: nox.Session):
     )
 
 
-@nox.session(name="dbuild", venv_backend=None)
-def docker_build(session: nox.Session) -> None:
-    """Build the Docker image."""
-    session.run_always(
-        "bash",
-        str(ROOT_DIRECTORY / "deploy" / "docker_build.sh"),
-        *session.posargs,
-        external=True,
-    )
-
-
-@nox.session(name="dpublish", venv_backend=None)
-def docker_publish(session: nox.Session) -> None:
-    """Publish the Docker image."""
-    session.run_always(
-        "bash",
-        str(ROOT_DIRECTORY / "deploy" / "docker_build.sh"),
-        "--push",
-        *session.posargs,
-        external=True,
-    )
