@@ -1,14 +1,3 @@
-"""JSON file-based player repository."""
-
-import json
-from pathlib import Path
-from uuid import UUID
-
-from pyball.domain.player.models import Player, PlayerId
-from pyball.domain.player.repository import PlayerRepository
-
-
-class JsonPlayerRepository(PlayerRepository):
 # Copyright (c) 2026 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,6 +18,17 @@ class JsonPlayerRepository(PlayerRepository):
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """JSON file-based player repository."""
+
+import json
+from pathlib import Path
+from uuid import UUID
+
+from pyball.domain.player.models import Player, PlayerId
+from pyball.domain.player.repository import PlayerRepository
+
+
+class JsonPlayerRepository(PlayerRepository):
+    """JSON file-based player repository."""
 
     def _read(self) -> dict:
         with open(self.file_path, encoding="utf-8") as f:

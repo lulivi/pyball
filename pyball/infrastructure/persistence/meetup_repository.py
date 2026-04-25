@@ -1,16 +1,3 @@
-"""JSON file-based meetup repository."""
-
-import json
-from datetime import date, datetime, time
-from pathlib import Path
-from uuid import UUID
-
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, MeetupId, Team
-from pyball.domain.meetup.repository import MeetupRepository
-from pyball.domain.player.models import PlayerId
-
-
-class JsonMeetupRepository(MeetupRepository):
 # Copyright (c) 2026 Luis Liñán
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,6 +18,19 @@ class JsonMeetupRepository(MeetupRepository):
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """JSON file-based meetup repository."""
+
+import json
+from datetime import date, datetime, time
+from pathlib import Path
+from uuid import UUID
+
+from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, MeetupId, Team
+from pyball.domain.meetup.repository import MeetupRepository
+from pyball.domain.player.models import PlayerId
+
+
+class JsonMeetupRepository(MeetupRepository):
+    """JSON file-based meetup repository."""
 
     def _get_file_path(self, meetup: Meetup) -> Path:
         return self.directory / f"{meetup.id.value}.json"

@@ -41,7 +41,7 @@ def lint(session: nox.Session):
         str(ROOT_DIRECTORY.joinpath("pyball")),
         str(ROOT_DIRECTORY.joinpath("tests")),
     )
-    if session.posargs
+    if session.posargs:
         targets = session.posargs
 
     commands = [
@@ -100,7 +100,7 @@ def docker_build(session: nox.Session) -> None:
     """Build the Docker image."""
     session.run_always(
         "bash",
-        str(ROOT_DIRECTORY / "scripts" / "docker_build.sh"),
+        str(ROOT_DIRECTORY / "deploy" / "docker_build.sh"),
         *session.posargs,
         external=True,
     )
@@ -111,7 +111,7 @@ def docker_publish(session: nox.Session) -> None:
     """Publish the Docker image."""
     session.run_always(
         "bash",
-        str(ROOT_DIRECTORY / "scripts" / "docker_build.sh"),
+        str(ROOT_DIRECTORY / "deploy" / "docker_build.sh"),
         "--push",
         *session.posargs,
         external=True,
