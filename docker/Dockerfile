@@ -46,8 +46,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
     && localedef -i es_ES -c -f UTF-8 -A /usr/share/locale/locale.alias es_ES.UTF-8 \
+    && groupadd -r pyballgroup && useradd -r -g pyballgroup pyballuser \
     && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
-    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel
+    && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
+    && chown -R pyballuser:pyballgroup $VIRTUAL_ENV
 
 WORKDIR /builder
 COPY --from=builder /dist/*.whl .
@@ -57,5 +59,9 @@ RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
 
 WORKDIR /pyball
 COPY static/ static/
+
+RUN chown -R pyballuser:pyballgroup /pyball
+
+USER pyballuser
 
 ENTRYPOINT ["pyball"]
