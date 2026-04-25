@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 IMAGE="${PYBALL_DOCKER_IMAGE:-lulivi/pyball}"
@@ -13,7 +13,7 @@ usage() {
     exit 1
 }
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
     case "$1" in
         --push) PUSH=true; shift ;;
         --release) RELEASE=true; shift ;;
@@ -28,21 +28,19 @@ if $RELEASE && ! $PUSH; then
 fi
 
 get_version() {
-    local tag
+    tag=""
     if ! tag=$(git describe --tags --abbrev=0 2>/dev/null); then
         echo "Warning: no git tags found, using 0.0.1.dev0" >&2
         echo "0.0.1.dev0"
         return
     fi
-    local tag_clean="${tag#v}"
-    local commits
+    tag_clean="${tag#v}"
     commits=$(git rev-list "${tag}..HEAD" --count)
+
     if [ "$commits" -eq 0 ]; then
         echo "$tag_clean"
     else
-        local patch
         patch=$(echo "$tag_clean" | cut -d. -f3)
-        local prefix
         prefix=$(echo "$tag_clean" | cut -d. -f1-2)
         echo "${prefix}.$((patch + 1)).dev${commits}"
     fi
