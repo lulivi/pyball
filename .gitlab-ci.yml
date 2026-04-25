@@ -1,6 +1,51 @@
 stages:
+  - prepare
+  - ci
   - publish
   - deploy
+
+build-ci-image:
+  stage: prepare
+  image: docker:latest
+  services:
+    - docker:dind
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - changes:
+        - docker/Dockerfile.ci
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -f docker/Dockerfile.ci -t "$CI_REGISTRY_IMAGE/ci:latest" .
+    - docker push "$CI_REGISTRY_IMAGE/ci:latest"
+
+.ci_base:
+  stage: ci
+  image: $CI_REGISTRY_IMAGE/ci:latest
+  variables:
+    UV_LINK_MODE: copy
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: always
+  cache:
+    key:
+      files:
+        - pyproject.toml
+    paths:
+      - .nox/
+
+lint:
+  extends: .ci_base
+  script:
+    - nox -e lint
+
+test:
+  extends: .ci_base
+  script:
+    - nox -e test
 
 publish:
   stage: publish

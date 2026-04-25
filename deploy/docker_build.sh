@@ -2,6 +2,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+GET_VERSION_SCRIPT="${SCRIPT_DIR}/get_app_version.sh"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 IMAGE="${PYBALL_DOCKER_IMAGE:-lulivi/pyball}"
@@ -27,26 +28,12 @@ if $RELEASE && ! $PUSH; then
     exit 1
 fi
 
-get_version() {
-    tag=""
-    if ! tag=$(git describe --tags --abbrev=0 2>/dev/null); then
-        echo "Warning: no git tags found, using 0.0.1.dev0" >&2
-        echo "0.0.1.dev0"
-        return
-    fi
-    tag_clean="${tag#v}"
-    commits=$(git rev-list "${tag}..HEAD" --count)
+if [ ! -f "$GET_VERSION_SCRIPT" ]; then
+    echo "Error: could not find '${GET_VERSION_SCRIPT}' script" >&2
+    exit 1
+fi
 
-    if [ "$commits" -eq 0 ]; then
-        echo "$tag_clean"
-    else
-        patch=$(echo "$tag_clean" | cut -d. -f3)
-        prefix=$(echo "$tag_clean" | cut -d. -f1-2)
-        echo "${prefix}.$((patch + 1)).dev${commits}"
-    fi
-}
-
-VERSION="$(get_version)"
+VERSION="$($GET_VERSION_SCRIPT)"
 IMAGE_TAG="${IMAGE}:${VERSION}"
 IMAGE_LATEST="${IMAGE}:latest"
 

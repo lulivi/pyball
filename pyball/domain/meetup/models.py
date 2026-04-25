@@ -94,6 +94,10 @@ class Meetup(Entity["MeetupId"]):
             raise ValueError("Exactly two teams required")
         self.teams = teams
 
+    def clear_teams(self) -> None:
+        """Clear any assigned teams."""
+        self.teams = None
+
 
 @dataclass(frozen=True)
 class Team(ValueObject):
