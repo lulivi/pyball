@@ -1,6 +1,35 @@
 stages:
+  - ci
   - publish
   - deploy
+
+.ci_base:
+  stage: ci
+  image: python:3.12-slim
+  variables:
+    UV_LINK_MODE: copy
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: always
+  before_script:
+    - pip install --quiet uv nox
+  cache:
+    key:
+      files:
+        - pyproject.toml
+    paths:
+      - .nox/
+
+lint:
+  extends: .ci_base
+  script:
+    - nox -e lint
+
+test:
+  extends: .ci_base
+  script:
+    - nox -e test
 
 publish:
   stage: publish
