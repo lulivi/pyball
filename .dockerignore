@@ -1,0 +1,10 @@
+.git
+.nox
+.venv
+dist
+__pycache__
+*.pyc
+*.egg-info
+config.toml
+test_data
+docs

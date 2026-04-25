@@ -1,0 +1,7 @@
+services:
+  bot:
+    image: lulivi/pyball:${TAG:-latest}
+    user: "$UID:$UID"
+    volumes:
+      - "${PWD}:/pyball"
+    # restart: unless-stopped
