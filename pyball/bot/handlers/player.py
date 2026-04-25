@@ -42,11 +42,6 @@ from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.logger import log_func
 
-try:
-    locale.setlocale(locale.LC_ALL, "")
-except locale.Error:
-    pass
-
 logger = logging.getLogger(__name__)
 
 

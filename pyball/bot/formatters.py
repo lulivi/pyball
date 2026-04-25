@@ -28,11 +28,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from pyball.domain.meetup.models import Meetup
 
-try:
-    locale.setlocale(locale.LC_ALL, "")
-except locale.Error:
-    pass
-
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
 
 

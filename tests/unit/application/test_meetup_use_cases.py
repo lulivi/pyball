@@ -112,6 +112,38 @@ class TestAddPlayerToMeetup:
 
         assert player.id in meetup.players
 
+    def test_add_player_clears_existing_teams(self):
+        """Adding a player to a meetup that already has teams clears the teams."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.add_player(p1)
+        meetup.add_player(p2)
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        meetup_repo.save(meetup)
+
+        player = Player.create(name="Mario", group="regular")
+        player_repo = FakePlayerRepository()
+        player_repo.save(player)
+
+        result = AddPlayerToMeetup(meetup_repo, player_repo).execute("2024/03/20 20:00", "Mario")
+
+        assert result.teams is None
+
+    def test_add_player_when_no_teams_leaves_teams_as_none(self):
+        """Adding a player to a meetup without teams leaves teams as None."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        meetup_repo.save(meetup)
+
+        player = Player.create(name="Mario", group="regular")
+        player_repo = FakePlayerRepository()
+        player_repo.save(player)
+
+        result = AddPlayerToMeetup(meetup_repo, player_repo).execute("2024/03/20 20:00", "Mario")
+
+        assert result.teams is None
+
 
 class TestRemovePlayerFromMeetup:
     """Tests for RemovePlayerFromMeetup use case."""
@@ -140,6 +172,43 @@ class TestRemovePlayerFromMeetup:
 
         with pytest.raises(MeetupNotFoundError):
             use_case.execute("2024/01/15 20:00", "Mario")
+
+    def test_remove_player_clears_existing_teams(self):
+        """Removing a player from a meetup that already has teams clears the teams."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        player = Player.create(name="Mario", group="regular")
+        extra = PlayerId.generate()
+        meetup.add_player(player.id)
+        meetup.add_player(extra)
+        meetup.set_teams([Team.create("A", [player.id]), Team.create("B", [extra])])
+        meetup_repo.save(meetup)
+
+        player_repo = FakePlayerRepository()
+        player_repo.save(player)
+
+        result = RemovePlayerFromMeetup(meetup_repo, player_repo).execute(
+            "2024/01/15 20:00", "Mario"
+        )
+
+        assert result.teams is None
+
+    def test_remove_player_without_teams_leaves_teams_as_none(self):
+        """Removing a player from a meetup without teams leaves teams as None."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        player = Player.create(name="Mario", group="regular")
+        meetup.add_player(player.id)
+        meetup_repo.save(meetup)
+
+        player_repo = FakePlayerRepository()
+        player_repo.save(player)
+
+        result = RemovePlayerFromMeetup(meetup_repo, player_repo).execute(
+            "2024/01/15 20:00", "Mario"
+        )
+
+        assert result.teams is None
 
 
 class TestCreateTeams:

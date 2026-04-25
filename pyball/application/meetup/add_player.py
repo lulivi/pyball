@@ -55,5 +55,9 @@ class AddPlayerToMeetup:
         match = fuzzy_match_player(player_name, all_players)
 
         meetup.add_player(match.player_id)
+
+        if meetup.teams is not None:
+            meetup.clear_teams()
+
         self.meetup_repository.save(meetup)
         return meetup
