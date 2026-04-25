@@ -13,6 +13,7 @@ stages:
       when: never
     - when: always
   before_script:
+    - apt-get update -qq && apt-get install -y -qq git
     - pip install --quiet uv nox
   cache:
     key:
