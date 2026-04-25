@@ -20,6 +20,7 @@
 """Bot main file."""
 
 import asyncio
+import locale
 import logging
 import signal
 
@@ -61,6 +62,9 @@ async def main_async() -> None:
 
     settings = load_settings()
     container = Container()
+
+    locale.setlocale(locale.LC_ALL, settings.pyball.locale)
+
     application = create_application()
     application.bot_data["container"] = container
     application.bot_data["settings"] = settings

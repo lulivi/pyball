@@ -1,20 +1,13 @@
 default: format test lint
 
-# Production
-
-.PHONY: up
-up: build
-	docker compose up
-
-.PHONY: run
-run: build
-	docker compose run --remove-orphans bot
-
 # Development
 
 .PHONY: format
 format:
 	nox -e format
+
+.PHONY: fmt
+fmt: format
 
 .PHONY: f
 f: format
@@ -33,12 +26,19 @@ lint:
 .PHONY: l
 l: lint
 
+# Docker development
 
 .PHONY: build
 build:
-	nox -e dbuild
-
+	./deploy/docker_build.sh
 
 .PHONY: publish
-publish: build
-	nox -e dpublish
+publish:
+	./deploy/docker_build.sh --push
+
+.PHONY: run
+run: build
+	./deploy/run_locally.sh
+
+.PHONY: up
+up: run

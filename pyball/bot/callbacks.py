@@ -28,7 +28,6 @@ from telegram.ext import ContextTypes
 from pyball.application.container import Container
 from pyball.bot.formatters import parse_callback_data
 from pyball.bot.handlers.meetup import refresh_callup_messages
-from pyball.domain.meetup.errors import PlayerNotInMeetupError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
@@ -94,17 +93,32 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Invalid player mapping. Contact admin.", show_alert=True)
         return
 
-    modified = _process_action(action, meetup, player_id)
+    player = container.player_repository.find_by_id(player_id)
+    if not player:
+        await query.answer("Player not found. Contact admin.", show_alert=True)
+        return
+    player_name = player.name
+
+    is_player_in_meetup = player_id in meetup.players
+    if is_player_in_meetup and "join" in action:
+        await query.answer("Ya estás unido a este meetup.", show_alert=True)
+        return
+    if not is_player_in_meetup and "leave" in action:
+        await query.answer("No estás en este meetup.", show_alert=True)
+        return
+
+    modified = _process_action(action, date_str, player_name, container)
 
     if modified:
-        meetup_repo.save(meetup)
-        await refresh_callup_messages(context.bot, settings, container, meetup)
+        meetup = _find_meetup(meetup_repo, meetup_date)
+        if meetup:
+            await refresh_callup_messages(context.bot, settings, container, meetup)
         await query.answer()
-    else:
-        if action == "join":
-            await query.answer("Ya estás unido a este meetup.", show_alert=True)
-        elif action == "leave":
-            await query.answer("No estás en este meetup.", show_alert=True)
+
+
+def _convert_to_usecase_format(date_str: str) -> str:
+    """Convert ISO format to use case format YYYY/MM/DD HH:MM."""
+    return datetime.fromisoformat(date_str).strftime("%Y/%m/%d %H:%M")
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:
@@ -133,17 +147,18 @@ def _validate_player_id(player_id_str: str) -> PlayerId | None:
         return None
 
 
-def _process_action(action: str, meetup: Meetup, player_id: PlayerId) -> bool:
+def _process_action(action: str, date_str: str, player_name: str, container: Container) -> bool:
+    date_str_usecase = _convert_to_usecase_format(date_str)
     if "join" in action:
-        if player_id not in meetup.players:
-            meetup.add_player(player_id)
+        try:
+            container.add_player_to_meetup().execute(date_str_usecase, player_name)
             return True
-        return False
+        except Exception:
+            return False
     if "leave" in action:
         try:
-            meetup.remove_player(player_id)
+            container.remove_player_from_meetup().execute(date_str_usecase, player_name)
             return True
-        except PlayerNotInMeetupError as error:
-            logger.warning("Player not in meetup: %s", error)
+        except Exception:
             return False
     return False
