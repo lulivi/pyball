@@ -33,7 +33,8 @@ RUN uv build --wheel --out-dir /dist
 FROM python:3.12.13-slim-trixie
 
 ENV VIRTUAL_ENV=/opt/venv \
-    PATH=/opt/venv/bin:${PATH}
+    PATH=/opt/venv/bin:${PATH} \
+    HOME=/tmp
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -51,6 +52,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && groupadd -r pyballgroup && useradd -r -g pyballgroup pyballuser \
     && /usr/local/bin/python3 -m venv $VIRTUAL_ENV \
     && $VIRTUAL_ENV/bin/python3 -m pip install -U pip wheel \
+    && fc-cache -f \
     && chown -R pyballuser:pyballgroup $VIRTUAL_ENV
 
 WORKDIR /builder
