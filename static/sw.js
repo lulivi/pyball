@@ -28,9 +28,9 @@ self.addEventListener('fetch', event => {
                         if (response.ok) cache.put(event.request, response.clone());
                         return response;
                     })
-                    .catch(() => cached);
+                    .catch(() => cached || new Response('Offline', { status: 503 }));
                 return cached || networkFetch;
             })
-        )
+        ).catch(() => new Response('Service Unavailable', { status: 503 }))
     );
 });
