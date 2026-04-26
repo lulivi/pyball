@@ -340,6 +340,7 @@
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
         renderApp();
     }
 
@@ -353,6 +354,10 @@
     }
 
     // ── RENDERING ─────────────────────────────────────────
+    function escHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     function renderEventRow(e, i) {
         var scorerOpen = appState.editingEvent !== null &&
                          appState.editingEvent.eventIndex === i &&
@@ -364,13 +369,13 @@
         var scorerChip =
             '<button class="player-chip' + (scorerOpen ? ' active' : '') +
             '" onclick="event.stopPropagation();togglePicker(' + i + ',\'scorer\')">' +
-            e.scorer + ' <span class="chevron">' + (scorerOpen ? '▲' : '▼') + '</span></button>';
+            escHtml(e.scorer) + ' <span class="chevron">' + (scorerOpen ? '▲' : '▼') + '</span></button>';
 
         var assistLabel = e.assistant ? e.assistant : 'Sin asist.';
         var assistChip =
             '<button class="player-chip' + (assistOpen ? ' active' : '') +
             '" onclick="event.stopPropagation();togglePicker(' + i + ',\'assistant\')">' +
-            assistLabel + ' <span class="chevron">' + (assistOpen ? '▲' : '▼') + '</span></button>';
+            escHtml(assistLabel) + ' <span class="chevron">' + (assistOpen ? '▲' : '▼') + '</span></button>';
 
         var isEditing = scorerOpen || assistOpen;
         var html =
@@ -401,7 +406,7 @@
             var sel = field === 'scorer' ? p === e.scorer : p === e.assistant;
             html += '<div class="picker-item' + (sel ? ' selected' : '') +
                     '" onclick="event.stopPropagation();updateEventPlayer(' + eventIndex + ',\'' +
-                    field + '\',\'' + pSafe + '\')">' + p + '</div>';
+                    field + '\',\'' + pSafe + '\')">' + escHtml(p) + '</div>';
         });
         if (field === 'assistant') {
             html += '<div class="picker-item no-assist' + (e.assistant === null ? ' selected' : '') +
