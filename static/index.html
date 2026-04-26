@@ -2,267 +2,567 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/manifest.json">
     <title>PyBall - Muro de Partido</title>
     <style>
         :root { --color-a: #1e3a8a; --color-b: #991b1b; --bg: #0f172a; --text: #f8fafc; }
-        body { font-family: system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; text-align: center; }
-        h1 { margin-top: 0; font-size: 1.5rem; }
-        .scoreboard { 
-            width: 90vw; 
-            max-width: 1000px;
-            margin: 0 auto 20px auto; 
-            background-color: #1e293b; 
-            padding: 20px 0; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); 
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+            overflow-y: auto;
+        }
+
+        /* ── ABOVE FOLD ──────────────────────────────────── */
+        .above-fold {
+            height: 100svh;
+            display: flex;
+            flex-direction: column;
+            padding: 8px 12px 4px;
+        }
+
+        .match-date {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #64748b;
+            padding: 2px 0 4px;
+            flex-shrink: 0;
+        }
+
+        .scoreboard {
+            background: #1e293b;
+            border-radius: 10px;
             border: 1px solid #334155;
+            padding: 8px 12px;
             display: flex;
             justify-content: space-evenly;
             align-items: center;
+            flex-shrink: 0;
+            margin-bottom: 6px;
         }
-        .team-score { display: flex; flex-direction: column; align-items: center; flex: 1; overflow: hidden; padding: 0 10px; }
-        .team-name { font-size: clamp(1.5rem, 8vw, 4rem); color: #cbd5e1; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
-        .score-number { font-size: clamp(4rem, 35vw, 16rem); font-weight: bold; line-height: 1; }
-        .score-a { color: #60a5fa; text-shadow: 0 0 10px rgba(30,58,138,0.8); }
-        .score-b { color: #f87171; text-shadow: 0 0 10px rgba(153,27,27,0.8); }
-        .score-separator { font-size: clamp(2rem, 20vw, 10rem); font-weight: bold; color: #64748b; padding: 0 10px; }
-        .team-grid { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        .column { flex: 1; padding: 10px; border-radius: 8px; }
-        .col-a { background-color: rgba(30, 58, 138, 0.3); border: 2px solid var(--color-a); }
-        .col-b { background-color: rgba(153, 27, 27, 0.3); border: 2px solid var(--color-b); }
-        .player-btn { display: block; width: 100%; margin-bottom: 10px; padding: 15px; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white; }
-        .btn-a { background-color: var(--color-a); }
-        .btn-b { background-color: var(--color-b); }
-        .action-btn { background-color: #16a34a; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; width: 100%;}
-        .action-btn:disabled { background-color: #475569; cursor: not-allowed; }
-        #event-list { text-align: left; background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 20px; max-height: 180px; overflow-y: auto; border: 1px solid #334155;}
-        .event-log { padding: 8px 0; border-bottom: 1px solid #334155; font-size: 0.95rem;}
-        #instruction-text { margin-top: 0; margin-bottom: 15px; color: #cbd5e1; }
+
+        .team-score { display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+        .team-name {
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            text-align: center;
+        }
+
+        .score-number {
+            font-size: clamp(3rem, 25.5vw, 6rem);
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .score-a { color: #60a5fa; }
+        .score-b { color: #f87171; }
+
+        .score-separator {
+            font-size: clamp(1.5rem, 7vw, 3rem);
+            font-weight: bold;
+            color: #64748b;
+            padding: 0 8px;
+        }
+
+        .instruction {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: center;
+            margin: 0 0 6px;
+            flex-shrink: 0;
+        }
+
+        .instruction.assist { color: #fbbf24; }
+
+        .player-grid { display: flex; gap: 8px; flex: 1; min-height: 0; }
+
+        .team-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+        .team-col.waiting {
+            align-items: center;
+            justify-content: center;
+            background: rgba(30, 41, 59, 0.4);
+            border-radius: 6px;
+            border: 1px dashed #334155;
+        }
+
+        .waiting-text { font-size: 0.8rem; color: #64748b; text-align: center; padding: 8px; }
+
+        .player-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+            min-height: 44px;
+        }
+
+        .btn-a { background: var(--color-a); }
+        .btn-b { background: var(--color-b); }
+        .btn-noassist { background: #ca8a04; }
+
+        .cancel-btn {
+            display: block; width: 100%;
+            padding: 9px; font-size: 0.85rem; font-weight: 600;
+            color: #94a3b8; background: transparent;
+            border: 1px solid #334155; border-radius: 6px;
+            cursor: pointer; text-align: center; margin-bottom: 6px;
+        }
+
+        .scroll-hint {
+            text-align: center;
+            font-size: 0.65rem;
+            color: #475569;
+            padding: 4px 0 2px;
+            flex-shrink: 0;
+        }
+
+        /* ── BELOW FOLD ──────────────────────────────────── */
+        .below-fold { padding: 12px 12px 24px; }
+
+        .events-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        #event-list {
+            background: #1e293b;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            padding: 6px 10px;
+            margin-bottom: 12px;
+        }
+
+        .event-log {
+            font-size: 0.85rem;
+            color: #f8fafc;
+            border-bottom: 1px solid #334155;
+            padding: 6px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .event-log:last-child { border-bottom: none; }
+
+        .event-time { font-size: 0.75rem; color: #64748b; flex-shrink: 0; margin-left: 8px; }
+
+        .player-chip {
+            display: inline-flex; align-items: center; gap: 3px;
+            background: #0f172a; border: 1px solid #475569;
+            border-radius: 4px; padding: 2px 7px;
+            font-size: 0.78rem; font-weight: 600; cursor: pointer;
+            color: #f8fafc; white-space: nowrap; vertical-align: middle;
+            line-height: 1.4;
+        }
+        .player-chip.active { border-color: #60a5fa; background: #1e3a8a; }
+        .player-chip .chevron { font-size: 0.6rem; color: #94a3b8; }
+
+        .delete-btn {
+            background: transparent; border: none; color: #ef4444;
+            font-size: 0.9rem; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+        }
+
+        .event-log.editing { flex-wrap: wrap; align-items: flex-start; }
+
+        .picker-dropdown {
+            background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+            padding: 4px; margin-top: 4px;
+            max-height: 180px; overflow-y: auto;
+            width: 100%;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+        .picker-item {
+            padding: 6px 10px; border-radius: 5px; font-size: 0.8rem;
+            cursor: pointer; color: #f8fafc;
+        }
+        .picker-item:active { background: #334155; }
+        .picker-item.selected { background: #1d4ed8; }
+        .picker-item.no-assist { color: #fbbf24; }
+
+        .save-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            background: #16a34a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .save-btn:disabled { background: #475569; cursor: not-allowed; }
+
+        /* ── NO MATCH / SUCCESS ──────────────────────────── */
+        .no-match {
+            height: 100svh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 32px;
+            gap: 12px;
+        }
+
+        .no-match-icon { font-size: 3rem; }
+        .no-match-title { font-size: 1.4rem; font-weight: bold; }
+        .no-match-msg { font-size: 1rem; color: #64748b; line-height: 1.6; }
+
+        .success-banner {
+            background: #15803d;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+<div id="app"></div>
+<script>
+    // ── STATE ─────────────────────────────────────────────
+    let teamA = [], teamB = [];
+    let nameA = 'A', nameB = 'B';
+    let meetupDate = '';
 
-    <h1>⚽ Partido en curso</h1>
-    <div class="scoreboard" id="scoreboard-ui">
-        <div class="team-score">
-            <div class="team-name" id="name-a">—</div>
-            <div class="score-number score-a" id="score-a">0</div>
-        </div>
-        <div class="score-separator">-</div>
-        <div class="team-score">
-            <div class="team-name" id="name-b">—</div>
-            <div class="score-number score-b" id="score-b">0</div>
-        </div>
-    </div>
+    let appState = {
+        goalsA: 0, goalsB: 0,
+        events: [],
+        currentStep: 1,
+        tempScorer: null, tempScorerTeam: null,
+        editingEvent: null
+    };
 
-    <div id="interaction-panel">
-        <h3 id="instruction-text">¿Quién ha marcado gol?</h3>
-        
-        <div class="team-grid">
-            <div class="column col-a" id="team-a-container">
-                </div>
-            <div class="column col-b" id="team-b-container">
-                </div>
-        </div>
-        
-        <button id="no-assist-btn" class="action-btn" style="display: none; background-color: #ca8a04; margin-bottom: 20px;">Gol sin asistencia (Solitario / Propia)</button>
-    </div>
+    // ── DATE FORMAT ───────────────────────────────────────
+    function formatMatchDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        return day.charAt(0).toUpperCase() + day.slice(1) + ' · ' + time;
+    }
 
-    <div id="event-list">
-        </div>
+    // ── INIT ──────────────────────────────────────────────
+    function initializeApp() {
+        const savedState = localStorage.getItem('pyball_current_match');
+        const savedTeams = localStorage.getItem('pyball_teams');
 
-    <button id="save-btn" class="action-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>
-
-    <script>
-        // 1. APPLICATION STATE (Ahora los equipos empiezan vacíos)
-        let teamA = [];
-        let teamB = [];
-        let meetupDate = '';
-        
-        let appState = {
-            goalsA: 0,
-            goalsB: 0,
-            events: [],
-            currentStep: 1, 
-            tempScorer: null,
-            tempScorerTeam: null
-        };
-
-        // 2. INICIALIZACIÓN Y CARGA DE DATOS
-        async function initializeApp() {
-            const savedState = localStorage.getItem('pyball_current_match');
-            const savedTeams = localStorage.getItem('pyball_teams');
-
-            if (savedState && savedTeams) {
-                appState = JSON.parse(savedState);
-                const teams = JSON.parse(savedTeams);
-                teamA = teams.teamA;
-                teamB = teams.teamB;
-                meetupDate = teams.meetupDate;
-                document.getElementById('name-a').innerText = teams.nameA || 'A';
-                document.getElementById('name-b').innerText = teams.nameB || 'B';
-                updateUI();
-                return;
-            }
-
-            const params = new URLSearchParams(window.location.search);
-            const teamAParam = params.get('teamA');
-            const teamBParam = params.get('teamB');
-            meetupDate = params.get('date') || '';
-
-            if (!teamAParam || !teamBParam) {
-                document.getElementById('interaction-panel').innerHTML =
-                    "<p style='color:#f87171;'>❌ URL inválida. Genera el enlace con /start_match.</p>";
-                document.getElementById('save-btn').disabled = true;
-                return;
-            }
-
-            teamA = teamAParam.split(',');
-            teamB = teamBParam.split(',');
-            localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, meetupDate }));
-            updateUI();
+        if (savedState && savedTeams) {
+            appState = JSON.parse(savedState);
+            appState.editingEvent = null;
+            const teams = JSON.parse(savedTeams);
+            teamA = teams.teamA;
+            teamB = teams.teamB;
+            nameA = teams.nameA || 'A';
+            nameB = teams.nameB || 'B';
+            meetupDate = teams.meetupDate;
+            renderApp();
+            return;
         }
 
-        // 3. REGISTRATION LOGIC
-        function selectPlayer(playerName, teamId) {
-            if (appState.currentStep === 1) {
-                appState.tempScorer = playerName;
-                appState.tempScorerTeam = teamId;
-                appState.currentStep = 2;
-                updateUI();
-            } else {
-                registerGoal(playerName);
-            }
+        const params = new URLSearchParams(window.location.search);
+        const teamAParam = params.get('teamA');
+        const teamBParam = params.get('teamB');
+        meetupDate = params.get('date') || '';
+        nameA = params.get('nameA') || 'A';
+        nameB = params.get('nameB') || 'B';
+
+        if (!teamAParam || !teamBParam) {
+            renderNoMatch();
+            return;
         }
 
-        function registerGoal(assistantName = null) {
-            const goalEvent = {
-                type: 'gol',
-                scorer: appState.tempScorer,
-                assistant: assistantName,
-                team: appState.tempScorerTeam,
-                timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-            };
+        teamA = teamAParam.split(',');
+        teamB = teamBParam.split(',');
+        localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, nameA, nameB, meetupDate }));
+        renderApp();
+    }
 
-            // Insertamos el evento al principio del array (unshift) para que el más reciente salga arriba del todo en el log
-            appState.events.unshift(goalEvent);
-            
-            if (appState.tempScorerTeam === 'A') appState.goalsA++;
-            if (appState.tempScorerTeam === 'B') appState.goalsB++;
-
-            appState.currentStep = 1;
-            appState.tempScorer = null;
-            appState.tempScorerTeam = null;
-
-            saveLocally();
-            updateUI();
+    // ── GOAL REGISTRATION ─────────────────────────────────
+    function selectPlayer(playerName, teamId) {
+        if (appState.currentStep === 1) {
+            appState.tempScorer = playerName;
+            appState.tempScorerTeam = teamId;
+            appState.currentStep = 2;
+        } else {
+            registerGoal(playerName);
+            return;
         }
+        renderApp();
+    }
 
-        function saveLocally() {
-            localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+    function registerGoal(assistantName) {
+        appState.events.unshift({
+            type: 'gol',
+            scorer: appState.tempScorer,
+            assistant: assistantName || null,
+            team: appState.tempScorerTeam,
+            timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        });
+        if (appState.tempScorerTeam === 'A') appState.goalsA++;
+        if (appState.tempScorerTeam === 'B') appState.goalsB++;
+        appState.currentStep = 1;
+        appState.tempScorer = null;
+        appState.tempScorerTeam = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    function cancelGoal() {
+        appState.currentStep = 1;
+        appState.tempScorer = null;
+        appState.tempScorerTeam = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    function deleteEvent(i) {
+        appState.events.splice(i, 1);
+        appState.goalsA = appState.events.filter(function(e) { return e.team === 'A'; }).length;
+        appState.goalsB = appState.events.filter(function(e) { return e.team === 'B'; }).length;
+        appState.editingEvent = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    // ── RENDERING ─────────────────────────────────────────
+    function escHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderEventRow(e, i) {
+        var scorerOpen = appState.editingEvent !== null &&
+                         appState.editingEvent.eventIndex === i &&
+                         appState.editingEvent.field === 'scorer';
+        var assistOpen = appState.editingEvent !== null &&
+                         appState.editingEvent.eventIndex === i &&
+                         appState.editingEvent.field === 'assistant';
+
+        var scorerChip =
+            '<button class="player-chip' + (scorerOpen ? ' active' : '') +
+            '" onclick="event.stopPropagation();togglePicker(' + i + ',\'scorer\')">' +
+            escHtml(e.scorer) + ' <span class="chevron">' + (scorerOpen ? '▲' : '▼') + '</span></button>';
+
+        var assistLabel = e.assistant ? e.assistant : 'Sin asist.';
+        var assistChip =
+            '<button class="player-chip' + (assistOpen ? ' active' : '') +
+            '" onclick="event.stopPropagation();togglePicker(' + i + ',\'assistant\')">' +
+            escHtml(assistLabel) + ' <span class="chevron">' + (assistOpen ? '▲' : '▼') + '</span></button>';
+
+        var isEditing = scorerOpen || assistOpen;
+        var html =
+            '<div class="event-log' + (isEditing ? ' editing' : '') +
+            '" onclick="event.stopPropagation()">' +
+            '<span style="display:flex;align-items:center;gap:4px;flex:1;flex-wrap:wrap">' +
+            '⚽ ' + scorerChip +
+            '<span style="color:#64748b;font-size:0.75rem"> (Asist: </span>' +
+            assistChip +
+            '<span style="color:#64748b;font-size:0.75rem">)</span>' +
+            '</span>' +
+            '<span class="event-time">' + e.timestamp + '</span>' +
+            '<button class="delete-btn" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
+
+        if (scorerOpen) { html += renderPickerDropdown(i, 'scorer'); }
+        if (assistOpen) { html += renderPickerDropdown(i, 'assistant'); }
+        html += '</div>';
+        return html;
+    }
+
+    function renderPickerDropdown(eventIndex, field) {
+        var e = appState.events[eventIndex];
+        var players = e.team === 'A' ? teamA : teamB;
+        var opts = field === 'scorer' ? players : players.filter(function(p) { return p !== e.scorer; });
+        var html = '<div class="picker-dropdown" onclick="event.stopPropagation()">';
+        opts.forEach(function(p) {
+            var pSafe = p.replace(/'/g, "\\'");
+            var sel = field === 'scorer' ? p === e.scorer : p === e.assistant;
+            html += '<div class="picker-item' + (sel ? ' selected' : '') +
+                    '" onclick="event.stopPropagation();updateEventPlayer(' + eventIndex + ',\'' +
+                    field + '\',\'' + pSafe + '\')">' + escHtml(p) + '</div>';
+        });
+        if (field === 'assistant') {
+            html += '<div class="picker-item no-assist' + (e.assistant === null ? ' selected' : '') +
+                    '" onclick="event.stopPropagation();clearAssist(' + eventIndex + ')">Sin asistente</div>';
         }
+        html += '</div>';
+        return html;
+    }
 
-        // 4. UI RENDERING
-        function updateUI() {
-            document.getElementById('score-a').innerText = appState.goalsA;
-            document.getElementById('score-b').innerText = appState.goalsB;
-            
-            const logHTML = appState.events.map(e => 
-                `<div class="event-log">⚽ Gol: <b>${e.scorer}</b> ${e.assistant ? `(Asist: ${e.assistant})` : '(Sin asist.)'}</div>`
+    function togglePicker(eventIndex, field) {
+        var already = appState.editingEvent !== null &&
+                      appState.editingEvent.eventIndex === eventIndex &&
+                      appState.editingEvent.field === field;
+        appState.editingEvent = already ? null : { eventIndex: eventIndex, field: field };
+        renderApp();
+    }
+
+    function updateEventPlayer(eventIndex, field, playerName) {
+        appState.events[eventIndex][field] = playerName;
+        appState.editingEvent = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    function clearAssist(eventIndex) {
+        appState.events[eventIndex].assistant = null;
+        appState.editingEvent = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    function renderNoMatch() {
+        document.getElementById('app').innerHTML =
+            '<div class="no-match">' +
+            '<div class="no-match-icon">⚽</div>' +
+            '<div class="no-match-title">PyBall</div>' +
+            '<div class="no-match-msg">Abre el enlace desde<br>Telegram para empezar un partido.</div>' +
+            '</div>';
+    }
+
+    function renderApp() {
+        const step = appState.currentStep;
+        const scorer = appState.tempScorer;
+        const scorerTeam = appState.tempScorerTeam;
+
+        const instructionText = step === 1
+            ? '¿Quién ha marcado gol?'
+            : '⚽ ' + scorer + ' marcó — ¿quién asistió?';
+
+        let colAHtml = '', colBHtml = '';
+        let colAClass = 'team-col', colBClass = 'team-col';
+
+        if (step === 1) {
+            colAHtml = teamA.map(p =>
+                '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>'
             ).join('');
-            document.getElementById('event-list').innerHTML = logHTML || "<div style='text-align:center; color:#94a3b8;'><i>No hay eventos aún...</i></div>";
+            colBHtml = teamB.map(p =>
+                '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>'
+            ).join('');
+        } else if (scorerTeam === 'A') {
+            colAHtml = teamA.filter(p => p !== scorer).map(p =>
+                '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>'
+            ).join('') + '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
+            colBHtml = '<div class="waiting-text">Equipo ' + nameB + '<br>no asiste</div>';
+            colBClass = 'team-col waiting';
+        } else {
+            colBHtml = teamB.filter(p => p !== scorer).map(p =>
+                '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>'
+            ).join('') + '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
+            colAHtml = '<div class="waiting-text">Equipo ' + nameA + '<br>no asiste</div>';
+            colAClass = 'team-col waiting';
+        }
 
-            const containerA = document.getElementById('team-a-container');
-            const containerB = document.getElementById('team-b-container');
-            const noAssistBtn = document.getElementById('no-assist-btn');
-            const instructionText = document.getElementById('instruction-text');
+        const eventsHtml = appState.events.length > 0
+            ? appState.events.map(function(e, i) { return renderEventRow(e, i); }).join('')
+            : '<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>';
 
-            containerA.innerHTML = ''; 
-            containerB.innerHTML = '';
+        document.getElementById('app').innerHTML =
+            '<div class="above-fold">' +
+            '<div class="match-date">' + formatMatchDate(meetupDate) + '</div>' +
+            '<div class="scoreboard">' +
+            '<div class="team-score"><div class="team-name">' + nameA + '</div>' +
+            '<div class="score-number score-a">' + appState.goalsA + '</div></div>' +
+            '<div class="score-separator">–</div>' +
+            '<div class="team-score"><div class="team-name">' + nameB + '</div>' +
+            '<div class="score-number score-b">' + appState.goalsB + '</div></div>' +
+            '</div>' +
+            '<p class="instruction' + (step === 2 ? ' assist' : '') + '">' + instructionText + '</p>' +
+            (step === 2 ? '<button class="cancel-btn" onclick="cancelGoal()">← Cancelar</button>' : '') +
+            '<div class="player-grid">' +
+            '<div class="' + colAClass + '">' + colAHtml + '</div>' +
+            '<div class="' + colBClass + '">' + colBHtml + '</div>' +
+            '</div>' +
+            '<div class="scroll-hint">↓ eventos y guardar</div>' +
+            '</div>' +
+            '<div class="below-fold">' +
+            '<div class="events-label">Eventos del partido</div>' +
+            '<div id="event-list">' + eventsHtml + '</div>' +
+            '<button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>' +
+            '</div>';
+    }
 
-            if (appState.currentStep === 1) {
-                instructionText.innerText = "¿Quién ha marcado gol?";
-                noAssistBtn.style.display = 'none';
-                
-                teamA.forEach(player => {
-                    containerA.innerHTML += `<button class="player-btn btn-a" onclick="selectPlayer('${player}', 'A')">${player}</button>`;
-                });
-                teamB.forEach(player => {
-                    containerB.innerHTML += `<button class="player-btn btn-b" onclick="selectPlayer('${player}', 'B')">${player}</button>`;
-                });
+    // ── API ───────────────────────────────────────────────
+    async function finishMatch() {
+        if (!confirm('¿Seguro que quieres guardar el partido y enviarlo al Bot?')) return;
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Enviando datos...';
+        try {
+            const response = await fetch('/api/match/finish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meetup_date: meetupDate,
+                    events: [...appState.events].reverse(),
+                    finalScore: { A: appState.goalsA, B: appState.goalsB }
+                })
+            });
+            if (response.ok) {
+                localStorage.removeItem('pyball_current_match');
+                localStorage.removeItem('pyball_teams');
+                document.getElementById('app').innerHTML =
+                    '<div class="no-match">' +
+                    '<div class="success-banner">✅ Partido guardado y enviado a Telegram</div>' +
+                    '<div class="no-match-icon">⚽</div>' +
+                    '<div class="no-match-title">PyBall</div>' +
+                    '<div class="no-match-msg">Abre el enlace desde<br>Telegram para el próximo partido.</div>' +
+                    '</div>';
             } else {
-                instructionText.innerText = `¿Quién asistió a ${appState.tempScorer}?`;
-                noAssistBtn.style.display = 'block';
-                noAssistBtn.onclick = () => registerGoal(null);
-                
-                if (appState.tempScorerTeam === 'A') {
-                    teamA.filter(player => player !== appState.tempScorer).forEach(player => {
-                        containerA.innerHTML += `<button class="player-btn btn-a" onclick="selectPlayer('${player}', 'A')">${player}</button>`;
-                    });
-                    containerB.innerHTML = "<p style='color:#cbd5e1;'><i>Esperando asistencia...</i></p>";
-                } else {
-                    teamB.filter(player => player !== appState.tempScorer).forEach(player => {
-                        containerB.innerHTML += `<button class="player-btn btn-b" onclick="selectPlayer('${player}', 'B')">${player}</button>`;
-                    });
-                    containerA.innerHTML = "<p style='color:#cbd5e1;'><i>Esperando asistencia...</i></p>";
-                }
-            }
-        }
-
-        // 5. API COMMUNICATION
-        async function finishMatch() {
-            if (!confirm("¿Seguro que quieres guardar el partido y enviarlo al Bot?")) return;
-
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Enviando datos...";
-
-            try {
-                const response = await fetch('/api/match/finish', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        meetup_date: meetupDate,
-                        events: [...appState.events].reverse(),
-                        finalScore: { A: appState.goalsA, B: appState.goalsB }
-                    })
-                });
-
-                if (response.ok) {
-                    localStorage.removeItem('pyball_current_match');
-                    showMatchFinished();
-                } else {
-                    const errorData = await response.json();
-                    alert("❌ Error del servidor: " + (errorData.detail || response.statusText));
-                    saveBtn.disabled = false;
-                    saveBtn.innerText = "💾 CONFIRMAR Y GUARDAR PARTIDO";
-                }
-            } catch (error) {
-                alert("❌ Error de red. Revisa la conexión a internet de este móvil.");
+                const err = await response.json();
+                alert('❌ Error del servidor: ' + (err.detail || response.statusText));
                 saveBtn.disabled = false;
-                saveBtn.innerText = "💾 CONFIRMAR Y GUARDAR PARTIDO";
+                saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
             }
+        } catch {
+            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
         }
+    }
 
-        function showMatchFinished() {
-            document.getElementById('interaction-panel').style.display = 'none';
-            document.getElementById('save-btn').style.display = 'none';
+    // ── SERVICE WORKER ────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err =>
+            console.warn('SW registration failed:', err)
+        );
+    }
 
-            const banner = document.createElement('div');
-            banner.style.cssText = 'background:#15803d;border-radius:12px;padding:20px;margin-bottom:20px;font-size:1.2rem;font-weight:bold;';
-            banner.innerHTML = '✅ Partido guardado y enviado a Telegram';
-
-            const goalsDiv = document.getElementById('event-list');
-            goalsDiv.parentNode.insertBefore(banner, goalsDiv);
-
-            document.querySelector('h1').innerText = '⚽ Partido finalizado';
+    document.addEventListener('click', function() {
+        if (appState.editingEvent !== null) {
+            appState.editingEvent = null;
+            renderApp();
         }
+    });
 
-        // Initialize app
-        initializeApp();
-    </script>
+    initializeApp();
+</script>
 </body>
 </html>
