@@ -170,6 +170,24 @@
 
         .event-time { font-size: 0.75rem; color: #64748b; flex-shrink: 0; margin-left: 8px; }
 
+        .player-chip {
+            display: inline-flex; align-items: center; gap: 3px;
+            background: #0f172a; border: 1px solid #475569;
+            border-radius: 4px; padding: 2px 7px;
+            font-size: 0.78rem; font-weight: 600; cursor: pointer;
+            color: #f8fafc; white-space: nowrap; vertical-align: middle;
+            line-height: 1.4;
+        }
+        .player-chip.active { border-color: #60a5fa; background: #1e3a8a; }
+        .player-chip .chevron { font-size: 0.6rem; color: #94a3b8; }
+
+        .delete-btn {
+            background: transparent; border: none; color: #ef4444;
+            font-size: 0.9rem; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+        }
+
+        .event-log.editing { flex-wrap: wrap; align-items: flex-start; }
+
         .save-btn {
             display: block;
             width: 100%;
@@ -310,7 +328,52 @@
         renderApp();
     }
 
+    function deleteEvent(i) {
+        appState.events.splice(i, 1);
+        appState.goalsA = appState.events.filter(function(e) { return e.team === 'A'; }).length;
+        appState.goalsB = appState.events.filter(function(e) { return e.team === 'B'; }).length;
+        appState.editingEvent = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
     // ── RENDERING ─────────────────────────────────────────
+    function renderEventRow(e, i) {
+        var scorerOpen = appState.editingEvent !== null &&
+                         appState.editingEvent.eventIndex === i &&
+                         appState.editingEvent.field === 'scorer';
+        var assistOpen = appState.editingEvent !== null &&
+                         appState.editingEvent.eventIndex === i &&
+                         appState.editingEvent.field === 'assistant';
+
+        var scorerChip =
+            '<button class="player-chip' + (scorerOpen ? ' active' : '') +
+            '" onclick="event.stopPropagation();togglePicker(' + i + ',\'scorer\')">' +
+            e.scorer + ' <span class="chevron">' + (scorerOpen ? '▲' : '▼') + '</span></button>';
+
+        var assistLabel = e.assistant ? e.assistant : 'Sin asist.';
+        var assistChip =
+            '<button class="player-chip' + (assistOpen ? ' active' : '') +
+            '" onclick="event.stopPropagation();togglePicker(' + i + ',\'assistant\')">' +
+            assistLabel + ' <span class="chevron">' + (assistOpen ? '▲' : '▼') + '</span></button>';
+
+        var isEditing = scorerOpen || assistOpen;
+        var html =
+            '<div class="event-log' + (isEditing ? ' editing' : '') +
+            '" onclick="event.stopPropagation()">' +
+            '<span style="display:flex;align-items:center;gap:4px;flex:1;flex-wrap:wrap">' +
+            '⚽ ' + scorerChip +
+            '<span style="color:#64748b;font-size:0.75rem"> (Asist: </span>' +
+            assistChip +
+            '<span style="color:#64748b;font-size:0.75rem">)</span>' +
+            '</span>' +
+            '<span class="event-time">' + e.timestamp + '</span>' +
+            '<button class="delete-btn" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
+
+        html += '</div>';
+        return html;
+    }
+
     function renderNoMatch() {
         document.getElementById('app').innerHTML =
             '<div class="no-match">' +
@@ -354,11 +417,7 @@
         }
 
         const eventsHtml = appState.events.length > 0
-            ? appState.events.map(e =>
-                '<div class="event-log"><span>⚽ <strong>' + e.scorer + '</strong> ' +
-                (e.assistant ? '(Asist: ' + e.assistant + ')' : '(Sin asist.)') +
-                '</span><span class="event-time">' + e.timestamp + '</span></div>'
-              ).join('')
+            ? appState.events.map(function(e, i) { return renderEventRow(e, i); }).join('')
             : '<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>';
 
         document.getElementById('app').innerHTML =
