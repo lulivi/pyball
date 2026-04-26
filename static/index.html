@@ -397,10 +397,11 @@
         var opts = field === 'scorer' ? players : players.filter(function(p) { return p !== e.scorer; });
         var html = '<div class="picker-dropdown" onclick="event.stopPropagation()">';
         opts.forEach(function(p) {
+            var pSafe = p.replace(/'/g, "\\'");
             var sel = field === 'scorer' ? p === e.scorer : p === e.assistant;
             html += '<div class="picker-item' + (sel ? ' selected' : '') +
                     '" onclick="event.stopPropagation();updateEventPlayer(' + eventIndex + ',\'' +
-                    field + '\',\'' + p + '\')">' + p + '</div>';
+                    field + '\',\'' + pSafe + '\')">' + p + '</div>';
         });
         if (field === 'assistant') {
             html += '<div class="picker-item no-assist' + (e.assistant === null ? ' selected' : '') +
