@@ -188,6 +188,21 @@
 
         .event-log.editing { flex-wrap: wrap; align-items: flex-start; }
 
+        .picker-dropdown {
+            background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+            padding: 4px; margin-top: 4px;
+            max-height: 180px; overflow-y: auto;
+            width: 100%;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+        .picker-item {
+            padding: 6px 10px; border-radius: 5px; font-size: 0.8rem;
+            cursor: pointer; color: #f8fafc;
+        }
+        .picker-item:active { background: #334155; }
+        .picker-item.selected { background: #1d4ed8; }
+        .picker-item.no-assist { color: #fbbf24; }
+
         .save-btn {
             display: block;
             width: 100%;
@@ -370,8 +385,51 @@
             '<span class="event-time">' + e.timestamp + '</span>' +
             '<button class="delete-btn" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
 
+        if (scorerOpen) { html += renderPickerDropdown(i, 'scorer'); }
+        if (assistOpen) { html += renderPickerDropdown(i, 'assistant'); }
         html += '</div>';
         return html;
+    }
+
+    function renderPickerDropdown(eventIndex, field) {
+        var e = appState.events[eventIndex];
+        var players = e.team === 'A' ? teamA : teamB;
+        var opts = field === 'scorer' ? players : players.filter(function(p) { return p !== e.scorer; });
+        var html = '<div class="picker-dropdown" onclick="event.stopPropagation()">';
+        opts.forEach(function(p) {
+            var sel = field === 'scorer' ? p === e.scorer : p === e.assistant;
+            html += '<div class="picker-item' + (sel ? ' selected' : '') +
+                    '" onclick="event.stopPropagation();updateEventPlayer(' + eventIndex + ',\'' +
+                    field + '\',\'' + p + '\')">' + p + '</div>';
+        });
+        if (field === 'assistant') {
+            html += '<div class="picker-item no-assist' + (e.assistant === null ? ' selected' : '') +
+                    '" onclick="event.stopPropagation();clearAssist(' + eventIndex + ')">Sin asistente</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function togglePicker(eventIndex, field) {
+        var already = appState.editingEvent !== null &&
+                      appState.editingEvent.eventIndex === eventIndex &&
+                      appState.editingEvent.field === field;
+        appState.editingEvent = already ? null : { eventIndex: eventIndex, field: field };
+        renderApp();
+    }
+
+    function updateEventPlayer(eventIndex, field, playerName) {
+        appState.events[eventIndex][field] = playerName;
+        appState.editingEvent = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    function clearAssist(eventIndex) {
+        appState.events[eventIndex].assistant = null;
+        appState.editingEvent = null;
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
     }
 
     function renderNoMatch() {
@@ -490,6 +548,13 @@
             console.warn('SW registration failed:', err)
         );
     }
+
+    document.addEventListener('click', function() {
+        if (appState.editingEvent !== null) {
+            appState.editingEvent = null;
+            renderApp();
+        }
+    });
 
     initializeApp();
 </script>
