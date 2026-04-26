@@ -25,6 +25,7 @@ import re
 from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import KeyboardButtonStyle
 
 from pyball.domain.meetup.models import Meetup
 
@@ -38,32 +39,42 @@ def _escape_mdv2(text: str) -> str:
 
 def build_main_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
     """Build inline keyboard for main chat."""
-    keyboard = [
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                "✅ Unirse", callback_data=build_callback_data("join", meetup_date)
-            ),
-            InlineKeyboardButton(
-                "❌ Salir", callback_data=build_callback_data("leave", meetup_date)
-            ),
+            [
+                InlineKeyboardButton(
+                    text="✔ Unirse",
+                    style=KeyboardButtonStyle.GREEN,
+                    callback_data=build_callback_data("join", meetup_date),
+                ),
+                InlineKeyboardButton(
+                    text="✖ Salir",
+                    style=KeyboardButtonStyle.RED,
+                    callback_data=build_callback_data("leave", meetup_date),
+                ),
+            ]
         ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    )
 
 
 def build_subs_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
     """Build inline keyboard for substitutes chat."""
-    keyboard = [
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                "✅ Unirse", callback_data=build_callback_data("join_sub", meetup_date)
-            ),
-            InlineKeyboardButton(
-                "❌ Salir", callback_data=build_callback_data("leave_sub", meetup_date)
-            ),
+            [
+                InlineKeyboardButton(
+                    text="✔ Unirse",
+                    style=KeyboardButtonStyle.GREEN,
+                    callback_data=build_callback_data("join_sub", meetup_date),
+                ),
+                InlineKeyboardButton(
+                    text="✖ Salir",
+                    style=KeyboardButtonStyle.RED,
+                    callback_data=build_callback_data("leave_sub", meetup_date),
+                ),
+            ]
         ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    )
 
 
 def build_callback_data(action: str, meetup_date: datetime) -> str:
