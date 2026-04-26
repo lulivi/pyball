@@ -121,6 +121,14 @@
         .btn-b { background: var(--color-b); }
         .btn-noassist { background: #ca8a04; }
 
+        .cancel-btn {
+            display: block; width: 100%;
+            padding: 9px; font-size: 0.85rem; font-weight: 600;
+            color: #94a3b8; background: transparent;
+            border: 1px solid #334155; border-radius: 6px;
+            cursor: pointer; text-align: center; margin-bottom: 6px;
+        }
+
         .scroll-hint {
             text-align: center;
             font-size: 0.65rem;
@@ -215,7 +223,8 @@
         goalsA: 0, goalsB: 0,
         events: [],
         currentStep: 1,
-        tempScorer: null, tempScorerTeam: null
+        tempScorer: null, tempScorerTeam: null,
+        editingEvent: null
     };
 
     // ── DATE FORMAT ───────────────────────────────────────
@@ -235,6 +244,7 @@
 
         if (savedState && savedTeams) {
             appState = JSON.parse(savedState);
+            appState.editingEvent = null;
             const teams = JSON.parse(savedTeams);
             teamA = teams.teamA;
             teamB = teams.teamB;
@@ -290,6 +300,13 @@
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
         localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        renderApp();
+    }
+
+    function cancelGoal() {
+        appState.currentStep = 1;
+        appState.tempScorer = null;
+        appState.tempScorerTeam = null;
         renderApp();
     }
 
@@ -355,6 +372,7 @@
             '<div class="score-number score-b">' + appState.goalsB + '</div></div>' +
             '</div>' +
             '<p class="instruction' + (step === 2 ? ' assist' : '') + '">' + instructionText + '</p>' +
+            (step === 2 ? '<button class="cancel-btn" onclick="cancelGoal()">← Cancelar</button>' : '') +
             '<div class="player-grid">' +
             '<div class="' + colAClass + '">' + colAHtml + '</div>' +
             '<div class="' + colBClass + '">' + colBHtml + '</div>' +
