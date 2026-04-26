@@ -87,11 +87,9 @@ def format(session: nox.Session):
     """Format the code."""
     session.run("uv", "sync", "--group", "dev", external=True)
 
-    session.run_always(
-        "black", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
-    )
-    session.run_always(
-        "isort", ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")
-    )
+    targets = [ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")]
+    if session.posargs:
+        targets = session.posargs
 
-
+    session.run_always("black", *targets)
+    session.run_always("isort", *targets)

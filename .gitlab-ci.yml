@@ -45,7 +45,11 @@ lint:
 test:
   extends: .ci_base
   script:
-    - nox -e test
+    - nox -e test -- --junit-xml=TestReport.xml
+  artifacts:
+    when: always
+    reports:
+      junit: TestReport.xml
 
 publish:
   stage: publish
