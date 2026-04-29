@@ -32,7 +32,6 @@ from pyball.domain.meetup.errors import MeetupNotFoundError
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
-    from pyball.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +60,9 @@ class FinishMatchInput(BaseModel):
     finalScore: FinalScore
 
 
-def create_app(  # pylint: disable=unused-argument
+def create_app(
     container: "Container",
     notifier: MatchNotifier,
-    settings: "Settings",
     static_dir: Path = Path("static"),
 ) -> FastAPI:
     """Create and configure the FastAPI application.
@@ -72,7 +70,6 @@ def create_app(  # pylint: disable=unused-argument
     Args:
         container: DI container with repositories and use cases.
         notifier: Notifier called after match events.
-        settings: Application settings.
         static_dir: Path to the static files directory.
 
     Returns:

@@ -73,7 +73,7 @@ async def main_async() -> None:
     setup_meetup_handlers(application)
     setup_general_handlers(application)
 
-    fastapi_app = create_app(container, application.bot, settings)
+    fastapi_app = create_app(container, application.bot, settings)  # type: ignore[arg-type]
     server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
     server = _Server(server_config)
 
