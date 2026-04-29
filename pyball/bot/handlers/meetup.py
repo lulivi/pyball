@@ -34,16 +34,16 @@ from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.application.meetup.create_meetup import DuplicateMeetupError
 from pyball.application.meetup.create_teams import InvalidMeetupDateError
 from pyball.bot.auth import authorized
+from pyball.domain.meetup.models import Meetup
+from pyball.exceptions import MeetupError
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
+from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
     format_main_message,
     format_subs_message,
 )
-from pyball.domain.meetup.models import Meetup
-from pyball.exceptions import MeetupError
-from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
-from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
 from pyball.logger import log_func
 from pyball.settings import CoreSettings, Settings, TelegramSettings
