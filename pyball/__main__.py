@@ -35,6 +35,7 @@ from pyball.bot.handlers import (
     setup_player_handlers,
 )
 from pyball.infrastructure.http.app import create_app
+from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 from pyball.logger import config_logging
 from pyball.settings import load_settings
 
@@ -73,7 +74,8 @@ async def main_async() -> None:
     setup_meetup_handlers(application)
     setup_general_handlers(application)
 
-    fastapi_app = create_app(container, application.bot, settings)  # type: ignore[arg-type]
+    notifier = TelegramMatchNotifier(application.bot, settings, container)
+    fastapi_app = create_app(container, notifier)
     server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
     server = _Server(server_config)
 

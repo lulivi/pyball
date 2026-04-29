@@ -26,4 +26,5 @@ __all__ = [
     "TelegramMessageStore",
     "MessageTracking",
     "TelegramMappingStore",
+    "TelegramMatchNotifier",  # pylint: disable=undefined-all-variable
 ]
