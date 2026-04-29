@@ -275,23 +275,44 @@
         const savedState = localStorage.getItem('pyball_current_match');
         const savedTeams = localStorage.getItem('pyball_teams');
 
+        const params = new URLSearchParams(window.location.search);
+        const urlDate = params.get('date') || '';
+
         if (savedState && savedTeams) {
-            appState = JSON.parse(savedState);
-            appState.editingEvent = null;
             const teams = JSON.parse(savedTeams);
-            teamA = teams.teamA;
-            teamB = teams.teamB;
-            nameA = teams.nameA || 'A';
-            nameB = teams.nameB || 'B';
-            meetupDate = teams.meetupDate;
-            renderApp();
-            return;
+            if (!urlDate || teams.meetupDate === urlDate) {
+                appState = JSON.parse(savedState);
+                appState.editingEvent = null;
+                teamA = teams.teamA;
+                teamB = teams.teamB;
+                nameA = teams.nameA || 'A';
+                nameB = teams.nameB || 'B';
+                meetupDate = teams.meetupDate;
+                renderApp();
+                return;
+            }
+            const oldDate = formatMatchDate(teams.meetupDate);
+            const confirmed = confirm(
+                'Hay un partido del ' + oldDate + ' sin guardar.\n¿Empezar el partido de hoy y descartar el anterior?'
+            );
+            if (!confirmed) {
+                appState = JSON.parse(savedState);
+                appState.editingEvent = null;
+                teamA = teams.teamA;
+                teamB = teams.teamB;
+                nameA = teams.nameA || 'A';
+                nameB = teams.nameB || 'B';
+                meetupDate = teams.meetupDate;
+                renderApp();
+                return;
+            }
+            localStorage.removeItem('pyball_current_match');
+            localStorage.removeItem('pyball_teams');
         }
 
-        const params = new URLSearchParams(window.location.search);
         const teamAParam = params.get('teamA');
         const teamBParam = params.get('teamB');
-        meetupDate = params.get('date') || '';
+        meetupDate = urlDate;
         nameA = params.get('nameA') || 'A';
         nameB = params.get('nameB') || 'B';
 
