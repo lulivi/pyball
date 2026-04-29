@@ -34,7 +34,7 @@ from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.application.meetup.create_meetup import DuplicateMeetupError
 from pyball.application.meetup.create_teams import InvalidMeetupDateError
 from pyball.bot.auth import authorized
-from pyball.bot.formatters import (
+from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
     format_main_message,
