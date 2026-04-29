@@ -28,8 +28,8 @@ class MatchNotifier(ABC):
 
     @abstractmethod
     async def on_match_closed(self, meetup: Meetup) -> None:
-        """Called after a match is successfully closed."""
+        """Handle a closed match by notifying the platform."""
 
     @abstractmethod
     async def on_meetup_updated(self, meetup: Meetup) -> None:
-        """Called after a meetup's player list or teams are modified."""
+        """Handle a meetup update by refreshing platform messages."""
