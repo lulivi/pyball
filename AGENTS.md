@@ -14,6 +14,11 @@ subagent-driven immediately without asking the user** — treat option 1 as alre
 and proceed directly to `superpowers:subagent-driven-development`. Never present the
 choice to the user, never choose inline execution.
 
+### Finishing a Branch
+
+When `finishing-a-development-branch` presents options, always choose **option 3: Keep
+the branch as-is** — never merge, push, or discard automatically.
+
 ### Commit Messages
 
 Every commit must start with the GitLab issue reference: `GL-XX <description>`. Use
@@ -61,12 +66,11 @@ pyball/
     fuzzy_match.py #   Shared fuzzy player search utility
   infrastructure/  # Concrete implementations of domain interfaces
     persistence/   #   JsonPlayerRepository, JsonMeetupRepository (file-backed JSON)
-    telegram/      #   TelegramMappingStore (telegram_id → player UUID), TelegramMessageStore (message tracking)
+    telegram/      #   TelegramMappingStore, TelegramMessageStore, TelegramMatchNotifier, formatters
     http/app.py    #   FastAPI app — POST /api/match/finish endpoint + serves static/
   bot/             # Telegram bot wiring
     handlers/      #   general.py, player.py, meetup.py — register CommandHandlers
     callbacks.py   #   Inline button callback dispatcher (join/leave meetup)
-    formatters.py  #   MarkdownV2 message builders and keyboard factories
     auth.py        #   @authorized decorator — checks settings.telegram.admins_ids
     entrypoint.py  #   create_application() factory
   __main__.py      # Starts both the Telegram polling bot and FastAPI/uvicorn on port 8000
