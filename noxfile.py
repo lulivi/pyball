@@ -101,5 +101,6 @@ def e2e(session: nox.Session):
     session.run("uv", "sync", "--group", "dev", external=True)
     session.run_always(
         "pytest", "tests/integration/test_full_match_lifecycle.py", "-v",
+        "-m", "e2e",
         *session.posargs
     )
