@@ -188,9 +188,9 @@ class TestFullMatchLifecycle:
         bot_context.args = ["Regular_01", "regular"]
         await new_player_handler(bot_update, bot_context)
 
-        _, kwargs = bot_update.message.reply_text.call_args
-        assert kwargs.get("parse_mode") == "HTML"
-        text = bot_update.message.reply_text.call_args.args[0]
+        call = bot_update.message.reply_text.call_args
+        assert call.kwargs.get("parse_mode") == "HTML"
+        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
         assert "already exists" in text
 
     @pytest.mark.asyncio
@@ -204,7 +204,6 @@ class TestFullMatchLifecycle:
         bot_context.args = [*_DATE_ARGS, "Regular_01"]
         await add_player_handler(bot_update, bot_context)
 
-        bot_update.message.reply_text.reset_mock()
         bot_context.args = [*_DATE_ARGS, "Regular_01"]
         await add_player_handler(bot_update, bot_context)
 
