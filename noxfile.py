@@ -93,3 +93,14 @@ def format(session: nox.Session):
 
     session.run_always("black", *targets)
     session.run_always("isort", *targets)
+
+
+@nox.session(python=["3.12"])
+def e2e(session: nox.Session):
+    """Run end-to-end lifecycle tests."""
+    session.run("uv", "sync", "--group", "dev", external=True)
+    session.run_always(
+        "pytest", "tests/integration/test_full_match_lifecycle.py", "-v",
+        "-m", "e2e",
+        *session.posargs
+    )

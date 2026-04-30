@@ -2,9 +2,13 @@ from datetime import datetime, time
 
 import pytest
 
-from pyball.bot.formatters import _escape_mdv2, format_main_message, format_subs_message
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
+from pyball.infrastructure.telegram.formatters import (
+    _escape_mdv2,
+    format_main_message,
+    format_subs_message,
+)
 
 
 def test_format_main_message_header_emoji_no_result():
