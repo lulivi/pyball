@@ -173,3 +173,92 @@ class TestFullMatchLifecycle:
         bot_context.bot.send_photo.assert_called_once()
         assert "report" in captured
         assert len(captured["report"].season.players) > 0
+
+    # ------------------------------------------------------------------
+    # Edge cases: player management
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_create_duplicate_player(self, bot_update, bot_context):
+        """Creating a player with an existing name replies with HTML error."""
+        bot_context.args = ["Regular_01", "regular"]
+        await new_player_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.args = ["Regular_01", "regular"]
+        await new_player_handler(bot_update, bot_context)
+
+        _, kwargs = bot_update.message.reply_text.call_args
+        assert kwargs.get("parse_mode") == "HTML"
+        text = bot_update.message.reply_text.call_args.args[0]
+        assert "already exists" in text
+
+    @pytest.mark.asyncio
+    async def test_add_player_already_enrolled(self, bot_update, bot_context, real_container):
+        """Adding an already-enrolled player is a no-op — count stays the same."""
+        bot_context.args = ["Regular_01", "regular"]
+        await new_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+
+        bot_context.args = [*_DATE_ARGS, "Regular_01"]
+        await add_player_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.args = [*_DATE_ARGS, "Regular_01"]
+        await add_player_handler(bot_update, bot_context)
+
+        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        assert len(meetup.players) == 1
+
+    @pytest.mark.asyncio
+    async def test_remove_player_not_enrolled(self, bot_update, bot_context):
+        """Removing a player not in the meetup replies with a meetup error."""
+        bot_context.args = ["Regular_01", "regular"]
+        await new_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.args = [*_DATE_ARGS, "Regular_01"]
+        await remove_player_handler(bot_update, bot_context)
+
+        call = bot_update.message.reply_text.call_args
+        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+        assert "Meetup error" in text or "error" in text.lower()
+
+    # ------------------------------------------------------------------
+    # Edge cases: fuzzy matching
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_add_player_fuzzy_name(self, bot_update, bot_context, real_container):
+        """A one-character typo in the name is resolved by fuzzy matching."""
+        bot_context.args = ["Regular_03", "regular"]
+        await new_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.args = [*_DATE_ARGS, "Regulr_03"]  # missing 'a'
+        await add_player_handler(bot_update, bot_context)
+
+        call = bot_update.message.reply_text.call_args
+        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+        assert "Added" in text
+        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        assert len(meetup.players) == 1
+
+    @pytest.mark.asyncio
+    async def test_add_player_unknown_name(self, bot_update, bot_context):
+        """An unrecognisable name produces a Failed entry in the reply."""
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.args = [*_DATE_ARGS, "NameThatDoesNotExist"]
+        await add_player_handler(bot_update, bot_context)
+
+        call = bot_update.message.reply_text.call_args
+        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+        assert "Failed" in text
