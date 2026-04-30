@@ -123,8 +123,9 @@ class TestFullMatchLifecycle:
         await start_match_handler(bot_update, bot_context)
 
         bot_context.bot.send_photo.assert_called_once()
-        caption = bot_context.bot.send_photo.call_args.kwargs.get("caption", "")
-        assert "2026-06-15" in caption
+        call_kwargs = bot_context.bot.send_photo.call_args.kwargs
+        assert call_kwargs.get("chat_id") == 99999
+        assert "2026-06-15" in call_kwargs.get("caption", "")
 
     async def _finish_match(self, real_container):
         events = [
