@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 from pyball.application.meetup.compute_stats import ComputeStats, StatsReport
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
+from pyball.infrastructure.persistence import LegacyStats
 
 
 def make_player(name: str) -> Player:
@@ -525,3 +526,59 @@ class TestComputeStatsWinningPairs:
         meetup_repo, player_repo = make_repos(meetups, players)
         report = ComputeStats(meetup_repo, player_repo).execute()
         assert len(report.all_time.winning_pairs) == 5
+
+
+class TestComputeStatsLegacyAssistsInRankDelta:
+    """Rank delta correctly accounts for legacy assists in prev_data."""
+
+    def test_legacy_only_player_not_in_prev_meetups_gets_zero_assists_delta(self):
+        """Player with legacy assists but absent from prev_meetups gets delta=0, not None."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        charlie = make_player("Charlie")
+
+        # meetup1 (prev_meetup): Alice vs Charlie — Bob does not play
+        meetup1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [charlie.id], 1, 0)
+        # meetup2 (latest): Alice vs Bob — Bob's first tracked meetup
+        meetup2 = make_meetup(datetime(2026, 1, 17, 20, 0), [alice.id], [bob.id], 1, 0)
+
+        bob_id = str(bob.id.value)
+        legacy = MagicMock(spec=LegacyStats)
+        legacy.all_players.return_value = [bob_id]
+        legacy.get.side_effect = lambda pid: (
+            {"assists": 5, "goals": 0, "matches": 0}
+            if pid == bob_id
+            else {"assists": 0, "goals": 0, "matches": 0}
+        )
+        legacy.get_assists_since.return_value = 0
+
+        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob, charlie])
+        report = ComputeStats(meetup_repo, player_repo, legacy).execute()
+
+        bob_stats = next(p for p in report.all_time.players if p.player_name == "Bob")
+        # Bob was ranked #1 in assists in prev_data (via legacy) and is still #1 now → delta = 0
+        assert bob_stats.assists_rank_delta == 0
+
+    def test_season_prev_data_uses_season_window_for_legacy_assists(self):
+        """Season prev_data must filter legacy assists by season start, not all-time."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+
+        # Both meetups are in the 2025-2026 season (starts 2025-09-01)
+        meetup1 = make_meetup(datetime(2025, 10, 5, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup2 = make_meetup(datetime(2025, 10, 12, 20, 0), [alice.id], [bob.id], 1, 0)
+
+        alice_id = str(alice.id.value)
+        legacy = MagicMock(spec=LegacyStats)
+        legacy.all_players.return_value = [alice_id]
+        # Alice has 0 all-time (pre-season) legacy assists but 5 season legacy assists
+        legacy.get.side_effect = lambda pid: {"assists": 0, "goals": 0, "matches": 0}
+        legacy.get_assists_since.side_effect = lambda pid, since: (5 if pid == alice_id else 0)
+
+        meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo, legacy).execute()
+
+        alice_stats = next(p for p in report.season.players if p.player_name == "Alice")
+        # Alice had 5 season legacy assists before the latest meetup (rank #1)
+        # and still has 5 after — rank unchanged → delta must be 0
+        assert alice_stats.assists_rank_delta == 0
