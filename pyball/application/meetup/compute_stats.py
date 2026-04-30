@@ -172,6 +172,16 @@ def _aggregate(
             else:
                 legacy = legacy_stats.get(pid)
                 data["assists"] += legacy.get("assists", 0)
+        for pid in legacy_stats.all_players():
+            if pid not in player_data:
+                leg_assists = (
+                    legacy_stats.get_assists_since(pid, from_date)
+                    if from_date is not None
+                    else legacy_stats.get(pid).get("assists", 0)
+                )
+                if leg_assists > 0:
+                    player_data[pid] = _empty_counters()
+                    player_data[pid]["assists"] = leg_assists
 
     return player_data, chemistry_counts, winning_counts
 
@@ -205,7 +215,7 @@ def _build_scoped_report(
     stats_list.sort(key=lambda p: (-p.points, p.player_name))
 
     if prev_meetups is not None:
-        prev_data, _, _ = _aggregate(prev_meetups, legacy_stats)
+        prev_data, _, _ = _aggregate(prev_meetups, legacy_stats, from_date)
 
         prev_pts_ranked = sorted(
             [pid for pid, d in prev_data.items() if _points_from_counters(d) > 0],
