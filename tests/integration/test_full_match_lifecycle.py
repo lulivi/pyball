@@ -6,11 +6,6 @@ from datetime import date
 
 import pytest
 
-from pyball.application.meetup.finish_match import (
-    FinishMatch,
-    MeetupAlreadyClosedError,
-)
-from pyball.application.meetup.start_match import MeetupHasNoTeamsError
 from pyball.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
@@ -24,12 +19,11 @@ from pyball.bot.handlers.player import new_player_handler
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 
 _DATE_ARGS = ["2026/06/15", "20:00"]
-_DATE_STR = "2026/06/15 20:00"
 _ISO_DATE = "2026-06-15T20:00"
 _MATCH_DATE = date(2026, 6, 15)
 
-_REGULARS = [f"Regular_{i:02d}" for i in range(1, 11)]   # Regular_01..Regular_10
-_SUBS = [f"Sub_{i:02d}" for i in range(1, 5)]            # Sub_01..Sub_04
+_REGULARS = [f"Regular_{i:02d}" for i in range(1, 11)]  # Regular_01..Regular_10
+_SUBS = [f"Sub_{i:02d}" for i in range(1, 5)]  # Sub_01..Sub_04
 
 
 @pytest.mark.e2e
@@ -162,11 +156,11 @@ class TestFullMatchLifecycle:
         assert meetup.result.score_b == 1
         assert len(meetup.result.events) == 3
 
-    async def _verify_stats(self, bot_update, bot_context, real_container, monkeypatch):
+    async def _verify_stats(self, bot_update, bot_context, _real_container, monkeypatch):
         fake_png = b"\x89PNG\r\n\x1a\n"
         captured = {}
 
-        async def fake_render(_self, report, scope="season"):
+        async def fake_render(_self, report, scope="season"):  # pylint: disable=unused-argument
             captured["report"] = report
             return fake_png
 
