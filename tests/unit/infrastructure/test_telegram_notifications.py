@@ -46,6 +46,11 @@ async def test_on_meetup_updated_does_nothing_when_no_tracked_messages(tmp_path)
     bot.edit_message_text.assert_not_called()
 
 
+def _discard_task(coro):
+    """Close the coroutine so it is never scheduled and emits no warnings."""
+    coro.close()
+
+
 @pytest.mark.asyncio
 async def test_on_match_closed_edits_without_keyboard(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
@@ -53,7 +58,10 @@ async def test_on_match_closed_edits_without_keyboard(tmp_path):
     store = TelegramMessageStore(tmp_path / "messages.json")
     store.save_message("2026-04-30T20:00", "regular", MessageTracking(chat_id=-100, message_id=42))
 
-    with patch("pyball.infrastructure.telegram.notifications.asyncio.create_task"):
+    with patch(
+        "pyball.infrastructure.telegram.notifications.asyncio.create_task",
+        side_effect=_discard_task,
+    ):
         await notifier.on_match_closed(meetup)
 
     bot.edit_message_text.assert_called_once()
@@ -71,7 +79,10 @@ async def test_on_match_closed_deletes_tracking_entries(tmp_path):
         "2026-04-30T20:00", "substitute", MessageTracking(chat_id=-200, message_id=99)
     )
 
-    with patch("pyball.infrastructure.telegram.notifications.asyncio.create_task"):
+    with patch(
+        "pyball.infrastructure.telegram.notifications.asyncio.create_task",
+        side_effect=_discard_task,
+    ):
         await notifier.on_match_closed(meetup)
 
     assert store.get_message("2026-04-30T20:00", "regular") is None
