@@ -6,6 +6,7 @@ from datetime import date
 
 import pytest
 
+from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
 from pyball.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
@@ -261,3 +262,90 @@ class TestFullMatchLifecycle:
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
         assert "Failed" in text
+
+    # ------------------------------------------------------------------
+    # Edge cases: meetup lifecycle errors
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_create_duplicate_meetup(self, bot_update, bot_context):
+        """Creating a meetup on an already-taken date replies with a duplicate error."""
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+
+        call = bot_update.message.reply_text.call_args
+        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+        assert "already exists" in text
+
+    @pytest.mark.asyncio
+    async def test_start_match_without_teams(self, bot_update, bot_context):
+        """start_match_handler without teams replies with a no-teams error."""
+        bot_context.args = ["Regular_01", "regular"]
+        await new_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+        bot_context.args = [*_DATE_ARGS, "Regular_01"]
+        await add_player_handler(bot_update, bot_context)
+
+        bot_update.message.reply_text.reset_mock()
+        bot_context.bot.send_photo.reset_mock()
+        bot_context.args = _DATE_ARGS
+        await start_match_handler(bot_update, bot_context)
+
+        bot_context.bot.send_photo.assert_not_called()
+        call = bot_update.message.reply_text.call_args
+        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+        assert "no teams" in text.lower() or "create_teams" in text.lower()
+
+    @pytest.mark.asyncio
+    async def test_finish_already_closed_match(self, bot_update, bot_context, real_container):
+        """Calling finish_match twice on the same meetup raises MeetupAlreadyClosedError."""
+        for i in range(1, 5):
+            bot_context.args = [f"Player_{i:02d}", "regular"]
+            await new_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+        for i in range(1, 5):
+            bot_context.args = [*_DATE_ARGS, f"Player_{i:02d}"]
+            await add_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await create_teams_handler(bot_update, bot_context)
+
+        events = [
+            {"scorer": "Player_01", "assistant": None, "team": "A", "timestamp": "20:30:00"},
+        ]
+        final_score = {"A": 1, "B": 0}
+        real_container.finish_match().execute(_ISO_DATE, events, final_score)
+
+        with pytest.raises(MeetupAlreadyClosedError):
+            real_container.finish_match().execute(_ISO_DATE, events, final_score)
+
+    @pytest.mark.asyncio
+    async def test_stats_no_closed_matches(self, bot_update, bot_context, monkeypatch):
+        """stats_handler with no closed matches still sends a photo (empty report)."""
+        bot_context.args = ["Regular_01", "regular"]
+        await new_player_handler(bot_update, bot_context)
+        bot_context.args = _DATE_ARGS
+        await new_meetup_handler(bot_update, bot_context)
+        bot_context.args = [*_DATE_ARGS, "Regular_01"]
+        await add_player_handler(bot_update, bot_context)
+
+        fake_png = b"\x89PNG\r\n\x1a\n"
+        captured = {}
+
+        async def fake_render(_self, report, scope="season"):  # pylint: disable=unused-argument
+            captured["report"] = report
+            return fake_png
+
+        monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
+        bot_context.bot.send_photo.reset_mock()
+        bot_context.args = ["temporada"]
+        await stats_handler(bot_update, bot_context)
+
+        bot_context.bot.send_photo.assert_called_once()
+        assert "report" in captured
+        assert len(captured["report"].season.players) == 0
