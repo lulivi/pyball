@@ -26,12 +26,12 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
-from pyball.bot.formatters import parse_callback_data
-from pyball.bot.handlers.meetup import refresh_callup_messages
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
+from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
+from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
 
 logger = logging.getLogger(__name__)

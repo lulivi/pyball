@@ -1,4 +1,4 @@
-"""Shared fixtures for bot integration tests."""
+"""Shared fixtures for integration tests."""
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -41,6 +41,8 @@ def real_container(tmp_data, monkeypatch):
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
     # pylint: disable-next=protected-access
     container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups")
+    # pylint: disable-next=protected-access
+    container._data_dir = tmp_data  # ensures legacy_stats resolves to tmp_data path
     return container
 
 

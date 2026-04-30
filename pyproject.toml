@@ -58,3 +58,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
+testpaths = ["tests"]
+markers = [
+    "e2e: end-to-end lifecycle tests, excluded from default suite",
+]
+addopts = "-m 'not e2e'"

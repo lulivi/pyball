@@ -14,6 +14,11 @@ subagent-driven immediately without asking the user** — treat option 1 as alre
 and proceed directly to `superpowers:subagent-driven-development`. Never present the
 choice to the user, never choose inline execution.
 
+### Finishing a Branch
+
+When `finishing-a-development-branch` presents options, always choose **option 3: Keep
+the branch as-is** — never merge, push, or discard automatically.
+
 ### Commit Messages
 
 Every commit must start with the GitLab issue reference: `GL-XX <description>`. Use
@@ -51,29 +56,37 @@ Clean architecture with strict layer boundaries:
 
 ```
 pyball/
-  domain/          # Core models and repository interfaces (no dependencies on other layers)
-    player/        #   Player entity, PlayerId value object, errors, repository ABC
-    meetup/        #   Meetup entity, Team/MatchResult/GoalEvent value objects, MeetupId, errors
-  application/     # Use cases — one file per action, injected with repository interfaces
-    player/        #   create_player, rename_player, delete_player, change_group
-    meetup/        #   create_meetup, add_player, remove_player, create_teams, start_match, finish_match
-    container.py   #   Simple DI container — wires repositories to use cases
-    fuzzy_match.py #   Shared fuzzy player search utility
-  infrastructure/  # Concrete implementations of domain interfaces
-    persistence/   #   JsonPlayerRepository, JsonMeetupRepository (file-backed JSON)
-    telegram/      #   TelegramMappingStore (telegram_id → player UUID), TelegramMessageStore (message tracking)
-    http/app.py    #   FastAPI app — POST /api/match/finish endpoint + serves static/
-  bot/             # Telegram bot wiring
-    handlers/      #   general.py, player.py, meetup.py — register CommandHandlers
-    callbacks.py   #   Inline button callback dispatcher (join/leave meetup)
-    formatters.py  #   MarkdownV2 message builders and keyboard factories
-    auth.py        #   @authorized decorator — checks settings.telegram.admins_ids
-    entrypoint.py  #   create_application() factory
-  __main__.py      # Starts both the Telegram polling bot and FastAPI/uvicorn on port 8000
-  settings.py      # Loads config.toml + PYBALL_<SECTION>_<KEY> env var overrides
+  domain/            # Core models and repository interfaces (no dependencies on other layers)
+    player/          #   Player entity, PlayerId value object, errors, repository ABC
+    meetup/          #   Meetup entity, Team/MatchResult/GoalEvent value objects, MeetupId, errors
+  application/       # Use cases — one file per action, injected with repository interfaces
+    player/          #   create_player, rename_player, delete_player, change_group
+    meetup/          #   create_meetup, add_player, remove_player, create_teams, start_match,
+                     #   finish_match, compute_stats (StatsReport), balance (team optimisation)
+    notifier.py      #   MatchNotifier ABC — port for post-match / meetup-update notifications
+    container.py     #   Simple DI container — wires repositories to use cases
+    fuzzy_match.py   #   Shared fuzzy player search utility
+  infrastructure/    # Concrete implementations of domain interfaces
+    persistence/     #   JsonPlayerRepository, JsonMeetupRepository (file-backed JSON),
+                     #   LegacyStats (historical assist data loader)
+    images/          #   StatsHtmlRenderer — WeasyPrint + Jinja2 HTML-to-PNG stats image
+    telegram/        #   TelegramMappingStore (telegram_id → player UUID)
+                     #   TelegramMessageStore + MessageTracking (sent-message tracking)
+                     #   TelegramMatchNotifier (MatchNotifier implementation)
+                     #   formatters.py (MarkdownV2 builders, keyboard factories, callback codec)
+                     #   notifications.py (refresh_callup_messages, _post_match_stats)
+    http/app.py      #   FastAPI app — POST /api/match/finish endpoint + serves static/
+  bot/               # Telegram bot wiring (no Telegram SDK imports in other layers)
+    handlers/        #   general.py (/help), player.py (player CRUD + link/unlink),
+                     #   meetup.py (meetup lifecycle, stats, QR, search)
+    callbacks.py     #   Inline button callback dispatcher (join/leave meetup)
+    auth.py          #   @authorized decorator — checks settings.telegram.admins_ids
+    entrypoint.py    #   create_application() factory
+  __main__.py        # Starts the Telegram polling bot and FastAPI/uvicorn on port 8000
+  settings.py        # Loads config.toml + PYBALL_<SECTION>_<KEY> env var overrides
 ```
 
-**Data flow:** `__main__.py` builds a `Container`, attaches it to `bot_data`, handlers pull use cases from it, use cases interact only with domain repository interfaces, infrastructure implementations handle I/O.
+**Data flow:** `__main__.py` builds a `Container` and a `TelegramMatchNotifier`, attaches the container to `bot_data`, handlers pull use cases from it, use cases interact only with domain repository interfaces, infrastructure implementations handle I/O. The `notifier` is injected into `create_app` so the HTTP layer can call `notifier.on_match_closed()` without any knowledge of Telegram.
 
 **Two concurrent services** run in a single asyncio loop: the Telegram polling bot and the FastAPI HTTP server (port 8000). The HTTP API is consumed by the `static/index.html` match-tracking UI.
 
