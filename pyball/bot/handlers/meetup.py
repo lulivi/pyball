@@ -97,17 +97,17 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     args = context.args
+    settings: Settings = context.bot_data["settings"]
+    telegram_settings: TelegramSettings = settings.telegram
     if not args or len(args) < 2:
         await message.reply_text(
-            text="Usage: `/start_match` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("start_match", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
     date_str = f"{args[0]} {args[1]}"
     container: Container = context.bot_data["container"]
-    settings: Settings = context.bot_data["settings"]
-    telegram_settings: TelegramSettings = settings.telegram
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
@@ -124,8 +124,11 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             except telegram.error.Forbidden:
                 logger.error("Could not send message to '%s' admin", admin)
 
-    except ValueError as error:
-        await message.reply_text(str(error))
+    except ValueError:
+        await message.reply_text(
+            _date_usage_msg("start_match", settings.pyball.display_date_format),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except MeetupError as error:
         logger.error("Meetup error starting match: %s", error)
         await message.reply_text(str(error))
@@ -142,20 +145,20 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if message is None:
         return
 
+    settings: Settings = context.bot_data["settings"]
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            text="Usage: `/new_meetup` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("new_meetup", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
-    settings: Settings = context.bot_data["settings"]
     try:
         date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
     except ValueError:
         await message.reply_text(
-            r"Invalid date format\. Use: `/new_meetup` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("new_meetup", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -293,26 +296,25 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     container: Container = context.bot_data["container"]
+    settings = context.bot_data["settings"]
+    _usage = _date_usage_msg(
+        "add_player",
+        settings.pyball.display_date_format,
+        r"`<name1>`, `<name2>`, \.\.\.",
+    )
 
     args = context.args
     if args is None or len(args) < 3:
-        await message.reply_text(
-            r"Usage: `/add_player` `YYYY-MM-DD HH:MM` `<name1>`, `<name2>`, \.\.\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
     date_str = f"{args[0]} {args[1]}"
     names = [n.strip() for n in " ".join(args[2:]).split(",") if n.strip()]
 
     if not names:
-        await message.reply_text(
-            r"Usage: `/add_player` `YYYY-MM-DD HH:MM` `<name1>`, `<name2>`, \.\.\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
-    settings = context.bot_data["settings"]
     added, failed = [], []
     meetup = None
     use_case = container.add_player_to_meetup()
@@ -320,11 +322,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
     except ValueError:
-        msg = (
-            r"Invalid date format\. Use: `/add_player` `YYYY-MM-DD HH:MM` "
-            r"`<name1>`, `<name2>`, \.\.\."
-        )
-        await message.reply_text(msg, parse_mode=ParseMode.MARKDOWN_V2)
+        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
     for name in names:
@@ -360,26 +358,28 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     container: Container = context.bot_data["container"]
+    settings = context.bot_data["settings"]
+    _usage = _date_usage_msg(
+        "remove_player",
+        settings.pyball.display_date_format,
+        r"`<player_name>`",
+    )
 
     args = context.args
     if args is None or len(args) < 3:
-        await message.reply_text(
-            r"Usage: `/remove_player` `YYYY-MM-DD HH:MM` `<player_name>`",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
     date_str = f"{args[0]} {args[1]}"
     player_name = " ".join(args[2:])
 
-    settings = context.bot_data["settings"]
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
         meetup = container.remove_player_from_meetup().execute(meetup_date, player_name)
         await refresh_callup_messages(context.bot, settings, container, meetup)
         await message.reply_text("Player removed from meetup!")
-    except ValueError as error:
-        await message.reply_text(str(error))
+    except ValueError:
+        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
     except MeetupError as error:
         logger.error("Meetup error removing player: %s", error)
         await message.reply_text("Meetup error. Please try again.")
@@ -400,17 +400,18 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     container: Container = context.bot_data["container"]
+    settings = context.bot_data["settings"]
 
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            r"Usage: `/create_teams` `YYYY-MM-DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+            _date_usage_msg("create_teams", settings.pyball.display_date_format),
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
     date_str = f"{args[0]} {args[1]}"
 
-    settings = context.bot_data["settings"]
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
         meetup = container.create_teams().execute(meetup_date)
@@ -424,8 +425,11 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
         await message.reply_text("Equipos creados ✅")
-    except ValueError as error:
-        await message.reply_text(str(error))
+    except ValueError:
+        await message.reply_text(
+            _date_usage_msg("create_teams", settings.pyball.display_date_format),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except MeetupError as error:
         logger.error("Meetup error creating teams: %s", error)
         await message.reply_text("Meetup error. Please try again.")
@@ -474,21 +478,21 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     container: Container = context.bot_data["container"]
+    settings: Settings = context.bot_data["settings"]
 
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            text=r"Usage: `/show_meetup` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("show_meetup", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
-    settings: Settings = context.bot_data["settings"]
     try:
         meetup_date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
     except ValueError:
         await message.reply_text(
-            text=r"Invalid date format\. Use: `/show_meetup` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("show_meetup", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -522,7 +526,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            text="Usage: `/search` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("search", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -531,7 +535,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         meetup_date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
     except ValueError:
         await message.reply_text(
-            text=r"Invalid date\. Use: `/search` `YYYY-MM-DD HH:MM`",
+            _date_usage_msg("search", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
