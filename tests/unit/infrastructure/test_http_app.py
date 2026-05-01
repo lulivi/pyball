@@ -5,8 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.infrastructure.http.app import create_app
 
 
