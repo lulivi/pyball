@@ -40,16 +40,11 @@ class RemovePlayerFromMeetup:
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
 
-    def execute(self, date_str: str, player_name: str) -> Meetup:
-        """Remove a player from a meetup by date string and player name."""
-        try:
-            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
-        except ValueError as exc:
-            raise ValueError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
-
+    def execute(self, meetup_date: datetime, player_name: str) -> Meetup:
+        """Remove a player from a meetup by datetime and player name."""
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
-            raise MeetupNotFoundError(date_str)
+            raise MeetupNotFoundError(str(meetup_date))
 
         all_players = self.player_repository.find_all()
         match = fuzzy_match_player(player_name, all_players)

@@ -30,7 +30,6 @@ from pyball.application.meetup.balance import (
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.repository import MeetupRepository
-from pyball.exceptions import MeetupError
 from pyball.infrastructure.persistence import LegacyStats
 
 
@@ -53,16 +52,11 @@ class CreateTeams:
         self.meetup_repository = meetup_repository
         self.legacy_stats = legacy_stats
 
-    def execute(self, date_str: str) -> Meetup:
-        """Create balanced teams for a meetup by date string."""
-        try:
-            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
-        except ValueError as exc:
-            raise InvalidMeetupDateError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
-
+    def execute(self, meetup_date: datetime) -> Meetup:
+        """Create balanced teams for a meetup by datetime."""
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
-            raise MeetupNotFoundError(date_str)
+            raise MeetupNotFoundError(str(meetup_date))
 
         all_meetups = self.meetup_repository.find_all()
         finished = [m for m in all_meetups if m.result is not None]
@@ -85,7 +79,3 @@ class CreateTeams:
         meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
         self.meetup_repository.save(meetup)
         return meetup
-
-
-class InvalidMeetupDateError(ValueError, MeetupError):
-    """Raised when meetup date format is invalid."""

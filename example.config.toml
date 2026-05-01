@@ -31,6 +31,10 @@ locale = "es_ES.UTF-8"
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
+# Optional: Display date format for Telegram messages and bot command parsing
+# Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
+display_date_format = "%Y-%m-%d %H:%M"
+
 [pyball.telegram]
 # Required: Telegram bot token
 # Override with PYBALL_TELEGRAM_BOT_TOKEN

@@ -48,11 +48,11 @@ class StartMatch:
         self.base_url = base_url
         self.team_display_names = team_display_names
 
-    def execute(self, date_str: str) -> str:
+    def execute(self, meetup_date: datetime) -> str:
         """Generate the match tracking URL for the given meetup date.
 
         Args:
-            date_str: Meetup date in 'YYYY/MM/DD HH:MM' format.
+            meetup_date: Meetup datetime.
 
         Returns:
             URL string with encoded team names and date.
@@ -61,14 +61,9 @@ class StartMatch:
             MeetupNotFoundError: If no meetup exists on that date.
             MeetupHasNoTeamsError: If the meetup has no teams yet.
         """
-        try:
-            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
-        except ValueError as exc:
-            raise ValueError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
-
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if meetup is None:
-            raise MeetupNotFoundError(date_str)
+            raise MeetupNotFoundError(str(meetup_date))
 
         if meetup.teams is None:
             raise MeetupHasNoTeamsError("Meetup has no teams. Run /create_teams first.")

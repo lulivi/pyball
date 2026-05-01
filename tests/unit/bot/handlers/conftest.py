@@ -25,5 +25,6 @@ def mock_context():
     context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
     settings = MagicMock()
     settings.telegram.is_authorized.return_value = True
+    settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
     context.bot_data = {"settings": settings}
     return context

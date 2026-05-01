@@ -93,15 +93,20 @@ async def refresh_callup_messages(
     player_names = {str(p.id.value): p.name for p in all_players}
     player_groups = {str(p.id.value): p.group for p in all_players}
 
-    date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
     store = TelegramMessageStore(settings.paths.bot_messages_file)
-    logger.info("refresh_callup_messages: date_key=%s, meetup.result=%s", date_key, meetup.result)
+    logger.info(
+        "refresh_callup_messages: meetup.date=%s, meetup.result=%s", meetup.date, meetup.result
+    )
+    date_fmt = settings.pyball.display_date_format
 
-    regular_tracking = store.get_message(date_key, "regular")
+    regular_tracking = store.get_message(meetup.date, "regular")
     logger.info("refresh_callup_messages: regular_tracking=%s", regular_tracking)
     if regular_tracking:
         text = format_main_message(
-            meetup, player_names, team_display_names=settings.pyball.team_display_names
+            meetup,
+            player_names,
+            team_display_names=settings.pyball.team_display_names,
+            date_fmt=date_fmt,
         )
         kb = build_main_keyboard(meetup.date) if include_keyboard else None
         try:
@@ -117,7 +122,7 @@ async def refresh_callup_messages(
         except Exception as error:  # pylint: disable=broad-except
             logger.error("Error editing regulars message: %s", error)
 
-    sub_tracking = store.get_message(date_key, "substitute")
+    sub_tracking = store.get_message(meetup.date, "substitute")
     logger.info("refresh_callup_messages: sub_tracking=%s", sub_tracking)
     if sub_tracking:
         subs_text = format_subs_message(
@@ -125,6 +130,7 @@ async def refresh_callup_messages(
             player_names,
             player_groups,
             team_display_names=settings.pyball.team_display_names,
+            date_fmt=date_fmt,
         )
         kb = build_subs_keyboard(meetup.date) if include_keyboard else None
         try:
@@ -164,8 +170,7 @@ class TelegramMatchNotifier(MatchNotifier):
         await refresh_callup_messages(
             self._bot, self._settings, self._container, meetup, include_keyboard=False
         )
-        date_key = meetup.date.strftime("%Y-%m-%dT%H:%M")
         message_store = TelegramMessageStore(self._settings.paths.bot_messages_file)
-        message_store.delete_message(date_key, "regular")
-        message_store.delete_message(date_key, "substitute")
+        message_store.delete_message(meetup.date, "regular")
+        message_store.delete_message(meetup.date, "substitute")
         asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))

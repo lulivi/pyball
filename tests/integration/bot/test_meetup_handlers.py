@@ -29,7 +29,7 @@ from pyball.infrastructure.telegram import TelegramMessageStore
 @pytest.mark.asyncio
 async def test_new_meetup_persists(bot_update, bot_context):
     """Create a meetup and verify it exists in the real repo."""
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
 
     await new_meetup_handler(bot_update, bot_context)
 
@@ -42,7 +42,7 @@ async def test_new_meetup_persists(bot_update, bot_context):
 @pytest.mark.asyncio
 async def test_new_meetup_duplicate_replies_error(bot_update, bot_context):
     """Reply with duplicate error when a meetup already exists on that date."""
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
     await new_meetup_handler(bot_update, bot_context)
 
     bot_update.message.reply_text.reset_mock()
@@ -62,7 +62,7 @@ async def test_add_player_updates_meetup(bot_update, bot_context):
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00", "Luis"]
+    bot_context.args = ["2026-04-25", "20:00", "Luis"]
 
     await add_player_handler(bot_update, bot_context)
 
@@ -80,7 +80,7 @@ async def test_remove_player_updates_meetup(bot_update, bot_context):
     meetup.add_player(player.id)
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00", "Luis"]
+    bot_context.args = ["2026-04-25", "20:00", "Luis"]
 
     await remove_player_handler(bot_update, bot_context)
 
@@ -100,7 +100,7 @@ async def test_create_teams_persists_teams(bot_update, bot_context):
         meetup.add_player(player.id)
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
 
     await create_teams_handler(bot_update, bot_context)
 
@@ -120,7 +120,7 @@ async def test_list_meetups_shows_date(bot_update, bot_context):
     await list_meetups_handler(bot_update, bot_context)
 
     (text, *_), _ = bot_update.message.reply_text.call_args
-    assert "2026/04/25" in text
+    assert "2026-04-25" in text
 
 
 @pytest.mark.asyncio
@@ -133,7 +133,7 @@ async def test_show_meetup_includes_player_name(bot_update, bot_context):
     meetup.add_player(player.id)
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
 
     await show_meetup_handler(bot_update, bot_context)
 
@@ -162,7 +162,7 @@ async def test_start_match_forbidden_admin_does_not_raise(bot_update, bot_contex
     bot_context.bot.send_photo = AsyncMock(
         side_effect=telegram.error.Forbidden("bot was blocked by the user")
     )
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
 
     await start_match_handler(bot_update, bot_context)
 
@@ -190,14 +190,14 @@ async def test_search_handler_sends_and_stores(bot_update, bot_context):
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
 
     await search_handler(bot_update, bot_context)
 
     bot_context.bot.send_message.assert_called_once()
     settings = bot_context.bot_data["settings"]
     store = TelegramMessageStore(settings.paths.bot_messages_file)
-    tracking = store.get_message("2026-04-25T20:00", "substitute")
+    tracking = store.get_message(datetime(2026, 4, 25, 20, 0), "substitute")
     assert tracking is not None
     assert tracking.message_id == 42
 
@@ -211,7 +211,7 @@ async def test_add_player_partial_failure(bot_update, bot_context):
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00", "Luis,", "Ghost"]
+    bot_context.args = ["2026-04-25", "20:00", "Luis,", "Ghost"]
 
     await add_player_handler(bot_update, bot_context)
 
@@ -227,7 +227,7 @@ async def test_show_meetup_no_players(bot_update, bot_context):
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     container.meetup_repository.save(meetup)
 
-    bot_context.args = ["2026/04/25", "20:00"]
+    bot_context.args = ["2026-04-25", "20:00"]
 
     await show_meetup_handler(bot_update, bot_context)
 

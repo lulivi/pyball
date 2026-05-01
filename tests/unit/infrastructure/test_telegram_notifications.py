@@ -15,6 +15,7 @@ def _make_notifier(tmp_path):
     settings = MagicMock()
     settings.paths.bot_messages_file = tmp_path / "messages.json"
     settings.pyball.team_display_names = ("A", "B")
+    settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     return TelegramMatchNotifier(bot, settings, container), bot
@@ -25,7 +26,9 @@ async def test_on_meetup_updated_edits_tracked_regular_message(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
     store = TelegramMessageStore(tmp_path / "messages.json")
-    store.save_message("2026-04-30T20:00", "regular", MessageTracking(chat_id=-100, message_id=42))
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
 
     await notifier.on_meetup_updated(meetup)
 
@@ -56,7 +59,9 @@ async def test_on_match_closed_edits_without_keyboard(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
     store = TelegramMessageStore(tmp_path / "messages.json")
-    store.save_message("2026-04-30T20:00", "regular", MessageTracking(chat_id=-100, message_id=42))
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
 
     with patch(
         "pyball.infrastructure.telegram.notifications.asyncio.create_task",
@@ -74,9 +79,11 @@ async def test_on_match_closed_deletes_tracking_entries(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
     store = TelegramMessageStore(tmp_path / "messages.json")
-    store.save_message("2026-04-30T20:00", "regular", MessageTracking(chat_id=-100, message_id=42))
     store.save_message(
-        "2026-04-30T20:00", "substitute", MessageTracking(chat_id=-200, message_id=99)
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "substitute", MessageTracking(chat_id=-200, message_id=99)
     )
 
     with patch(
@@ -85,5 +92,5 @@ async def test_on_match_closed_deletes_tracking_entries(tmp_path):
     ):
         await notifier.on_match_closed(meetup)
 
-    assert store.get_message("2026-04-30T20:00", "regular") is None
-    assert store.get_message("2026-04-30T20:00", "substitute") is None
+    assert store.get_message(datetime(2026, 4, 30, 20, 0), "regular") is None
+    assert store.get_message(datetime(2026, 4, 30, 20, 0), "substitute") is None

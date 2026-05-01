@@ -56,6 +56,16 @@ class TestLocaleSettings:
         settings = CoreSettings(locale="es_ES.UTF-8")
         assert settings.locale == "es_ES.UTF-8"
 
+    def test_default_display_date_format(self):
+        """Default display_date_format is %Y-%m-%d %H:%M."""
+        settings = CoreSettings()
+        assert settings.display_date_format == "%Y-%m-%d %H:%M"
+
+    def test_custom_display_date_format(self):
+        """A custom display_date_format value is stored as-is."""
+        settings = CoreSettings(display_date_format="%d/%b/%Y %H:%M")
+        assert settings.display_date_format == "%d/%b/%Y %H:%M"
+
 
 class TestLoadSettings:
     """Tests for load_settings reading config files and env-var overrides."""
@@ -274,3 +284,25 @@ chat_id = -1001234567891
         settings = load_settings(config_file)
 
         assert settings.pyball.team_display_names == ("Rojos", "Azules")
+
+    def test_display_date_format_loaded_from_config(self, tmp_path):
+        """display_date_format is read from config when set."""
+        config_content = """
+[pyball.core]
+location = "Test Park"
+display_date_format = "%d/%m/%Y %H:%M"
+
+[pyball.telegram]
+bot_token = "test_token"
+admins_ids = [111]
+
+[pyball.telegram.regulars]
+chat_id = -1001234567890
+
+[pyball.telegram.substitutes]
+chat_id = -1001234567891
+"""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(config_content)
+        settings = load_settings(config_file)
+        assert settings.pyball.display_date_format == "%d/%m/%Y %H:%M"

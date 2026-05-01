@@ -60,6 +60,7 @@ def bot_settings(tmp_data):
     settings.pyball.location = "Test Field"
     settings.pyball.default_week_day = "wednesday"
     settings.pyball.default_hour = "20:00"
+    settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
     return settings
 
 

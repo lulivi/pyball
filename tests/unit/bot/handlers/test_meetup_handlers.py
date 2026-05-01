@@ -1,5 +1,6 @@
 """Tests for meetup bot handlers."""
 
+from datetime import datetime
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -7,6 +8,7 @@ import pytest
 from telegram.constants import ParseMode
 
 from pyball.bot.handlers.meetup import (
+    _date_usage_msg,
     create_teams_handler,
     generate_qr_bytes,
     new_meetup_handler,
@@ -28,9 +30,12 @@ async def test_new_meetup_handler_no_args(mock_update, mock_context):
 
     await new_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        text="Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
-    )
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert r"Formato de fecha no válido\." in text
+    assert "Formato: `%Y-%m-%d %H:%M`" in text
+    assert "Ejemplo: `/new_meetup`" in text
+    assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
 @pytest.mark.asyncio
@@ -40,7 +45,10 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
     await new_meetup_handler(mock_update, mock_context)
 
     call = mock_update.message.reply_text.call_args
-    assert call.args[0] == r"Invalid date format\. Use: `/new_meetup` `YYYY/MM/DD HH:MM`"
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert r"Formato de fecha no válido\." in text
+    assert "Formato: `%Y-%m-%d %H:%M`" in text
+    assert "Ejemplo: `/new_meetup`" in text
     assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
@@ -51,9 +59,12 @@ async def test_show_meetup_handler_no_args(mock_update, mock_context):
 
     await show_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        text=r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
-    )
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert r"Formato de fecha no válido\." in text
+    assert "Formato: `%Y-%m-%d %H:%M`" in text
+    assert "Ejemplo: `/show_meetup`" in text
+    assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
 @pytest.mark.asyncio
@@ -64,13 +75,15 @@ async def test_show_meetup_handler_invalid_date(mock_update, mock_context):
     await show_meetup_handler(mock_update, mock_context)
 
     call = mock_update.message.reply_text.call_args
-    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-    assert "Invalid date format" in text
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert r"Formato de fecha no válido\." in text
+    assert "Ejemplo: `/show_meetup`" in text
+    assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
 @pytest.mark.asyncio
 async def test_show_meetup_handler_not_found(mock_update, mock_context):
-    mock_context.args = ["2026/04/25", "20:00"]
+    mock_context.args = ["2026-04-25", "20:00"]
 
     container = MagicMock()
     container.meetup_repository.find_by_date.return_value = None
@@ -89,7 +102,7 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
     container = MagicMock()
     container.start_match.return_value.execute.return_value = url
     mock_context.bot_data["container"] = container
-    mock_context.args = ["2026/04/19", "20:00"]
+    mock_context.args = ["2026-04-19", "20:00"]
     mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
     mock_context.bot = AsyncMock()
     mock_context.bot.send_photo = AsyncMock()
@@ -115,7 +128,7 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
     container = MagicMock()
     container.start_match.return_value.execute.return_value = url
     mock_context.bot_data["container"] = container
-    mock_context.args = ["2026/04/19", "20:00"]
+    mock_context.args = ["2026-04-19", "20:00"]
     mock_context.bot_data["settings"].telegram.admins_ids = admin_ids
     mock_context.bot = AsyncMock()
     mock_context.bot.send_photo = AsyncMock()
@@ -135,7 +148,7 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
 
 @pytest.mark.asyncio
 async def test_create_teams_handler_no_teams(mock_update, mock_context):
-    mock_context.args = ["2026/04/25", "20:00"]
+    mock_context.args = ["2026-04-25", "20:00"]
 
     container = MagicMock()
     mock_meetup = MagicMock()
@@ -146,3 +159,33 @@ async def test_create_teams_handler_no_teams(mock_update, mock_context):
     await create_teams_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with("No teams created.")
+
+
+def test_date_usage_msg_no_suffix():
+    fmt = "%Y-%m-%d %H:%M"
+    fixed = datetime(2026, 5, 1, 14, 30)
+    with patch("pyball.bot.handlers.meetup.datetime") as mock_dt:
+        mock_dt.now.return_value = fixed
+        msg = _date_usage_msg("new_meetup", fmt)
+    assert msg == (
+        r"Formato de fecha no válido\."
+        "\n"
+        "Formato: `%Y-%m-%d %H:%M`"
+        "\n"
+        r"Ejemplo: `/new_meetup` `2026-05-01 14:30`"
+    )
+
+
+def test_date_usage_msg_with_suffix():
+    fmt = "%Y-%m-%d %H:%M"
+    fixed = datetime(2026, 5, 1, 14, 30)
+    with patch("pyball.bot.handlers.meetup.datetime") as mock_dt:
+        mock_dt.now.return_value = fixed
+        msg = _date_usage_msg("add_player", fmt, r"`<name1>`, `<name2>`, \.\.\.")
+    assert msg == (
+        r"Formato de fecha no válido\."
+        "\n"
+        "Formato: `%Y-%m-%d %H:%M`"
+        "\n"
+        r"Ejemplo: `/add_player` `2026-05-01 14:30` `<name1>`, `<name2>`, \.\.\."
+    )

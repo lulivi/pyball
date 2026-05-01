@@ -54,7 +54,9 @@ class FinishMatch:
         """Save the match result for the given meetup.
 
         Args:
-            date_str: Meetup date in ISO format (e.g. '2026-04-15T20:00').
+            date_str: Meetup date in ISO format (e.g. '2026-04-15T20:00'). Accepts a
+                string because this use case is invoked exclusively from the HTTP layer,
+                which receives raw ISO strings from the frontend JSON body.
             events: List of goal event dicts with keys:
                     scorer (str), assistant (str|None), team (str), timestamp (str ISO).
             final_score: Dict with keys 'A' and 'B' mapping to int scores.
