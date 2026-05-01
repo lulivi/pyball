@@ -197,7 +197,7 @@ async def test_search_handler_sends_and_stores(bot_update, bot_context):
     bot_context.bot.send_message.assert_called_once()
     settings = bot_context.bot_data["settings"]
     store = TelegramMessageStore(settings.paths.bot_messages_file)
-    tracking = store.get_message("2026-04-25T20:00", "substitute")
+    tracking = store.get_message(datetime(2026, 4, 25, 20, 0), "substitute")
     assert tracking is not None
     assert tracking.message_id == 42
 

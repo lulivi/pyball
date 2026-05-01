@@ -1,5 +1,7 @@
 """Tests for TelegramMessageStore."""
 
+from datetime import datetime
+
 import pytest
 
 from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
@@ -14,8 +16,8 @@ def message_store(tmp_path):
 def test_save_and_get_message(message_store):
     tracking = MessageTracking(chat_id=123, thread_id="456", message_id=789)
 
-    message_store.save_message("2024-01-15T20:00", "regular", tracking)
-    result = message_store.get_message("2024-01-15T20:00", "regular")
+    message_store.save_message(datetime(2024, 1, 15, 20, 0), "regular", tracking)
+    result = message_store.get_message(datetime(2024, 1, 15, 20, 0), "regular")
 
     assert result is not None
     assert result.chat_id == 123
@@ -25,8 +27,8 @@ def test_save_and_get_message(message_store):
 def test_save_substitute_message(message_store):
     tracking = MessageTracking(chat_id=456, thread_id=None, message_id=111)
 
-    message_store.save_message("2024-01-15T20:00", "substitute", tracking)
-    result = message_store.get_message("2024-01-15T20:00", "substitute")
+    message_store.save_message(datetime(2024, 1, 15, 20, 0), "substitute", tracking)
+    result = message_store.get_message(datetime(2024, 1, 15, 20, 0), "substitute")
 
     assert result is not None
     assert result.chat_id == 456
@@ -34,7 +36,7 @@ def test_save_substitute_message(message_store):
 
 
 def test_get_message_not_found(message_store):
-    result = message_store.get_message("2024-01-15T20:00", "regular")
+    result = message_store.get_message(datetime(2024, 1, 15, 20, 0), "regular")
 
     assert result is None
 
@@ -42,8 +44,8 @@ def test_get_message_not_found(message_store):
 def test_delete_message(message_store):
     tracking = MessageTracking(chat_id=123, thread_id=None, message_id=789)
 
-    message_store.save_message("2024-01-15T20:00", "regular", tracking)
-    message_store.delete_message("2024-01-15T20:00", "regular")
+    message_store.save_message(datetime(2024, 1, 15, 20, 0), "regular", tracking)
+    message_store.delete_message(datetime(2024, 1, 15, 20, 0), "regular")
 
-    result = message_store.get_message("2024-01-15T20:00", "regular")
+    result = message_store.get_message(datetime(2024, 1, 15, 20, 0), "regular")
     assert result is None

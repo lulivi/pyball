@@ -228,7 +228,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
         store.save_message(
-            meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            meetup.date,
             "regular",
             MessageTracking(
                 chat_id=settings.telegram.regulars.chat_id,
@@ -531,7 +531,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         store = TelegramMessageStore(settings.paths.bot_messages_file)
         store.save_message(
-            meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            meetup.date,
             "substitute",
             MessageTracking(
                 chat_id=settings.telegram.substitutes.chat_id,

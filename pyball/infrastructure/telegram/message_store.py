@@ -21,6 +21,7 @@
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -46,38 +47,41 @@ class TelegramMessageStore:
         self._ensure_file_exists()
 
     def save_message(
-        self, meetup_date: str, chat_type: ChatType, tracking: MessageTracking
+        self, meetup_date: datetime, chat_type: ChatType, tracking: MessageTracking
     ) -> None:
         """Save message info for a meetup. chat_type is 'regular' or 'substitute'."""
+        key = meetup_date.isoformat(timespec="minutes")
         data = self._read()
-        if meetup_date not in data:
-            data[meetup_date] = {}
-        data[meetup_date][chat_type] = {
+        if key not in data:
+            data[key] = {}
+        data[key][chat_type] = {
             "chat_id": tracking.chat_id,
             "thread_id": tracking.thread_id,
             "message_id": tracking.message_id,
         }
         self._write(data)
 
-    def get_message(self, meetup_date: str, chat_type: ChatType) -> MessageTracking | None:
+    def get_message(self, meetup_date: datetime, chat_type: ChatType) -> MessageTracking | None:
         """Get message tracking for a meetup."""
+        key = meetup_date.isoformat(timespec="minutes")
         data = self._read()
-        if meetup_date not in data or chat_type not in data[meetup_date]:
+        if key not in data or chat_type not in data[key]:
             return None
-        msg = data[meetup_date][chat_type]
+        msg = data[key][chat_type]
         return MessageTracking(
             chat_id=msg["chat_id"],
             thread_id=msg.get("thread_id"),
             message_id=msg["message_id"],
         )
 
-    def delete_message(self, meetup_date: str, chat_type: ChatType) -> None:
+    def delete_message(self, meetup_date: datetime, chat_type: ChatType) -> None:
         """Delete message tracking."""
+        key = meetup_date.isoformat(timespec="minutes")
         data = self._read()
-        if meetup_date in data and chat_type in data[meetup_date]:
-            del data[meetup_date][chat_type]
-            if not data[meetup_date]:
-                del data[meetup_date]
+        if key in data and chat_type in data[key]:
+            del data[key][chat_type]
+            if not data[key]:
+                del data[key]
             self._write(data)
 
     def _ensure_file_exists(self) -> None:
