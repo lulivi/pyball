@@ -30,7 +30,6 @@ from pyball.application.meetup.balance import (
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.repository import MeetupRepository
-from pyball.exceptions import MeetupError
 from pyball.infrastructure.persistence import LegacyStats
 
 
@@ -80,7 +79,3 @@ class CreateTeams:
         meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
         self.meetup_repository.save(meetup)
         return meetup
-
-
-class InvalidMeetupDateError(ValueError, MeetupError):
-    """Raised when meetup date format is invalid."""

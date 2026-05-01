@@ -146,6 +146,15 @@ class TestAddPlayerToMeetup:
 
         assert result.teams is None
 
+    def test_add_player_raises_when_meetup_not_found(self):
+        """execute raises MeetupNotFoundError if no meetup exists on that date."""
+        meetup_repo = FakeMeetupRepository()
+        player_repo = FakePlayerRepository()
+        use_case = AddPlayerToMeetup(meetup_repo, player_repo)
+
+        with pytest.raises(MeetupNotFoundError):
+            use_case.execute(datetime(2099, 1, 1, 20, 0), "Mario")
+
 
 class TestRemovePlayerFromMeetup:
     """Tests for RemovePlayerFromMeetup use case."""
