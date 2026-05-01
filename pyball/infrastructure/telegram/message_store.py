@@ -50,7 +50,7 @@ class TelegramMessageStore:
         self, meetup_date: datetime, chat_type: ChatType, tracking: MessageTracking
     ) -> None:
         """Save message info for a meetup. chat_type is 'regular' or 'substitute'."""
-        key = meetup_date.isoformat(timespec="minutes")
+        key = meetup_date.isoformat(timespec="minutes")  # e.g. "2026-04-15T20:00"
         data = self._read()
         if key not in data:
             data[key] = {}
@@ -63,7 +63,7 @@ class TelegramMessageStore:
 
     def get_message(self, meetup_date: datetime, chat_type: ChatType) -> MessageTracking | None:
         """Get message tracking for a meetup."""
-        key = meetup_date.isoformat(timespec="minutes")
+        key = meetup_date.isoformat(timespec="minutes")  # e.g. "2026-04-15T20:00"
         data = self._read()
         if key not in data or chat_type not in data[key]:
             return None
@@ -76,7 +76,7 @@ class TelegramMessageStore:
 
     def delete_message(self, meetup_date: datetime, chat_type: ChatType) -> None:
         """Delete message tracking."""
-        key = meetup_date.isoformat(timespec="minutes")
+        key = meetup_date.isoformat(timespec="minutes")  # e.g. "2026-04-15T20:00"
         data = self._read()
         if key in data and chat_type in data[key]:
             del data[key][chat_type]

@@ -22,6 +22,7 @@ def test_save_and_get_message(message_store):
     assert result is not None
     assert result.chat_id == 123
     assert result.message_id == 789
+    assert result.thread_id == "456"
 
 
 def test_save_substitute_message(message_store):
