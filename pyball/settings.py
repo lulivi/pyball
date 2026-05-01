@@ -130,7 +130,7 @@ class TelegramSettings:
 
 
 @dataclass
-class CoreSettings:
+class CoreSettings:  # pylint: disable=too-many-instance-attributes
     """PyBall-specific configuration."""
 
     location: str = ""
