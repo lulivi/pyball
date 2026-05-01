@@ -22,15 +22,10 @@
 from datetime import datetime, time
 
 from pyball.application.fuzzy_match import fuzzy_match_player
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.domain.meetup.models import GoalEvent, MatchResult
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
-from pyball.exceptions import MeetupError
-
-
-class MeetupAlreadyClosedError(MeetupError):
-    """Raised when trying to finish a match that already has a result."""
 
 
 class FinishMatch:

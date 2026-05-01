@@ -30,8 +30,8 @@ from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
+from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
-from pyball.application.meetup.create_meetup import DuplicateMeetupError
 from pyball.bot.auth import authorized
 from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer

@@ -47,3 +47,15 @@ class InvalidMeetupIdError(MeetupError):
         """Initialize with the invalid meetup ID."""
         self.meetup_id = meetup_id
         super().__init__(f"Invalid meetup ID format: '{meetup_id}'")
+
+
+class MeetupHasNoTeamsError(MeetupError):
+    """Raised when trying to start a match without teams assigned."""
+
+
+class DuplicateMeetupError(MeetupError):
+    """Raised when a meetup already exists at the given date."""
+
+
+class MeetupAlreadyClosedError(MeetupError):
+    """Raised when trying to close a match that already has a result."""

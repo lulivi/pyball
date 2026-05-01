@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from pyball.application.meetup.finish_match import MeetupAlreadyClosedError
+from pyball.domain.meetup.errors import MeetupAlreadyClosedError
 from pyball.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
