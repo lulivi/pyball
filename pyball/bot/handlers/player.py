@@ -79,27 +79,28 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if group not in ("regular", "substitute"):
         await message.reply_text(
-            text="Group must be `regular` or `substitute`", parse_mode=ParseMode.MARKDOWN_V2
+            text=r"El grupo debe ser \`regular\` o \`substitute\`\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
     try:
         player = container.create_player().execute(name, group)
         await message.reply_text(
-            text=rf"Player `{player.name}` created as {group}\!",
+            text=rf"¡Jugador `{player.name}` creado como {group}\!",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
     except PlayerAlreadyExistsError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
     except PlayerError as error:
         logger.error("Player error creating player: %s", error)
-        await message.reply_text("Player error. Please try again.")
+        await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error creating player: %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-    except Exception as error:
-        logger.exception("Error creating player: %s", error)
-        await message.reply_text("An error occurred. Please contact an admin.")
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
+    except Exception:
+        logger.exception("Unexpected error creating player")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
@@ -125,24 +126,24 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         player = container.rename_player().execute(player_id, new_name)
         await message.reply_text(
-            text=rf"Player renamed to `{player.name}`\!",
+            text=rf"¡Jugador renombrado a `{player.name}`\!",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
     except InvalidPlayerIdError:
-        await message.reply_text("Invalid player ID format.")
+        await message.reply_text("Formato de ID de jugador no válido.")
     except PlayerNotFoundError:
-        await message.reply_text("Player not found.")
+        await message.reply_text("Jugador no encontrado.")
     except NameAlreadyTakenError as error:
         await message.reply_text(html.escape(str(error)), parse_mode="HTML")
     except PlayerError as error:
         logger.error("Player error renaming player: %s", error)
-        await message.reply_text("Player error. Please try again.")
+        await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error renaming player: %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-    except Exception as error:
-        logger.exception("Error renaming player: %s", error)
-        await message.reply_text("An error occurred. Please contact an admin.")
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
+    except Exception:
+        logger.exception("Unexpected error renaming player")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
@@ -166,20 +167,20 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     player_id = args[0]
     try:
         container.delete_player().execute(player_id)
-        await message.reply_text("Player deleted!")
+        await message.reply_text("¡Jugador eliminado!")
     except InvalidPlayerIdError:
-        await message.reply_text("Invalid player ID format.")
+        await message.reply_text("Formato de ID de jugador no válido.")
     except PlayerNotFoundError:
-        await message.reply_text("Player not found.")
+        await message.reply_text("Jugador no encontrado.")
     except PlayerError as error:
         logger.error("Player error deleting player: %s", error)
-        await message.reply_text("Player error. Please try again.")
+        await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error deleting player: %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-    except Exception as error:
-        logger.exception("Error deleting player: %s", error)
-        await message.reply_text("An error occurred. Please contact an admin.")
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
+    except Exception:
+        logger.exception("Unexpected error deleting player")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
@@ -194,7 +195,7 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     players = container.player_repository.find_all()
     if not players:
-        await message.reply_text("No players found.")
+        await message.reply_text("No hay jugadores registrados.")
         return
 
     regulares = []
@@ -246,7 +247,7 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     new_group = args[1]
 
     if new_group not in ("regular", "substitute"):
-        await message.reply_text("Group must be 'regular' or 'substitute'")
+        await message.reply_text("El grupo debe ser 'regular' o 'substitute'.")
         return
 
     player_repo = container.player_repository
@@ -262,18 +263,18 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         use_case = container.change_player_group()
         player = use_case.execute(str(match.player_id.value), new_group)
         await message.reply_text(
-            text=rf"Player `{player.name}` changed to `{new_group}`\!",
+            text=rf"¡Jugador `{player.name}` cambiado a `{new_group}`\!",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
     except telegram.error.TelegramError as error:
         logger.error("Telegram error changing player group: %s", error)
-        await message.reply_text("Telegram error. Failed to change group.")
+        await message.reply_text("Error de Telegram al cambiar el grupo.")
     except PlayerError as error:
         logger.error("Player error changing group: %s", error)
-        await message.reply_text("Player error. Failed to change group.")
-    except Exception as error:
-        logger.exception("Error changing player group: %s", error)
-        await message.reply_text("Error changing player group.")
+        await message.reply_text("Error al cambiar el grupo del jugador.")
+    except Exception:
+        logger.exception("Unexpected error changing player group")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
@@ -301,7 +302,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         telegram_id = int(args[1])
     except ValueError:
-        await message.reply_text("Invalid telegram_id. Must be a number.")
+        await message.reply_text("ID de Telegram no válido. Debe ser un número.")
         return
 
     player_repo = container.player_repository
@@ -318,21 +319,18 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     existing_telegram_id = mapping_store.get_player_id(telegram_id)
     if existing_telegram_id:
         if existing_telegram_id == player_id_str:
-            await message.reply_text("This Telegram ID is already linked to this player.")
+            await message.reply_text("Este ID de Telegram ya está vinculado a este jugador.")
         else:
             await message.reply_text(
-                (
-                    "This Telegram ID is already linked to another player. "
-                    "Remove the link first with /unlink_player <telegram_id>"
-                ),
-                parse_mode="HTML",
+                "Este ID de Telegram ya está vinculado a otro jugador. "
+                "Elimina el enlace primero con /unlink_player <telegram_id>"
             )
         return
 
     mapping_store.set_player_id(telegram_id, player_id_str)
 
     await message.reply_text(
-        text=rf"Telegram ID `{telegram_id}` linked to player `{match.name}`\!",
+        text=rf"¡ID de Telegram `{telegram_id}` vinculado al jugador `{match.name}`\!",
         parse_mode=ParseMode.MARKDOWN_V2,
     )
 
@@ -359,16 +357,16 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         telegram_id = int(args[0])
     except ValueError:
-        await message.reply_text("Invalid telegram_id. Must be a number.")
+        await message.reply_text("ID de Telegram no válido. Debe ser un número.")
         return
 
     player_id = mapping_store.get_player_id(telegram_id)
     if not player_id:
-        await message.reply_text("This Telegram ID is not linked to any player.")
+        await message.reply_text("Este ID de Telegram no está vinculado a ningún jugador.")
         return
 
     mapping_store.delete_player_id(telegram_id)
     await message.reply_text(
-        text=rf"Link for Telegram ID `{telegram_id}` removed\!",
+        text=rf"¡Enlace para el ID de Telegram `{telegram_id}` eliminado\!",
         parse_mode=ParseMode.MARKDOWN_V2,
     )

@@ -144,4 +144,4 @@ async def test_list_players_empty_repo(bot_update, bot_context):
 
     call = bot_update.message.reply_text.call_args
     text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-    assert text == "No players found."
+    assert text == "No hay jugadores registrados."
