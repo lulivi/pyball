@@ -139,6 +139,7 @@ class CoreSettings:
     base_url: str = "http://localhost:8000"
     team_display_names: tuple[str, str] = ("Claro", "Oscuro")
     locale: str = "en_US.UTF-8"
+    display_date_format: str = "%Y-%m-%d %H:%M"
     data_dir: str = "data"
 
 
@@ -231,6 +232,11 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
             )
         ),
         locale=_get_env_override("core", "locale", core_cfg.get("locale", "en_US.UTF-8")),
+        display_date_format=_get_env_override(
+            "core",
+            "display_date_format",
+            core_cfg.get("display_date_format", "%Y-%m-%d %H:%M"),
+        ),
         data_dir=_get_env_override("core", "data_dir", core_cfg.get("data_dir", "data")),
     )
 
