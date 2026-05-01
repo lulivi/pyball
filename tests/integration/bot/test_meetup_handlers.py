@@ -216,8 +216,8 @@ async def test_add_player_partial_failure(bot_update, bot_context):
     await add_player_handler(bot_update, bot_context)
 
     (text, *_), _ = bot_update.message.reply_text.call_args
-    assert "Added: Luis" in text
-    assert "Failed:" in text
+    assert "Añadidos: Luis" in text
+    assert "Fallidos:" in text
 
 
 @pytest.mark.asyncio

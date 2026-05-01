@@ -9,9 +9,11 @@ from telegram.constants import ParseMode
 
 from pyball.bot.handlers.meetup import (
     _date_usage_msg,
+    add_player_handler,
     create_teams_handler,
     generate_qr_bytes,
     new_meetup_handler,
+    remove_player_handler,
     show_meetup_handler,
     start_match_handler,
 )
@@ -19,6 +21,7 @@ from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
+    PlayerNotInMeetupError,
 )
 
 
@@ -278,6 +281,91 @@ async def test_new_meetup_handler_unexpected_error(mock_update, mock_context):
 
     with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
         await new_meetup_handler(mock_update, mock_context)
+
+    mock_logger.exception.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "error inesperado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_add_player_handler_meetup_not_found(mock_update, mock_context):
+    """add_player replies in Spanish when meetup does not exist."""
+    container = MagicMock()
+    container.add_player_to_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+        "2026-04-25T20:00"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    await add_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "no existe" in text.lower() or "no se ha encontrado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_add_player_handler_unexpected_error(mock_update, mock_context):
+    """add_player logs and replies in Spanish on unexpected errors."""
+    container = MagicMock()
+    container.add_player_to_meetup.return_value.execute.side_effect = RuntimeError("crash")
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+        await add_player_handler(mock_update, mock_context)
+
+    mock_logger.exception.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "error inesperado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_remove_player_handler_meetup_not_found(mock_update, mock_context):
+    """remove_player replies in Spanish when meetup does not exist."""
+    container = MagicMock()
+    container.remove_player_from_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+        "2026-04-25T20:00"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    await remove_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "no existe" in text.lower() or "no se ha encontrado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_remove_player_handler_player_not_in_meetup(mock_update, mock_context):
+    """remove_player replies in Spanish when player is not in the meetup."""
+    container = MagicMock()
+    container.remove_player_from_meetup.return_value.execute.side_effect = PlayerNotInMeetupError(
+        "player-uuid"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    await remove_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "no está" in text.lower() or "no se encuentra" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_remove_player_handler_unexpected_error(mock_update, mock_context):
+    """remove_player logs and replies in Spanish on unexpected errors."""
+    container = MagicMock()
+    container.remove_player_from_meetup.return_value.execute.side_effect = RuntimeError("crash")
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+        await remove_player_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
     call = mock_update.message.reply_text.call_args

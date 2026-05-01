@@ -33,7 +33,11 @@ from pyball.application.container import Container
 from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.bot.auth import authorized
-from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
+from pyball.domain.meetup.errors import (
+    MeetupHasNoTeamsError,
+    MeetupNotFoundError,
+    PlayerNotInMeetupError,
+)
 from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
@@ -327,24 +331,24 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         try:
             meetup = use_case.execute(meetup_date, name)
             added.append(name)
+        except MeetupNotFoundError:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
         except ValueError as error:
             failed.append(f"{name}: {error}")
-        except MeetupError as error:
-            logger.error("Meetup error adding %s: %s", name, error)
-            failed.append(f"{name}: meetup error")
-        except Exception as error:
-            logger.exception("Error adding %s: %s", name, error)
-            failed.append(f"{name}: unexpected error")
+        except Exception:
+            logger.exception("Unexpected error adding player '%s' to meetup", name)
+            failed.append(f"{name}: error inesperado")
 
     if meetup is not None:
         await refresh_callup_messages(context.bot, settings, container, meetup)
 
     lines = []
     if added:
-        lines.append("Added: " + ", ".join(added))
+        lines.append("Añadidos: " + ", ".join(added))
     if failed:
-        lines.append("Failed:\n" + "\n".join(f"  • {f}" for f in failed))
-    await message.reply_text("\n".join(lines) if lines else "Nothing to do.")
+        lines.append("Fallidos:\n" + "\n".join(f"  • {f}" for f in failed))
+    await message.reply_text("\n".join(lines) if lines else "No hay nada que hacer.")
 
 
 @log_func
@@ -375,18 +379,19 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
         meetup = container.remove_player_from_meetup().execute(meetup_date, player_name)
         await refresh_callup_messages(context.bot, settings, container, meetup)
-        await message.reply_text("Player removed from meetup!")
+        await message.reply_text("¡Jugador eliminado del meetup!")
     except ValueError:
         await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
-    except MeetupError as error:
-        logger.error("Meetup error removing player: %s", error)
-        await message.reply_text("Meetup error. Please try again.")
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+    except PlayerNotInMeetupError:
+        await message.reply_text("El jugador no está en este meetup.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error removing player from meetup: %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-    except Exception as error:
-        logger.exception("Error removing player from meetup: %s", error)
-        await message.reply_text("An error occurred. Please try again.")
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
+    except Exception:
+        logger.exception("Unexpected error removing player from meetup")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
