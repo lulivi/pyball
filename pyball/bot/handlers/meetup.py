@@ -38,7 +38,6 @@ from pyball.domain.meetup.errors import (
     MeetupNotFoundError,
     PlayerNotInMeetupError,
 )
-from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.formatters import (
@@ -420,28 +419,26 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         meetup = container.create_teams().execute(meetup_date)
 
         if not meetup.teams:
-            await message.reply_text("No teams created.")
+            await message.reply_text("No se han creado equipos.")
             return
 
         await refresh_callup_messages(
             context.bot, settings, container, meetup, include_keyboard=False
         )
-
         await message.reply_text("Equipos creados ✅")
     except ValueError:
         await message.reply_text(
             _date_usage_msg("create_teams", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
-    except MeetupError as error:
-        logger.error("Meetup error creating teams: %s", error)
-        await message.reply_text("Meetup error. Please try again.")
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error creating teams: %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-    except Exception as error:
-        logger.exception("Error creating teams: %s", error)
-        await message.reply_text("An error occurred. Please try again.")
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
+    except Exception:
+        logger.exception("Unexpected error creating teams")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
@@ -458,13 +455,13 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     meetups = container.meetup_repository.find_all()
 
     if not meetups:
-        await message.reply_text("No meetups found.")
+        await message.reply_text("No hay meetups registrados.")
         return
 
     lines = ["*Meetups:*"]
     for m in meetups:
         date_str = format_display(m.date, settings.pyball.display_date_format)
-        lines.append(rf"\- `{date_str}` at {m.location.replace('-', r'\-')}")
+        lines.append(rf"\- `{date_str}` en {m.location.replace('-', r'\-')}")
 
     await message.reply_text(
         "\n".join(lines),
@@ -502,7 +499,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
     if not meetup:
-        await message.reply_text("Meetup not found.")
+        await message.reply_text("No se ha encontrado el meetup para esa fecha.")
         return
 
     player_names = _get_player_names(container.player_repository)
@@ -546,11 +543,11 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     meetup = container.meetup_repository.find_by_date(meetup_date.date())
 
     if not meetup:
-        await message.reply_text("Meetup not found.")
+        await message.reply_text("No se ha encontrado el meetup para esa fecha.")
         return
 
     if not settings.telegram.substitutes.chat_id:
-        await message.reply_text("Substitutes chat not configured.")
+        await message.reply_text("El chat de suplentes no está configurado.")
         return
 
     player_repo = container.player_repository
@@ -583,13 +580,13 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
         )
 
-        await message.reply_text("Substitutes message sent!")
+        await message.reply_text("¡Mensaje de suplentes enviado!")
     except telegram.error.TelegramError as error:
-        logger.error("Error sending substitutes message (Telegram): %s", error)
-        await message.reply_text("Telegram error. Failed to send message.")
-    except Exception as error:
-        logger.exception("Error sending substitutes message: %s", error)
-        await message.reply_text("Failed to send message.")
+        logger.error("Telegram error sending substitutes message: %s", error)
+        await message.reply_text("Error de Telegram al enviar el mensaje.")
+    except Exception:
+        logger.exception("Unexpected error sending substitutes message")
+        await message.reply_text("Error al enviar el mensaje.")
 
 
 @log_func
@@ -631,8 +628,8 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             photo=png,
             caption=caption,
         )
-    except Exception as error:
-        logger.exception("Error sending stats: %s", error)
+    except Exception:
+        logger.exception("Unexpected error sending stats")
         await message.reply_text("Error al generar las estadísticas.")
 
 

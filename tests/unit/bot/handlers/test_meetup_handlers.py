@@ -99,7 +99,9 @@ async def test_show_meetup_handler_not_found(mock_update, mock_context):
 
     await show_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Meetup not found.")
+    mock_update.message.reply_text.assert_called_with(
+        "No se ha encontrado el meetup para esa fecha."
+    )
 
 
 @pytest.mark.asyncio
@@ -166,7 +168,7 @@ async def test_create_teams_handler_no_teams(mock_update, mock_context):
 
     await create_teams_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("No teams created.")
+    mock_update.message.reply_text.assert_called_with("No se han creado equipos.")
 
 
 def test_date_usage_msg_no_suffix():
@@ -366,6 +368,40 @@ async def test_remove_player_handler_unexpected_error(mock_update, mock_context)
 
     with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
         await remove_player_handler(mock_update, mock_context)
+
+    mock_logger.exception.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "error inesperado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_meetup_not_found(mock_update, mock_context):
+    """create_teams replies in Spanish when meetup does not exist."""
+    container = MagicMock()
+    container.create_teams.return_value.execute.side_effect = MeetupNotFoundError(
+        "2026-04-25T20:00"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "no existe" in text.lower() or "no se ha encontrado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_unexpected_error(mock_update, mock_context):
+    """create_teams logs and replies in Spanish on unexpected errors."""
+    container = MagicMock()
+    container.create_teams.return_value.execute.side_effect = RuntimeError("crash")
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00"]
+
+    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+        await create_teams_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
     call = mock_update.message.reply_text.call_args
