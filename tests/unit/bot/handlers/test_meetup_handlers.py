@@ -15,7 +15,11 @@ from pyball.bot.handlers.meetup import (
     show_meetup_handler,
     start_match_handler,
 )
-from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
+from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
+    MeetupHasNoTeamsError,
+    MeetupNotFoundError,
+)
 
 
 def test_generate_qr_bytes_returns_png_buffer():
@@ -239,6 +243,41 @@ async def test_start_match_handler_unexpected_error(mock_update, mock_context):
 
     with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
         await start_match_handler(mock_update, mock_context)
+
+    mock_logger.exception.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "error inesperado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_new_meetup_handler_duplicate_replies_spanish(mock_update, mock_context):
+    """new_meetup replies in Spanish when meetup already exists for that date."""
+    container = MagicMock()
+    container.create_meetup.return_value.execute.side_effect = DuplicateMeetupError(
+        "already exists"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00"]
+    mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"
+
+    await new_meetup_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "ya existe" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_new_meetup_handler_unexpected_error(mock_update, mock_context):
+    """new_meetup logs and replies in Spanish on unexpected errors."""
+    container = MagicMock()
+    container.create_meetup.return_value.execute.side_effect = RuntimeError("db crash")
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00"]
+
+    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+        await new_meetup_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
     call = mock_update.message.reply_text.call_args

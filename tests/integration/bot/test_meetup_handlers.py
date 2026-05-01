@@ -50,7 +50,7 @@ async def test_new_meetup_duplicate_replies_error(bot_update, bot_context):
 
     call = bot_update.message.reply_text.call_args
     text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-    assert "already exists" in text
+    assert "ya existe" in text.lower()
 
 
 @pytest.mark.asyncio

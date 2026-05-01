@@ -207,26 +207,18 @@ async def _create_meetup_and_send(
         meetup = container.create_meetup().execute(date, settings.pyball.location)
     except DuplicateMeetupError:
         await message.reply_text(
-            text=rf"Meetup already exists at `{date_str}`\.",
+            text=rf"Ya existe un meetup el `{date_str}`\.",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-    except MeetupError as error:
-        logger.error("Error creating meetup (domain): %s", error)
-        await message.reply_text("Meetup error. Please try again.")
-        return
-    except telegram.error.TelegramError as error:
-        logger.error("Error creating meetup (Telegram): %s", error)
-        await message.reply_text("Telegram error. Please try again.")
-        return
-    except Exception as error:
-        logger.exception("Error creating meetup: %s", error)
-        await message.reply_text("An error occurred. Please try again.")
+    except Exception:
+        logger.exception("Unexpected error creating meetup")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
         return
 
     await _send_callup_messages(context, settings, container, meetup)
     await message.reply_text(
-        text=rf"Meetup `{date_str}` created and callup sent\!",
+        text=rf"¡Meetup `{date_str}` creado y convocatoria enviada\!",
         parse_mode=ParseMode.MARKDOWN_V2,
     )
 
