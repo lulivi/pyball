@@ -107,18 +107,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("No estás en este meetup.", show_alert=True)
         return
 
-    modified = _process_action(action, date_str, player_name, container)
+    modified = _process_action(action, meetup_date, player_name, container)
 
     if modified:
         meetup = _find_meetup(meetup_repo, meetup_date)
         if meetup:
             await refresh_callup_messages(context.bot, settings, container, meetup)
         await query.answer()
-
-
-def _convert_to_usecase_format(date_str: str) -> datetime:
-    """Convert ISO format to datetime object."""
-    return datetime.fromisoformat(date_str)
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:
@@ -147,17 +142,18 @@ def _validate_player_id(player_id_str: str) -> PlayerId | None:
         return None
 
 
-def _process_action(action: str, date_str: str, player_name: str, container: Container) -> bool:
-    date_str_usecase = _convert_to_usecase_format(date_str)
+def _process_action(
+    action: str, meetup_date: datetime, player_name: str, container: Container
+) -> bool:
     if "join" in action:
         try:
-            container.add_player_to_meetup().execute(date_str_usecase, player_name)
+            container.add_player_to_meetup().execute(meetup_date, player_name)
             return True
         except Exception:
             return False
     if "leave" in action:
         try:
-            container.remove_player_from_meetup().execute(date_str_usecase, player_name)
+            container.remove_player_from_meetup().execute(meetup_date, player_name)
             return True
         except Exception:
             return False
