@@ -212,8 +212,7 @@ async def _create_meetup_and_send(
 async def _send_callup_messages(context, settings, container, meetup) -> None:
     """Send callup messages to regulars and substitutes chats."""
     player_repo = container.player_repository
-    all_players = player_repo.find_all()
-    player_names = {str(player.id.value): player.name for player in all_players}
+    player_names = _get_player_names(player_repo)
 
     text = format_main_message(
         meetup,
@@ -508,7 +507,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     settings = context.bot_data["settings"]
 
     args = context.args
-    if not args:
+    if not args or len(args) < 2:
         await message.reply_text(
             text="Usage: `/search` `YYYY-MM-DD HH:MM`",
             parse_mode=ParseMode.MARKDOWN_V2,
@@ -534,9 +533,9 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("Substitutes chat not configured.")
         return
 
-    all_players = container.player_repository.find_all()
-    player_names = {str(p.id.value): p.name for p in all_players}
-    player_groups = {str(p.id.value): p.group for p in all_players}
+    player_repo = container.player_repository
+    player_names = _get_player_names(player_repo)
+    player_groups = {str(p.id.value): p.group for p in player_repo.find_all()}
     text = format_subs_message(
         meetup,
         player_names,
