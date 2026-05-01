@@ -19,7 +19,7 @@ from pyball.bot.handlers.meetup import (
 from pyball.bot.handlers.player import new_player_handler
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 
-_DATE_ARGS = ["2026/06/15", "20:00"]
+_DATE_ARGS = ["2026-06-15", "20:00"]
 _ISO_DATE = "2026-06-15T20:00"
 _MATCH_DATE = date(2026, 6, 15)
 

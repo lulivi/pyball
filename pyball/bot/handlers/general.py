@@ -40,6 +40,9 @@ async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
     text = r"""*Available Commands:*
 
+*General:*
+`/help` \- Show this message
+
 *Player:*
 `/new_player` \- Create a new player
 `/rename_player` \- Rename a player
@@ -58,5 +61,6 @@ async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 `/remove_player` \- Remove player from meetup
 `/search` \- Send substitutes message
 `/create_teams` \- Create random teams
-`/start_match` \- Initialize match page"""
+`/start_match` \- Initialize match page
+`/stats` \- Show statistics"""
     await message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
