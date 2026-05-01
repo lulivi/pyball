@@ -116,9 +116,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer()
 
 
-def _convert_to_usecase_format(date_str: str) -> str:
-    """Convert ISO format to use case format YYYY/MM/DD HH:MM."""
-    return datetime.fromisoformat(date_str).strftime("%Y/%m/%d %H:%M")
+def _convert_to_usecase_format(date_str: str) -> datetime:
+    """Convert ISO format to datetime object."""
+    return datetime.fromisoformat(date_str)
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:

@@ -108,7 +108,7 @@ class TestAddPlayerToMeetup:
         meetup_repo.find_by_date.return_value = meetup
 
         use_case = AddPlayerToMeetup(meetup_repo, player_repo)
-        use_case.execute("2024/03/20 20:00", "Mario")
+        use_case.execute(datetime(2024, 3, 20, 20, 0), "Mario")
 
         assert player.id in meetup.players
 
@@ -126,7 +126,8 @@ class TestAddPlayerToMeetup:
         player_repo = FakePlayerRepository()
         player_repo.save(player)
 
-        result = AddPlayerToMeetup(meetup_repo, player_repo).execute("2024/03/20 20:00", "Mario")
+        use_case = AddPlayerToMeetup(meetup_repo, player_repo)
+        result = use_case.execute(datetime(2024, 3, 20, 20, 0), "Mario")
 
         assert result.teams is None
 
@@ -140,7 +141,8 @@ class TestAddPlayerToMeetup:
         player_repo = FakePlayerRepository()
         player_repo.save(player)
 
-        result = AddPlayerToMeetup(meetup_repo, player_repo).execute("2024/03/20 20:00", "Mario")
+        use_case = AddPlayerToMeetup(meetup_repo, player_repo)
+        result = use_case.execute(datetime(2024, 3, 20, 20, 0), "Mario")
 
         assert result.teams is None
 
@@ -160,7 +162,7 @@ class TestRemovePlayerFromMeetup:
         player_repo.save(player)
 
         use_case = RemovePlayerFromMeetup(meetup_repo, player_repo)
-        use_case.execute("2024/01/15 20:00", "Mario")
+        use_case.execute(datetime(2024, 1, 15, 20, 0), "Mario")
 
         assert player.id not in meetup.players
 
@@ -171,7 +173,7 @@ class TestRemovePlayerFromMeetup:
         use_case = RemovePlayerFromMeetup(meetup_repo, player_repo)
 
         with pytest.raises(MeetupNotFoundError):
-            use_case.execute("2024/01/15 20:00", "Mario")
+            use_case.execute(datetime(2024, 1, 15, 20, 0), "Mario")
 
     def test_remove_player_clears_existing_teams(self):
         """Removing a player from a meetup that already has teams clears the teams."""
@@ -188,7 +190,7 @@ class TestRemovePlayerFromMeetup:
         player_repo.save(player)
 
         result = RemovePlayerFromMeetup(meetup_repo, player_repo).execute(
-            "2024/01/15 20:00", "Mario"
+            datetime(2024, 1, 15, 20, 0), "Mario"
         )
 
         assert result.teams is None
@@ -205,7 +207,7 @@ class TestRemovePlayerFromMeetup:
         player_repo.save(player)
 
         result = RemovePlayerFromMeetup(meetup_repo, player_repo).execute(
-            "2024/01/15 20:00", "Mario"
+            datetime(2024, 1, 15, 20, 0), "Mario"
         )
 
         assert result.teams is None
@@ -223,7 +225,7 @@ class TestCreateTeams:
         meetup_repo.save(meetup)
         use_case = CreateTeams(meetup_repo)
 
-        result = use_case.execute("2024/01/15 20:00")
+        result = use_case.execute(datetime(2024, 1, 15, 20, 0))
 
         assert result.teams is not None
         assert len(result.teams) == 2
@@ -234,7 +236,7 @@ class TestCreateTeams:
         use_case = CreateTeams(meetup_repo)
 
         with pytest.raises(MeetupNotFoundError):
-            use_case.execute("2024/01/15 20:00")
+            use_case.execute(datetime(2024, 1, 15, 20, 0))
 
     def test_create_teams_not_enough_players(self):
         """Creating teams with fewer than 2 players raises ValueError."""
@@ -245,7 +247,7 @@ class TestCreateTeams:
         use_case = CreateTeams(meetup_repo)
 
         with pytest.raises(ValueError, match="Need at least 2"):
-            use_case.execute("2024/01/15 20:00")
+            use_case.execute(datetime(2024, 1, 15, 20, 0))
 
     def test_create_teams_all_players_assigned(self):
         """All meetup players appear in exactly one team after create_teams."""
@@ -256,7 +258,7 @@ class TestCreateTeams:
             meetup.add_player(pid)
         meetup_repo.save(meetup)
 
-        result = CreateTeams(meetup_repo).execute("2024/01/15 20:00")
+        result = CreateTeams(meetup_repo).execute(datetime(2024, 1, 15, 20, 0))
 
         all_assigned = list(result.teams[0].players) + list(result.teams[1].players)
         assert sorted(str(p.value) for p in all_assigned) == sorted(
@@ -274,7 +276,7 @@ class TestCreateTeams:
 
         compositions = set()
         for _ in range(30):
-            result = use_case.execute("2024/01/15 20:00")
+            result = use_case.execute(datetime(2024, 1, 15, 20, 0))
             compositions.add(frozenset(result.teams[0].players))
 
         assert len(compositions) > 1
@@ -298,7 +300,7 @@ class TestCreateTeams:
         current.add_player(p2)
         meetup_repo.save(current)
 
-        result = CreateTeams(meetup_repo).execute("2024/11/15 20:00")
+        result = CreateTeams(meetup_repo).execute(datetime(2024, 11, 15, 20, 0))
 
         assert result.teams is not None
         assert len(result.teams) == 2
@@ -382,7 +384,7 @@ class TestStartMatch:
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self._add_players_and_teams(meetup)
 
-        url = self.use_case.execute("2026/04/12 20:00")
+        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
 
         assert "2026-04-12T20%3A00" in url or "2026-04-12T20:00" in url
         assert "Dani" in url
@@ -392,7 +394,7 @@ class TestStartMatch:
     def test_raises_if_meetup_not_found(self):
         """StartMatch raises MeetupNotFoundError if no meetup exists on that date."""
         with pytest.raises(MeetupNotFoundError):
-            self.use_case.execute("2026/04/12 20:00")
+            self.use_case.execute(datetime(2026, 4, 12, 20, 0))
 
     def test_raises_if_no_teams(self):
         """StartMatch raises MeetupHasNoTeamsError if teams have not been created."""
@@ -400,14 +402,14 @@ class TestStartMatch:
         self.meetup_repo.save(meetup)
 
         with pytest.raises(MeetupHasNoTeamsError):
-            self.use_case.execute("2026/04/12 20:00")
+            self.use_case.execute(datetime(2026, 4, 12, 20, 0))
 
     def test_url_contains_name_params(self):
         """StartMatch URL contains nameA and nameB query params with display names."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self._add_players_and_teams(meetup)
 
-        url = self.use_case.execute("2026/04/12 20:00")
+        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
 
         assert "nameA=Claro" in url or "nameA=Claro" in urllib.parse.unquote(url)
         assert "nameB=Oscuro" in url or "nameB=Oscuro" in urllib.parse.unquote(url)

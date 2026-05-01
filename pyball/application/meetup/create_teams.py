@@ -53,16 +53,11 @@ class CreateTeams:
         self.meetup_repository = meetup_repository
         self.legacy_stats = legacy_stats
 
-    def execute(self, date_str: str) -> Meetup:
-        """Create balanced teams for a meetup by date string."""
-        try:
-            meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
-        except ValueError as exc:
-            raise InvalidMeetupDateError("Invalid date format. Use: YYYY/MM/DD HH:MM") from exc
-
+    def execute(self, meetup_date: datetime) -> Meetup:
+        """Create balanced teams for a meetup by datetime."""
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
-            raise MeetupNotFoundError(date_str)
+            raise MeetupNotFoundError(str(meetup_date))
 
         all_meetups = self.meetup_repository.find_all()
         finished = [m for m in all_meetups if m.result is not None]

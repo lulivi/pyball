@@ -32,7 +32,6 @@ from telegram.ext import CommandHandler, ContextTypes
 from pyball.application.container import Container
 from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.application.meetup.create_meetup import DuplicateMeetupError
-from pyball.application.meetup.create_teams import InvalidMeetupDateError
 from pyball.bot.auth import authorized
 from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
@@ -95,7 +94,8 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     telegram_settings: TelegramSettings = context.bot_data["settings"].telegram
 
     try:
-        url = container.start_match().execute(date_str)
+        meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
+        url = container.start_match().execute(meetup_date)
         qr = generate_qr_bytes(url)
         for admin in telegram_settings.admins_ids:
             try:
@@ -182,9 +182,6 @@ async def _create_meetup_and_send(
             text=rf"Meetup already exists at `{date.strftime('%Y/%m/%d %H:%M')}`\.",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
-        return
-    except InvalidMeetupDateError as error:
-        await message.reply_text(str(error))
         return
     except MeetupError as error:
         logger.error("Error creating meetup (domain): %s", error)
@@ -299,9 +296,19 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     meetup = None
     use_case = container.add_player_to_meetup()
 
+    try:
+        meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
+    except ValueError:
+        msg = (
+            r"Invalid date format\. Use: `/add_player` `YYYY/MM/DD HH:MM` "
+            r"`<name1>`, `<name2>`, \.\.\."
+        )
+        await message.reply_text(msg, parse_mode=ParseMode.MARKDOWN_V2)
+        return
+
     for name in names:
         try:
-            meetup = use_case.execute(date_str, name)
+            meetup = use_case.execute(meetup_date, name)
             added.append(name)
         except ValueError as error:
             failed.append(f"{name}: {error}")
@@ -346,7 +353,8 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     settings = context.bot_data["settings"]
     try:
-        meetup = container.remove_player_from_meetup().execute(date_str, player_name)
+        meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
+        meetup = container.remove_player_from_meetup().execute(meetup_date, player_name)
         await refresh_callup_messages(context.bot, settings, container, meetup)
         await message.reply_text("Player removed from meetup!")
     except ValueError as error:
@@ -383,7 +391,8 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     settings = context.bot_data["settings"]
     try:
-        meetup = container.create_teams().execute(date_str)
+        meetup_date = datetime.strptime(date_str, "%Y/%m/%d %H:%M")
+        meetup = container.create_teams().execute(meetup_date)
 
         if not meetup.teams:
             await message.reply_text("No teams created.")
@@ -394,7 +403,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
         await message.reply_text("Equipos creados ✅")
-    except InvalidMeetupDateError as error:
+    except ValueError as error:
         await message.reply_text(str(error))
     except MeetupError as error:
         logger.error("Meetup error creating teams: %s", error)
