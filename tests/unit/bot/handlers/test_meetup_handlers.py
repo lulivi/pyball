@@ -29,7 +29,7 @@ async def test_new_meetup_handler_no_args(mock_update, mock_context):
     await new_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        text="Usage: `/new_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        text="Usage: `/new_meetup` `YYYY-MM-DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
     )
 
 
@@ -40,7 +40,7 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
     await new_meetup_handler(mock_update, mock_context)
 
     call = mock_update.message.reply_text.call_args
-    assert call.args[0] == r"Invalid date format\. Use: `/new_meetup` `YYYY/MM/DD HH:MM`"
+    assert call.args[0] == r"Invalid date format\. Use: `/new_meetup` `YYYY-MM-DD HH:MM`"
     assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
@@ -52,7 +52,7 @@ async def test_show_meetup_handler_no_args(mock_update, mock_context):
     await show_meetup_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        text=r"Usage: `/show_meetup` `YYYY/MM/DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
+        text=r"Usage: `/show_meetup` `YYYY-MM-DD HH:MM`", parse_mode=ParseMode.MARKDOWN_V2
     )
 
 
@@ -70,7 +70,7 @@ async def test_show_meetup_handler_invalid_date(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_show_meetup_handler_not_found(mock_update, mock_context):
-    mock_context.args = ["2026/04/25", "20:00"]
+    mock_context.args = ["2026-04-25", "20:00"]
 
     container = MagicMock()
     container.meetup_repository.find_by_date.return_value = None
@@ -89,7 +89,7 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
     container = MagicMock()
     container.start_match.return_value.execute.return_value = url
     mock_context.bot_data["container"] = container
-    mock_context.args = ["2026/04/19", "20:00"]
+    mock_context.args = ["2026-04-19", "20:00"]
     mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
     mock_context.bot = AsyncMock()
     mock_context.bot.send_photo = AsyncMock()
@@ -115,7 +115,7 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
     container = MagicMock()
     container.start_match.return_value.execute.return_value = url
     mock_context.bot_data["container"] = container
-    mock_context.args = ["2026/04/19", "20:00"]
+    mock_context.args = ["2026-04-19", "20:00"]
     mock_context.bot_data["settings"].telegram.admins_ids = admin_ids
     mock_context.bot = AsyncMock()
     mock_context.bot.send_photo = AsyncMock()
@@ -135,7 +135,7 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
 
 @pytest.mark.asyncio
 async def test_create_teams_handler_no_teams(mock_update, mock_context):
-    mock_context.args = ["2026/04/25", "20:00"]
+    mock_context.args = ["2026-04-25", "20:00"]
 
     container = MagicMock()
     mock_meetup = MagicMock()
