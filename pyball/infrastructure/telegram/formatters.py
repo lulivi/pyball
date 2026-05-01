@@ -168,10 +168,10 @@ def format_subs_message(
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only."""
-    date_str = format_display(meetup.date, date_fmt)
-
     if meetup.result is not None:
         return "*Partido terminado*"
+
+    date_str = format_display(meetup.date, date_fmt)
 
     suplentes = []
     for player_id in meetup.players:
