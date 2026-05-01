@@ -61,6 +61,19 @@ def generate_qr_bytes(url: str) -> BytesIO:
     return buf
 
 
+def _date_usage_msg(cmd: str, fmt: str, suffix: str = "") -> str:
+    """Build a MarkdownV2-escaped date-format help message for bot commands."""
+    example = format_display(datetime.now(), fmt)
+    suffix_part = rf" {suffix}" if suffix else ""
+    return (
+        r"Formato de fecha no válido\."
+        "\n"
+        rf"Formato: `{fmt}`"
+        "\n"
+        rf"Ejemplo: `/{cmd}` `{example}`{suffix_part}"
+    )
+
+
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
     application.add_handler(CommandHandler("new_meetup", new_meetup_handler))
