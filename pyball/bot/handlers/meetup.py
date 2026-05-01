@@ -33,6 +33,7 @@ from pyball.application.container import Container
 from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.bot.auth import authorized
+from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
 from pyball.exceptions import MeetupError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
@@ -129,12 +130,17 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             _date_usage_msg("start_match", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
-    except MeetupError as error:
-        logger.error("Meetup error starting match: %s", error)
-        await message.reply_text(str(error))
-    except Exception as error:
-        logger.exception("Error starting match: %s", error)
-        await message.reply_text("An error occurred. Please try again.")
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+    except MeetupHasNoTeamsError:
+        display_date = f"{args[0]} {args[1]}"
+        await message.reply_text(
+            f"El meetup del {display_date} no tiene equipos asignados. "
+            f"Ejecuta /create_teams {display_date} primero."
+        )
+    except Exception:
+        logger.exception("Unexpected error starting match")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func

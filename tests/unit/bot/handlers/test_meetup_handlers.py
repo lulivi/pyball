@@ -15,6 +15,7 @@ from pyball.bot.handlers.meetup import (
     show_meetup_handler,
     start_match_handler,
 )
+from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
 
 
 def test_generate_qr_bytes_returns_png_buffer():
@@ -189,3 +190,57 @@ def test_date_usage_msg_with_suffix():
         "\n"
         r"Ejemplo: `/add_player` `2026-05-01 14:30` `<name1>`, `<name2>`, \.\.\."
     )
+
+
+@pytest.mark.asyncio
+async def test_start_match_handler_meetup_not_found(mock_update, mock_context):
+    """start_match replies in Spanish when no meetup exists for that date."""
+    container = MagicMock()
+    container.start_match.return_value.execute.side_effect = MeetupNotFoundError(
+        "2026-04-19T20:00"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-19", "20:00"]
+
+    await start_match_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_once_with(
+        "No existe ningún meetup para esa fecha."
+    )
+
+
+@pytest.mark.asyncio
+async def test_start_match_handler_no_teams(mock_update, mock_context):
+    """start_match replies in Spanish with /create_teams command when meetup has no teams."""
+    container = MagicMock()
+    container.start_match.return_value.execute.side_effect = MeetupHasNoTeamsError(
+        "Meetup has no teams"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-19", "20:00"]
+    mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"
+
+    await start_match_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "no tiene equipos asignados" in text
+    assert "/create_teams" in text
+    assert "2026-04-19 20:00" in text
+
+
+@pytest.mark.asyncio
+async def test_start_match_handler_unexpected_error(mock_update, mock_context):
+    """start_match replies with generic Spanish message and logs on unexpected errors."""
+    container = MagicMock()
+    container.start_match.return_value.execute.side_effect = RuntimeError("boom")
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-19", "20:00"]
+
+    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+        await start_match_handler(mock_update, mock_context)
+
+    mock_logger.exception.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "error inesperado" in text.lower()
