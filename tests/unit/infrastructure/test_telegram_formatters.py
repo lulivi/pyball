@@ -6,8 +6,10 @@ from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.formatters import (
     _escape_mdv2,
+    format_display,
     format_main_message,
     format_subs_message,
+    parse_display,
 )
 
 
@@ -60,7 +62,7 @@ def test_format_main_message_before_teams():
     text = format_main_message(meetup, player_names)
 
     assert "📅 *Convocatoria:*" in text
-    assert "2024/01/15 20:00" in text
+    assert "2024-01-15 20:00" in text  # was "2024/01/15 20:00"
     assert "- Carlos" in text
     assert "- Luis" in text
 
@@ -277,3 +279,33 @@ def test_format_subs_message_with_result_shows_score():
     text = format_subs_message(meetup, player_names, player_groups)
 
     assert "*Partido terminado*" in text
+
+
+def test_format_display_default_fmt():
+    """format_display formats with the default format."""
+    dt = datetime(2026, 4, 15, 20, 0)
+    assert format_display(dt) == "2026-04-15 20:00"
+
+
+def test_format_display_custom_fmt():
+    """format_display respects a custom fmt argument."""
+    dt = datetime(2026, 4, 15, 20, 0)
+    assert format_display(dt, "%d/%m/%Y %H:%M") == "15/04/2026 20:00"
+
+
+def test_parse_display_default_fmt():
+    """parse_display parses with the default format."""
+    result = parse_display("2026-04-15 20:00")
+    assert result == datetime(2026, 4, 15, 20, 0)
+
+
+def test_parse_display_custom_fmt():
+    """parse_display respects a custom fmt argument."""
+    result = parse_display("15/04/2026 20:00", "%d/%m/%Y %H:%M")
+    assert result == datetime(2026, 4, 15, 20, 0)
+
+
+def test_parse_display_invalid_raises():
+    """parse_display raises ValueError on bad input."""
+    with pytest.raises(ValueError):
+        parse_display("not-a-date")

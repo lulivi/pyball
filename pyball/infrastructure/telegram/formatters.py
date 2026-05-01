@@ -30,6 +30,17 @@ from telegram.constants import KeyboardButtonStyle
 from pyball.domain.meetup.models import Meetup
 
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
+_DEFAULT_DATE_FMT = "%Y-%m-%d %H:%M"
+
+
+def format_display(dt: datetime, fmt: str = _DEFAULT_DATE_FMT) -> str:
+    """Format a datetime for user-facing display."""
+    return dt.strftime(fmt)
+
+
+def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
+    """Parse a user-facing date string into a datetime."""
+    return datetime.strptime(s, fmt)
 
 
 def _escape_mdv2(text: str) -> str:
@@ -86,6 +97,7 @@ def format_main_message(
     meetup: Meetup,
     player_names: dict,
     team_display_names: tuple[str, str] = ("A", "B"),
+    date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for main (regulars) chat.
 
@@ -94,7 +106,7 @@ def format_main_message(
     - After teams: teams only
     - After results: teams + results
     """
-    date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
+    date_str = format_display(meetup.date, date_fmt)
     if meetup.result is not None:
         header = f"🎉 *Partido terminado:* `{date_str}`"
     else:
@@ -153,9 +165,10 @@ def format_subs_message(
     player_names: dict,
     player_groups: dict,
     team_display_names: tuple[str, str] = ("Equipo A", "Equipo B"),
+    date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only."""
-    date_str = meetup.date.strftime("%Y/%m/%d %H:%M")
+    date_str = format_display(meetup.date, date_fmt)
 
     if meetup.result is not None:
         return "*Partido terminado*"
