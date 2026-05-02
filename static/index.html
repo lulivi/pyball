@@ -416,15 +416,11 @@
         var isEditing = scorerOpen || assistOpen;
         var html =
             '<div class="event-log' + (isEditing ? ' editing' : '') +
-            '" onclick="event.stopPropagation()">' +
-            '<span style="display:flex;align-items:center;gap:4px;flex:1;flex-wrap:wrap">' +
-            '⚽ ' + scorerChip +
-            '<span style="color:#64748b;font-size:0.75rem"> (Asist: </span>' +
-            assistChip +
-            '<span style="color:#64748b;font-size:0.75rem">)</span>' +
-            '</span>' +
-            '<span class="event-time">' + e.timestamp + '</span>' +
-            '<button class="delete-btn" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
+            '" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">' +
+            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;">⚽ ' + scorerChip + '</span>' +
+            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;color:#64748b;font-size:0.75rem"> (Asist: ' + assistChip + ')</span>' +
+            '<span class="event-time" style="flex:0 0 10%;text-align:center;">' + e.timestamp + '</span>' +
+            '<button class="delete-btn" style="flex:0 0 10%;" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
 
         if (scorerOpen) { html += renderPickerDropdown(i, 'scorer'); }
         if (assistOpen) { html += renderPickerDropdown(i, 'assistant'); }
