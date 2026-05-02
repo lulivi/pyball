@@ -509,8 +509,8 @@
                 }
                 return '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>';
             }).join('');
-            // Cancel button occupies the ENTIRE opposing team column
-            colBHtml = '<button class="player-btn btn-b" style="background:#f44336;flex:1;height:100%;" onclick="cancelGoal()">Cancelar</button>';
+            // Cancel button occupies the ENTIRE opposing team column (full width and height)
+            colBHtml = '<button class="player-btn btn-b" style="background:#f44336;flex:1;height:100%;width:100%;" onclick="cancelGoal()">Cancelar</button>';
             colBClass = 'team-col waiting';
         } else { // Team B scored, Team A is for assist/cancel
             colBHtml = teamB.map(p => {
@@ -519,8 +519,8 @@
                 }
                 return '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>';
             }).join('');
-            // Cancel button occupies the ENTIRE opposing team column
-            colAHtml = '<button class="player-btn btn-a" style="background:#f44336;flex:1;height:100%;" onclick="cancelGoal()">Cancelar</button>';
+            // Cancel button occupies the ENTIRE opposing team column (full width and height)
+            colAHtml = '<button class="player-btn btn-a" style="background:#f44336;flex:1;height:100%;width:100%;" onclick="cancelGoal()">Cancelar</button>';
             colAClass = 'team-col waiting';
         }
 
