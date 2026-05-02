@@ -5,6 +5,7 @@
 from datetime import date
 
 import pytest
+from telegram.constants import ParseMode
 
 from pyball.bot.handlers.meetup import (
     add_player_handler,
@@ -27,7 +28,6 @@ _REGULARS = [f"Regular_{i:02d}" for i in range(1, 11)]  # Regular_01..Regular_10
 _SUBS = [f"Sub_{i:02d}" for i in range(1, 5)]  # Sub_01..Sub_04
 
 
-@pytest.mark.e2e
 class TestFullMatchLifecycle:
     """Full match lifecycle from player creation to stats."""
 
@@ -115,7 +115,7 @@ class TestFullMatchLifecycle:
         bot_context.bot.send_message.assert_called_once()
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Substitutes message sent" in text
+        assert "¡Mensaje de suplentes enviado!" in text
 
     async def _start_match(self, bot_update, bot_context):
         bot_update.message.reply_text.reset_mock()
@@ -181,7 +181,7 @@ class TestFullMatchLifecycle:
 
     @pytest.mark.asyncio
     async def test_create_duplicate_player(self, bot_update, bot_context):
-        """Creating a player with an existing name replies with HTML error."""
+        """Creating a player with an existing name replies with a MarkdownV2 error."""
         bot_context.args = ["Regular_01", "regular"]
         await new_player_handler(bot_update, bot_context)
 
@@ -190,9 +190,9 @@ class TestFullMatchLifecycle:
         await new_player_handler(bot_update, bot_context)
 
         call = bot_update.message.reply_text.call_args
-        assert call.kwargs.get("parse_mode") == "HTML"
+        assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "already exists" in text
+        assert "Regular_01" in text
 
     @pytest.mark.asyncio
     async def test_add_player_already_enrolled(self, bot_update, bot_context, real_container):
@@ -225,7 +225,7 @@ class TestFullMatchLifecycle:
 
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Meetup error" in text or "error" in text.lower()
+        assert "no está en este meetup" in text
 
     # ------------------------------------------------------------------
     # Edge cases: fuzzy matching
@@ -245,7 +245,7 @@ class TestFullMatchLifecycle:
 
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Added" in text
+        assert "Añadidos" in text
         meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
         assert len(meetup.players) == 1
 
@@ -261,7 +261,7 @@ class TestFullMatchLifecycle:
 
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Failed" in text
+        assert "Fallidos" in text
 
     # ------------------------------------------------------------------
     # Edge cases: meetup lifecycle errors
@@ -279,7 +279,7 @@ class TestFullMatchLifecycle:
 
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "already exists" in text
+        assert "Ya existe" in text
 
     @pytest.mark.asyncio
     async def test_start_match_without_teams(self, bot_update, bot_context):

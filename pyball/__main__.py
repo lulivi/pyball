@@ -36,7 +36,7 @@ from pyball.bot.handlers import (
 )
 from pyball.infrastructure.http.app import create_app
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
-from pyball.logger import add_telegram_log_handler, config_logging
+from pyball.logger import config_logging
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
@@ -58,10 +58,8 @@ def log_startup_info() -> None:
 
 async def main_async() -> None:
     """Start the bot and HTTP server under the same asyncio event loop."""
-    config_logging()
-
     settings = load_settings()
-    add_telegram_log_handler(settings)
+    config_logging(settings)
     log_startup_info()
     container = Container()
 
