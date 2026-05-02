@@ -21,19 +21,11 @@
             overflow-y: auto;
         }
 
-        /* ── ABOVE FOLD ──────────────────────────────────── */
-        .above-fold {
-            height: 100svh;
-            display: flex;
-            flex-direction: column;
-            padding: 8px 12px 4px;
-        }
-
         .match-date {
             text-align: center;
             font-size: 1.25rem;
             color: #64748b;
-            padding: 2px 0 4px;
+            padding: 2px 0 8px;
             flex-shrink: 0;
         }
 
@@ -99,8 +91,6 @@
             border-radius: 6px;
             border: 1px dashed #334155;
         }
-
-        /* .waiting-text removed - no longer used */
 
         .player-btn {
             flex: 1;
@@ -175,6 +165,7 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 6px;
+            text-align: center;
         }
 
         #event-list {
@@ -286,27 +277,34 @@
 <body>
 <div id="app"></div>
 <script>
-    // ── STATE ─────────────────────────────────────────────
+    // ── STATE (Single Source of Truth) ────────────────────
     let teamA = [], teamB = [];
     let nameA = 'A', nameB = 'B';
     let meetupDate = '';
 
     let appState = {
-        goalsA: 0, goalsB: 0,
-        events: [],
-        currentStep: 1, // 1: selecting scorer, 2: selecting assistant
+        events: [], // Goals are calculated dynamically from this array
+        currentStep: 1,
         tempScorer: null, tempScorerTeam: null,
         editingEvent: null,
-        activeTab: 'players' // New: for tab navigation
+        activeTab: 'players'
     };
 
-    // New: Tab handling function
+    // ── STATE UTILITIES AND PERSISTENCE ───────────────────
+    function persistState() {
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+    }
+
+    function getGoals(teamId) {
+        return appState.events.filter(e => e.team === teamId).length;
+    }
+
     function setTab(tabName) {
         appState.activeTab = tabName;
         renderApp();
     }
 
-    // ── INIT ────────────────────────────────────────────
+    // ── INIT ──────────────────────────────────────────────
     function initializeApp() {
         const savedState = localStorage.getItem('pyball_current_match');
         const savedTeams = localStorage.getItem('pyball_teams');
@@ -318,25 +316,18 @@
             if (!urlDate || teams.meetupDate === urlDate) {
                 appState = JSON.parse(savedState);
                 appState.editingEvent = null;
-                teamA = teams.teamA;
-                teamB = teams.teamB;
-                nameA = teams.nameA || 'A';
-                nameB = teams.nameB || 'B';
+                teamA = teams.teamA; teamB = teams.teamB;
+                nameA = teams.nameA || 'A'; nameB = teams.nameB || 'B';
                 meetupDate = teams.meetupDate;
                 renderApp();
                 return;
             }
             const oldDate = formatMatchDate(teams.meetupDate);
-            const confirmed = confirm(
-                'Hay un partido del ' + oldDate + ' sin guardar.\n¿Empezar el partido de hoy y descartar el anterior?'
-            );
-            if (!confirmed) {
+            if (!confirm(`Hay un partido del ${oldDate} sin guardar.\n¿Empezar el de hoy y descartar el anterior?`)) {
                 appState = JSON.parse(savedState);
                 appState.editingEvent = null;
-                teamA = teams.teamA;
-                teamB = teams.teamB;
-                nameA = teams.nameA || 'A';
-                nameB = teams.nameB || 'B';
+                teamA = teams.teamA; teamB = teams.teamB;
+                nameA = teams.nameA || 'A'; nameB = teams.nameB || 'B';
                 meetupDate = teams.meetupDate;
                 renderApp();
                 return;
@@ -344,29 +335,28 @@
             localStorage.removeItem('pyball_current_match');
             localStorage.removeItem('pyball_teams');
         }
+
         const teamAParam = params.get('teamA');
         const teamBParam = params.get('teamB');
+        if (!teamAParam || !teamBParam) return renderNoMatch();
+
         meetupDate = urlDate;
         nameA = params.get('nameA') || 'A';
         nameB = params.get('nameB') || 'B';
-        if (!teamAParam || !teamBParam) {
-            renderNoMatch();
-            return;
-        }
         teamA = teamAParam.split(',');
         teamB = teamBParam.split(',');
+
         localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, nameA, nameB, meetupDate }));
         renderApp();
     }
 
-    // ── DATE FORMAT ───────────────────────────────────────
     function formatMatchDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return '';
         const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
         const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        return day.charAt(0).toUpperCase() + day.slice(1) + ' · ' + time;
+        return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
     }
 
     // ── GOAL REGISTRATION ─────────────────────────────────
@@ -390,12 +380,10 @@
             team: appState.tempScorerTeam,
             timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
         });
-        if (appState.tempScorerTeam === 'A') appState.goalsA++;
-        if (appState.tempScorerTeam === 'B') appState.goalsB++;
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        persistState();
         renderApp();
     }
 
@@ -403,192 +391,178 @@
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        persistState();
         renderApp();
     }
 
     function deleteEvent(i) {
         appState.events.splice(i, 1);
-        appState.goalsA = appState.events.filter(function(e) { return e.team === 'A'; }).length;
-        appState.goalsB = appState.events.filter(function(e) { return e.team === 'B'; }).length;
         appState.editingEvent = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        persistState();
         renderApp();
     }
 
-    // ── RENDERING ─────────────────────────────────────────
+    // ── RENDERING COMPONENTS ──────────────────────────────
     function escHtml(s) {
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function renderEventRow(e, i) {
-        var scorerOpen = appState.editingEvent !== null &&
-                         appState.editingEvent.eventIndex === i &&
-                         appState.editingEvent.field === 'scorer';
-        var assistOpen = appState.editingEvent !== null &&
-                         appState.editingEvent.eventIndex === i &&
-                         appState.editingEvent.field === 'assistant';
-
-        var scorerChip =
-            '<button class="player-chip' + (scorerOpen ? ' active' : '') +
-            '" onclick="event.stopPropagation();togglePicker(' + i + ',\'scorer\')">' +
-            escHtml(e.scorer) + ' <span class="chevron">' + (scorerOpen ? '▲' : '▼') + '</span></button>';
-
-        var assistLabel = e.assistant ? e.assistant : 'Sin asist.';
-        var assistChip =
-            '<button class="player-chip' + (assistOpen ? ' active' : '') +
-            '" onclick="event.stopPropagation();togglePicker(' + i + ',\'assistant\')">' +
-            escHtml(assistLabel) + ' <span class="chevron">' + (assistOpen ? '▲' : '▼') + '</span></button>';
-
-        var isEditing = scorerOpen || assistOpen;
-        var html =
-            '<div class="event-log' + (isEditing ? ' editing' : '') +
-            '" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">' +
-            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;">' + scorerChip + '</span>' +
-            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;color:#64748b;font-size:0.75rem">' + assistChip + '</span>' +
-            '<span class="event-time" style="flex:0 0 10%;text-align:center;">' + e.timestamp + '</span>' +
-            '<button class="delete-btn" style="flex:0 0 10%;padding-right:8px;" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
-
-        if (scorerOpen) { html += renderPickerDropdown(i, 'scorer'); }
-        if (assistOpen) { html += renderPickerDropdown(i, 'assistant'); }
-        html += '</div>';
-        return html;
-    }
-
     function renderPickerDropdown(eventIndex, field) {
-        var e = appState.events[eventIndex];
-        var players = e.team === 'A' ? teamA : teamB;
-        var opts = field === 'scorer' ? players : players.filter(function(p) { return p !== e.scorer; });
-        var html = '<div class="picker-dropdown" onclick="event.stopPropagation()">';
-        opts.forEach(function(p) {
-            var pSafe = p.replace(/'/g, "\\'");
-            var sel = field === 'scorer' ? p === e.scorer : p === e.assistant;
-            html += '<div class="picker-item' + (sel ? ' selected' : '') +
-                    '" onclick="event.stopPropagation();updateEventPlayer(' + eventIndex + ',\'' +
-                    field + '\',\'' + pSafe + '\')">' + escHtml(p) + '</div>';
+        const e = appState.events[eventIndex];
+        const players = e.team === 'A' ? teamA : teamB;
+        const opts = field === 'scorer' ? players : players.filter(p => p !== e.scorer);
+
+        let html = `<div class="picker-dropdown" onclick="event.stopPropagation()">`;
+        opts.forEach(p => {
+            const pSafe = p.replace(/'/g, "\\'");
+            const sel = field === 'scorer' ? p === e.scorer : p === e.assistant;
+            html += `<div class="picker-item ${sel ? 'selected' : ''}" onclick="event.stopPropagation();updateEventPlayer(${eventIndex},'${field}','${pSafe}')">${escHtml(p)}</div>`;
         });
+
         if (field === 'assistant') {
-            html += '<div class="picker-item no-assist' + (e.assistant === null ? ' selected' : '') +
-                    '" onclick="event.stopPropagation();clearAssist(' + eventIndex + ')">Sin asistente</div>';
+            html += `<div class="picker-item no-assist ${e.assistant === null ? 'selected' : ''}" onclick="event.stopPropagation();clearAssist(${eventIndex})">Sin asistente</div>`;
         }
-        html += '</div>';
+        html += `</div>`;
         return html;
     }
 
     function togglePicker(eventIndex, field) {
-        var already = appState.editingEvent !== null &&
-                      appState.editingEvent.eventIndex === eventIndex &&
-                      appState.editingEvent.field === field;
-        appState.editingEvent = already ? null : { eventIndex: eventIndex, field: field };
+        const already = appState.editingEvent !== null &&
+                        appState.editingEvent.eventIndex === eventIndex &&
+                        appState.editingEvent.field === field;
+        appState.editingEvent = already ? null : { eventIndex, field };
         renderApp();
     }
 
     function updateEventPlayer(eventIndex, field, playerName) {
         appState.events[eventIndex][field] = playerName;
         appState.editingEvent = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        persistState();
         renderApp();
     }
 
     function clearAssist(eventIndex) {
         appState.events[eventIndex].assistant = null;
         appState.editingEvent = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        persistState();
         renderApp();
     }
 
-    function renderNoMatch() {
-        document.getElementById('app').innerHTML =
-            '<div class="no-match">' +
-            '<div class="no-match-icon">⚽</div>' +
-            '<div class="no-match-title">PyBall</div>' +
-            '<div class="no-match-msg">Abre el enlace desde<br>Telegram para empezar un partido.</div>' +
-            '</div>';
+    function renderEventRow(e, i) {
+        const scorerOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'scorer';
+        const assistOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'assistant';
+
+        const scorerChip = `
+            <button class="player-chip ${scorerOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'scorer')">
+                ${escHtml(e.scorer)} <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
+            </button>`;
+
+        const assistLabel = e.assistant ? e.assistant : 'Sin asist.';
+        const assistChip = `
+            <button class="player-chip ${assistOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'assistant')">
+                ${escHtml(assistLabel)} <span class="chevron">${assistOpen ? '▲' : '▼'}</span>
+            </button>`;
+
+        return `
+            <div class="event-log ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+                <span class="event-time" style="flex:0 0 10%;text-align:center;">${e.timestamp}</span>
+                <span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;">${scorerChip}</span>
+                <span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;color:#64748b;font-size:0.75rem">${assistChip}</span>
+                <button class="delete-btn" style="flex:0 0 10%;padding-right:8px;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
+                ${scorerOpen ? renderPickerDropdown(i, 'scorer') : ''}
+                ${assistOpen ? renderPickerDropdown(i, 'assistant') : ''}
+            </div>
+        `;
     }
 
-    function renderApp() {
-        const step = appState.currentStep;
-        const scorer = appState.tempScorer;
-        const scorerTeam = appState.tempScorerTeam;
-
-        const instructionText = step === 1
-            ? '¿Quién ha marcado gol?'
-            : '⚽ ' + scorer + ' marcó — ¿quién asistió?';
+    function renderPlayersTab() {
+        const { currentStep, tempScorer, tempScorerTeam } = appState;
+        const instructionText = currentStep === 1 ? '¿Quién ha marcado gol?' : `⚽ ${tempScorer} marcó — ¿quién asistió?`;
 
         let colAHtml = '', colBHtml = '';
         let colAClass = 'team-col', colBClass = 'team-col';
 
-        if (step === 1) {
-            colAHtml = teamA.map(p =>
-                '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>'
-            ).join('');
-            colBHtml = teamB.map(p =>
-                '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>'
-            ).join('');
-        } else if (scorerTeam === 'A') { // Team A scored, Team B is for assist/cancel
-            colAHtml = teamA.map(p => {
-                if (p === scorer) {
-                    return '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
-                }
-                return '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>';
-            }).join('');
-            // Cancel button occupies the ENTIRE opposing team column (full width and height)
-            colBHtml = '<button class="cancel-full-btn btn-b" onclick="cancelGoal()">Cancelar</button>';
-            colBClass = 'team-col waiting';
-        } else { // Team B scored, Team A is for assist/cancel
-            colBHtml = teamB.map(p => {
-                if (p === scorer) {
-                    return '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
-                }
-                return '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>';
-            }).join('');
-            // Cancel button occupies the ENTIRE opposing team column (full width and height)
-            colAHtml = '<button class="cancel-full-btn btn-a" onclick="cancelGoal()">Cancelar</button>';
-            colAClass = 'team-col waiting';
+        const btnHtml = (p, teamId) => `<button class="player-btn btn-${teamId.toLowerCase()}" onclick="selectPlayer('${p}', '${teamId}')">${p}</button>`;
+        const noAssistBtn = `<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>`;
+        const cancelBtn = (teamId) => `<button class="cancel-full-btn btn-${teamId.toLowerCase()}" onclick="cancelGoal()">Cancelar</button>`;
+
+        if (currentStep === 1) {
+            colAHtml = teamA.map(p => btnHtml(p, 'A')).join('');
+            colBHtml = teamB.map(p => btnHtml(p, 'B')).join('');
+        } else if (tempScorerTeam === 'A') {
+            colAHtml = teamA.map(p => p === tempScorer ? noAssistBtn : btnHtml(p, 'A')).join('');
+            colBHtml = cancelBtn('B');
+            colBClass += ' waiting';
+        } else {
+            colBHtml = teamB.map(p => p === tempScorer ? noAssistBtn : btnHtml(p, 'B')).join('');
+            colAHtml = cancelBtn('A');
+            colAClass += ' waiting';
         }
 
+        return `
+            <div class="scoreboard">
+                <div class="team-score">
+                    <div class="team-name">${nameA}</div>
+                    <div class="score-number score-a">${getGoals('A')}</div>
+                </div>
+                <div class="score-separator">–</div>
+                <div class="team-score">
+                    <div class="team-name">${nameB}</div>
+                    <div class="score-number score-b">${getGoals('B')}</div>
+                </div>
+            </div>
+            <p class="instruction ${currentStep === 2 ? 'assist' : ''}">${instructionText}</p>
+            <div class="player-grid">
+                <div class="${colAClass}">${colAHtml}</div>
+                <div class="${colBClass}">${colBHtml}</div>
+            </div>
+        `;
+    }
+
+    function renderEventsTab() {
         const eventsHtml = appState.events.length > 0
-            ? appState.events.map(function(e, i) { return renderEventRow(e, i); }).join('')
-            : '<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>';
+            ? appState.events.map((e, i) => renderEventRow(e, i)).join('')
+            : `<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>`;
 
-        const playersTabContent =
-            '<div class="scoreboard">' +
-            '<div class="team-score"><div class="team-name">' + nameA + '</div>' +
-            '<div class="score-number score-a">' + appState.goalsA + '</div></div>' +
-            '<div class="score-separator">–</div>' +
-            '<div class="team-score"><div class="team-name">' + nameB + '</div>' +
-            '<div class="score-number score-b">' + appState.goalsB + '</div></div>' +
-            '</div>' +
-            '<p class="instruction' + (step === 2 ? ' assist' : '') + '">' + instructionText + '</p>' +
-            '<div class="player-grid">' +
-            '<div class="' + colAClass + '">' + colAHtml + '</div>' +
-            '<div class="' + colBClass + '">' + colBHtml + '</div>' +
-            '</div>';
+        return `
+            <div>
+                <div class="events-label">Eventos del partido</div>
+                <div id="event-list">
+                    <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
+                        <span style="flex:0 0 10%; text-align:right;">Hora</span>
+                        <span style="flex:0 0 40%; text-align:center;">Goleador</span>
+                        <span style="flex:0 0 40%; text-align:center;">Asistente</span>
+                        <span style="flex:0 0 10%;"></span>
+                    </div>
+                    ${eventsHtml}
+                </div>
+                <button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>
+            </div>
+        `;
+    }
 
-        const eventsTabContent =
-            '<div>' +
-            '<div class="events-label">Eventos del partido</div>' +
-            '<div id="event-list">' +
-            '<div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">' +
-            '<span class="player-chip" style="cursor:default;pointer-events:none;background:transparent;border-color:transparent;flex:0 0 40%;justify-content:center;color:#94a3b8">Goleador</span>' +
-            '<span class="player-chip" style="cursor:default;pointer-events:none;background:transparent;border-color:transparent;flex:0 0 40%;justify-content:center;color:#94a3b8">Asistente</span>' +
-            '<span style="flex:0 0 10%;text-align:center;">Hora</span>' +
-            '<span style="flex:0 0 10%;padding-right:8px;"></span>' +
-            '</div>' +
-            eventsHtml + '</div>' +
-            '<button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>' +
-            '</div>';
+    function renderNoMatch() {
+        document.getElementById('app').innerHTML = `
+            <div class="no-match">
+                <div class="no-match-icon">⚽</div>
+                <div class="no-match-title">PyBall</div>
+                <div class="no-match-msg">Abre el enlace desde<br>Telegram para empezar un partido.</div>
+            </div>`;
+    }
 
-        document.getElementById('app').innerHTML =
-            '<div style="height:100svh;display:flex;flex-direction:column;padding:8px 12px 4px;">' +
-            '<div class="match-date">' + formatMatchDate(meetupDate) + '</div>' +
-            '<div class="tab-bar">' +
-            '<button class="tab-btn ' + (appState.activeTab === 'players' ? 'active' : '') + '" onclick="setTab(\'players\')">Jugadores</button>' +
-            '<button class="tab-btn ' + (appState.activeTab === 'events' ? 'active' : '') + '" onclick="setTab(\'events\')">Eventos y Resultados</button>' +
-            '</div>' +
-            (appState.activeTab === 'players' ? playersTabContent : '') +
-            (appState.activeTab === 'events' ? eventsTabContent : '') +
-            '</div>';
+    // ── MAIN CONTROLLER ───────────────────────────────────
+    function renderApp() {
+        document.getElementById('app').innerHTML = `
+            <div style="height:100svh;display:flex;flex-direction:column;padding:8px 12px 12px;">
+                <div class="match-date">${formatMatchDate(meetupDate)}</div>
+                <div class="tab-bar">
+                    <button class="tab-btn ${appState.activeTab === 'players' ? 'active' : ''}" onclick="setTab('players')">Jugadores</button>
+                    <button class="tab-btn ${appState.activeTab === 'events' ? 'active' : ''}" onclick="setTab('events')">Eventos y Resultados</button>
+                </div>
+                ${appState.activeTab === 'players' ? renderPlayersTab() : ''}
+                ${appState.activeTab === 'events' ? renderEventsTab() : ''}
+            </div>
+        `;
     }
 
     // ── API ───────────────────────────────────────────────
@@ -604,22 +578,22 @@
                 body: JSON.stringify({
                     meetup_date: meetupDate,
                     events: [...appState.events].reverse(),
-                    finalScore: { A: appState.goalsA, B: appState.goalsB }
+                    finalScore: { A: getGoals('A'), B: getGoals('B') }
                 })
             });
             if (response.ok) {
                 localStorage.removeItem('pyball_current_match');
                 localStorage.removeItem('pyball_teams');
-                document.getElementById('app').innerHTML =
-                    '<div class="no-match">' +
-                    '<div class="success-banner">✅ Partido guardado y enviado a Telegram</div>' +
-                    '<div class="no-match-icon">⚽</div>' +
-                    '<div class="no-match-title">PyBall</div>' +
-                    '<div class="no-match-msg">Abre el enlace desde<br>Telegram para el próximo partido.</div>' +
-                    '</div>';
+                document.getElementById('app').innerHTML = `
+                    <div class="no-match">
+                        <div class="success-banner">✅ Partido guardado y enviado a Telegram</div>
+                        <div class="no-match-icon">⚽</div>
+                        <div class="no-match-title">PyBall</div>
+                        <div class="no-match-msg">Abre el enlace desde<br>Telegram para el próximo partido.</div>
+                    </div>`;
             } else {
                 const err = await response.json();
-                alert('❌ Error del servidor: ' + (err.detail || response.statusText));
+                alert(`❌ Error del servidor: ${err.detail || response.statusText}`);
                 saveBtn.disabled = false;
                 saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
             }
@@ -630,19 +604,17 @@
         }
     }
 
-    // ── SERVICE WORKER ────────────────────────────────────
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err =>
-            console.warn('SW registration failed:', err)
-        );
-    }
-
-    document.addEventListener('click', function() {
+    // ── EVENT LISTENERS AND BOOTSTRAP ─────────────────────
+    document.addEventListener('click', () => {
         if (appState.editingEvent !== null) {
             appState.editingEvent = null;
             renderApp();
         }
     });
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+    }
 
     initializeApp();
 </script>
