@@ -4,6 +4,7 @@ import pytest
 
 from pyball.settings import (
     CoreSettings,
+    ManagementChatSettings,
     RegularsChatSettings,
     SettingsValidationError,
     TelegramChatSettings,
@@ -306,3 +307,69 @@ chat_id = -1001234567891
         config_file.write_text(config_content)
         settings = load_settings(config_file)
         assert settings.pyball.display_date_format == "%d/%m/%Y %H:%M"
+
+
+class TestManagementChatSettings:
+    """Tests for ManagementChatSettings and its integration in settings loading."""
+
+    def test_management_is_subclass_of_telegram_chat_settings(self):
+        """ManagementChatSettings is a subclass of TelegramChatSettings."""
+        assert issubclass(ManagementChatSettings, TelegramChatSettings)
+
+    def test_management_has_no_extra_fields(self):
+        """ManagementChatSettings adds no fields beyond chat_id."""
+        mgmt = ManagementChatSettings(chat_id=-100123)
+        assert mgmt.chat_id == -100123
+        assert not hasattr(mgmt, "meetups_thread_id")
+        assert not hasattr(mgmt, "stats_thread_id")
+
+    def test_telegram_settings_has_management_field_defaulting_to_zero(self):
+        """TelegramSettings.management defaults to chat_id=0."""
+        telegram = TelegramSettings()
+        assert isinstance(telegram.management, ManagementChatSettings)
+        assert telegram.management.chat_id == 0
+
+    def test_load_settings_reads_management_chat_id(self, tmp_path):
+        """management.chat_id is read from config when set."""
+        config_content = """
+[pyball.core]
+location = "Test Park"
+
+[pyball.telegram]
+bot_token = "test_token"
+admins_ids = [111]
+
+[pyball.telegram.regulars]
+chat_id = -1001234567890
+
+[pyball.telegram.substitutes]
+chat_id = -1001234567891
+
+[pyball.telegram.management]
+chat_id = -1009999999999
+"""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(config_content)
+        settings = load_settings(config_file)
+        assert settings.telegram.management.chat_id == -1009999999999
+
+    def test_load_settings_management_defaults_to_zero_when_absent(self, tmp_path):
+        """management.chat_id defaults to 0 when section is absent from config."""
+        config_content = """
+[pyball.core]
+location = "Test Park"
+
+[pyball.telegram]
+bot_token = "test_token"
+admins_ids = [111]
+
+[pyball.telegram.regulars]
+chat_id = -1001234567890
+
+[pyball.telegram.substitutes]
+chat_id = -1001234567891
+"""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(config_content)
+        settings = load_settings(config_file)
+        assert settings.telegram.management.chat_id == 0
