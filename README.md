@@ -1,25 +1,61 @@
 # PyBall Manager
 
-Telegram bot helper.
+Telegram bot for managing football meetups, teams, and player statistics.
 
-## Usage
+## Quick Start
 
-First rename the [`sample.env`](./sample.env) file to `.env` and fill it in with
-the proper values.
+### Prerequisites
 
-Then install the package with `poetry`:
+- Python >= 3.11
+- [uv](https://docs.astral.sh/uv/) for dependency management
+- [nox](https://nox.thea.codes/en/stable/) for automation
+
+### Configuration
+
+Copy the example config and fill in your values:
 
 ```bash
-pip3 install poetry==1.2.1
-poetry install
+cp example.config.toml config.toml
 ```
 
-And run the bot!
+Edit `config.toml` with your Telegram bot token, admin IDs, and chat IDs. Any value can be overridden with environment variables using the `PYBALL_<SECTION>_<KEY>` format (e.g. `PYBALL_TELEGRAM_BOT_TOKEN`).
+
+### Install Dependencies
+
+```bash
+uv sync --all-extras
+```
+
+### Run
 
 ```bash
 make up
 ```
 
+This starts both the Telegram polling bot and the FastAPI HTTP server (port 8000) for the match-tracking UI inside the Docker container.
+
+Or run directly without Docker container:
+
+```bash
+uv run pyball
+```
+
+## Development
+
+```bash
+make format      # Format code (black + isort)
+make lint        # Run all lint checks
+make test        # Run tests with coverage
+```
+
+## Architecture
+
+Clean architecture with strict layer boundaries:
+
+- **domain/** — Core models and repository interfaces
+- **application/** — Use cases with injected repository interfaces
+- **infrastructure/** — Concrete implementations (JSON persistence, Telegram, HTML rendering)
+
 ## License
 
-This project is released under [MIT](./LICENSE) license.
+MIT
