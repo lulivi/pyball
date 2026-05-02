@@ -54,6 +54,7 @@ def config_logging(settings: Settings) -> None:
     logging.basicConfig(
         format="{asctime}|{levelname}|{name}:{lineno: 4d}| {message}",
         datefmt="%Y-%m-%dT%H:%M:%S",
+        style="{",
         level=logging.DEBUG,
         handlers=handlers,
     )
