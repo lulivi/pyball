@@ -488,8 +488,7 @@
             ? appState.events.map(function(e, i) { return renderEventRow(e, i); }).join('')
             : '<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>';
 
-        document.getElementById('app').innerHTML =
-            '<div class="above-fold">' +
+        const playersTabContent =
             '<div class="match-date">' + formatMatchDate(meetupDate) + '</div>' +
             '<div class="scoreboard">' +
             '<div class="team-score"><div class="team-name">' + nameA + '</div>' +
@@ -499,17 +498,26 @@
             '<div class="score-number score-b">' + appState.goalsB + '</div></div>' +
             '</div>' +
             '<p class="instruction' + (step === 2 ? ' assist' : '') + '">' + instructionText + '</p>' +
-            (step === 2 ? '<button class="cancel-btn" onclick="cancelGoal()">← Cancelar</button>' : '') +
             '<div class="player-grid">' +
             '<div class="' + colAClass + '">' + colAHtml + '</div>' +
             '<div class="' + colBClass + '">' + colBHtml + '</div>' +
-            '</div>' +
-            '<div class="scroll-hint">↓ eventos y guardar</div>' +
-            '</div>' +
+            '</div>';
+
+        const eventsTabContent =
             '<div class="below-fold">' +
             '<div class="events-label">Eventos del partido</div>' +
             '<div id="event-list">' + eventsHtml + '</div>' +
             '<button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>' +
+            '</div>';
+
+        document.getElementById('app').innerHTML =
+            '<div class="above-fold">' +
+            '<div class="tab-bar">' +
+            '<button class="tab-btn ' + (appState.activeTab === 'players' ? 'active' : '') + '" onclick="setTab(\'players\')">Jugadores</button>' +
+            '<button class="tab-btn ' + (appState.activeTab === 'events' ? 'active' : '') + '" onclick="setTab(\'events\')">Eventos y Resultados</button>' +
+            '</div>' +
+            (appState.activeTab === 'players' ? playersTabContent : '') +
+            (appState.activeTab === 'events' ? eventsTabContent : '') +
             '</div>';
     }
 
