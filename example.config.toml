@@ -61,3 +61,9 @@ stats_thread_id = ""
 # Required: The substitutes chat ID (negative number for groups)
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
 chat_id = -1000000000001
+
+[pyball.telegram.management]
+# Optional: Management channel ID for operational log messages (INFO+ from pyball.*, ERROR+ from telegram)
+# Override with PYBALL_TELEGRAM_MANAGEMENT_CHAT_ID
+# Leave as 0 or omit the section to disable log forwarding
+chat_id = 0

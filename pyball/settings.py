@@ -102,9 +102,14 @@ def _parse_team_display_names(value) -> tuple[str, str]:
 
 @dataclass
 class TelegramChatSettings:
-    """Telegram chat configuration for regulars or substitutes."""
+    """Base Telegram chat configuration."""
 
     chat_id: int = 0
+
+
+@dataclass
+class ManagementChatSettings(TelegramChatSettings):
+    """Telegram chat configuration for the management channel."""
 
 
 @dataclass
@@ -123,6 +128,7 @@ class TelegramSettings:
     admins_ids: tuple[int, ...] = ()
     regulars: RegularsChatSettings = field(default_factory=RegularsChatSettings)
     substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
+    management: ManagementChatSettings = field(default_factory=ManagementChatSettings)
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
@@ -202,6 +208,17 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         ),
     )
 
+    management_cfg = telegram_cfg.get("management", {})
+    management = ManagementChatSettings(
+        chat_id=_parse_chat_id(
+            _get_env_override(
+                "pyball.telegram.management",
+                "chat_id",
+                management_cfg.get("chat_id", 0),
+            )
+        ),
+    )
+
     telegram = TelegramSettings(
         bot_token=_get_env_override(
             "pyball.telegram", "bot_token", telegram_cfg.get("bot_token", "")
@@ -211,6 +228,7 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         ),
         regulars=regulars,
         substitutes=substitutes,
+        management=management,
     )
 
     pyball = CoreSettings(

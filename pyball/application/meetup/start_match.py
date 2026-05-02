@@ -22,14 +22,9 @@
 import urllib.parse
 from datetime import datetime
 
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
-from pyball.exceptions import MeetupError
-
-
-class MeetupHasNoTeamsError(MeetupError):
-    """Raised when trying to start a match without teams."""
 
 
 class StartMatch:

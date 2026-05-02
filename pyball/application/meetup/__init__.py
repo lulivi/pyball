@@ -27,11 +27,16 @@ from pyball.application.meetup.compute_stats import (
     StatsReport,
     StatsScopedReport,
 )
-from pyball.application.meetup.create_meetup import CreateMeetup, DuplicateMeetupError
+from pyball.application.meetup.create_meetup import CreateMeetup
 from pyball.application.meetup.create_teams import CreateTeams
-from pyball.application.meetup.finish_match import FinishMatch, MeetupAlreadyClosedError
+from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
-from pyball.application.meetup.start_match import MeetupHasNoTeamsError, StartMatch
+from pyball.application.meetup.start_match import StartMatch
+from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
+    MeetupAlreadyClosedError,
+    MeetupHasNoTeamsError,
+)
 
 __all__ = [
     "CreateMeetup",
