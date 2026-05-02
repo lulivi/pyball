@@ -72,6 +72,10 @@ class TestManagementFilter:
         """'pyball' (without dot suffix) at INFO is NOT forwarded."""
         assert not self.f.filter(self._record("pyball", logging.INFO))
 
+    def test_telegramfoo_blocked(self):
+        """'telegramfoo' (no dot separator) at ERROR is NOT forwarded."""
+        assert not self.f.filter(self._record("telegramfoo", logging.ERROR))
+
 
 class TestTelegramLogHandler:
     """Tests for TelegramLogHandler.emit()."""
