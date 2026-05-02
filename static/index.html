@@ -31,7 +31,7 @@
 
         .match-date {
             text-align: center;
-            font-size: 0.75rem;
+            font-size: 1.25rem;
             color: #64748b;
             padding: 2px 0 4px;
             flex-shrink: 0;
@@ -100,7 +100,7 @@
             border: 1px dashed #334155;
         }
 
-        .waiting-text { font-size: 0.8rem; color: #64748b; text-align: center; padding: 8px; }
+        /* .waiting-text removed - no longer used */
 
         .player-btn {
             flex: 1;
@@ -189,10 +189,10 @@
             font-size: 0.85rem;
             color: #f8fafc;
             border-bottom: 1px solid #334155;
-            padding: 6px 0;
+            padding: 8px 4px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            min-height: 44px;
         }
 
         .event-log:last-child { border-bottom: none; }
@@ -200,20 +200,30 @@
         .event-time { font-size: 0.75rem; color: #64748b; flex-shrink: 0; margin-left: 8px; }
 
         .player-chip {
-            display: inline-flex; align-items: center; gap: 3px;
+            display: flex; align-items: center; gap: 3px; justify-content: center;
             background: #0f172a; border: 1px solid #475569;
-            border-radius: 4px; padding: 2px 7px;
-            font-size: 0.78rem; font-weight: 600; cursor: pointer;
-            color: #f8fafc; white-space: nowrap; vertical-align: middle;
-            line-height: 1.4;
+            border-radius: 6px; padding: 6px 10px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            color: #f8fafc; white-space: nowrap; width: 100%;
+            line-height: 1.4; box-sizing: border-box;
         }
         .player-chip.active { border-color: var(--color-dark-text); background: var(--color-dark); }
         .player-chip .chevron { font-size: 0.6rem; color: #94a3b8; }
+        .player-chip:hover { background: #1e293b; }
+
+        .cancel-full-btn {
+            background: #f44336; flex: 1; height: 100%; width: 100%;
+            border: none; border-radius: 6px; color: white;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            padding: 0; min-height: 44px;
+        }
+        .cancel-full-btn:hover { background: #d32f2f; }
 
         .delete-btn {
             background: transparent; border: none; color: #ef4444;
-            font-size: 0.9rem; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+            font-size: 0.9rem; cursor: pointer; padding: 4px 8px; flex-shrink: 0;
         }
+        .delete-btn:hover { background: rgba(239, 68, 68, 0.1); border-radius: 4px; }
 
         .event-log.editing { flex-wrap: wrap; align-items: flex-start; }
 
@@ -298,37 +308,54 @@
 
     // ── INIT ────────────────────────────────────────────
     function initializeApp() {
-        const stored = localStorage.getItem('pyball_current_match');
-        if (stored) {
-            const data = JSON.parse(stored);
-            teamA = data.teamA || [];
-            teamB = data.teamB || [];
-            nameA = data.nameA || 'A';
-            nameB = data.nameB || 'B';
-            meetupDate = data.meetupDate || '';
-            appState.goalsA = data.goalsA || 0;
-            appState.goalsB = data.goalsB || 0;
-            appState.events = data.events || [];
-            appState.currentStep = data.currentStep || 1;
-            appState.tempScorer = data.tempScorer || null;
-            appState.tempScorerTeam = data.tempScorerTeam || null;
-            appState.editingEvent = data.editingEvent || null;
-            appState.activeTab = data.activeTab || 'players';
-        }
+        const savedState = localStorage.getItem('pyball_current_match');
+        const savedTeams = localStorage.getItem('pyball_teams');
+        const params = new URLSearchParams(window.location.search);
+        const urlDate = params.get('date') || '';
 
-        const storedTeams = localStorage.getItem('pyball_teams');
-        if (storedTeams) {
-            const teamsData = JSON.parse(storedTeams);
-            if (teamsData.teamA) teamA = teamsData.teamA;
-            if (teamsData.teamB) teamB = teamsData.teamB;
-            if (teamsData.nameA) nameA = teamsData.nameA;
-            if (teamsData.nameB) nameB = teamsData.nameB;
+        if (savedState && savedTeams) {
+            const teams = JSON.parse(savedTeams);
+            if (!urlDate || teams.meetupDate === urlDate) {
+                appState = JSON.parse(savedState);
+                appState.editingEvent = null;
+                teamA = teams.teamA;
+                teamB = teams.teamB;
+                nameA = teams.nameA || 'A';
+                nameB = teams.nameB || 'B';
+                meetupDate = teams.meetupDate;
+                renderApp();
+                return;
+            }
+            const oldDate = formatMatchDate(teams.meetupDate);
+            const confirmed = confirm(
+                'Hay un partido del ' + oldDate + ' sin guardar.\n¿Empezar el partido de hoy y descartar el anterior?'
+            );
+            if (!confirmed) {
+                appState = JSON.parse(savedState);
+                appState.editingEvent = null;
+                teamA = teams.teamA;
+                teamB = teams.teamB;
+                nameA = teams.nameA || 'A';
+                nameB = teams.nameB || 'B';
+                meetupDate = teams.meetupDate;
+                renderApp();
+                return;
+            }
+            localStorage.removeItem('pyball_current_match');
+            localStorage.removeItem('pyball_teams');
         }
-
-        if (!teamA.length && !teamB.length) {
+        const teamAParam = params.get('teamA');
+        const teamBParam = params.get('teamB');
+        meetupDate = urlDate;
+        nameA = params.get('nameA') || 'A';
+        nameB = params.get('nameB') || 'B';
+        if (!teamAParam || !teamBParam) {
             renderNoMatch();
             return;
         }
+        teamA = teamAParam.split(',');
+        teamB = teamBParam.split(',');
+        localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, nameA, nameB, meetupDate }));
         renderApp();
     }
 
@@ -417,10 +444,10 @@
         var html =
             '<div class="event-log' + (isEditing ? ' editing' : '') +
             '" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">' +
-            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;">⚽ ' + scorerChip + '</span>' +
-            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;color:#64748b;font-size:0.75rem"> (Asist: ' + assistChip + ')</span>' +
+            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;">' + scorerChip + '</span>' +
+            '<span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;color:#64748b;font-size:0.75rem">' + assistChip + '</span>' +
             '<span class="event-time" style="flex:0 0 10%;text-align:center;">' + e.timestamp + '</span>' +
-            '<button class="delete-btn" style="flex:0 0 10%;" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
+            '<button class="delete-btn" style="flex:0 0 10%;padding-right:8px;" onclick="event.stopPropagation();deleteEvent(' + i + ')">🗑</button>';
 
         if (scorerOpen) { html += renderPickerDropdown(i, 'scorer'); }
         if (assistOpen) { html += renderPickerDropdown(i, 'assistant'); }
@@ -506,7 +533,7 @@
                 return '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>';
             }).join('');
             // Cancel button occupies the ENTIRE opposing team column (full width and height)
-            colBHtml = '<button class="player-btn btn-b" style="background:#f44336;flex:1;height:100%;width:100%;" onclick="cancelGoal()">Cancelar</button>';
+            colBHtml = '<button class="cancel-full-btn btn-b" onclick="cancelGoal()">Cancelar</button>';
             colBClass = 'team-col waiting';
         } else { // Team B scored, Team A is for assist/cancel
             colBHtml = teamB.map(p => {
@@ -516,7 +543,7 @@
                 return '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>';
             }).join('');
             // Cancel button occupies the ENTIRE opposing team column (full width and height)
-            colAHtml = '<button class="player-btn btn-a" style="background:#f44336;flex:1;height:100%;width:100%;" onclick="cancelGoal()">Cancelar</button>';
+            colAHtml = '<button class="cancel-full-btn btn-a" onclick="cancelGoal()">Cancelar</button>';
             colAClass = 'team-col waiting';
         }
 
@@ -525,7 +552,6 @@
             : '<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>';
 
         const playersTabContent =
-            '<div class="match-date">' + formatMatchDate(meetupDate) + '</div>' +
             '<div class="scoreboard">' +
             '<div class="team-score"><div class="team-name">' + nameA + '</div>' +
             '<div class="score-number score-a">' + appState.goalsA + '</div></div>' +
@@ -540,14 +566,22 @@
             '</div>';
 
         const eventsTabContent =
-            '<div class="below-fold">' +
+            '<div>' +
             '<div class="events-label">Eventos del partido</div>' +
-            '<div id="event-list">' + eventsHtml + '</div>' +
+            '<div id="event-list">' +
+            '<div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">' +
+            '<span class="player-chip" style="cursor:default;pointer-events:none;background:transparent;border-color:transparent;flex:0 0 40%;justify-content:center;color:#94a3b8">Goleador</span>' +
+            '<span class="player-chip" style="cursor:default;pointer-events:none;background:transparent;border-color:transparent;flex:0 0 40%;justify-content:center;color:#94a3b8">Asistente</span>' +
+            '<span style="flex:0 0 10%;text-align:center;">Hora</span>' +
+            '<span style="flex:0 0 10%;padding-right:8px;"></span>' +
+            '</div>' +
+            eventsHtml + '</div>' +
             '<button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>' +
             '</div>';
 
         document.getElementById('app').innerHTML =
-            '<div class="above-fold">' +
+            '<div style="height:100svh;display:flex;flex-direction:column;padding:8px 12px 4px;">' +
+            '<div class="match-date">' + formatMatchDate(meetupDate) + '</div>' +
             '<div class="tab-bar">' +
             '<button class="tab-btn ' + (appState.activeTab === 'players' ? 'active' : '') + '" onclick="setTab(\'players\')">Jugadores</button>' +
             '<button class="tab-btn ' + (appState.activeTab === 'events' ? 'active' : '') + '" onclick="setTab(\'events\')">Eventos y Resultados</button>' +
