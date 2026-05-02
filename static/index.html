@@ -470,17 +470,25 @@
             colBHtml = teamB.map(p =>
                 '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>'
             ).join('');
-        } else if (scorerTeam === 'A') {
-            colAHtml = teamA.filter(p => p !== scorer).map(p =>
-                '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>'
-            ).join('') + '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
-            colBHtml = '<div class="waiting-text">Equipo ' + nameB + '<br>no asiste</div>';
+        } else if (scorerTeam === 'A') { // Team A scored, Team B is for assist/cancel
+            colAHtml = teamA.map(p => {
+                if (p === scorer) {
+                    return '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
+                }
+                return '<button class="player-btn btn-a" onclick="selectPlayer(\'' + p + '\', \'A\')">' + p + '</button>';
+            }).join('');
+            // Cancel button occupies the ENTIRE opposing team column
+            colBHtml = '<button class="player-btn btn-b" style="background:#f44336;flex:1;height:100%;" onclick="cancelGoal()">Cancelar</button>';
             colBClass = 'team-col waiting';
-        } else {
-            colBHtml = teamB.filter(p => p !== scorer).map(p =>
-                '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>'
-            ).join('') + '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
-            colAHtml = '<div class="waiting-text">Equipo ' + nameA + '<br>no asiste</div>';
+        } else { // Team B scored, Team A is for assist/cancel
+            colBHtml = teamB.map(p => {
+                if (p === scorer) {
+                    return '<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>';
+                }
+                return '<button class="player-btn btn-b" onclick="selectPlayer(\'' + p + '\', \'B\')">' + p + '</button>';
+            }).join('');
+            // Cancel button occupies the ENTIRE opposing team column
+            colAHtml = '<button class="player-btn btn-a" style="background:#f44336;flex:1;height:100%;" onclick="cancelGoal()">Cancelar</button>';
             colAClass = 'team-col waiting';
         }
 
