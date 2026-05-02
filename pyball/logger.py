@@ -121,13 +121,17 @@ class _ManagementFilter(logging.Filter):
         """Return True if the record should be forwarded to the management channel."""
         if record.name.startswith("pyball.") and record.levelno >= logging.INFO:
             return True
-        if record.name.startswith("telegram") and record.levelno >= logging.ERROR:
+        if (
+            record.name == "telegram" or record.name.startswith("telegram.")
+        ) and record.levelno >= logging.ERROR:
             return True
         return False
 
 
 class TelegramLogHandler(logging.Handler):
     """Logging handler that sends records to a Telegram chat via the Bot API."""
+
+    _formatter: logging.Formatter = logging.Formatter()
 
     def __init__(self, bot_token: str, chat_id: int) -> None:
         """Initialize the handler with Telegram credentials."""
@@ -141,7 +145,7 @@ class TelegramLogHandler(logging.Handler):
             emoji = _LEVEL_EMOJI.get(record.levelno, "❓")
             message = record.getMessage()
             if record.exc_info:
-                message += "\n" + logging.Formatter().formatException(record.exc_info)
+                message += "\n" + self._formatter.formatException(record.exc_info)
             text = (
                 f"```\n{emoji} {record.levelname}|{record.name}:{record.lineno}\n"
                 f"{message}\n```"
