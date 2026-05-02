@@ -17,10 +17,20 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Bot handlers."""
+"""Bot application entrypoint."""
 
-from pyball.bot.handlers.general import setup_general_handlers
-from pyball.bot.handlers.meetup import setup_meetup_handlers
-from pyball.bot.handlers.player import setup_player_handlers
+from telegram.ext import Application, CallbackQueryHandler
 
-__all__ = ["setup_player_handlers", "setup_meetup_handlers", "setup_general_handlers"]
+from pyball.infrastructure.telegram.bot.callbacks import callback_handler
+from pyball.settings import load_settings
+
+
+def create_application() -> Application:
+    """Create and configure the Telegram application."""
+    settings = load_settings()
+    application = (
+        Application.builder().token(settings.telegram.bot_token).concurrent_updates(False).build()
+    )
+    application.bot_data["settings"] = settings
+    application.add_handler(CallbackQueryHandler(callback_handler))
+    return application

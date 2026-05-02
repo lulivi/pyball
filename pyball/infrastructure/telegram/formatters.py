@@ -124,7 +124,7 @@ def format_main_message(
         max_players = 10
         lines.append(rf"*Jugadores \({len(meetup.players)}/{max_players}\):*")
         for name in sorted_names:
-            lines.append(rf"  \- {_escape_mdv2(name)}")
+            lines.append(rf"  \- `{name}`")
     else:
         lines.append("*Equipos:*")
         team_emojis = ("⚪", "⚫")
@@ -141,21 +141,22 @@ def format_main_message(
                 else f"\n{emoji} *{escaped}:*"
             )
             lines.append(header)
-            for player in team.players:
-                name = _escape_mdv2(player_names.get(str(player.value), "Unknown"))
-                lines.append(rf"  \- {name}")
+            player_names_list = [player_names.get(str(p.value), "") for p in team.players]
+            sorted_names = sorted(player_names_list, key=functools.cmp_to_key(locale.strcoll))
+            for name in sorted_names:
+                lines.append(rf"  \- `{name}`")
 
     if meetup.result is not None and meetup.result.events:
         lines.append("")
         lines.append(r"⏱️ *Goles:*")
         for event in meetup.result.events:
-            scorer = _escape_mdv2(player_names.get(str(event.scorer_id.value), "?"))
+            scorer = player_names.get(str(event.scorer_id.value), "?")
             minutes = event.timestamp.strftime("%M")
             if event.assistant_id:
-                assistant = _escape_mdv2(player_names.get(str(event.assistant_id.value), "?"))
-                lines.append(rf"  \- ⚽ {minutes}' {scorer} \({assistant}\)")
+                assistant = player_names.get(str(event.assistant_id.value), "?")
+                lines.append(rf"  \- ⚽ {minutes}' `{scorer}` \- `{assistant}`")
             else:
-                lines.append(rf"  \- ⚽ {minutes}' {scorer}")
+                lines.append(rf"  \- ⚽ {minutes}' `{scorer}`")
 
     return "\n".join(lines)
 
@@ -205,13 +206,13 @@ def format_subs_message(
                 if team_idx < len(team_display_names)
                 else f"Equipo {team_idx}:"
             )
-            names = ", ".join([_escape_mdv2(player) for player in sorted(subs_by_team[team_idx])])
+            names = ", ".join([f"`{player}`" for player in sorted(subs_by_team[team_idx])])
             lines.append(rf"{emoji} *{display_name}* {names}")
 
         return "\n".join(lines)
 
     sorted_suplentes = sorted(
-        [name for _, name in suplentes], key=functools.cmp_to_key(locale.strcoll)
+        [f"`{name}`" for _, name in suplentes], key=functools.cmp_to_key(locale.strcoll)
     )
 
     lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
@@ -221,7 +222,7 @@ def format_subs_message(
     if sorted_suplentes:
         lines.append(rf"*Suplentes \({len(sorted_suplentes)}\):*")
         for name in sorted_suplentes:
-            lines.append(rf"  \- {_escape_mdv2(name)}")
+            lines.append(rf"  \- {name}")
     else:
         lines.append("*No hay suplentes*")
 

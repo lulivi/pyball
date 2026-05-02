@@ -6,7 +6,7 @@ import pytest
 from telegram import Message, Update, User
 from telegram.ext import ContextTypes
 
-from pyball.bot.auth import authorized
+from pyball.infrastructure.telegram.bot.auth import authorized
 
 
 @pytest.mark.asyncio

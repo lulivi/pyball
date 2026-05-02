@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from telegram import CallbackQuery, Message, Update, User
 
-from pyball.bot.callbacks import callback_handler
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player, PlayerId
+from pyball.infrastructure.telegram.bot.callbacks import callback_handler
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
 # pylint: disable=redefined-outer-name
@@ -201,7 +201,7 @@ async def test_join_logs_info_event(
     """Join callback logs an INFO event with player name."""
     callback_update.callback_query.data = "join:2026-04-25T20:00"
 
-    with caplog.at_level(logging.INFO, logger="pyball.bot.callbacks"):
+    with caplog.at_level(logging.INFO, logger="pyball.infrastructure.telegram.bot.callbacks"):
         await callback_handler(callback_update, bot_context)
 
     assert any(
@@ -224,7 +224,7 @@ async def test_leave_logs_info_event(
 
     callback_update.callback_query.data = "leave:2026-04-25T20:00"
 
-    with caplog.at_level(logging.INFO, logger="pyball.bot.callbacks"):
+    with caplog.at_level(logging.INFO, logger="pyball.infrastructure.telegram.bot.callbacks"):
         await callback_handler(callback_update, bot_context)
 
     assert any("left" in r.message.lower() or "luis" in r.message.lower() for r in caplog.records)

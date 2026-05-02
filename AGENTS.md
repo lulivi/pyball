@@ -56,34 +56,34 @@ Clean architecture with strict layer boundaries:
 
 ```
 pyball/
-  domain/            # Core models and repository interfaces (no dependencies on other layers)
-    player/          #   Player entity, PlayerId value object, errors, repository ABC
-    meetup/          #   Meetup entity, Team/MatchResult/GoalEvent value objects, MeetupId, errors
-  application/       # Use cases — one file per action, injected with repository interfaces
-    player/          #   create_player, rename_player, delete_player, change_group
-    meetup/          #   create_meetup, add_player, remove_player, create_teams, start_match,
-                     #   finish_match, compute_stats (StatsReport), balance (team optimisation)
-    notifier.py      #   MatchNotifier ABC — port for post-match / meetup-update notifications
-    container.py     #   Simple DI container — wires repositories to use cases
-    fuzzy_match.py   #   Shared fuzzy player search utility
-  infrastructure/    # Concrete implementations of domain interfaces
-    persistence/     #   JsonPlayerRepository, JsonMeetupRepository (file-backed JSON),
-                     #   LegacyStats (historical assist data loader)
-    images/          #   StatsHtmlRenderer — WeasyPrint + Jinja2 HTML-to-PNG stats image
-    telegram/        #   TelegramMappingStore (telegram_id → player UUID)
-                     #   TelegramMessageStore + MessageTracking (sent-message tracking)
-                     #   TelegramMatchNotifier (MatchNotifier implementation)
-                     #   formatters.py (MarkdownV2 builders, keyboard factories, callback codec)
-                     #   notifications.py (refresh_callup_messages, _post_match_stats)
-    http/app.py      #   FastAPI app — POST /api/match/finish endpoint + serves static/
-  bot/               # Telegram bot wiring (no Telegram SDK imports in other layers)
-    handlers/        #   general.py (/help), player.py (player CRUD + link/unlink),
-                     #   meetup.py (meetup lifecycle, stats, QR, search)
-    callbacks.py     #   Inline button callback dispatcher (join/leave meetup)
-    auth.py          #   @authorized decorator — checks settings.telegram.admins_ids
-    entrypoint.py    #   create_application() factory
-  __main__.py        # Starts the Telegram polling bot and FastAPI/uvicorn on port 8000
-  settings.py        # Loads config.toml + PYBALL_<SECTION>_<KEY> env var overrides
+├── domain/                  # Core models and repository interfaces (no deps on other layers)
+│   ├── player/              #   Player entity, PlayerId, errors, repository ABC
+│   └── meetup/              #   Meetup entity, Team, MatchResult, GoalEvent, MeetupId, errors
+├── application/             # Use cases — one file per action, injected with repository interfaces
+│   ├── player/              #   create_player, rename_player, delete_player, change_group
+│   ├── meetup/              #   create_meetup, add_player, remove_player, create_teams,
+│   │                           start_match, finish_match, compute_stats, balance
+│   ├── notifier.py          #   MatchNotifier ABC
+│   ├── container.py         #   Simple DI container
+│   └── fuzzy_match.py       #   Shared fuzzy player search utility
+├── infrastructure/          # Concrete implementations of domain interfaces
+│   ├── persistence/         #   JsonPlayerRepository, JsonMeetupRepository, LegacyStats
+│   ├── images/              #   StatsHtmlRenderer (WeasyPrint + Jinja2)
+│   ├── telegram/
+│   │   ├── bot/
+│   │   │   ├── handlers/    #     general, player, meetup handlers
+│   │   │   ├── callbacks.py #     Inline button callback dispatcher
+│   │   │   ├── auth.py      #     @authorized decorator
+│   │   │   └── entrypoint.py #     create_application() factory
+│   │   ├── formatters.py
+│   │   ├── notifications.py
+│   │   ├── mapping.py
+│   │   └── message_store.py
+│   └── http/
+│       └── app.py           #   FastAPI — POST /api/match/finish + serves static/
+├── __main__.py              # Starts Telegram bot + FastAPI (port 8000)
+├── settings.py              # Loads config.toml + env var overrides
+└── exceptions.py
 ```
 
 **Data flow:** `__main__.py` builds a `Container` and a `TelegramMatchNotifier`, attaches the container to `bot_data`, handlers pull use cases from it, use cases interact only with domain repository interfaces, infrastructure implementations handle I/O. The `notifier` is injected into `create_app` so the HTTP layer can call `notifier.on_match_closed()` without any knowledge of Telegram.
@@ -107,14 +107,36 @@ Prefer uv run over activating the virtualenv manually. After editing pyproject.t
 
 ## Configuration
 
-Copy `example.config.toml` to `config.toml` and fill in values. Required fields:
-- `telegram.bot_token`
-- `telegram.admins_ids`
-- `telegram.regulars.chat_id`
-- `telegram.substitutes.chat_id`
-- `pyball.location`
+Copy `example.config.toml` to `config.toml` and fill in values.
 
-Any value can be overridden with env var `PYBALL_<SECTION>_<KEY>` (e.g. `PYBALL_TELEGRAM_BOT_TOKEN`). Nested sections use `_` separator (e.g. `PYBALL_TELEGRAM_REGULARS_CHAT_ID`).
+```toml
+[pyball.core]
+location = "Parque Central"              # Required: default meetup location
+default_week_day = "wednesday"            # Optional: monday-sunday
+default_hour = "20:00"                    # Optional: HH:MM format
+base_url = "http://pyball:8000"          # Optional: for match links
+team_display_names = ["Claro", "Oscuro"]  # Optional: display names for teams
+locale = "es_ES.UTF-8"                   # Optional: for name sorting
+data_dir = "data"                         # Optional: data files directory
+display_date_format = "%Y-%m-%d %H:%M"   # Optional: date format for messages
+
+[pyball.telegram]
+bot_token = "..."                         # Required: Telegram bot token
+admins_ids = [123456789]                  # Required: authorized user IDs
+
+[pyball.telegram.regulars]
+chat_id = -1000000000000                  # Required: main group chat ID
+meetups_thread_id = ""                    # Optional: forum topic for callups
+stats_thread_id = ""                      # Optional: forum topic for stats
+
+[pyball.telegram.substitutes]
+chat_id = -1000000000001                  # Required: substitutes group chat ID
+
+[pyball.telegram.management]              # Optional: operational log channel
+chat_id = 0
+```
+
+Any value can be overridden with env var `PYBALL_<SECTION>_<KEY>` (e.g. `PYBALL_TELEGRAM_BOT_TOKEN`). The `pyball.` prefix is stripped for env vars, so `pyball.core.location` becomes `PYBALL_CORE_LOCATION`.
 
 ## Testing
 
