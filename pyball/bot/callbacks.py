@@ -51,19 +51,19 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     callback_data = query.data
     if callback_data is None:
-        await query.answer("Invalid callback data.", show_alert=True)
+        await query.answer("Datos de acción no válidos.", show_alert=True)
         return
 
     parsed = parse_callback_data(callback_data)
     if not parsed:
-        await query.answer("Invalid callback data.", show_alert=True)
+        await query.answer("Datos de acción no válidos.", show_alert=True)
         return
 
     action, date_str = parsed
 
     meetup_date = _parse_meetup_date(date_str)
     if meetup_date is None:
-        await query.answer("Invalid date format.", show_alert=True)
+        await query.answer("Formato de fecha no válido.", show_alert=True)
         return
 
     meetup_repo = container.meetup_repository
@@ -71,31 +71,37 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     meetup = _find_meetup(meetup_repo, meetup_date)
 
     if not meetup:
-        await query.answer("Meetup not found.", show_alert=True)
+        await query.answer("No se ha encontrado el meetup.", show_alert=True)
         return
 
     from_user = query.from_user
     if from_user is None:
-        await query.answer("Invalid user.", show_alert=True)
+        await query.answer("Usuario no identificado.", show_alert=True)
         return
     telegram_id = from_user.id
 
     player_id_str = _get_player_id(telegram_id, mapping_store)
     if not player_id_str:
         await query.answer(
-            "No player linked to your Telegram account. Contact admin to register.",
+            "No tienes ningún jugador vinculado. Contacta con el administrador para registrarte.",
             show_alert=True,
         )
         return
 
     player_id = _validate_player_id(player_id_str)
     if not player_id:
-        await query.answer("Invalid player mapping. Contact admin.", show_alert=True)
+        await query.answer(
+            "Vinculación de jugador no válida. Contacta con el administrador.",
+            show_alert=True,
+        )
         return
 
     player = container.player_repository.find_by_id(player_id)
     if not player:
-        await query.answer("Player not found. Contact admin.", show_alert=True)
+        await query.answer(
+            "Jugador no encontrado. Contacta con el administrador.",
+            show_alert=True,
+        )
         return
     player_name = player.name
 
@@ -148,13 +154,17 @@ def _process_action(
     if "join" in action:
         try:
             container.add_player_to_meetup().execute(meetup_date, player_name)
+            logger.info("Player '%s' joined meetup %s", player_name, meetup_date.date())
             return True
         except Exception:
+            logger.exception("Unexpected error processing join for player '%s'", player_name)
             return False
     if "leave" in action:
         try:
             container.remove_player_from_meetup().execute(meetup_date, player_name)
+            logger.info("Player '%s' left meetup %s", player_name, meetup_date.date())
             return True
         except Exception:
+            logger.exception("Unexpected error processing leave for player '%s'", player_name)
             return False
     return False

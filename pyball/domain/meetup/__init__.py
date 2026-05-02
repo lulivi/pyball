@@ -20,7 +20,10 @@
 """Meetup domain - entities and business rules."""
 
 from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
     InvalidMeetupIdError,
+    MeetupAlreadyClosedError,
+    MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
 )
@@ -30,7 +33,10 @@ __all__ = [
     "Meetup",
     "MeetupId",
     "Team",
+    "DuplicateMeetupError",
     "InvalidMeetupIdError",
+    "MeetupAlreadyClosedError",
+    "MeetupHasNoTeamsError",
     "MeetupNotFoundError",
     "PlayerNotInMeetupError",
 ]

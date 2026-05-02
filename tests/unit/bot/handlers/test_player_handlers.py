@@ -33,7 +33,7 @@ async def test_new_player_handler_success(mock_update, mock_context):
     await new_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        text=r"Player `Luis` created as regular\!", parse_mode="MarkdownV2"
+        text=r"¡Jugador `Luis` creado como regular\!", parse_mode="MarkdownV2"
     )
 
 
@@ -50,9 +50,9 @@ async def test_new_player_handler_duplicate_raises(mock_update, mock_context):
 
     await new_player_handler(mock_update, mock_context)
 
-    assert mock_update.message.reply_text.called
-    args, kwargs = mock_update.message.reply_text.call_args
-    assert kwargs["parse_mode"] == "HTML"
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "ya existe" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ async def test_rename_player_handler_success(mock_update, mock_context):
     await rename_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        text=r"Player renamed to `New Name`\!", parse_mode="MarkdownV2"
+        text=r"¡Jugador renombrado a `New Name`\!", parse_mode="MarkdownV2"
     )
 
 
@@ -82,7 +82,7 @@ async def test_delete_player_handler_success(mock_update, mock_context):
 
     await delete_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_once_with("Player deleted!")
+    mock_update.message.reply_text.assert_called_once_with("¡Jugador eliminado!")
 
 
 @pytest.mark.asyncio
@@ -130,7 +130,7 @@ async def test_change_group_handler_success(mock_update, mock_context):
     await change_group_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        text=r"Player `Luis` changed to `substitute`\!", parse_mode="MarkdownV2"
+        text=r"¡Jugador `Luis` cambiado a `substitute`\!", parse_mode="MarkdownV2"
     )
 
 
@@ -178,7 +178,7 @@ async def test_unlink_player_handler_success(mock_update, mock_context):
         await unlink_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once_with(
-        text=r"Link for Telegram ID `12345` removed\!", parse_mode="MarkdownV2"
+        text=r"¡Enlace para el ID de Telegram `12345` eliminado\!", parse_mode="MarkdownV2"
     )
 
 
@@ -190,7 +190,7 @@ async def test_new_player_handler_invalid_group(mock_update, mock_context):
     await new_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        text="Group must be `regular` or `substitute`", parse_mode="MarkdownV2"
+        text=r"El grupo debe ser \`regular\` o \`substitute\`\.", parse_mode="MarkdownV2"
     )
 
 
@@ -204,7 +204,7 @@ async def test_rename_player_handler_invalid_id(mock_update, mock_context):
 
     await rename_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Invalid player ID format.")
+    mock_update.message.reply_text.assert_called_with("Formato de ID de jugador no válido.")
 
 
 @pytest.mark.asyncio
@@ -217,7 +217,7 @@ async def test_rename_player_handler_not_found(mock_update, mock_context):
 
     await rename_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Player not found.")
+    mock_update.message.reply_text.assert_called_with("Jugador no encontrado.")
 
 
 @pytest.mark.asyncio
@@ -230,8 +230,9 @@ async def test_rename_player_handler_name_taken(mock_update, mock_context):
 
     await rename_player_handler(mock_update, mock_context)
 
-    _, kwargs = mock_update.message.reply_text.call_args
-    assert kwargs.get("parse_mode") == "HTML"
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "ya está en uso" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -243,7 +244,9 @@ async def test_link_player_handler_non_numeric_id(mock_update, mock_context):
         m.setattr("pyball.bot.handlers.player.TelegramMappingStore", MagicMock())
         await link_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Invalid telegram_id. Must be a number.")
+    mock_update.message.reply_text.assert_called_with(
+        "ID de Telegram no válido. Debe ser un número."
+    )
 
 
 @pytest.mark.asyncio
@@ -272,7 +275,7 @@ async def test_link_player_handler_already_linked_same(mock_update, mock_context
         await link_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        "This Telegram ID is already linked to this player."
+        "Este ID de Telegram ya está vinculado a este jugador."
     )
 
 
@@ -302,7 +305,7 @@ async def test_link_player_handler_already_linked_other(mock_update, mock_contex
         await link_player_handler(mock_update, mock_context)
 
     (text, *_), _ = mock_update.message.reply_text.call_args
-    assert "linked to another player" in text
+    assert "vinculado a otro jugador" in text
 
 
 @pytest.mark.asyncio
@@ -313,7 +316,9 @@ async def test_unlink_player_handler_non_numeric_id(mock_update, mock_context):
         m.setattr("pyball.bot.handlers.player.TelegramMappingStore", MagicMock())
         await unlink_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with("Invalid telegram_id. Must be a number.")
+    mock_update.message.reply_text.assert_called_with(
+        "ID de Telegram no válido. Debe ser un número."
+    )
 
 
 @pytest.mark.asyncio
@@ -331,5 +336,5 @@ async def test_unlink_player_handler_not_linked(mock_update, mock_context):
         await unlink_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
-        "This Telegram ID is not linked to any player."
+        "Este ID de Telegram no está vinculado a ningún jugador."
     )

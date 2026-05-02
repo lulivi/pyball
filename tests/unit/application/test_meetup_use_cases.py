@@ -10,12 +10,16 @@ from pyball.application.meetup import (
     AddPlayerToMeetup,
     CreateMeetup,
     CreateTeams,
-    DuplicateMeetupError,
     RemovePlayerFromMeetup,
 )
-from pyball.application.meetup.finish_match import FinishMatch, MeetupAlreadyClosedError
-from pyball.application.meetup.start_match import MeetupHasNoTeamsError, StartMatch
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.application.meetup.finish_match import FinishMatch
+from pyball.application.meetup.start_match import StartMatch
+from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
+    MeetupAlreadyClosedError,
+    MeetupHasNoTeamsError,
+    MeetupNotFoundError,
+)
 from pyball.domain.meetup.models import MatchResult, Meetup, MeetupId, PlayerId, Team
 from pyball.domain.player.models import Player
 

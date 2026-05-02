@@ -1,5 +1,6 @@
 """Integration tests for the inline callback handler."""
 
+import logging
 from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock
 
@@ -134,7 +135,7 @@ async def test_unlinked_player_answers_registration_message(
     callback_update.callback_query.answer.assert_called_once()
     call_kwargs = callback_update.callback_query.answer.call_args
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "No player linked" in text or "Contact admin" in text
+    assert "vinculado" in text.lower() or "ningún jugador" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -186,4 +187,44 @@ async def test_invalid_callback_data_answers_error(callback_update, bot_context)
     callback_update.callback_query.answer.assert_called_once()
     call_kwargs = callback_update.callback_query.answer.call_args
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "Invalid callback data" in text
+    assert "no válid" in text.lower() or "inválid" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_join_logs_info_event(
+    callback_update,
+    bot_context,
+    linked_player,  # pylint: disable=unused-argument
+    saved_meetup,  # pylint: disable=unused-argument
+    caplog,
+):
+    """Join callback logs an INFO event with player name."""
+    callback_update.callback_query.data = "join:2026-04-25T20:00"
+
+    with caplog.at_level(logging.INFO, logger="pyball.bot.callbacks"):
+        await callback_handler(callback_update, bot_context)
+
+    assert any(
+        "joined" in r.message.lower() or "luis" in r.message.lower() for r in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_leave_logs_info_event(
+    callback_update,
+    bot_context,
+    linked_player,
+    saved_meetup,
+    caplog,
+):
+    """Leave callback logs an INFO event with player name."""
+    container = bot_context.bot_data["container"]
+    saved_meetup.add_player(linked_player.id)
+    container.meetup_repository.save(saved_meetup)
+
+    callback_update.callback_query.data = "leave:2026-04-25T20:00"
+
+    with caplog.at_level(logging.INFO, logger="pyball.bot.callbacks"):
+        await callback_handler(callback_update, bot_context)
+
+    assert any("left" in r.message.lower() or "luis" in r.message.lower() for r in caplog.records)
