@@ -140,25 +140,6 @@
             color: #f8fafc;
         }
 
-        .cancel-btn {
-            display: block; width: 100%;
-            padding: 9px; font-size: 0.85rem; font-weight: 600;
-            color: #f87171; background: transparent;
-            border: 1px solid #f87171; border-radius: 6px;
-            cursor: pointer; text-align: center; margin-bottom: 6px;
-        }
-
-        .scroll-hint {
-            text-align: center;
-            font-size: 0.65rem;
-            color: #475569;
-            padding: 4px 0 2px;
-            flex-shrink: 0;
-        }
-
-        /* ── BELOW FOLD ──────────────────────────────────── */
-        .below-fold { padding: 12px 12px 24px; }
-
         #event-list {
             background: #1e293b;
             border-radius: 8px;
@@ -177,20 +158,35 @@
             min-height: 44px;
         }
 
+        .truncate-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 0 1 auto;
+        }
+
         .event-log:last-child { border-bottom: none; }
 
-        .event-time { font-size: 0.75rem; color: #64748b; flex-shrink: 0; margin-left: 8px; }
+        .event-time {
+            font-size: 0.75rem;
+            color: #64748b;
+            flex-shrink: 0;
+        }
 
         .player-chip {
-            display: flex; align-items: center; gap: 3px; justify-content: center;
+            display: flex; align-items: center; gap: 2px; justify-content: center;
             background: #0f172a; border: 1px solid #475569;
-            border-radius: 6px; padding: 6px 10px;
-            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            border-radius: 6px; padding: 6px 4px;
+            font-size: 0.8rem; font-weight: 600; cursor: pointer;
             color: #f8fafc; white-space: nowrap; width: 100%;
             line-height: 1.4; box-sizing: border-box;
         }
         .player-chip.active { border-color: var(--color-dark-text); background: var(--color-dark); }
-        .player-chip .chevron { font-size: 0.6rem; color: #94a3b8; }
+        .player-chip .chevron {
+            font-size: 0.6rem;
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
         .player-chip:hover { background: #1e293b; }
 
         .cancel-full-btn {
@@ -427,6 +423,9 @@
     }
 
     function updateEventPlayer(eventIndex, field, playerName) {
+        if (field === 'scorer' && appState.events[eventIndex].assistant === playerName) {
+            appState.events[eventIndex].assistant = null;
+        }
         appState.events[eventIndex][field] = playerName;
         appState.editingEvent = null;
         persistState();
@@ -446,18 +445,18 @@
 
         const scorerChip = `
             <button class="player-chip ${scorerOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'scorer')">
-                ${escHtml(e.scorer)} <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
+                <span class="truncate-text">${escHtml(e.scorer)}</span> <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
             </button>`;
 
         const assistLabel = e.assistant ? e.assistant : 'Sin asist.';
         const assistChip = `
             <button class="player-chip ${assistOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'assistant')">
-                ${escHtml(assistLabel)} <span class="chevron">${assistOpen ? '▲' : '▼'}</span>
+                <span class="truncate-text">${escHtml(assistLabel)}</span> <span class="chevron">${assistOpen ? '▲' : '▼'}</span>
             </button>`;
 
         return `
             <div class="event-log ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                <span class="event-time" style="flex: 0 0 45px; text-align:center;">${e.timestamp}</span>
+                <span class="event-time" style="flex: 0 0 42px; text-align:center;">${e.timestamp}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${assistChip}</span>
                 <button class="delete-btn" style="flex: 0 0 35px; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
@@ -521,7 +520,7 @@
             <div>
                 <div id="event-list">
                     <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
-                        <span style="flex: 0 0 45px;"></span>
+                        <span style="flex: 0 0 42px;"></span>
                         <span style="flex: 1; text-align:center;">Goleador</span>
                         <span style="flex: 1; text-align:center;">Asistente</span>
                         <span style="flex: 0 0 35px;"></span>
