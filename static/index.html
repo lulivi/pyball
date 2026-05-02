@@ -277,17 +277,28 @@
 <div id="app"></div>
 <script>
     // ── STATE ─────────────────────────────────────────────
-    let teamA = [], teamB = [];
-    let nameA = 'A', nameB = 'B';
-    let meetupDate = '';
+    // -- Hardcoded Mock Data for Standalone Mockup --
+    let teamA = ['Jugador 1A', 'Jugador 2A', 'Jugador 3A'];
+    let teamB = ['Jugador 1B', 'Jugador 2B', 'Jugador 3B'];
+    let nameA = 'Claro';
+    let nameB = 'Oscuro';
+    let meetupDate = '2026-05-02T20:00:00Z';
+    // ------------------------------------------------
 
     let appState = {
         goalsA: 0, goalsB: 0,
         events: [],
-        currentStep: 1,
+        currentStep: 1, // 1: selecting scorer, 2: selecting assistant
         tempScorer: null, tempScorerTeam: null,
-        editingEvent: null
+        editingEvent: null,
+        activeTab: 'players' // New: for tab navigation
     };
+
+    // New: Tab handling function
+    function setTab(tabName) {
+        appState.activeTab = tabName;
+        renderApp();
+    }
 
     // ── DATE FORMAT ───────────────────────────────────────
     function formatMatchDate(dateStr) {
@@ -297,63 +308,6 @@
         const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
         const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         return day.charAt(0).toUpperCase() + day.slice(1) + ' · ' + time;
-    }
-
-    // ── INIT ──────────────────────────────────────────────
-    function initializeApp() {
-        const savedState = localStorage.getItem('pyball_current_match');
-        const savedTeams = localStorage.getItem('pyball_teams');
-
-        const params = new URLSearchParams(window.location.search);
-        const urlDate = params.get('date') || '';
-
-        if (savedState && savedTeams) {
-            const teams = JSON.parse(savedTeams);
-            if (!urlDate || teams.meetupDate === urlDate) {
-                appState = JSON.parse(savedState);
-                appState.editingEvent = null;
-                teamA = teams.teamA;
-                teamB = teams.teamB;
-                nameA = teams.nameA || 'A';
-                nameB = teams.nameB || 'B';
-                meetupDate = teams.meetupDate;
-                renderApp();
-                return;
-            }
-            const oldDate = formatMatchDate(teams.meetupDate);
-            const confirmed = confirm(
-                'Hay un partido del ' + oldDate + ' sin guardar.\n¿Empezar el partido de hoy y descartar el anterior?'
-            );
-            if (!confirmed) {
-                appState = JSON.parse(savedState);
-                appState.editingEvent = null;
-                teamA = teams.teamA;
-                teamB = teams.teamB;
-                nameA = teams.nameA || 'A';
-                nameB = teams.nameB || 'B';
-                meetupDate = teams.meetupDate;
-                renderApp();
-                return;
-            }
-            localStorage.removeItem('pyball_current_match');
-            localStorage.removeItem('pyball_teams');
-        }
-
-        const teamAParam = params.get('teamA');
-        const teamBParam = params.get('teamB');
-        meetupDate = urlDate;
-        nameA = params.get('nameA') || 'A';
-        nameB = params.get('nameB') || 'B';
-
-        if (!teamAParam || !teamBParam) {
-            renderNoMatch();
-            return;
-        }
-
-        teamA = teamAParam.split(',');
-        teamB = teamBParam.split(',');
-        localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, nameA, nameB, meetupDate }));
-        renderApp();
     }
 
     // ── GOAL REGISTRATION ─────────────────────────────────
@@ -382,7 +336,7 @@
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
         renderApp();
     }
 
@@ -390,7 +344,7 @@
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
         renderApp();
     }
 
@@ -399,7 +353,7 @@
         appState.goalsA = appState.events.filter(function(e) { return e.team === 'A'; }).length;
         appState.goalsB = appState.events.filter(function(e) { return e.team === 'B'; }).length;
         appState.editingEvent = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
         renderApp();
     }
 
@@ -477,14 +431,14 @@
     function updateEventPlayer(eventIndex, field, playerName) {
         appState.events[eventIndex][field] = playerName;
         appState.editingEvent = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
         renderApp();
     }
 
     function clearAssist(eventIndex) {
         appState.events[eventIndex].assistant = null;
         appState.editingEvent = null;
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
         renderApp();
     }
 
@@ -612,7 +566,8 @@
         }
     });
 
-    initializeApp();
+    // initializeApp(); // Disabled for mockup
+    renderApp(); // For mockup
 </script>
 </body>
 </html>
