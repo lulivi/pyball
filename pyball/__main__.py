@@ -36,7 +36,7 @@ from pyball.bot.handlers import (
 )
 from pyball.infrastructure.http.app import create_app
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
-from pyball.logger import config_logging
+from pyball.logger import add_telegram_log_handler, config_logging
 from pyball.settings import load_settings
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,7 @@ async def main_async() -> None:
     log_startup_info()
 
     settings = load_settings()
+    add_telegram_log_handler(settings)
     container = Container()
 
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)
