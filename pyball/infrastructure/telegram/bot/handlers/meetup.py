@@ -138,8 +138,11 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except MeetupHasNoTeamsError:
         display_date = f"{args[0]} {args[1]}"
         await message.reply_text(
-            f"El meetup del {display_date} no tiene equipos asignados. "
-            f"Ejecuta /create_teams {display_date} primero."
+            text=(
+                rf"El meetup del `{display_date}` no tiene equipos asignados\."
+                rf" Ejecuta `/create_teams {display_date}` primero\."
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
     except Exception:
         logger.exception("Unexpected error starting match")
