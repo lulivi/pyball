@@ -102,7 +102,7 @@ def _parse_team_display_names(value) -> tuple[str, str]:
 
 @dataclass
 class TelegramChatSettings:
-    """Telegram chat configuration for regulars or substitutes."""
+    """Base Telegram chat configuration."""
 
     chat_id: int = 0
 
