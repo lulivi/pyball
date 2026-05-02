@@ -31,16 +31,17 @@ async def test_new_player_persists(bot_update, bot_context):
 
 
 @pytest.mark.asyncio
-async def test_new_player_duplicate_replies_html_error(bot_update, bot_context):
-    """Reply with HTML error when player already exists."""
+async def test_new_player_duplicate_replies_spanish_error(bot_update, bot_context):
+    """Reply with Spanish error when player already exists."""
     bot_context.args = ["Luis", "regular"]
     await new_player_handler(bot_update, bot_context)
 
     bot_update.message.reply_text.reset_mock()
     await new_player_handler(bot_update, bot_context)
 
-    _, kwargs = bot_update.message.reply_text.call_args
-    assert kwargs.get("parse_mode") == "HTML"
+    call = bot_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "ya existe" in text.lower()
 
 
 @pytest.mark.asyncio

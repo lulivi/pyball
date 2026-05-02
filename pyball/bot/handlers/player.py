@@ -20,7 +20,6 @@
 """Player command handlers."""
 
 import functools
-import html
 import locale
 import logging
 
@@ -91,7 +90,10 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode=ParseMode.MARKDOWN_V2,
         )
     except PlayerAlreadyExistsError as error:
-        await message.reply_text(html.escape(str(error)), parse_mode="HTML")
+        await message.reply_text(
+            text=rf"Ya existe un jugador con el nombre \`{error.name}\`\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except PlayerError as error:
         logger.error("Player error creating player: %s", error)
         await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
@@ -134,7 +136,10 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     except PlayerNotFoundError:
         await message.reply_text("Jugador no encontrado.")
     except NameAlreadyTakenError as error:
-        await message.reply_text(html.escape(str(error)), parse_mode="HTML")
+        await message.reply_text(
+            text=rf"El nombre \`{error.name}\` ya está en uso por otro jugador\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except PlayerError as error:
         logger.error("Player error renaming player: %s", error)
         await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
@@ -255,8 +260,8 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         match = fuzzy_match_player(player_name, all_players)
-    except ValueError as error:
-        await message.reply_text(str(error))
+    except ValueError:
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
         return
 
     try:
@@ -310,8 +315,8 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         match = fuzzy_match_player(player_name, all_players)
-    except ValueError as error:
-        await message.reply_text(html.escape(str(error)), parse_mode="HTML")
+    except ValueError:
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
         return
 
     player_id_str = str(match.player_id.value)

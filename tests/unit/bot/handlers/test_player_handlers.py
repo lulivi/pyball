@@ -50,9 +50,9 @@ async def test_new_player_handler_duplicate_raises(mock_update, mock_context):
 
     await new_player_handler(mock_update, mock_context)
 
-    assert mock_update.message.reply_text.called
-    args, kwargs = mock_update.message.reply_text.call_args
-    assert kwargs["parse_mode"] == "HTML"
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "ya existe" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -230,8 +230,9 @@ async def test_rename_player_handler_name_taken(mock_update, mock_context):
 
     await rename_player_handler(mock_update, mock_context)
 
-    _, kwargs = mock_update.message.reply_text.call_args
-    assert kwargs.get("parse_mode") == "HTML"
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "ya está en uso" in text.lower()
 
 
 @pytest.mark.asyncio
