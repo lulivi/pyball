@@ -32,7 +32,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from pyball.application.container import Container
 from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
-from pyball.bot.auth import authorized
+from pyball.infrastructure.telegram.bot.auth import authorized
 from pyball.domain.meetup.errors import (
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
