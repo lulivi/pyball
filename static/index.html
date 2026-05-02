@@ -277,13 +277,9 @@
 <div id="app"></div>
 <script>
     // ── STATE ─────────────────────────────────────────────
-    // -- Hardcoded Mock Data for Standalone Mockup --
-    let teamA = ['Jugador 1A', 'Jugador 2A', 'Jugador 3A'];
-    let teamB = ['Jugador 1B', 'Jugador 2B', 'Jugador 3B'];
-    let nameA = 'Claro';
-    let nameB = 'Oscuro';
-    let meetupDate = '2026-05-02T20:00:00Z';
-    // ------------------------------------------------
+    let teamA = [], teamB = [];
+    let nameA = 'A', nameB = 'B';
+    let meetupDate = '';
 
     let appState = {
         goalsA: 0, goalsB: 0,
@@ -297,6 +293,42 @@
     // New: Tab handling function
     function setTab(tabName) {
         appState.activeTab = tabName;
+        renderApp();
+    }
+
+    // ── INIT ────────────────────────────────────────────
+    function initializeApp() {
+        const stored = localStorage.getItem('pyball_current_match');
+        if (stored) {
+            const data = JSON.parse(stored);
+            teamA = data.teamA || [];
+            teamB = data.teamB || [];
+            nameA = data.nameA || 'A';
+            nameB = data.nameB || 'B';
+            meetupDate = data.meetupDate || '';
+            appState.goalsA = data.goalsA || 0;
+            appState.goalsB = data.goalsB || 0;
+            appState.events = data.events || [];
+            appState.currentStep = data.currentStep || 1;
+            appState.tempScorer = data.tempScorer || null;
+            appState.tempScorerTeam = data.tempScorerTeam || null;
+            appState.editingEvent = data.editingEvent || null;
+            appState.activeTab = data.activeTab || 'players';
+        }
+
+        const storedTeams = localStorage.getItem('pyball_teams');
+        if (storedTeams) {
+            const teamsData = JSON.parse(storedTeams);
+            if (teamsData.teamA) teamA = teamsData.teamA;
+            if (teamsData.teamB) teamB = teamsData.teamB;
+            if (teamsData.nameA) nameA = teamsData.nameA;
+            if (teamsData.nameB) nameB = teamsData.nameB;
+        }
+
+        if (!teamA.length && !teamB.length) {
+            renderNoMatch();
+            return;
+        }
         renderApp();
     }
 
@@ -336,7 +368,7 @@
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
-        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
         renderApp();
     }
 
@@ -344,7 +376,7 @@
         appState.currentStep = 1;
         appState.tempScorer = null;
         appState.tempScorerTeam = null;
-        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
         renderApp();
     }
 
@@ -353,7 +385,7 @@
         appState.goalsA = appState.events.filter(function(e) { return e.team === 'A'; }).length;
         appState.goalsB = appState.events.filter(function(e) { return e.team === 'B'; }).length;
         appState.editingEvent = null;
-        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
         renderApp();
     }
 
@@ -431,14 +463,14 @@
     function updateEventPlayer(eventIndex, field, playerName) {
         appState.events[eventIndex][field] = playerName;
         appState.editingEvent = null;
-        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
         renderApp();
     }
 
     function clearAssist(eventIndex) {
         appState.events[eventIndex].assistant = null;
         appState.editingEvent = null;
-        // localStorage.setItem('pyball_current_match', JSON.stringify(appState)); // Disable for mockup
+        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
         renderApp();
     }
 
@@ -582,8 +614,7 @@
         }
     });
 
-    // initializeApp(); // Disabled for mockup
-    renderApp(); // For mockup
+    initializeApp();
 </script>
 </body>
 </html>
