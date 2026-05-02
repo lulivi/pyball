@@ -7,6 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from telegram.constants import ParseMode
 
+from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
+    MeetupHasNoTeamsError,
+    MeetupNotFoundError,
+    PlayerNotInMeetupError,
+)
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
     add_player_handler,
@@ -16,12 +22,6 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     remove_player_handler,
     show_meetup_handler,
     start_match_handler,
-)
-from pyball.domain.meetup.errors import (
-    DuplicateMeetupError,
-    MeetupHasNoTeamsError,
-    MeetupNotFoundError,
-    PlayerNotInMeetupError,
 )
 
 
@@ -119,7 +119,10 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
 
     fake_buf = BytesIO(b"fakepng")
 
-    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf) as mock_qr:
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
+        return_value=fake_buf,
+    ) as mock_qr:
         await start_match_handler(mock_update, mock_context)
 
     mock_qr.assert_called_once_with(url)
@@ -145,7 +148,10 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
 
     fake_buf = BytesIO(b"fakepng")
 
-    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf):
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
+        return_value=fake_buf,
+    ):
         await start_match_handler(mock_update, mock_context)
 
     assert mock_context.bot.send_photo.call_count == 2

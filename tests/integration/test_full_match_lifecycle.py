@@ -7,6 +7,8 @@ from datetime import date
 import pytest
 from telegram.constants import ParseMode
 
+from pyball.domain.meetup.errors import MeetupAlreadyClosedError
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
@@ -17,8 +19,6 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     stats_handler,
 )
 from pyball.infrastructure.telegram.bot.handlers.player import new_player_handler
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError
-from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 
 _DATE_ARGS = ["2026-06-15", "20:00"]
 _ISO_DATE = "2026-06-15T20:00"

@@ -28,13 +28,13 @@ import uvicorn
 
 from pyball import __version__
 from pyball.application.container import Container
+from pyball.infrastructure.http.app import create_app
 from pyball.infrastructure.telegram.bot import create_application
 from pyball.infrastructure.telegram.bot.handlers import (
     setup_general_handlers,
     setup_meetup_handlers,
     setup_player_handlers,
 )
-from pyball.infrastructure.http.app import create_app
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 from pyball.logger import config_logging
 from pyball.settings import load_settings

@@ -2,6 +2,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pyball.domain.player.errors import (
+    InvalidPlayerIdError,
+    NameAlreadyTakenError,
+    PlayerAlreadyExistsError,
+    PlayerNotFoundError,
+)
 from pyball.infrastructure.telegram.bot.handlers.player import (
     change_group_handler,
     delete_player_handler,
@@ -10,12 +16,6 @@ from pyball.infrastructure.telegram.bot.handlers.player import (
     new_player_handler,
     rename_player_handler,
     unlink_player_handler,
-)
-from pyball.domain.player.errors import (
-    InvalidPlayerIdError,
-    NameAlreadyTakenError,
-    PlayerAlreadyExistsError,
-    PlayerNotFoundError,
 )
 
 
@@ -152,7 +152,9 @@ async def test_link_player_handler_success(mock_update, mock_context):
     from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
     with pytest.MonkeyPatch.context() as m:
-        m.setattr("pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock())
+        m.setattr(
+            "pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock()
+        )
         await link_player_handler(mock_update, mock_context)
 
     assert mock_update.message.reply_text.called
@@ -241,7 +243,9 @@ async def test_link_player_handler_non_numeric_id(mock_update, mock_context):
     mock_context.bot_data["container"] = MagicMock()
 
     with pytest.MonkeyPatch.context() as m:
-        m.setattr("pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock())
+        m.setattr(
+            "pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock()
+        )
         await link_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(
@@ -313,7 +317,9 @@ async def test_unlink_player_handler_non_numeric_id(mock_update, mock_context):
     mock_context.args = ["abc"]
 
     with pytest.MonkeyPatch.context() as m:
-        m.setattr("pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock())
+        m.setattr(
+            "pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock()
+        )
         await unlink_player_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with(

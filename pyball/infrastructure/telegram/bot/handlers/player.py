@@ -30,7 +30,6 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
 from pyball.application.fuzzy_match import fuzzy_match_player
-from pyball.infrastructure.telegram.bot.auth import authorized
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
     NameAlreadyTakenError,
@@ -38,6 +37,7 @@ from pyball.domain.player.errors import (
     PlayerNotFoundError,
 )
 from pyball.exceptions import PlayerError
+from pyball.infrastructure.telegram.bot.auth import authorized
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.logger import log_func
 
