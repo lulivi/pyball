@@ -159,15 +159,6 @@
         /* ── BELOW FOLD ──────────────────────────────────── */
         .below-fold { padding: 12px 12px 24px; }
 
-        .events-label {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 6px;
-            text-align: center;
-        }
-
         #event-list {
             background: #1e293b;
             border-radius: 8px;
@@ -212,7 +203,8 @@
 
         .delete-btn {
             background: transparent; border: none; color: #ef4444;
-            font-size: 0.9rem; cursor: pointer; padding: 4px 8px; flex-shrink: 0;
+            font-size: 0.9rem; cursor: pointer; flex-shrink: 0; padding: 0;
+            display: flex; align-items: center; justify-content: center;
         }
         .delete-btn:hover { background: rgba(239, 68, 68, 0.1); border-radius: 4px; }
 
@@ -465,10 +457,11 @@
 
         return `
             <div class="event-log ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                <span class="event-time" style="flex:0 0 10%;text-align:center;">${e.timestamp}</span>
-                <span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;">${scorerChip}</span>
-                <span style="flex:0 0 40%;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;color:#64748b;font-size:0.75rem">${assistChip}</span>
-                <button class="delete-btn" style="flex:0 0 10%;padding-right:8px;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
+                <span class="event-time" style="flex: 0 0 45px; text-align:center;">${e.timestamp}</span>
+                <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
+                <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${assistChip}</span>
+                <button class="delete-btn" style="flex: 0 0 35px; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
+
                 ${scorerOpen ? renderPickerDropdown(i, 'scorer') : ''}
                 ${assistOpen ? renderPickerDropdown(i, 'assistant') : ''}
             </div>
@@ -526,13 +519,12 @@
 
         return `
             <div>
-                <div class="events-label">Eventos del partido</div>
                 <div id="event-list">
                     <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
-                        <span style="flex:0 0 10%; text-align:right;">Hora</span>
-                        <span style="flex:0 0 40%; text-align:center;">Goleador</span>
-                        <span style="flex:0 0 40%; text-align:center;">Asistente</span>
-                        <span style="flex:0 0 10%;"></span>
+                        <span style="flex: 0 0 45px;"></span>
+                        <span style="flex: 1; text-align:center;">Goleador</span>
+                        <span style="flex: 1; text-align:center;">Asistente</span>
+                        <span style="flex: 0 0 35px;"></span>
                     </div>
                     ${eventsHtml}
                 </div>
