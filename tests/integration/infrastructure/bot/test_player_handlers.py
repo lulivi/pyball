@@ -2,7 +2,7 @@
 
 import pytest
 
-from pyball.bot.handlers.player import (
+from pyball.infrastructure.telegram.bot.handlers.player import (
     change_group_handler,
     delete_player_handler,
     link_player_handler,

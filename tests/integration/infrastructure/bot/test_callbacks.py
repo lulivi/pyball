@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from telegram import CallbackQuery, Message, Update, User
 
-from pyball.bot.callbacks import callback_handler
+from pyball.infrastructure.telegram.bot.callbacks import callback_handler
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore

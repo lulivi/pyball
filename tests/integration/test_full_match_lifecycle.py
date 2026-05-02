@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 from telegram.constants import ParseMode
 
-from pyball.bot.handlers.meetup import (
+from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
     new_meetup_handler,
@@ -16,7 +16,7 @@ from pyball.bot.handlers.meetup import (
     start_match_handler,
     stats_handler,
 )
-from pyball.bot.handlers.player import new_player_handler
+from pyball.infrastructure.telegram.bot.handlers.player import new_player_handler
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 

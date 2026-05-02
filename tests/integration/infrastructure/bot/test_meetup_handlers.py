@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 import telegram
 
-from pyball.bot.handlers.meetup import (
+from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
     list_meetups_handler,
