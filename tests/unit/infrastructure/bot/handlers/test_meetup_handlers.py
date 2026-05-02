@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from telegram.constants import ParseMode
 
-from pyball.bot.handlers.meetup import (
+from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
     add_player_handler,
     create_teams_handler,
@@ -119,7 +119,7 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
 
     fake_buf = BytesIO(b"fakepng")
 
-    with patch("pyball.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf) as mock_qr:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf) as mock_qr:
         await start_match_handler(mock_update, mock_context)
 
     mock_qr.assert_called_once_with(url)
@@ -145,7 +145,7 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
 
     fake_buf = BytesIO(b"fakepng")
 
-    with patch("pyball.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf):
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes", return_value=fake_buf):
         await start_match_handler(mock_update, mock_context)
 
     assert mock_context.bot.send_photo.call_count == 2
@@ -174,7 +174,7 @@ async def test_create_teams_handler_no_teams(mock_update, mock_context):
 def test_date_usage_msg_no_suffix():
     fmt = "%Y-%m-%d %H:%M"
     fixed = datetime(2026, 5, 1, 14, 30)
-    with patch("pyball.bot.handlers.meetup.datetime") as mock_dt:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_dt:
         mock_dt.now.return_value = fixed
         msg = _date_usage_msg("new_meetup", fmt)
     assert msg == (
@@ -189,7 +189,7 @@ def test_date_usage_msg_no_suffix():
 def test_date_usage_msg_with_suffix():
     fmt = "%Y-%m-%d %H:%M"
     fixed = datetime(2026, 5, 1, 14, 30)
-    with patch("pyball.bot.handlers.meetup.datetime") as mock_dt:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_dt:
         mock_dt.now.return_value = fixed
         msg = _date_usage_msg("add_player", fmt, r"`<name1>`, `<name2>`, \.\.\.")
     assert msg == (
@@ -246,7 +246,7 @@ async def test_start_match_handler_unexpected_error(mock_update, mock_context):
     mock_context.bot_data["container"] = container
     mock_context.args = ["2026-04-19", "20:00"]
 
-    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.logger") as mock_logger:
         await start_match_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
@@ -281,7 +281,7 @@ async def test_new_meetup_handler_unexpected_error(mock_update, mock_context):
     mock_context.bot_data["container"] = container
     mock_context.args = ["2026-04-25", "20:00"]
 
-    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.logger") as mock_logger:
         await new_meetup_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
@@ -315,7 +315,7 @@ async def test_add_player_handler_unexpected_error(mock_update, mock_context):
     mock_context.bot_data["container"] = container
     mock_context.args = ["2026-04-25", "20:00", "Luis"]
 
-    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.logger") as mock_logger:
         await add_player_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
@@ -366,7 +366,7 @@ async def test_remove_player_handler_unexpected_error(mock_update, mock_context)
     mock_context.bot_data["container"] = container
     mock_context.args = ["2026-04-25", "20:00", "Luis"]
 
-    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.logger") as mock_logger:
         await remove_player_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
@@ -400,7 +400,7 @@ async def test_create_teams_handler_unexpected_error(mock_update, mock_context):
     mock_context.bot_data["container"] = container
     mock_context.args = ["2026-04-25", "20:00"]
 
-    with patch("pyball.bot.handlers.meetup.logger") as mock_logger:
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.logger") as mock_logger:
         await create_teams_handler(mock_update, mock_context)
 
     mock_logger.exception.assert_called_once()
