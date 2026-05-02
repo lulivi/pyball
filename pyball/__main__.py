@@ -59,10 +59,10 @@ def log_startup_info() -> None:
 async def main_async() -> None:
     """Start the bot and HTTP server under the same asyncio event loop."""
     config_logging()
-    log_startup_info()
 
     settings = load_settings()
     add_telegram_log_handler(settings)
+    log_startup_info()
     container = Container()
 
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)
