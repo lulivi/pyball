@@ -2,7 +2,8 @@
 
 import pytest
 
-from pyball.bot.handlers.player import (
+from pyball.domain.player.models import Player
+from pyball.infrastructure.telegram.bot.handlers.player import (
     change_group_handler,
     delete_player_handler,
     link_player_handler,
@@ -11,7 +12,6 @@ from pyball.bot.handlers.player import (
     rename_player_handler,
     unlink_player_handler,
 )
-from pyball.domain.player.models import Player
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
 # pylint: disable=redefined-outer-name

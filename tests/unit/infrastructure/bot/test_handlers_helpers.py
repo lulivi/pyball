@@ -13,11 +13,11 @@ class TestGetNextWeekday:
 
     def test_get_next_weekday_not_same_day(self):
         """When today is not wednesday, returns next wednesday."""
-        from pyball.bot.handlers.meetup import _get_next_weekday
+        from pyball.infrastructure.telegram.bot.handlers.meetup import _get_next_weekday
 
         settings = CoreSettings(default_week_day="wednesday", default_hour="20:00")
 
-        with patch("pyball.bot.handlers.meetup.datetime") as mock_datetime:
+        with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 10, 10, 0)  # Wednesday
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
             result = _get_next_weekday(settings)
@@ -29,11 +29,11 @@ class TestGetNextWeekday:
 
     def test_get_next_weekday_same_day_goes_to_next_week(self):
         """When today IS wednesday, returns next wednesday (7 days)."""
-        from pyball.bot.handlers.meetup import _get_next_weekday
+        from pyball.infrastructure.telegram.bot.handlers.meetup import _get_next_weekday
 
         settings = CoreSettings(default_week_day="wednesday", default_hour="20:00")
 
-        with patch("pyball.bot.handlers.meetup.datetime") as mock_datetime:
+        with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 10, 10, 0)  # Wednesday
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -44,11 +44,11 @@ class TestGetNextWeekday:
 
     def test_get_next_weekday_monday_from_friday(self):
         """Friday -> Monday (3 days)."""
-        from pyball.bot.handlers.meetup import _get_next_weekday
+        from pyball.infrastructure.telegram.bot.handlers.meetup import _get_next_weekday
 
         settings = CoreSettings(default_week_day="monday", default_hour="19:00")
 
-        with patch("pyball.bot.handlers.meetup.datetime") as mock_datetime:
+        with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 5, 10, 0)  # Friday
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
             result = _get_next_weekday(settings)

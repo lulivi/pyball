@@ -94,13 +94,9 @@ async def refresh_callup_messages(
     player_groups = {str(p.id.value): p.group for p in all_players}
 
     store = TelegramMessageStore(settings.paths.bot_messages_file)
-    logger.info(
-        "refresh_callup_messages: meetup.date=%s, meetup.result=%s", meetup.date, meetup.result
-    )
     date_fmt = settings.pyball.display_date_format
 
     regular_tracking = store.get_message(meetup.date, "regular")
-    logger.info("refresh_callup_messages: regular_tracking=%s", regular_tracking)
     if regular_tracking:
         text = format_main_message(
             meetup,
@@ -123,7 +119,6 @@ async def refresh_callup_messages(
             logger.error("Error editing regulars message: %s", error)
 
     sub_tracking = store.get_message(meetup.date, "substitute")
-    logger.info("refresh_callup_messages: sub_tracking=%s", sub_tracking)
     if sub_tracking:
         subs_text = format_subs_message(
             meetup,

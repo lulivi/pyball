@@ -17,8 +17,10 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Bot layer - Telegram handlers."""
+"""Bot handlers."""
 
-from pyball.bot.entrypoint import create_application
+from pyball.infrastructure.telegram.bot.handlers.general import setup_general_handlers
+from pyball.infrastructure.telegram.bot.handlers.meetup import setup_meetup_handlers
+from pyball.infrastructure.telegram.bot.handlers.player import setup_player_handlers
 
-__all__ = ["create_application"]
+__all__ = ["setup_player_handlers", "setup_meetup_handlers", "setup_general_handlers"]

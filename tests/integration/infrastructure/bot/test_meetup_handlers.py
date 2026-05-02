@@ -8,7 +8,11 @@ from unittest.mock import AsyncMock
 import pytest
 import telegram
 
-from pyball.bot.handlers.meetup import (
+from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.player.models import Player
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
+from pyball.infrastructure.telegram import TelegramMessageStore
+from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
     list_meetups_handler,
@@ -20,10 +24,6 @@ from pyball.bot.handlers.meetup import (
     start_match_handler,
     stats_handler,
 )
-from pyball.domain.meetup.models import Meetup, Team
-from pyball.domain.player.models import Player
-from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
-from pyball.infrastructure.telegram import TelegramMessageStore
 
 
 @pytest.mark.asyncio

@@ -63,8 +63,8 @@ def test_format_main_message_before_teams():
 
     assert "📅 *Convocatoria:*" in text
     assert "2024-01-15 20:00" in text
-    assert "- Carlos" in text
-    assert "- Luis" in text
+    assert r"\- `Carlos`" in text
+    assert r"\- `Luis`" in text
 
 
 def test_format_subs_message_with_teams_shows_team_assignment():
@@ -244,8 +244,8 @@ def test_format_main_message_with_result_shows_events():
     text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
 
     assert "⏱️ *Goles:*" in text
-    assert r"\- ⚽ 10' Dani \(Rafa\)" in text
-    assert r"\- ⚽ 25' Rafa" in text
+    assert r"\- ⚽ 10' `Dani` \- `Rafa`" in text
+    assert r"\- ⚽ 25' `Rafa`" in text
 
 
 def test_format_main_message_with_result_shows_score():
