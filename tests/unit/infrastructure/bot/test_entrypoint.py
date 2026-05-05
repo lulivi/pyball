@@ -10,6 +10,7 @@ class TestCreateApplication:
 
     @patch("pyball.infrastructure.telegram.bot.entrypoint.Application")
     def test_uses_injected_settings_bot_token(self, mock_application_class):
+        """create_application forwards the injected settings' bot token to the builder."""
         settings = MagicMock()
         settings.telegram.bot_token = "test-token-123"
 
