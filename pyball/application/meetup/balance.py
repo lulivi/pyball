@@ -243,7 +243,9 @@ def optimize_teams(
 
     Runs _CANDIDATES independent optimizations from random starting shuffles. Each run
     iterates _ITERATIONS times, accepting swaps that reduce the score difference between
-    teams. Role balancing is applied per run if role_scores is provided.
+    teams. When role_scores is provided, each run also applies role balancing via
+    _apply_role_balance: first a hard-constraint phase (scorer/assister ratio within
+    _ROLE_HARD_THRESHOLD), then a soft-penalty fallback phase.
 
     Returns a random pick from the _TOP_K results within _BALANCE_EPSILON of the best
     balance score, producing varied but near-optimal compositions on each call.
