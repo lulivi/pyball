@@ -226,7 +226,7 @@ def _team_score(
             sorted([str(pid_a.value), str(pid_b.value)])
         )
         pair_wins = winning_counts.get(key, 0)
-        total += (pair_wins / max_pair_wins) * _PAIR_WEIGHT
+        total -= (pair_wins / max_pair_wins) * _PAIR_WEIGHT
     return total + role_penalty
 
 

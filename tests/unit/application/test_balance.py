@@ -317,3 +317,22 @@ class TestPlayerRoleClassification:
         p1 = PlayerId.generate()
         role = _player_role(p1, [], [])
         assert role == "neutral"
+
+
+class TestTeamScorePairPenalty:
+    """_team_score penalises teams whose players frequently win together."""
+
+    def test_pair_win_lowers_team_score(self):
+        """Team containing a high-win pair scores lower than one with no shared wins."""
+        from pyball.application.meetup.balance import _team_score
+
+        p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+        player_scores = {p1: 0.5, p2: 0.5, p3: 0.5}
+        key: tuple[str, str] = tuple(sorted([str(p1.value), str(p2.value)]))  # type: ignore[assignment]
+        winning_counts = {key: 5}
+        max_pair_wins = 5
+
+        score_with_pair = _team_score([p1, p2], player_scores, winning_counts, max_pair_wins)
+        score_without_pair = _team_score([p1, p3], player_scores, winning_counts, max_pair_wins)
+
+        assert score_with_pair < score_without_pair
