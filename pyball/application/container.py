@@ -79,7 +79,7 @@ class Container:
 
     def create_teams(self) -> CreateTeams:
         """Create a new CreateTeams use case."""
-        return CreateTeams(self.meetup_repository, self._legacy_stats)
+        return CreateTeams(self.meetup_repository, self.legacy_stats)
 
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""

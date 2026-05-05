@@ -32,8 +32,6 @@ def real_container(tmp_data):
     settings_mock.paths.data_dir = tmp_data
 
     container = Container(settings_mock)
-    # Overwrite the lazy properties directly so Container uses tmp_data paths,
-    # bypassing the settings-driven defaults set in __init__.
     # pylint: disable-next=protected-access
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
     # pylint: disable-next=protected-access
