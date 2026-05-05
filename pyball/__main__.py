@@ -65,7 +65,7 @@ async def main_async() -> None:
 
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)
 
-    application = create_application()
+    application = create_application(settings)
     application.bot_data["container"] = container
     application.bot_data["settings"] = settings
 
