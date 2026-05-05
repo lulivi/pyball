@@ -36,6 +36,9 @@ _W_ASSISTS = 0.30
 _W_WINS = 0.30
 _PAIR_WEIGHT = 1.0
 _ITERATIONS = 500
+_CANDIDATES = 8
+_TOP_K = 3
+_BALANCE_EPSILON = 0.05
 
 
 def _player_stats(
@@ -236,14 +239,14 @@ def optimize_teams(
     winning_counts: dict[tuple[str, str], int],
     role_scores: dict[PlayerId, str] | None = None,
 ) -> tuple[list[PlayerId], list[PlayerId]]:
-    """Assign players to two balanced teams using local-search optimization.
+    """Assign players to two balanced teams using multi-start local-search optimization.
 
-    Starts from a random split and iterates _ITERATIONS times, accepting swaps
-    that reduce the score difference between teams. Each call starts from a
-    fresh random state, producing varied but balanced results.
+    Runs _CANDIDATES independent optimizations from random starting shuffles. Each run
+    iterates _ITERATIONS times, accepting swaps that reduce the score difference between
+    teams. Role balancing is applied per run if role_scores is provided.
 
-    Role balancing: attempts to keep scorer/assister ratio within _ROLE_HARD_THRESHOLD.
-    If not achievable, applies soft penalty after _ITERATIONS iterations.
+    Returns a random pick from the _TOP_K results within _BALANCE_EPSILON of the best
+    balance score, producing varied but near-optimal compositions on each call.
     """
     if len(player_ids) < 2:
         raise ValueError("Need at least 2 players to create teams")
@@ -251,36 +254,45 @@ def optimize_teams(
     if role_scores is None:
         role_scores = {}
 
-    players = list(player_ids)
-    random.shuffle(players)
-    mid = len(players) // 2
-    team_a: list[PlayerId] = players[:mid]
-    team_b: list[PlayerId] = players[mid:]
-
     max_pair_wins = max(winning_counts.values(), default=0)
+    candidates: list[tuple[float, list[PlayerId], list[PlayerId]]] = []
 
-    for _ in range(_ITERATIONS):
-        i = random.randrange(len(team_a))
-        j = random.randrange(len(team_b))
+    for _ in range(_CANDIDATES):
+        players = list(player_ids)
+        random.shuffle(players)
+        mid = len(players) // 2
+        team_a: list[PlayerId] = players[:mid]
+        team_b: list[PlayerId] = players[mid:]
+
+        for _i in range(_ITERATIONS):
+            i = random.randrange(len(team_a))
+            j = random.randrange(len(team_b))
+
+            score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
+            score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
+            current_diff = abs(score_a - score_b)
+
+            team_a[i], team_b[j] = team_b[j], team_a[i]
+
+            new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
+            new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
+            new_diff = abs(new_score_a - new_score_b)
+
+            if new_diff > current_diff:
+                team_a[i], team_b[j] = team_b[j], team_a[i]
+
+        if role_scores:
+            config: RoleBalanceConfig = (player_scores, winning_counts, max_pair_wins, role_scores)
+            team_a, team_b = _apply_role_balance(team_a, team_b, config)
 
         score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
         score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-        current_diff = abs(score_a - score_b)
+        candidates.append((abs(score_a - score_b), team_a, team_b))
 
-        team_a[i], team_b[j] = team_b[j], team_a[i]
-
-        new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-        new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-        new_diff = abs(new_score_a - new_score_b)
-
-        if new_diff > current_diff:
-            team_a[i], team_b[j] = team_b[j], team_a[i]
-
-    if role_scores:
-        config: RoleBalanceConfig = (player_scores, winning_counts, max_pair_wins, role_scores)
-        team_a, team_b = _apply_role_balance(team_a, team_b, config)
-
-    return team_a, team_b
+    candidates.sort(key=lambda c: c[0])
+    best_diff = candidates[0][0]
+    top_k = [(a, b) for diff, a, b in candidates if diff <= best_diff + _BALANCE_EPSILON][:_TOP_K]
+    return random.choice(top_k)
 
 
 RoleBalanceConfig = tuple[

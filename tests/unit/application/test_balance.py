@@ -337,3 +337,20 @@ class TestTeamScorePairPenalty:
         score_without_pair = _team_score([p1, p3], player_scores, winning_counts, max_pair_wins)
 
         assert score_with_pair < score_without_pair
+
+
+class TestOptimizeTeamsVariety:
+    """optimize_teams produces varied results across repeated calls."""
+
+    def test_produces_different_compositions(self):
+        """Ten calls with the same inputs yield more than one unique split."""
+        players = [PlayerId.generate() for _ in range(10)]
+        scores = {pid: 0.5 + i * 0.05 for i, pid in enumerate(players)}
+        counts: dict[tuple[str, str], int] = {}
+
+        seen: set[frozenset[str]] = set()
+        for _run in range(10):
+            team_a, _ = optimize_teams(players, scores, counts)
+            seen.add(frozenset(str(pid.value) for pid in team_a))
+
+        assert len(seen) > 1
