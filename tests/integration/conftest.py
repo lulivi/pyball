@@ -21,7 +21,7 @@ def tmp_data(tmp_path):
 
 
 @pytest.fixture
-def real_container(tmp_data, monkeypatch):
+def real_container(tmp_data):
     """Real Container with JSON repos backed by tmp_data."""
     settings_mock = MagicMock()
     settings_mock.pyball.location = "Test Field"
@@ -29,20 +29,15 @@ def real_container(tmp_data, monkeypatch):
     settings_mock.paths.players_file = tmp_data / "players.json"
     settings_mock.paths.meetups_dir = tmp_data / "meetups"
 
-    monkeypatch.setattr("pyball.application.container.load_settings", lambda: settings_mock)
+    settings_mock.paths.data_dir = tmp_data
 
-    # container._settings (used internally by use cases like start_match) is the
-    # settings_mock above — separate from the bot_settings fixture placed in
-    # bot_data["settings"]. Both need consistent values for settings-driven paths.
-    container = Container()
+    container = Container(settings_mock)
     # Overwrite the lazy properties directly so Container uses tmp_data paths,
     # bypassing the settings-driven defaults set in __init__.
     # pylint: disable-next=protected-access
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
     # pylint: disable-next=protected-access
     container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups")
-    # pylint: disable-next=protected-access
-    container._data_dir = tmp_data  # ensures legacy_stats resolves to tmp_data path
     return container
 
 
