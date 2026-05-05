@@ -1,3 +1,5 @@
+"""Unit tests for the bot application entrypoint."""
+
 from unittest.mock import MagicMock, patch
 
 from pyball.infrastructure.telegram.bot.entrypoint import create_application
@@ -15,8 +17,10 @@ class TestCreateApplication:
         mock_application_class.builder.return_value = mock_builder
         mock_builder.token.return_value = mock_builder
         mock_builder.concurrent_updates.return_value = mock_builder
-        mock_builder.build.return_value = MagicMock()
+        mock_app = MagicMock()
+        mock_builder.build.return_value = mock_app
 
         create_application(settings)
 
         mock_builder.token.assert_called_once_with("test-token-123")
+        mock_app.add_handler.assert_called_once()
