@@ -6,6 +6,7 @@ import pytest
 
 from pyball.application.meetup.balance import (  # noqa: F401
     _player_role,
+    _team_score,
     compute_player_scores,
     extract_winning_counts,
     optimize_teams,
@@ -324,11 +325,11 @@ class TestTeamScorePairPenalty:
 
     def test_pair_win_lowers_team_score(self):
         """Team containing a high-win pair scores lower than one with no shared wins."""
-        from pyball.application.meetup.balance import _team_score
-
         p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
         player_scores = {p1: 0.5, p2: 0.5, p3: 0.5}
-        key: tuple[str, str] = tuple(sorted([str(p1.value), str(p2.value)]))  # type: ignore[assignment]
+        key: tuple[str, str] = tuple(  # type: ignore[assignment]
+            sorted([str(p1.value), str(p2.value)])
+        )
         winning_counts = {key: 5}
         max_pair_wins = 5
 
