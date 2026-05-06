@@ -7,7 +7,7 @@ import pytest
 
 from pyball.application.meetup.create_teams_manually import CreateTeamsManually
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import Player
 
 
@@ -126,7 +126,7 @@ class TestCreateTeamsManually:
         """A name with a minor typo is resolved via fuzzy matching."""
         p1, p2 = _player("Manuel"), _player("Pedro")
         meetup = _meetup(p1, p2)
-        uc, repo = _use_case(meetup, p1, p2)
+        uc, _ = _use_case(meetup, p1, p2)
 
         result = uc.execute(datetime(2026, 5, 6, 20, 0), ["Manul"], ["Pedro"])  # typo
 
@@ -138,11 +138,9 @@ class TestCreateTeamsManually:
         p1 = _player("Manuel (Antonio)")
         p2 = _player("Pedro")
         meetup = _meetup(p1, p2)
-        uc, repo = _use_case(meetup, p1, p2)
+        uc, _ = _use_case(meetup, p1, p2)
 
-        result = uc.execute(
-            datetime(2026, 5, 6, 20, 0), ["Manuel (Antonio)"], ["Pedro"]
-        )
+        result = uc.execute(datetime(2026, 5, 6, 20, 0), ["Manuel (Antonio)"], ["Pedro"])
 
         assert result.teams is not None
         assert p1.id in result.teams[0].players
