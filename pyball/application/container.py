@@ -23,6 +23,7 @@ from pyball.application.meetup import (
     AddPlayerToMeetup,
     CreateMeetup,
     CreateTeams,
+    CreateTeamsManually,
     FinishMatch,
     RemovePlayerFromMeetup,
     StartMatch,
@@ -91,6 +92,10 @@ class Container:
         if name not in registry:
             raise UnknownAlgorithmError(name, list(registry.keys()))
         return CreateTeams(self.meetup_repository, registry[name])
+
+    def create_teams_manually(self) -> CreateTeamsManually:
+        """Create a new CreateTeamsManually use case."""
+        return CreateTeamsManually(self.meetup_repository, self.player_repository)
 
     def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
         """Build the algorithm registry with all available algorithms."""

@@ -14,6 +14,8 @@ from pyball.domain.meetup.errors import (
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
 )
+from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
     add_player_handler,
@@ -466,3 +468,85 @@ async def test_create_teams_handler_replies_on_unknown_algorithm(mock_update, mo
     assert "xyz" in text
     assert "balanceado" in text
     assert "random" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_manual_success(mock_update, mock_context):
+    """manual branch calls create_teams_manually and replies with success."""
+    p1, p2 = PlayerId.generate(), PlayerId.generate()
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    container = MagicMock()
+    container.create_teams_manually.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = [
+        "2026-04-25",
+        "20:00",
+        "manual",
+        "Juan,",
+        "Pedro",
+        ";",
+        "Carlos,",
+        "Maria",
+    ]
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages",
+        new_callable=AsyncMock,
+    ):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams_manually.return_value.execute.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Equipos creados" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_manual_missing_separator(mock_update, mock_context):
+    """manual branch with no ';' separator replies with usage help."""
+    mock_context.args = ["2026-04-25", "20:00", "manual", "Juan", "Pedro"]
+    mock_context.bot_data["container"] = MagicMock()
+
+    await create_teams_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert r"Formato de fecha no válido\." in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_manual_unknown_player(mock_update, mock_context):
+    """manual branch replies with ValueError message when a name can't be resolved."""
+    container = MagicMock()
+    container.create_teams_manually.return_value.execute.side_effect = ValueError(
+        "Jugadores no encontrados: Ghost"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "manual", "Ghost", ";", "Pedro"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Jugadores no encontrados" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_manual_meetup_not_found(mock_update, mock_context):
+    """manual branch replies with not-found message when meetup absent."""
+    container = MagicMock()
+    container.create_teams_manually.return_value.execute.side_effect = MeetupNotFoundError(
+        "2026-04-25T20:00"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "manual", "Juan", ";", "Pedro"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_once_with(
+        "No existe ningún meetup para esa fecha."
+    )

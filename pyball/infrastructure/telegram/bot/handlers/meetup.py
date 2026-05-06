@@ -25,7 +25,7 @@ from io import BytesIO
 
 import qrcode
 import telegram
-from telegram import Update
+from telegram import Message, Update
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -397,6 +397,47 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
+async def _create_teams_manual(
+    message: Message,
+    context: ContextTypes.DEFAULT_TYPE,
+    date_str: str,
+    args: list[str],
+) -> None:
+    """Execute the manual team assignment branch of /create_teams."""
+    container: Container = context.bot_data["container"]
+    settings: Settings = context.bot_data["settings"]
+    usage = _date_usage_msg("create_teams", settings.pyball.display_date_format)
+    raw = " ".join(args[3:])
+    parts = raw.split(";")
+    if len(parts) != 2:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    team_a_names = [n.strip() for n in parts[0].split(",") if n.strip()]
+    team_b_names = [n.strip() for n in parts[1].split(",") if n.strip()]
+    if not team_a_names or not team_b_names:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    try:
+        meetup_date = parse_display(date_str, settings.pyball.display_date_format)
+        meetup = container.create_teams_manually().execute(meetup_date, team_a_names, team_b_names)
+        if not meetup.teams:
+            await message.reply_text("No se han creado equipos.")
+            return
+        await refresh_callup_messages(
+            context.bot, settings, container, meetup, include_keyboard=False
+        )
+        await message.reply_text("Equipos creados ✅")
+    except ValueError as error:
+        await message.reply_text(str(error))
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error creating teams manually: %s", error)
+    except Exception:
+        logger.exception("Unexpected error creating teams manually")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
+
+
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -418,6 +459,10 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     date_str = f"{args[0]} {args[1]}"
     algo_name = args[2] if len(args) > 2 else None
+
+    if algo_name == "manual":
+        await _create_teams_manual(message, context, date_str, args)
+        return
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)

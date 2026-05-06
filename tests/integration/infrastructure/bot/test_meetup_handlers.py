@@ -286,6 +286,63 @@ async def test_stats_handler_no_args_replies_help(bot_update, bot_context):
 
 
 @pytest.mark.asyncio
+async def test_create_teams_manual_persists_teams(bot_update, bot_context):
+    """manual mode assigns named players to teams and persists them."""
+    container = bot_context.bot_data["container"]
+    players = [Player.create(f"Player{i}", "regular") for i in range(4)]
+    for player in players:
+        container.player_repository.save(player)
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    for player in players:
+        meetup.add_player(player.id)
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = [
+        "2026-04-25",
+        "20:00",
+        "manual",
+        "Player0,",
+        "Player1",
+        ";",
+        "Player2,",
+        "Player3",
+    ]
+
+    await create_teams_handler(bot_update, bot_context)
+
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
+    assert saved.teams is not None
+    assert len(saved.teams) == 2
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert "Equipos creados" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_manual_unknown_player_replies_error(bot_update, bot_context):
+    """manual mode with an unknown player name replies with an error message."""
+    container = bot_context.bot_data["container"]
+    player = Player.create("Player0", "regular")
+    container.player_repository.save(player)
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    meetup.add_player(player.id)
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = [
+        "2026-04-25",
+        "20:00",
+        "manual",
+        "Player0",
+        ";",
+        "Ghost",
+    ]
+
+    await create_teams_handler(bot_update, bot_context)
+
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert "no encontrados" in text.lower()
+
+
+@pytest.mark.asyncio
 async def test_stats_handler_bad_arg_replies_help(bot_update, bot_context):
     """stats_handler with an unknown arg replies with a help message."""
     bot_context.args = ["unknown"]
