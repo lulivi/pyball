@@ -12,6 +12,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     extract_winning_counts,
     optimize_teams,
 )
+from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
 
 
@@ -306,3 +307,20 @@ class TestBalancedAlgorithmAssign:
         algo = BalancedAlgorithm()
         team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
         assert abs(len(team_a) - len(team_b)) <= 1
+
+
+class TestUnknownAlgorithmError:
+    """Tests for UnknownAlgorithmError."""
+
+    def test_message_includes_name_and_available(self):
+        """Error message lists the unknown name and the available algorithms."""
+        err = UnknownAlgorithmError("xyz", ["balanceado", "random"])
+        assert "xyz" in str(err)
+        assert "balanceado" in str(err)
+        assert "random" in str(err)
+
+    def test_attributes_accessible(self):
+        """name and available attributes are set correctly."""
+        err = UnknownAlgorithmError("foo", ["balanceado"])
+        assert err.name == "foo"
+        assert err.available == ["balanceado"]
