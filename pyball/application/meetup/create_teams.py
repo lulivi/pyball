@@ -21,16 +21,10 @@
 
 from datetime import date, datetime
 
-from pyball.application.meetup.create_teams_algorithms.balanced import (
-    compute_player_roles,
-    compute_player_scores,
-    extract_winning_counts,
-    optimize_teams,
-)
+from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignmentAlgorithm
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.repository import MeetupRepository
-from pyball.infrastructure.persistence import LegacyStats
 
 
 def _season_start(today: date) -> date:
@@ -46,14 +40,14 @@ class CreateTeams:
     def __init__(
         self,
         meetup_repository: MeetupRepository,
-        legacy_stats: LegacyStats | None = None,
-    ):
-        """Initialize with a meetup repository."""
+        algorithm: TeamAssignmentAlgorithm,
+    ) -> None:
+        """Initialize with a meetup repository and an assignment algorithm."""
         self.meetup_repository = meetup_repository
-        self.legacy_stats = legacy_stats
+        self.algorithm = algorithm
 
     def execute(self, meetup_date: datetime) -> Meetup:
-        """Create balanced teams for a meetup by datetime."""
+        """Create teams for a meetup by delegating to the injected algorithm."""
         meetup = self.meetup_repository.find_by_date(meetup_date.date())
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
@@ -61,19 +55,11 @@ class CreateTeams:
         all_meetups = self.meetup_repository.find_all()
         finished = [m for m in all_meetups if m.result is not None]
         season_start = _season_start(date.today())
+        season_start_dt = datetime.combine(season_start, datetime.min.time())
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
-        season_start_dt = datetime.combine(season_start, datetime.min.time())
-
-        player_scores = compute_player_scores(
-            meetup.players, season_meetups, finished, self.legacy_stats, season_start_dt
-        )
-        player_roles = compute_player_roles(
-            meetup.players, season_meetups, finished, self.legacy_stats, season_start_dt
-        )
-        winning_counts = extract_winning_counts(finished)
-        team_a_ids, team_b_ids = optimize_teams(
-            meetup.players, player_scores, winning_counts, player_roles
+        team_a_ids, team_b_ids = self.algorithm.assign(
+            meetup.players, finished, season_meetups, season_start_dt
         )
 
         meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
