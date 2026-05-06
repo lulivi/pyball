@@ -48,7 +48,7 @@ class CreateTeams:
 
     def execute(self, meetup_date: datetime) -> Meetup:
         """Create teams for a meetup by delegating to the injected algorithm."""
-        meetup = self.meetup_repository.find_by_date(meetup_date.date())
+        meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
 

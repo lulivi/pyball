@@ -2,7 +2,7 @@
 
 # pylint: disable=redefined-outer-name
 
-from datetime import date, datetime
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -34,7 +34,7 @@ async def test_new_meetup_persists(bot_update, bot_context):
     await new_meetup_handler(bot_update, bot_context)
 
     container = bot_context.bot_data["container"]
-    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert meetup is not None
     assert meetup.location == "Test Field"
 
@@ -66,7 +66,7 @@ async def test_add_player_updates_meetup(bot_update, bot_context):
 
     await add_player_handler(bot_update, bot_context)
 
-    saved = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert player.id in saved.players
 
 
@@ -84,7 +84,7 @@ async def test_remove_player_updates_meetup(bot_update, bot_context):
 
     await remove_player_handler(bot_update, bot_context)
 
-    saved = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert player.id not in saved.players
 
 
@@ -104,7 +104,7 @@ async def test_create_teams_persists_teams(bot_update, bot_context):
 
     await create_teams_handler(bot_update, bot_context)
 
-    saved = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert saved.teams is not None
     (text, *_), _ = bot_update.message.reply_text.call_args
     assert "Equipos creados" in text

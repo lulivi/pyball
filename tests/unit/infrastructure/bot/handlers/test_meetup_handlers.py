@@ -95,7 +95,7 @@ async def test_show_meetup_handler_not_found(mock_update, mock_context):
     mock_context.args = ["2026-04-25", "20:00"]
 
     container = MagicMock()
-    container.meetup_repository.find_by_date.return_value = None
+    container.meetup_repository.find_by_datetime.return_value = None
     mock_context.bot_data["container"] = container
 
     await show_meetup_handler(mock_update, mock_context)

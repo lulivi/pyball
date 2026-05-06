@@ -42,7 +42,7 @@ class RemovePlayerFromMeetup:
 
     def execute(self, meetup_date: datetime, player_name: str) -> Meetup:
         """Remove a player from a meetup by datetime and player name."""
-        meetup = self.meetup_repository.find_by_date(meetup_date.date())
+        meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
 

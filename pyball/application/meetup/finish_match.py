@@ -69,7 +69,7 @@ class FinishMatch:
         except ValueError as exc:
             raise ValueError("Invalid date format. Use ISO format: YYYY-MM-DDTHH:MM") from exc
 
-        meetup = self.meetup_repository.find_by_date(meetup_date.date())
+        meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if meetup is None:
             raise MeetupNotFoundError(date_str)
 

@@ -504,7 +504,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    meetup = container.meetup_repository.find_by_date(meetup_date.date())
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
     if not meetup:
         await message.reply_text("No se ha encontrado el meetup para esa fecha.")
         return
@@ -547,7 +547,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
 
-    meetup = container.meetup_repository.find_by_date(meetup_date.date())
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
 
     if not meetup:
         await message.reply_text("No se ha encontrado el meetup para esa fecha.")

@@ -56,7 +56,7 @@ class StartMatch:
             MeetupNotFoundError: If no meetup exists on that date.
             MeetupHasNoTeamsError: If the meetup has no teams yet.
         """
-        meetup = self.meetup_repository.find_by_date(meetup_date.date())
+        meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if meetup is None:
             raise MeetupNotFoundError(str(meetup_date))
 

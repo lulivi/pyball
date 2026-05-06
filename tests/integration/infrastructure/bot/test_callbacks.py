@@ -1,7 +1,7 @@
 """Integration tests for the inline callback handler."""
 
 import logging
-from datetime import date, datetime
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -63,7 +63,7 @@ async def test_join_adds_player_to_meetup(
     await callback_handler(callback_update, bot_context)
 
     container = bot_context.bot_data["container"]
-    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert linked_player.id in meetup.players
     callback_update.callback_query.answer.assert_called_once()
 
@@ -81,7 +81,7 @@ async def test_leave_removes_player_from_meetup(
 
     await callback_handler(callback_update, bot_context)
 
-    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert linked_player.id not in meetup.players
     callback_update.callback_query.answer.assert_called_once()
 
@@ -153,7 +153,7 @@ async def test_join_clears_teams_when_teams_exist(
 
     await callback_handler(callback_update, bot_context)
 
-    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert meetup.teams is None
 
 
@@ -173,7 +173,7 @@ async def test_leave_clears_teams_when_teams_exist(
 
     await callback_handler(callback_update, bot_context)
 
-    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert meetup.teams is None
 
 
