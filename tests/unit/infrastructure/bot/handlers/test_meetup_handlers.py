@@ -12,6 +12,7 @@ from pyball.domain.meetup.errors import (
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
+    UnknownAlgorithmError,
 )
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
@@ -413,3 +414,55 @@ async def test_create_teams_handler_unexpected_error(mock_update, mock_context):
     call = mock_update.message.reply_text.call_args
     text = call.args[0] if call.args else call.kwargs.get("text", "")
     assert "error inesperado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_passes_algo_name_to_container(mock_update, mock_context):
+    """Handler passes the third argument as algo_name to container.create_teams()."""
+    container = MagicMock()
+    meetup = MagicMock()
+    meetup.teams = [MagicMock(), MagicMock()]
+    container.create_teams.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "random"]
+    mock_context.bot = AsyncMock()
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.assert_called_once_with("random")
+    mock_update.message.reply_text.assert_called_with("Equipos creados ✅")
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_passes_none_when_no_algo(mock_update, mock_context):
+    """Handler passes None as algo_name when no third argument is given."""
+    container = MagicMock()
+    meetup = MagicMock()
+    meetup.teams = [MagicMock(), MagicMock()]
+    container.create_teams.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00"]
+    mock_context.bot = AsyncMock()
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.assert_called_once_with(None)
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_replies_on_unknown_algorithm(mock_update, mock_context):
+    """Handler replies with an error message when an unknown algorithm is requested."""
+    container = MagicMock()
+    container.create_teams.side_effect = UnknownAlgorithmError("xyz", ["balanceado", "random"])
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "xyz"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "xyz" in text
+    assert "balanceado" in text
+    assert "random" in text

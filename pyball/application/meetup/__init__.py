@@ -36,6 +36,7 @@ from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
     MeetupHasNoTeamsError,
+    UnknownAlgorithmError,
 )
 
 __all__ = [
@@ -48,6 +49,7 @@ __all__ = [
     "MeetupHasNoTeamsError",
     "FinishMatch",
     "MeetupAlreadyClosedError",
+    "UnknownAlgorithmError",
     "ComputeStats",
     "StatsReport",
     "StatsScopedReport",

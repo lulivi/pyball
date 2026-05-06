@@ -61,11 +61,11 @@ async def main_async() -> None:
     settings = load_settings()
     config_logging(settings)
     log_startup_info()
-    container = Container()
+    container = Container(settings)
 
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)
 
-    application = create_application()
+    application = create_application(settings)
     application.bot_data["container"] = container
     application.bot_data["settings"] = settings
 

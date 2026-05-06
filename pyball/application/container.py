@@ -19,8 +19,6 @@
 # SOFTWARE.
 """Dependency injection container."""
 
-from pathlib import Path
-
 from pyball.application.meetup import (
     AddPlayerToMeetup,
     CreateMeetup,
@@ -29,8 +27,15 @@ from pyball.application.meetup import (
     RemovePlayerFromMeetup,
     StartMatch,
 )
+from pyball.application.meetup.create_teams_algorithms import (
+    DEFAULT_ALGORITHM,
+    BalancedAlgorithm,
+    RandomAlgorithm,
+    TeamAssignmentAlgorithm,
+)
 from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
 from pyball.application.player.change_group import ChangePlayerGroup
+from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence import (
@@ -38,23 +43,18 @@ from pyball.infrastructure.persistence import (
     JsonPlayerRepository,
     LegacyStats,
 )
-from pyball.settings import load_settings
+from pyball.settings import Settings
 
 
 class Container:
     """Simple dependency injection container."""
 
-    def __init__(self, data_dir: Path | None = None):
-        """Initialize the container with optional custom data directory."""
-        self._settings = load_settings()
+    def __init__(self, settings: Settings) -> None:
+        """Initialize the container with application settings."""
+        self._settings = settings
         self._player_repository: PlayerRepository | None = None
         self._meetup_repository: MeetupRepository | None = None
         self._legacy_stats: LegacyStats | None = None
-
-        if data_dir:
-            self._data_dir = data_dir
-        else:
-            self._data_dir = self._settings.paths.data_dir
 
     def create_player(self) -> CreatePlayer:
         """Create a new CreatePlayer use case."""
@@ -84,9 +84,20 @@ class Container:
         """Create a new RemovePlayerFromMeetup use case."""
         return RemovePlayerFromMeetup(self.meetup_repository, self.player_repository)
 
-    def create_teams(self) -> CreateTeams:
-        """Create a new CreateTeams use case."""
-        return CreateTeams(self.meetup_repository, self._legacy_stats)
+    def create_teams(self, algo_name: str | None = None) -> CreateTeams:
+        """Create a new CreateTeams use case with the specified or default algorithm."""
+        registry = self._algorithm_registry()
+        name = algo_name or DEFAULT_ALGORITHM
+        if name not in registry:
+            raise UnknownAlgorithmError(name, list(registry.keys()))
+        return CreateTeams(self.meetup_repository, registry[name])
+
+    def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
+        """Build the algorithm registry with all available algorithms."""
+        return {
+            "balanceado": BalancedAlgorithm(self.legacy_stats),
+            "random": RandomAlgorithm(),
+        }
 
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""
@@ -119,6 +130,6 @@ class Container:
     def legacy_stats(self) -> LegacyStats:
         """Get the legacy stats, loading from file if necessary."""
         if self._legacy_stats is None:
-            legacy_path = self._data_dir / "legacy_stats.json"
+            legacy_path = self._settings.paths.data_dir / "legacy_stats.json"
             self._legacy_stats = LegacyStats.from_file(str(legacy_path))
         return self._legacy_stats

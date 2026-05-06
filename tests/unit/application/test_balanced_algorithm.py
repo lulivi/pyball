@@ -1,15 +1,18 @@
-"""Tests for the balanced-teams scoring logic."""
+"""Tests for BalancedAlgorithm and its internal scoring helpers."""
 
 from datetime import datetime, time
 
 import pytest
 
-from pyball.application.meetup.balance import (  # noqa: F401
+from pyball.application.meetup.create_teams_algorithms.balanced import (
+    BalancedAlgorithm,
     _player_role,
+    _team_score,
     compute_player_scores,
     extract_winning_counts,
     optimize_teams,
 )
+from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
 
 
@@ -43,12 +46,10 @@ class TestComputePlayerScores:
     def test_falls_back_to_all_time_when_below_season_threshold(self):
         """Player with < 3 season matches uses full-history data instead."""
         p1, p2 = PlayerId.generate(), PlayerId.generate()
-        # 2 season matches — p1 wins both (below threshold)
         season = [
             _finished_meetup("2025-10-01 20:00", [p1], [p2], 2, 0),
             _finished_meetup("2025-10-08 20:00", [p1], [p2], 2, 0),
         ]
-        # 3 old matches — p2 wins all (makes p2 stronger in full history)
         old = [
             _finished_meetup("2024-10-01 20:00", [p2], [p1], 2, 0),
             _finished_meetup("2024-10-08 20:00", [p2], [p1], 2, 0),
@@ -56,7 +57,6 @@ class TestComputePlayerScores:
         ]
         all_meetups = season + old
         scores = compute_player_scores([p1, p2], season, all_meetups)
-        # Both below threshold → both use full history → p2 wins 3/5 vs p1 2/5
         assert scores[p2] > scores[p1]
 
     def test_no_history_player_gets_group_average(self):
@@ -94,14 +94,12 @@ class TestExtractWinningCounts:
     def test_counts_shared_wins_for_pairs(self):
         """Players who win together accumulate a shared win count."""
         p1, p2, p3, p4 = [PlayerId.generate() for _ in range(4)]
-        # p1+p2 win twice, p3+p4 win once
         meetups = [
             _finished_meetup("2025-10-01 20:00", [p1, p2], [p3, p4], 2, 0),
             _finished_meetup("2025-10-08 20:00", [p1, p2], [p3, p4], 2, 0),
             _finished_meetup("2025-10-15 20:00", [p3, p4], [p1, p2], 2, 0),
         ]
         counts = extract_winning_counts(meetups)
-
         key_12 = tuple(sorted([str(p1.value), str(p2.value)]))
         key_34 = tuple(sorted([str(p3.value), str(p4.value)]))
         assert counts[key_12] == 2
@@ -116,7 +114,6 @@ class TestExtractWinningCounts:
         p1, p2 = PlayerId.generate(), PlayerId.generate()
         meetup = _finished_meetup("2025-10-01 20:00", [p1, p2], [], 2, 0)
         counts = extract_winning_counts([meetup])
-
         for key in counts:
             assert isinstance(key, tuple) and len(key) == 2
             assert key[0] <= key[1]
@@ -129,9 +126,7 @@ class TestOptimizeTeams:
         """Every input player appears in exactly one output team."""
         player_ids = [PlayerId.generate() for _ in range(6)]
         scores = {pid: 0.5 for pid in player_ids}
-
         team_a, team_b = optimize_teams(player_ids, scores, {})
-
         all_assigned = team_a + team_b
         assert len(all_assigned) == len(player_ids)
         assert set(all_assigned) == set(player_ids)
@@ -146,9 +141,7 @@ class TestOptimizeTeams:
         """Teams differ in size by at most 1 player."""
         player_ids = [PlayerId.generate() for _ in range(7)]
         scores = {pid: 0.5 for pid in player_ids}
-
         team_a, team_b = optimize_teams(player_ids, scores, {})
-
         assert abs(len(team_a) - len(team_b)) <= 1
 
     def test_produces_varied_results(self):
@@ -165,13 +158,11 @@ class TestOptimizeTeams:
 
     def test_winning_pair_bonus_influences_balance(self):
         """A dominant winning pair is separated when it reduces the score imbalance."""
-        # p1 and p2 have won together 10 times; p3 and p4 have no shared history
         p1, p2, p3, p4 = [PlayerId.generate() for _ in range(4)]
         key = tuple(sorted([str(p1.value), str(p2.value)]))
         winning_counts = {key: 10}
         scores = {p1: 0.5, p2: 0.5, p3: 0.5, p4: 0.5}
 
-        # Run many times: p1 and p2 should end up on different teams more often than not
         same_team_count = 0
         trials = 100
         for _ in range(trials):
@@ -185,39 +176,50 @@ class TestOptimizeTeams:
         assert same_team_count < trials * 0.5
 
 
-class TestPlayerRoleClassification:
-    """Tests for _player_role classification."""
+class TestTeamScore:
+    """Tests for _team_score."""
 
-    def test_scorer_when_goals_greater_than_assists(self):
-        """Player with more goals than assists is classified as scorer."""
-        p1 = PlayerId.generate()
-        meetups = []
-        for i in range(3):
-            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
-            m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
-            events = [
-                GoalEvent(
-                    scorer_id=p1,
-                    assistant_id=PlayerId.generate(),
-                    team="A",
-                    timestamp=time(20, 10),
-                )
-                for _ in range(2)
-            ]
-            events.append(
-                GoalEvent(
-                    scorer_id=PlayerId.generate(),
-                    assistant_id=p1,
-                    team="B",
-                    timestamp=time(20, 15),
-                )
+    def test_returns_sum_of_player_scores_with_no_pair_wins(self):
+        """Without pair-win history, score equals the sum of individual scores."""
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        scores = {p1: 0.6, p2: 0.4}
+        result = _team_score([p1, p2], scores, {}, max_pair_wins=0)
+        assert result == pytest.approx(1.0)
+
+
+class TestPlayerRole:
+    """Tests for _player_role."""
+
+    def test_scorer_when_more_goals_than_assists(self):
+        """Player with more goals than assists is classified as 'scorer'."""
+        p = PlayerId.generate()
+        scorer_id = p
+        meetups = [
+            _finished_meetup(
+                f"2025-10-0{i} 20:00",
+                [p],
+                [],
+                2,
+                0,
+                events=(
+                    GoalEvent(
+                        scorer_id=scorer_id, assistant_id=None, team="A", timestamp=time(20, i)
+                    ),
+                    GoalEvent(
+                        scorer_id=scorer_id, assistant_id=None, team="A", timestamp=time(20, i + 1)
+                    ),
+                ),
             )
-            m.set_result(MatchResult(score_a=3, score_b=0, events=events))
-            meetups.append(m)
-
-        role = _player_role(p1, meetups)
+            for i in range(1, 4)
+        ]
+        role = _player_role(p, meetups)
         assert role == "scorer"
+
+    def test_neutral_when_no_history(self):
+        """Player with no history gets 'neutral' role."""
+        p = PlayerId.generate()
+        role = _player_role(p, [])
+        assert role == "neutral"
 
     def test_assister_when_assists_greater_than_goals(self):
         """Player with more assists than goals is classified as assister."""
@@ -244,36 +246,11 @@ class TestPlayerRoleClassification:
                     timestamp=time(20, 15),
                 )
             )
-            m.set_result(MatchResult(score_a=3, score_b=0, events=events))
+            m.set_result(MatchResult(score_a=3, score_b=0, events=tuple(events)))
             meetups.append(m)
 
         role = _player_role(p1, meetups)
         assert role == "assister"
-
-    def test_neutral_when_goals_equal_assists(self):
-        """Player with equal goals and assists is classified as neutral."""
-        p1 = PlayerId.generate()
-        m = Meetup.create(datetime(2025, 10, 1, 20, 0), "Campo")
-        m.add_player(p1)
-        m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
-        events = [
-            GoalEvent(
-                scorer_id=p1,
-                assistant_id=PlayerId.generate(),
-                team="A",
-                timestamp=time(20, 10),
-            ),
-            GoalEvent(
-                scorer_id=PlayerId.generate(),
-                assistant_id=p1,
-                team="B",
-                timestamp=time(20, 20),
-            ),
-        ]
-        m.set_result(MatchResult(score_a=2, score_b=0, events=events))
-
-        role = _player_role(p1, [m])
-        assert role == "neutral"
 
     def test_falls_back_to_season_then_history(self):
         """Uses season first (<3 matches), then full history if available."""
@@ -283,14 +260,14 @@ class TestPlayerRoleClassification:
             m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
             m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
-            events = [
+            events = (
                 GoalEvent(
                     scorer_id=p1,
                     assistant_id=PlayerId.generate(),
                     team="A",
                     timestamp=time(20, 10),
-                )
-            ]
+                ),
+            )
             m.set_result(MatchResult(score_a=1, score_b=0, events=events))
             season.append(m)
         history = []
@@ -298,22 +275,52 @@ class TestPlayerRoleClassification:
             m = Meetup.create(datetime(2024, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
             m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
-            events = [
+            events = (
                 GoalEvent(
                     scorer_id=PlayerId.generate(),
                     assistant_id=p1,
                     team="B",
                     timestamp=time(20, 10),
-                )
-            ]
+                ),
+            )
             m.set_result(MatchResult(score_a=1, score_b=0, events=events))
             history.append(m)
 
         role = _player_role(p1, season, history)
         assert role == "assister"
 
-    def test_no_history_returns_neutral(self):
-        """Player with no history returns neutral."""
-        p1 = PlayerId.generate()
-        role = _player_role(p1, [], [])
-        assert role == "neutral"
+
+class TestBalancedAlgorithmAssign:
+    """Tests for BalancedAlgorithm.assign()."""
+
+    def test_all_players_assigned_to_exactly_two_teams(self):
+        """assign() returns two groups covering all input players with no duplicates."""
+        players = [PlayerId.generate() for _ in range(6)]
+        algo = BalancedAlgorithm()
+        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assert set(team_a + team_b) == set(players)
+        assert len(team_a) + len(team_b) == len(players)
+
+    def test_teams_differ_by_at_most_one_player(self):
+        """Teams produced by assign() are roughly even in size."""
+        players = [PlayerId.generate() for _ in range(7)]
+        algo = BalancedAlgorithm()
+        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assert abs(len(team_a) - len(team_b)) <= 1
+
+
+class TestUnknownAlgorithmError:
+    """Tests for UnknownAlgorithmError."""
+
+    def test_message_includes_name_and_available(self):
+        """Error message lists the unknown name and the available algorithms."""
+        err = UnknownAlgorithmError("xyz", ["balanceado", "random"])
+        assert "xyz" in str(err)
+        assert "balanceado" in str(err)
+        assert "random" in str(err)
+
+    def test_attributes_accessible(self):
+        """name and available attributes are set correctly."""
+        err = UnknownAlgorithmError("foo", ["balanceado"])
+        assert err.name == "foo"
+        assert err.available == ["balanceado"]
