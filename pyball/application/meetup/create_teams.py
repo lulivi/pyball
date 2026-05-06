@@ -52,6 +52,9 @@ class CreateTeams:
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
 
+        if len(meetup.players) < 2:
+            raise ValueError("Need at least 2 players to create teams.")
+
         all_meetups = self.meetup_repository.find_all()
         finished = [m for m in all_meetups if m.result is not None]
         season_start = _season_start(date.today())

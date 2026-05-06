@@ -12,6 +12,7 @@ from pyball.application.meetup import (
     CreateTeams,
     RemovePlayerFromMeetup,
 )
+from pyball.application.meetup.create_teams_algorithms import RandomAlgorithm
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.start_match import StartMatch
 from pyball.domain.meetup.errors import (
@@ -236,7 +237,7 @@ class TestCreateTeams:
         meetup.add_player(PlayerId.generate())
         meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
-        use_case = CreateTeams(meetup_repo)
+        use_case = CreateTeams(meetup_repo, RandomAlgorithm())
 
         result = use_case.execute(datetime(2024, 1, 15, 20, 0))
 
@@ -246,7 +247,7 @@ class TestCreateTeams:
     def test_create_teams_meetup_not_found(self):
         """Creating teams when the meetup does not exist raises MeetupNotFoundError."""
         meetup_repo = FakeMeetupRepository()
-        use_case = CreateTeams(meetup_repo)
+        use_case = CreateTeams(meetup_repo, RandomAlgorithm())
 
         with pytest.raises(MeetupNotFoundError):
             use_case.execute(datetime(2024, 1, 15, 20, 0))
@@ -257,7 +258,7 @@ class TestCreateTeams:
         meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
-        use_case = CreateTeams(meetup_repo)
+        use_case = CreateTeams(meetup_repo, RandomAlgorithm())
 
         with pytest.raises(ValueError, match="Need at least 2"):
             use_case.execute(datetime(2024, 1, 15, 20, 0))
@@ -271,7 +272,7 @@ class TestCreateTeams:
             meetup.add_player(pid)
         meetup_repo.save(meetup)
 
-        result = CreateTeams(meetup_repo).execute(datetime(2024, 1, 15, 20, 0))
+        result = CreateTeams(meetup_repo, RandomAlgorithm()).execute(datetime(2024, 1, 15, 20, 0))
 
         all_assigned = list(result.teams[0].players) + list(result.teams[1].players)
         assert sorted(str(p.value) for p in all_assigned) == sorted(
@@ -285,7 +286,7 @@ class TestCreateTeams:
         for _ in range(6):
             meetup.add_player(PlayerId.generate())
         meetup_repo.save(meetup)
-        use_case = CreateTeams(meetup_repo)
+        use_case = CreateTeams(meetup_repo, RandomAlgorithm())
 
         compositions = set()
         for _ in range(30):
@@ -313,7 +314,7 @@ class TestCreateTeams:
         current.add_player(p2)
         meetup_repo.save(current)
 
-        result = CreateTeams(meetup_repo).execute(datetime(2024, 11, 15, 20, 0))
+        result = CreateTeams(meetup_repo, RandomAlgorithm()).execute(datetime(2024, 11, 15, 20, 0))
 
         assert result.teams is not None
         assert len(result.teams) == 2
