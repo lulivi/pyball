@@ -36,6 +36,7 @@ from pyball.domain.meetup.errors import (
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
+    UnknownAlgorithmError,
 )
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
@@ -399,7 +400,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /create_teams command."""
+    """Handle /create_teams [fecha] [hora] [algoritmo] command."""
     message = update.message
     if message is None:
         return
@@ -416,10 +417,11 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     date_str = f"{args[0]} {args[1]}"
+    algo_name = args[2] if len(args) > 2 else None
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        meetup = container.create_teams().execute(meetup_date)
+        meetup = container.create_teams(algo_name).execute(meetup_date)
 
         if not meetup.teams:
             await message.reply_text("No se han creado equipos.")
@@ -434,11 +436,13 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             _date_usage_msg("create_teams", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
+    except UnknownAlgorithmError as error:
+        available = ", ".join(error.available)
+        await message.reply_text(f"Algoritmo '{error.name}' no existe. Disponibles: {available}")
     except MeetupNotFoundError:
         await message.reply_text("No existe ningún meetup para esa fecha.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error creating teams: %s", error)
-        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
     except Exception:
         logger.exception("Unexpected error creating teams")
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
