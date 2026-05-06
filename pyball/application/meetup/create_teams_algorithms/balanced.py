@@ -17,7 +17,51 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Balanced team assignment algorithm."""
+"""History-aware balanced team assignment algorithm.
+
+This module builds two teams from the players registered in a meetup by
+combining three ideas:
+
+1. Estimate each player's current strength from historical performance.
+2. Score complete team partitions, not just individual swaps.
+3. Choose from a broad pool of good candidates to preserve variety.
+
+The flow is intentionally split into small helpers so each stage is easy to
+reason about:
+
+- ``compute_player_scores()`` calculates a normalized strength score in
+  ``[0, 1]`` for every player. It prefers current-season data when there is
+  enough sample size, and falls back to all-time history otherwise. The score
+  is a weighted combination of goals per match, assists per match, and win
+  rate.
+- ``compute_player_roles()`` classifies each player as ``scorer``,
+  ``assister``, or ``neutral``. This is a lightweight extra signal used only
+  to avoid highly lopsided compositions.
+- ``extract_winning_counts()`` measures how often pairs of players have won
+  together in the past. Those counts are later used as a diversity penalty so
+  the algorithm does not keep recreating the same successful pairings.
+
+Once those inputs are prepared, ``optimize_teams()`` evaluates complete
+partitions:
+
+- For typical meetup sizes, it enumerates every unique split of players into
+  two teams. When the player count grows beyond the exhaustive threshold, it
+  switches to sampled random partitions instead.
+- Each partition is scored with ``_assignment_cost()``. The cost has three
+  components: strength imbalance between both teams, repeated winning-pair
+  penalty, and role imbalance penalty.
+- Candidates are sorted by total cost, and ``_selection_pool()`` keeps a broad
+  pool of near-best options rather than only the single optimum. This is the
+  key design choice that improves variety between runs.
+- ``_weighted_choice()`` performs the final pick. Lower-cost teams are still
+  more likely, but several strong alternatives remain viable, so repeated
+  executions do not collapse into the same composition unless the data really
+  leaves very few good options.
+
+In short, this algorithm is not trying to find one mathematically perfect team
+split and reuse it forever. It tries to stay balanced while also giving room
+for different, still-reasonable team compositions across repeated executions.
+"""
 
 from __future__ import annotations
 
@@ -30,15 +74,17 @@ from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _SEASON_MIN_MATCHES = 3
 _ROLE_WEIGHT = 0.15
-_ROLE_HARD_THRESHOLD = 0.2
 _W_GOALS = 0.40
 _W_ASSISTS = 0.30
 _W_WINS = 0.30
 _PAIR_WEIGHT = 1.0
-_ITERATIONS = 500
-_CANDIDATES = 8
-_TOP_K = 3
-_BALANCE_EPSILON = 0.05
+_MAX_EXHAUSTIVE_PLAYERS = 18
+_SAMPLED_CANDIDATES = 3000
+_MIN_SELECTION_POOL = 8
+_MAX_SELECTION_POOL = 24
+_SELECTION_POOL_FRACTION = 0.15
+_COST_EPSILON = 0.20
+_WEIGHTED_PICK_TEMPERATURE = 0.08
 
 
 def _player_stats(
@@ -233,9 +279,143 @@ def _team_score(
     return total + role_penalty
 
 
-RoleBalanceConfig = tuple[
+def _team_strength(team: list[PlayerId], player_scores: dict[PlayerId, float]) -> float:
+    """Return the team's raw player strength without composition penalties."""
+    return sum(player_scores.get(pid, 0.5) for pid in team)
+
+
+def _pair_repeat_penalty(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    winning_counts: dict[tuple[str, str], int],
+    max_pair_wins: int,
+) -> float:
+    """Return a normalized penalty for keeping historically successful pairs together."""
+    if max_pair_wins == 0:
+        return 0.0
+
+    repeated_strength = 0.0
+    total_pairs = 0
+    for team in (team_a, team_b):
+        for pid_a, pid_b in itertools.combinations(team, 2):
+            key: tuple[str, str] = tuple(  # type: ignore[assignment]
+                sorted([str(pid_a.value), str(pid_b.value)])
+            )
+            repeated_strength += winning_counts.get(key, 0) / max_pair_wins
+            total_pairs += 1
+
+    if total_pairs == 0:
+        return 0.0
+    return repeated_strength / total_pairs
+
+
+def _role_imbalance_penalty(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    role_scores: dict[PlayerId, str],
+) -> float:
+    """Return a normalized scorer-ratio imbalance penalty."""
+
+    def _scorer_ratio(team: list[PlayerId]) -> float:
+        if not team:
+            return 0.0
+        return sum(1 for pid in team if role_scores.get(pid) == "scorer") / len(team)
+
+    return abs(_scorer_ratio(team_a) - _scorer_ratio(team_b))
+
+
+AssignmentCostConfig = tuple[
     dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
 ]
+
+
+def _assignment_cost(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    config: AssignmentCostConfig,
+) -> float:
+    """Return total assignment cost: strength balance plus composition diversity."""
+    player_scores, winning_counts, max_pair_wins, role_scores = config
+    balance_cost = abs(
+        _team_strength(team_a, player_scores) - _team_strength(team_b, player_scores)
+    )
+    pair_cost = _pair_repeat_penalty(team_a, team_b, winning_counts, max_pair_wins)
+    role_cost = _role_imbalance_penalty(team_a, team_b, role_scores) if role_scores else 0.0
+    return balance_cost + (_PAIR_WEIGHT * pair_cost) + (_ROLE_WEIGHT * role_cost)
+
+
+def _unique_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
+    """Return unique two-team partitions, avoiding mirrored duplicates."""
+    team_a_size = len(player_ids) // 2
+    if team_a_size == 0:
+        return []
+
+    partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
+
+    def _append_partition(team_a: list[PlayerId]) -> None:
+        team_a_set = set(team_a)
+        team_b = [pid for pid in player_ids if pid not in team_a_set]
+        partitions.append((team_a, team_b))
+
+    if len(player_ids) % 2 == 0:
+        anchor = player_ids[0]
+        for rest in itertools.combinations(player_ids[1:], team_a_size - 1):
+            _append_partition([anchor, *rest])
+    else:
+        for combination in itertools.combinations(player_ids, team_a_size):
+            _append_partition(list(combination))
+
+    return partitions
+
+
+def _sampled_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
+    """Return random unique-ish partitions for player counts too large to exhaustively search."""
+    partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
+    seen: set[frozenset[PlayerId]] = set()
+    team_a_size = len(player_ids) // 2
+
+    while len(partitions) < _SAMPLED_CANDIDATES:
+        players = list(player_ids)
+        random.shuffle(players)
+        team_a = players[:team_a_size]
+        team_b = players[team_a_size:]
+        key = frozenset(team_a)
+        mirror_key = frozenset(team_b)
+        if key in seen or mirror_key in seen:
+            continue
+        seen.add(key)
+        partitions.append((team_a, team_b))
+
+    return partitions
+
+
+def _selection_pool(
+    candidates: list[tuple[float, list[PlayerId], list[PlayerId]]],
+) -> list[tuple[float, list[PlayerId], list[PlayerId]]]:
+    """Return a broad pool of good candidates to preserve variety."""
+    candidates.sort(key=lambda candidate: candidate[0])
+    best_cost = candidates[0][0]
+    target_size = min(
+        _MAX_SELECTION_POOL,
+        max(_MIN_SELECTION_POOL, int(len(candidates) * _SELECTION_POOL_FRACTION)),
+    )
+    pool = [candidate for candidate in candidates if candidate[0] <= best_cost + _COST_EPSILON]
+    if len(pool) < _MIN_SELECTION_POOL:
+        pool = candidates[:_MIN_SELECTION_POOL]
+    return pool[:target_size]
+
+
+def _weighted_choice(
+    candidates: list[tuple[float, list[PlayerId], list[PlayerId]]],
+) -> tuple[list[PlayerId], list[PlayerId]]:
+    """Pick a candidate, favoring lower cost without collapsing to the single best."""
+    best_cost = candidates[0][0]
+    weights = [
+        1.0 / (1.0 + ((cost - best_cost) / _WEIGHTED_PICK_TEMPERATURE))
+        for cost, _, _ in candidates
+    ]
+    _, team_a, team_b = random.choices(candidates, weights=weights, k=1)[0]
+    return list(team_a), list(team_b)
 
 
 def optimize_teams(
@@ -244,16 +424,11 @@ def optimize_teams(
     winning_counts: dict[tuple[str, str], int],
     role_scores: dict[PlayerId, str] | None = None,
 ) -> tuple[list[PlayerId], list[PlayerId]]:
-    """Assign players to two balanced teams using multi-start local-search optimization.
+    """Assign players to two balanced teams using a broad good-candidate pool.
 
-    Runs _CANDIDATES independent optimizations from random starting shuffles. Each run
-    iterates _ITERATIONS times, accepting swaps that reduce the score difference between
-    teams. When role_scores is provided, each run also applies role balancing via
-    _apply_role_balance: first a hard-constraint phase (scorer/assister ratio within
-    _ROLE_HARD_THRESHOLD), then a soft-penalty fallback phase.
-
-    Returns a random pick from the _TOP_K results within _BALANCE_EPSILON of the best
-    balance score, producing varied but near-optimal compositions on each call.
+    For normal meetup sizes, every unique partition is scored. The final assignment
+    is picked from a weighted pool of good options, so repeated calls preserve
+    balance while avoiding the same few local optima every time.
     """
     if len(player_ids) < 2:
         raise ValueError("Need at least 2 players to create teams")
@@ -262,109 +437,26 @@ def optimize_teams(
         role_scores = {}
 
     max_pair_wins = max(winning_counts.values(), default=0)
-    candidates: list[tuple[float, list[PlayerId], list[PlayerId]]] = []
+    if len(player_ids) <= _MAX_EXHAUSTIVE_PLAYERS:
+        partitions = _unique_partitions(player_ids)
+    else:
+        partitions = _sampled_partitions(player_ids)
 
-    for _ in range(_CANDIDATES):
-        players = list(player_ids)
-        random.shuffle(players)
-        mid = len(players) // 2
-        team_a: list[PlayerId] = players[:mid]
-        team_b: list[PlayerId] = players[mid:]
-
-        for _i in range(_ITERATIONS):
-            i = random.randrange(len(team_a))
-            j = random.randrange(len(team_b))
-
-            score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-            score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-            current_diff = abs(score_a - score_b)
-
-            team_a[i], team_b[j] = team_b[j], team_a[i]
-
-            new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-            new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-            new_diff = abs(new_score_a - new_score_b)
-
-            if new_diff > current_diff:
-                team_a[i], team_b[j] = team_b[j], team_a[i]
-
-        if role_scores:
-            config: RoleBalanceConfig = (player_scores, winning_counts, max_pair_wins, role_scores)
-            team_a, team_b = _apply_role_balance(team_a, team_b, config)
-
-        score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-        score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-        candidates.append((abs(score_a - score_b), team_a, team_b))
-
-    candidates.sort(key=lambda c: c[0])
-    best_diff = candidates[0][0]
-    top_k = [(a, b) for diff, a, b in candidates if diff <= best_diff + _BALANCE_EPSILON][:_TOP_K]
-    return random.choice(top_k)
-
-
-def _apply_role_balance(
-    team_a: list[PlayerId],
-    team_b: list[PlayerId],
-    config: RoleBalanceConfig,
-) -> tuple[list[PlayerId], list[PlayerId]]:
-    """Apply role balancing to teams after initial score optimization."""
-    player_scores, winning_counts, max_pair_wins, role_scores = config
-
-    def _count_scorers(team: list[PlayerId]) -> int:
-        return sum(1 for pid in team if role_scores.get(pid) == "scorer")
-
-    def _role_ratio(team: list[PlayerId]) -> float:
-        if not team:
-            return 0.0
-        return _count_scorers(team) / len(team)
-
-    def _role_penalty(team: list[PlayerId], other: list[PlayerId]) -> float:
-        ratio_a = _role_ratio(team)
-        ratio_b = _role_ratio(other)
-        return _ROLE_WEIGHT * abs(ratio_a - ratio_b)
-
-    for _ in range(_ITERATIONS):
-        i = random.randrange(len(team_a))
-        j = random.randrange(len(team_b))
-
-        score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-        score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-        current_diff = abs(score_a - score_b)
-
-        team_a_copy = team_a.copy()
-        team_b_copy = team_b.copy()
-        team_a_copy[i], team_b_copy[j] = team_b[j], team_a[i]
-
-        ratio_a = _role_ratio(team_a_copy)
-        ratio_b = _role_ratio(team_b_copy)
-
-        if abs(ratio_a - ratio_b) <= _ROLE_HARD_THRESHOLD:
-            team_a[i], team_b[j] = team_b[j], team_a[i]
-            new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-            new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-            new_diff = abs(new_score_a - new_score_b)
-
-            if new_diff > current_diff:
-                team_a[i], team_b[j] = team_b[j], team_a[i]
-
-    for _ in range(200):
-        i = random.randrange(len(team_a))
-        j = random.randrange(len(team_b))
-
-        score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-        score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-        current_total = score_a + score_b + _role_penalty(team_a, team_b)
-
-        team_a[i], team_b[j] = team_b[j], team_a[i]
-
-        new_score_a = _team_score(team_a, player_scores, winning_counts, max_pair_wins)
-        new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
-        new_total = new_score_a + new_score_b + _role_penalty(team_a, team_b)
-
-        if new_total < current_total:
-            team_a[i], team_b[j] = team_b[j], team_a[i]
-
-    return team_a, team_b
+    cost_config: AssignmentCostConfig = (
+        player_scores,
+        winning_counts,
+        max_pair_wins,
+        role_scores,
+    )
+    candidates = [
+        (
+            _assignment_cost(team_a, team_b, cost_config),
+            team_a,
+            team_b,
+        )
+        for team_a, team_b in partitions
+    ]
+    return _weighted_choice(_selection_pool(candidates))
 
 
 class BalancedAlgorithm:
