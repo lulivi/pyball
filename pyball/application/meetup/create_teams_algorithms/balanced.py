@@ -361,7 +361,7 @@ def _apply_role_balance(
         new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
         new_total = new_score_a + new_score_b + _role_penalty(team_a, team_b)
 
-        if new_total > current_total:
+        if new_total < current_total:
             team_a[i], team_b[j] = team_b[j], team_a[i]
 
     return team_a, team_b
