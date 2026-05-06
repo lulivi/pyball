@@ -59,3 +59,13 @@ class DuplicateMeetupError(MeetupError):
 
 class MeetupAlreadyClosedError(MeetupError):
     """Raised when trying to close a match that already has a result."""
+
+
+class UnknownAlgorithmError(MeetupError):
+    """Raised when a requested team assignment algorithm is not registered."""
+
+    def __init__(self, name: str, available: list[str]) -> None:
+        """Initialize with the unknown algorithm name and the list of known names."""
+        self.name = name
+        self.available = available
+        super().__init__(f"Unknown algorithm '{name}'. Available: {', '.join(available)}")
