@@ -550,3 +550,20 @@ async def test_create_teams_handler_manual_meetup_not_found(mock_update, mock_co
     mock_update.message.reply_text.assert_called_once_with(
         "No existe ningún meetup para esa fecha."
     )
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_manual_unequal_sizes(mock_update, mock_context):
+    """manual branch replies with ValueError message when team sizes differ."""
+    container = MagicMock()
+    container.create_teams_manually.return_value.execute.side_effect = ValueError(
+        "Los equipos deben tener el mismo número de jugadores (1 vs 2)"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "manual", "Juan", ";", "Pedro,", "Carlos"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_once_with(
+        "Los equipos deben tener el mismo número de jugadores (1 vs 2)"
+    )

@@ -433,6 +433,7 @@ async def _create_teams_manual(
         await message.reply_text("No existe ningún meetup para esa fecha.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error creating teams manually: %s", error)
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
     except Exception:
         logger.exception("Unexpected error creating teams manually")
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
