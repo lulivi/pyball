@@ -233,6 +233,11 @@ def _team_score(
     return total + role_penalty
 
 
+RoleBalanceConfig = tuple[
+    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
+]
+
+
 def optimize_teams(
     player_ids: list[PlayerId],
     player_scores: dict[PlayerId, float],
@@ -297,11 +302,6 @@ def optimize_teams(
     return random.choice(top_k)
 
 
-RoleBalanceConfig = tuple[
-    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
-]
-
-
 def _apply_role_balance(
     team_a: list[PlayerId],
     team_b: list[PlayerId],
@@ -361,7 +361,7 @@ def _apply_role_balance(
         new_score_b = _team_score(team_b, player_scores, winning_counts, max_pair_wins)
         new_total = new_score_a + new_score_b + _role_penalty(team_a, team_b)
 
-        if new_total < current_total:
+        if new_total > current_total:
             team_a[i], team_b[j] = team_b[j], team_a[i]
 
     return team_a, team_b
