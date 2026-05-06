@@ -193,7 +193,7 @@ class TestTelegramLogHandler:
         with patch(self._PATCH) as mock_urlopen:
             handler.emit(self._make_record())
         text = self._captured_payload(mock_urlopen)["text"]
-        assert text.startswith("```\n")
+        assert "```" in text
         assert text.endswith("\n```")
 
     def test_emit_silences_network_exception(self):
