@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Balanced team creation: player scoring and team optimization."""
+"""Balanced team assignment algorithm."""
 
 from __future__ import annotations
 
@@ -194,7 +194,7 @@ def compute_player_roles(
 
 
 def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
-    """Return sorted (pid_a, pid_b) → shared win count for all player pairs."""
+    """Return sorted (pid_a, pid_b) -> shared win count for all player pairs."""
     counts: dict[tuple[str, str], int] = {}
     for meetup in meetups:
         if meetup.result is None or meetup.teams is None:
@@ -365,3 +365,28 @@ def _apply_role_balance(
             team_a[i], team_b[j] = team_b[j], team_a[i]
 
     return team_a, team_b
+
+
+class BalancedAlgorithm:
+    """History-aware team assignment using score optimization and role balancing."""
+
+    def __init__(self, legacy_stats: LegacyStats | None = None) -> None:
+        """Initialize with optional legacy stats for pre-app historical data."""
+        self.legacy_stats = legacy_stats
+
+    def assign(
+        self,
+        players: list[PlayerId],
+        finished_meetups: list[Meetup],
+        season_meetups: list[Meetup],
+        season_start: datetime,
+    ) -> tuple[list[PlayerId], list[PlayerId]]:
+        """Assign players to two balanced teams using historical performance data."""
+        player_scores = compute_player_scores(
+            players, season_meetups, finished_meetups, self.legacy_stats, season_start
+        )
+        player_roles = compute_player_roles(
+            players, season_meetups, finished_meetups, self.legacy_stats, season_start
+        )
+        winning_counts = extract_winning_counts(finished_meetups)
+        return optimize_teams(players, player_scores, winning_counts, player_roles)

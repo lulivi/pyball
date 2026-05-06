@@ -21,7 +21,7 @@
 
 from datetime import date, datetime
 
-from pyball.application.meetup.balance import (
+from pyball.application.meetup.create_teams_algorithms.balanced import (
     compute_player_roles,
     compute_player_scores,
     extract_winning_counts,
