@@ -143,6 +143,37 @@ class TestOptimizeTeams:
         team_a, team_b = optimize_teams(player_ids, scores, {})
         assert abs(len(team_a) - len(team_b)) <= 1
 
+    def test_produces_varied_results(self):
+        """Repeated calls with identical input produce more than one distinct composition."""
+        player_ids = [PlayerId.generate() for _ in range(4)]
+        scores = {pid: 0.5 for pid in player_ids}
+
+        compositions = set()
+        for _ in range(30):
+            team_a, _ = optimize_teams(player_ids, scores, {})
+            compositions.add(frozenset(team_a))
+
+        assert len(compositions) > 1
+
+    def test_winning_pair_bonus_influences_balance(self):
+        """A dominant winning pair is separated when it reduces the score imbalance."""
+        p1, p2, p3, p4 = [PlayerId.generate() for _ in range(4)]
+        key = tuple(sorted([str(p1.value), str(p2.value)]))
+        winning_counts = {key: 10}
+        scores = {p1: 0.5, p2: 0.5, p3: 0.5, p4: 0.5}
+
+        same_team_count = 0
+        trials = 100
+        for _ in range(trials):
+            team_a, team_b = optimize_teams([p1, p2, p3, p4], scores, winning_counts)
+            if p1 in team_a and p2 in team_a:
+                same_team_count += 1
+            if p1 in team_b and p2 in team_b:
+                same_team_count += 1
+
+        # Separated more than 50% of the time (pair bonus discourages co-location)
+        assert same_team_count < trials * 0.5
+
 
 class TestTeamScore:
     """Tests for _team_score."""
@@ -188,6 +219,74 @@ class TestPlayerRole:
         p = PlayerId.generate()
         role = _player_role(p, [])
         assert role == "neutral"
+
+    def test_assister_when_assists_greater_than_goals(self):
+        """Player with more assists than goals is classified as assister."""
+        p1 = PlayerId.generate()
+        meetups = []
+        for i in range(3):
+            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = [
+                GoalEvent(
+                    scorer_id=PlayerId.generate(),
+                    assistant_id=p1,
+                    team="B",
+                    timestamp=time(20, 10),
+                )
+                for _ in range(2)
+            ]
+            events.append(
+                GoalEvent(
+                    scorer_id=p1,
+                    assistant_id=PlayerId.generate(),
+                    team="A",
+                    timestamp=time(20, 15),
+                )
+            )
+            m.set_result(MatchResult(score_a=3, score_b=0, events=tuple(events)))
+            meetups.append(m)
+
+        role = _player_role(p1, meetups)
+        assert role == "assister"
+
+    def test_falls_back_to_season_then_history(self):
+        """Uses season first (<3 matches), then full history if available."""
+        p1 = PlayerId.generate()
+        season = []
+        for i in range(2):
+            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = (
+                GoalEvent(
+                    scorer_id=p1,
+                    assistant_id=PlayerId.generate(),
+                    team="A",
+                    timestamp=time(20, 10),
+                ),
+            )
+            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            season.append(m)
+        history = []
+        for i in range(3):
+            m = Meetup.create(datetime(2024, 10, i + 1, 20, 0), "Campo")
+            m.add_player(p1)
+            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            events = (
+                GoalEvent(
+                    scorer_id=PlayerId.generate(),
+                    assistant_id=p1,
+                    team="B",
+                    timestamp=time(20, 10),
+                ),
+            )
+            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            history.append(m)
+
+        role = _player_role(p1, season, history)
+        assert role == "assister"
 
 
 class TestBalancedAlgorithmAssign:
