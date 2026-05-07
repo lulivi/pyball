@@ -506,16 +506,53 @@ async def test_create_teams_handler_manual_success(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_create_teams_handler_manual_missing_separator(mock_update, mock_context):
-    """manual branch with no ';' separator replies with usage help."""
-    mock_context.args = ["2026-04-25", "20:00", "manual", "Juan", "Pedro"]
-    mock_context.bot_data["container"] = MagicMock()
+async def test_create_teams_handler_manual_single_team_no_separator(mock_update, mock_context):
+    """manual branch with no ';' calls use case with empty team_b_names."""
+    p1, p2 = PlayerId.generate(), PlayerId.generate()
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
-    await create_teams_handler(mock_update, mock_context)
+    container = MagicMock()
+    container.create_teams_manually.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "manual", "Juan,Pedro"]
 
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert r"Formato de fecha no válido\." in text
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages",
+        new_callable=AsyncMock,
+    ):
+        await create_teams_handler(mock_update, mock_context)
+
+    call_args = container.create_teams_manually.return_value.execute.call_args
+    assert call_args.args[2] == []
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_manual_single_team_trailing_separator(
+    mock_update, mock_context
+):
+    """manual branch with trailing ';' calls use case with empty team_b_names."""
+    p1, p2 = PlayerId.generate(), PlayerId.generate()
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+
+    container = MagicMock()
+    container.create_teams_manually.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "manual", "Juan,Pedro", ";"]
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages",
+        new_callable=AsyncMock,
+    ):
+        await create_teams_handler(mock_update, mock_context)
+
+    call_args = container.create_teams_manually.return_value.execute.call_args
+    assert call_args.args[2] == []
 
 
 @pytest.mark.asyncio

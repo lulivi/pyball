@@ -97,10 +97,15 @@ class CreateTeamsManually:
             names = [player_names_map.get(pid, str(pid)) for pid in overlap]
             raise ValueError(f"Jugadores asignados a los dos equipos: {', '.join(names)}")
 
-        uncovered = [pid for pid in meetup.players if pid not in set(team_a_ids) | set(team_b_ids)]
-        if uncovered:
-            names = [player_names_map.get(pid, str(pid)) for pid in uncovered]
-            raise ValueError(f"Jugadores sin equipo asignado: {', '.join(names)}")
+        if not team_b_names:
+            team_b_ids = [pid for pid in meetup.players if pid not in set(team_a_ids)]
+        else:
+            uncovered = [
+                pid for pid in meetup.players if pid not in set(team_a_ids) | set(team_b_ids)
+            ]
+            if uncovered:
+                names = [player_names_map.get(pid, str(pid)) for pid in uncovered]
+                raise ValueError(f"Jugadores sin equipo asignado: {', '.join(names)}")
 
         if len(team_a_ids) != len(team_b_ids):
             raise ValueError(

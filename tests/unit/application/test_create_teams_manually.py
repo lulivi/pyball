@@ -133,6 +133,32 @@ class TestCreateTeamsManually:
         assert result.teams is not None
         assert p1.id in result.teams[0].players
 
+    def test_empty_team_b_auto_fills_from_remaining_players(self):
+        """Empty team_b_names fills team B with meetup players not in team A."""
+        p1, p2, p3, p4 = _player("Juan"), _player("Pedro"), _player("Carlos"), _player("Maria")
+        meetup = _meetup(p1, p2, p3, p4)
+        uc, repo = _use_case(meetup, p1, p2, p3, p4)
+
+        result = uc.execute(datetime(2026, 5, 6, 20, 0), ["Juan", "Pedro"], [])
+
+        assert result.teams is not None
+        team_a_ids = result.teams[0].players
+        team_b_ids = result.teams[1].players
+        assert p1.id in team_a_ids
+        assert p2.id in team_a_ids
+        assert p3.id in team_b_ids
+        assert p4.id in team_b_ids
+        repo.save.assert_called_once_with(meetup)
+
+    def test_auto_fill_raises_on_unequal_team_sizes(self):
+        """Auto-filled team B raises ValueError when resulting sizes differ."""
+        p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")
+        meetup = _meetup(p1, p2, p3)
+        uc, _ = _use_case(meetup, p1, p2, p3)
+
+        with pytest.raises(ValueError, match=r"1 vs 2"):
+            uc.execute(datetime(2026, 5, 6, 20, 0), ["Juan"], [])
+
     def test_names_with_parentheses_resolve(self):
         """Player names containing parentheses are resolved correctly."""
         p1 = _player("Manuel (Antonio)")
