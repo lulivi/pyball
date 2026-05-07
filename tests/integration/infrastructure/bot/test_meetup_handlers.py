@@ -2,7 +2,7 @@
 
 # pylint: disable=redefined-outer-name
 
-from datetime import date, datetime
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -34,7 +34,7 @@ async def test_new_meetup_persists(bot_update, bot_context):
     await new_meetup_handler(bot_update, bot_context)
 
     container = bot_context.bot_data["container"]
-    meetup = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert meetup is not None
     assert meetup.location == "Test Field"
 
@@ -66,7 +66,7 @@ async def test_add_player_updates_meetup(bot_update, bot_context):
 
     await add_player_handler(bot_update, bot_context)
 
-    saved = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert player.id in saved.players
 
 
@@ -84,7 +84,7 @@ async def test_remove_player_updates_meetup(bot_update, bot_context):
 
     await remove_player_handler(bot_update, bot_context)
 
-    saved = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert player.id not in saved.players
 
 
@@ -104,7 +104,7 @@ async def test_create_teams_persists_teams(bot_update, bot_context):
 
     await create_teams_handler(bot_update, bot_context)
 
-    saved = container.meetup_repository.find_by_date(date(2026, 4, 25))
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert saved.teams is not None
     (text, *_), _ = bot_update.message.reply_text.call_args
     assert "Equipos creados" in text
@@ -283,6 +283,63 @@ async def test_stats_handler_no_args_replies_help(bot_update, bot_context):
     call = bot_update.message.reply_text.call_args
     text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "temporada" in text and "historico" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_manual_persists_teams(bot_update, bot_context):
+    """manual mode assigns named players to teams and persists them."""
+    container = bot_context.bot_data["container"]
+    players = [Player.create(f"Player{i}", "regular") for i in range(4)]
+    for player in players:
+        container.player_repository.save(player)
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    for player in players:
+        meetup.add_player(player.id)
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = [
+        "2026-04-25",
+        "20:00",
+        "manual",
+        "Player0,",
+        "Player1",
+        ";",
+        "Player2,",
+        "Player3",
+    ]
+
+    await create_teams_handler(bot_update, bot_context)
+
+    saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
+    assert saved.teams is not None
+    assert len(saved.teams) == 2
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert "Equipos creados" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_manual_unknown_player_replies_error(bot_update, bot_context):
+    """manual mode with an unknown player name replies with an error message."""
+    container = bot_context.bot_data["container"]
+    player = Player.create("Player0", "regular")
+    container.player_repository.save(player)
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    meetup.add_player(player.id)
+    container.meetup_repository.save(meetup)
+
+    bot_context.args = [
+        "2026-04-25",
+        "20:00",
+        "manual",
+        "Player0",
+        ";",
+        "Ghost",
+    ]
+
+    await create_teams_handler(bot_update, bot_context)
+
+    (text, *_), _ = bot_update.message.reply_text.call_args
+    assert "no encontrados" in text.lower()
 
 
 @pytest.mark.asyncio

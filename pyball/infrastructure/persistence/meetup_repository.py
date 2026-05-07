@@ -20,7 +20,7 @@
 """JSON file-based meetup repository."""
 
 import json
-from datetime import date, datetime, time
+from datetime import datetime, time
 from pathlib import Path
 from uuid import UUID
 
@@ -127,13 +127,12 @@ class JsonMeetupRepository(MeetupRepository):
             return None
         return self._dict_to_meetup(data)
 
-    def find_by_date(self, meetup_date: date) -> Meetup | None:
-        """Find a meetup by its date."""
+    def find_by_datetime(self, meetup_date: datetime) -> Meetup | None:
+        """Find a meetup by its datetime."""
         for file_path in self.directory.glob("*.json"):
             data = self._read_file(file_path)
             if data:
-                meetup_date_from_data = datetime.fromisoformat(data["date"]).date()
-                if meetup_date_from_data == meetup_date:
+                if datetime.fromisoformat(data["date"]) == meetup_date:
                     return self._dict_to_meetup(data)
         return None
 

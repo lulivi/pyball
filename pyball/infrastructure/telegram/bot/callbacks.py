@@ -130,11 +130,7 @@ def _parse_meetup_date(date_str: str) -> datetime | None:
 
 
 def _find_meetup(meetup_repo, date: datetime) -> Meetup | None:
-    all_meetups = meetup_repo.find_all()
-    for m in all_meetups:
-        if m.date.date() == date.date():
-            return m
-    return None
+    return meetup_repo.find_by_datetime(date)
 
 
 def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str | None:
@@ -154,7 +150,7 @@ def _process_action(
     if "join" in action:
         try:
             container.add_player_to_meetup().execute(meetup_date, player_name)
-            logger.info("Player '%s' joined meetup %s", player_name, meetup_date.date())
+            logger.info("Player '%s' joined meetup %s", player_name, meetup_date)
             return True
         except Exception:
             logger.exception("Unexpected error processing join for player '%s'", player_name)
@@ -162,7 +158,7 @@ def _process_action(
     if "leave" in action:
         try:
             container.remove_player_from_meetup().execute(meetup_date, player_name)
-            logger.info("Player '%s' left meetup %s", player_name, meetup_date.date())
+            logger.info("Player '%s' left meetup %s", player_name, meetup_date)
             return True
         except Exception:
             logger.exception("Unexpected error processing leave for player '%s'", player_name)

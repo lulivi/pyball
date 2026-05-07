@@ -46,10 +46,10 @@ class FakeMeetupRepository:
                 return m
         return None
 
-    def find_by_date(self, meetup_date):
-        """Return the meetup on the given date, or None."""
+    def find_by_datetime(self, meetup_date):
+        """Return the meetup on the given datetime, or None."""
         for m in self.meetups:
-            if m.date.date() == meetup_date:
+            if m.date == meetup_date:
                 return m
         return None
 
@@ -110,7 +110,7 @@ class TestAddPlayerToMeetup:
 
         meetup_repo = MagicMock()
         meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
-        meetup_repo.find_by_date.return_value = meetup
+        meetup_repo.find_by_datetime.return_value = meetup
 
         use_case = AddPlayerToMeetup(meetup_repo, player_repo)
         use_case.execute(datetime(2024, 3, 20, 20, 0), "Mario")
@@ -328,7 +328,7 @@ class TestCreateMeetup:
     def test_create_meetup_with_default_location(self):
         """Creating a meetup without a location uses the default."""
         repo = MagicMock()
-        repo.find_by_date.return_value = None
+        repo.find_by_datetime.return_value = None
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
@@ -339,7 +339,7 @@ class TestCreateMeetup:
     def test_create_meetup_with_custom_location(self):
         """Creating a meetup with a custom location overrides the default."""
         repo = MagicMock()
-        repo.find_by_date.return_value = None
+        repo.find_by_datetime.return_value = None
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0), location="Estadio Norte")
@@ -352,7 +352,7 @@ class TestCreateMeetup:
             date=datetime(2024, 3, 20, 20, 0), location="Parque Central"
         )
         repo = MagicMock()
-        repo.find_by_date.return_value = existing_meetup
+        repo.find_by_datetime.return_value = existing_meetup
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         with pytest.raises(DuplicateMeetupError, match="Meetup already exists"):
@@ -361,7 +361,7 @@ class TestCreateMeetup:
     def test_create_meetup_saves_meetup(self):
         """Creating a meetup persists it via the repository."""
         repo = MagicMock()
-        repo.find_by_date.return_value = None
+        repo.find_by_datetime.return_value = None
         use_case = CreateMeetup(repo, default_location="Parque Central")
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
@@ -462,7 +462,7 @@ class TestFinishMatch:
         ]
         self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
 
-        saved = self.meetup_repo.find_by_date(datetime(2026, 4, 12).date())
+        saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
         assert saved is not None
         assert saved.is_closed()
         assert saved.result.score_a == 1
@@ -485,7 +485,7 @@ class TestFinishMatch:
         ]
         self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
 
-        saved = self.meetup_repo.find_by_date(datetime(2026, 4, 12).date())
+        saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
         assert saved.result.events[0].assistant_id is None
 
     def test_raises_if_meetup_not_found(self):

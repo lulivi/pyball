@@ -35,15 +35,24 @@ class TestJsonMeetupRepository:
         assert found.date == meetup.date
         assert found.location == "Test Field"
 
-    def test_find_by_date(self):
-        """A saved meetup can be found by its calendar date."""
+    def test_find_by_datetime(self):
+        """A saved meetup can be found by its full datetime."""
         meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
         self.repo.save(meetup)
 
-        found = self.repo.find_by_date(datetime(2024, 1, 15).date())
+        found = self.repo.find_by_datetime(datetime(2024, 1, 15, 20, 0))
 
         assert found is not None
         assert found.id == meetup.id
+
+    def test_find_by_datetime_not_found_when_time_differs(self):
+        """find_by_datetime does not match a meetup at a different time on the same day."""
+        meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
+        self.repo.save(meetup)
+
+        found = self.repo.find_by_datetime(datetime(2024, 1, 15, 19, 0))
+
+        assert found is None
 
     def test_find_all(self):
         """find_all returns all saved meetups ordered by date."""

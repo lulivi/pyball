@@ -118,8 +118,7 @@ class TelegramLogHandler(logging.Handler):
             if record.exc_info:
                 message += "\n" + self._formatter.formatException(record.exc_info)
             text = (
-                f"```\n{emoji} {record.levelname}|{record.name}:{record.lineno}\n"
-                f"{message}\n```"
+                f"{emoji} {record.levelname}\n`{record.name}:{record.lineno}`\n```{message}\n```"
             )
             payload = json.dumps(
                 {"chat_id": self._chat_id, "text": text, "parse_mode": "MarkdownV2"}

@@ -25,7 +25,7 @@ class TestCreateTeams:
     def test_raises_when_meetup_not_found(self):
         """MeetupNotFoundError is raised when the meetup does not exist."""
         repo = MagicMock()
-        repo.find_by_date.return_value = None
+        repo.find_by_datetime.return_value = None
         use_case = CreateTeams(repo, StubAlgorithm())
 
         with pytest.raises(MeetupNotFoundError):
@@ -39,7 +39,7 @@ class TestCreateTeams:
             meetup.add_player(p)
 
         repo = MagicMock()
-        repo.find_by_date.return_value = meetup
+        repo.find_by_datetime.return_value = meetup
         repo.find_all.return_value = []
 
         algorithm = MagicMock()
@@ -61,7 +61,7 @@ class TestCreateTeams:
             meetup.add_player(p)
 
         repo = MagicMock()
-        repo.find_by_date.return_value = meetup
+        repo.find_by_datetime.return_value = meetup
         repo.find_all.return_value = []
 
         algorithm = MagicMock()
@@ -80,7 +80,7 @@ class TestCreateTeams:
             meetup.add_player(p)
 
         repo = MagicMock()
-        repo.find_by_date.return_value = meetup
+        repo.find_by_datetime.return_value = meetup
         repo.find_all.return_value = []
 
         use_case = CreateTeams(repo, StubAlgorithm())

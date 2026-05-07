@@ -2,7 +2,7 @@
 
 # pylint: disable=redefined-outer-name
 
-from datetime import date
+from datetime import datetime
 
 import pytest
 from telegram.constants import ParseMode
@@ -22,7 +22,7 @@ from pyball.infrastructure.telegram.bot.handlers.player import new_player_handle
 
 _DATE_ARGS = ["2026-06-15", "20:00"]
 _ISO_DATE = "2026-06-15T20:00"
-_MATCH_DATE = date(2026, 6, 15)
+_MATCH_DATE = datetime(2026, 6, 15, 20, 0)
 
 _REGULARS = [f"Regular_{i:02d}" for i in range(1, 11)]  # Regular_01..Regular_10
 _SUBS = [f"Sub_{i:02d}" for i in range(1, 5)]  # Sub_01..Sub_04
@@ -69,7 +69,7 @@ class TestFullMatchLifecycle:
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup is not None
         assert meetup.location == "Test Field"
 
@@ -78,21 +78,21 @@ class TestFullMatchLifecycle:
             bot_context.args = [*_DATE_ARGS, name]
             await add_player_handler(bot_update, bot_context)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 10
 
     async def _remove_player(self, bot_update, bot_context, real_container):
         bot_context.args = [*_DATE_ARGS, "Regular_10"]
         await remove_player_handler(bot_update, bot_context)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 9
 
     async def _generate_teams_twice(self, bot_update, bot_context, real_container):
         bot_context.args = _DATE_ARGS
         await create_teams_handler(bot_update, bot_context)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.teams is not None
         assert len(meetup.teams) == 2
 
@@ -100,7 +100,7 @@ class TestFullMatchLifecycle:
         bot_context.args = _DATE_ARGS
         await create_teams_handler(bot_update, bot_context)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.teams is not None
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
@@ -152,7 +152,7 @@ class TestFullMatchLifecycle:
         final_score = {"A": 2, "B": 1}
         real_container.finish_match().execute(_ISO_DATE, events, final_score)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.is_closed()
         assert meetup.result.score_a == 2
         assert meetup.result.score_b == 1
@@ -208,7 +208,7 @@ class TestFullMatchLifecycle:
         bot_context.args = [*_DATE_ARGS, "Regular_01"]
         await add_player_handler(bot_update, bot_context)
 
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 1
 
     @pytest.mark.asyncio
@@ -246,7 +246,7 @@ class TestFullMatchLifecycle:
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
         assert "Añadidos" in text
-        meetup = real_container.meetup_repository.find_by_date(_MATCH_DATE)
+        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 1
 
     @pytest.mark.asyncio

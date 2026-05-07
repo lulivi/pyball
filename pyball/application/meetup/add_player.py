@@ -42,7 +42,7 @@ class AddPlayerToMeetup:
 
     def execute(self, meetup_date: datetime, player_name: str) -> Meetup:
         """Add player to meetup by datetime and fuzzy name match."""
-        meetup = self.meetup_repository.find_by_date(meetup_date.date())
+        meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
 
