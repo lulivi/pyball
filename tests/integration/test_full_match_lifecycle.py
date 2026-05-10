@@ -102,9 +102,8 @@ class TestFullMatchLifecycle:
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.teams is not None
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Equipos creados" in text
+        bot_context.bot.set_message_reaction.assert_called()
+        bot_update.message.reply_text.assert_not_called()
 
     async def _search_substitutes(self, bot_update, bot_context):
         bot_update.message.reply_text.reset_mock()
@@ -113,9 +112,8 @@ class TestFullMatchLifecycle:
         await search_handler(bot_update, bot_context)
 
         bot_context.bot.send_message.assert_called_once()
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "¡Mensaje de suplentes enviado!" in text
+        bot_context.bot.set_message_reaction.assert_called()
+        bot_update.message.reply_text.assert_not_called()
 
     async def _start_match(self, bot_update, bot_context):
         bot_update.message.reply_text.reset_mock()
@@ -243,9 +241,8 @@ class TestFullMatchLifecycle:
         bot_context.args = [*_DATE_ARGS, "Regulr_03"]  # missing 'a'
         await add_player_handler(bot_update, bot_context)
 
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Añadidos" in text
+        bot_update.message.reply_text.assert_not_called()
+        bot_context.bot.set_message_reaction.assert_called()
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 1
 
