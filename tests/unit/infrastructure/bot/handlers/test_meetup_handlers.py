@@ -5,8 +5,7 @@ from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from telegram import ReactionTypeEmoji
-from telegram.constants import ParseMode
+from telegram.constants import ParseMode, ReactionEmoji
 
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
@@ -140,7 +139,7 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
 
 
@@ -171,7 +170,7 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
 
 
@@ -445,7 +444,7 @@ async def test_create_teams_handler_passes_algo_name_to_container(mock_update, m
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -517,7 +516,7 @@ async def test_create_teams_handler_manual_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
 
 
@@ -645,7 +644,7 @@ async def test_new_meetup_handler_success_reacts(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -675,7 +674,7 @@ async def test_next_meetup_handler_success_no_intermediate_message(mock_update, 
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
 
 
@@ -694,7 +693,7 @@ async def test_remove_player_handler_success_reacts(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -715,7 +714,7 @@ async def test_add_player_handler_all_succeed_reacts(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -766,7 +765,7 @@ async def test_search_handler_success_reacts(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -792,5 +791,5 @@ async def test_stats_handler_success_reacts(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )

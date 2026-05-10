@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from telegram import ReactionTypeEmoji
+from telegram.constants import ReactionEmoji
 
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
@@ -35,7 +35,7 @@ async def test_new_player_handler_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -73,7 +73,7 @@ async def test_rename_player_handler_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -90,7 +90,7 @@ async def test_delete_player_handler_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -141,7 +141,7 @@ async def test_change_group_handler_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -174,7 +174,7 @@ async def test_link_player_handler_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 
@@ -197,7 +197,7 @@ async def test_unlink_player_handler_success(mock_update, mock_context):
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
 

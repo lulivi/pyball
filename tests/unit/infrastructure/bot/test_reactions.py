@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import telegram
-from telegram import ReactionTypeEmoji
+from telegram.constants import ReactionEmoji
 
 from pyball.infrastructure.telegram.bot.reactions import react_ok
 
@@ -20,7 +20,7 @@ async def test_react_ok_calls_set_message_reaction():
     bot.set_message_reaction.assert_called_once_with(
         chat_id=111,
         message_id=42,
-        reaction=[ReactionTypeEmoji("✅")],
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
 
 
@@ -34,4 +34,4 @@ async def test_react_ok_falls_back_to_reply_on_telegram_error():
 
     await react_ok(bot, message)
 
-    message.reply_text.assert_called_once_with("✅")
+    message.reply_text.assert_called_once_with(ReactionEmoji.OK_HAND_SIGN)

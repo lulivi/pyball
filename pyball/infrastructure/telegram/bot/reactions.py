@@ -18,8 +18,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Reaction helper for bot command handlers."""
+import logging
+
 import telegram
-from telegram import Bot, Message, ReactionTypeEmoji
+from telegram import Bot, Message
+from telegram.constants import ReactionEmoji
+
+logger = logging.getLogger(__name__)
 
 
 async def react_ok(bot: Bot, message: Message) -> None:
@@ -28,7 +33,8 @@ async def react_ok(bot: Bot, message: Message) -> None:
         await bot.set_message_reaction(
             chat_id=message.chat_id,
             message_id=message.message_id,
-            reaction=[ReactionTypeEmoji("✅")],
+            reaction=ReactionEmoji.OK_HAND_SIGN,
         )
-    except telegram.error.TelegramError:
-        await message.reply_text("✅")
+    except telegram.error.TelegramError as error:
+        logger.warning("Could not add reaction to %s: %s", message.message_id, str(error))
+        await message.reply_text(ReactionEmoji.OK_HAND_SIGN)
