@@ -38,6 +38,7 @@ from pyball.domain.player.errors import (
 )
 from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.bot.auth import authorized
+from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.logger import log_func
 
@@ -84,11 +85,8 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     try:
-        player = container.create_player().execute(name, group)
-        await message.reply_text(
-            text=rf"¡Jugador `{player.name}` creado como {group}\!",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        container.create_player().execute(name, group)
+        await react_ok(context.bot, message)
     except PlayerAlreadyExistsError as error:
         await message.reply_text(
             text=rf"Ya existe un jugador con el nombre \`{error.name}\`\.",
@@ -126,11 +124,8 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     player_id = args[0]
     new_name = " ".join(args[1:])
     try:
-        player = container.rename_player().execute(player_id, new_name)
-        await message.reply_text(
-            text=rf"¡Jugador renombrado a `{player.name}`\!",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        container.rename_player().execute(player_id, new_name)
+        await react_ok(context.bot, message)
     except InvalidPlayerIdError:
         await message.reply_text("Formato de ID de jugador no válido.")
     except PlayerNotFoundError:
@@ -172,7 +167,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     player_id = args[0]
     try:
         container.delete_player().execute(player_id)
-        await message.reply_text("¡Jugador eliminado!")
+        await react_ok(context.bot, message)
     except InvalidPlayerIdError:
         await message.reply_text("Formato de ID de jugador no válido.")
     except PlayerNotFoundError:
@@ -266,11 +261,8 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         use_case = container.change_player_group()
-        player = use_case.execute(str(match.player_id.value), new_group)
-        await message.reply_text(
-            text=rf"¡Jugador `{player.name}` cambiado a `{new_group}`\!",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        use_case.execute(str(match.player_id.value), new_group)
+        await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
         logger.error("Telegram error changing player group: %s", error)
         await message.reply_text("Error de Telegram al cambiar el grupo.")
@@ -334,10 +326,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     mapping_store.set_player_id(telegram_id, player_id_str)
 
-    await message.reply_text(
-        text=rf"¡ID de Telegram `{telegram_id}` vinculado al jugador `{match.name}`\!",
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
+    await react_ok(context.bot, message)
 
 
 @log_func
@@ -371,7 +360,4 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     mapping_store.delete_player_id(telegram_id)
-    await message.reply_text(
-        text=rf"¡Enlace para el ID de Telegram `{telegram_id}` eliminado\!",
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
+    await react_ok(context.bot, message)
