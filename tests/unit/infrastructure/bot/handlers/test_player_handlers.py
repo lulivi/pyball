@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from telegram.constants import ReactionEmoji
 
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
@@ -27,14 +28,16 @@ async def test_new_player_handler_success(mock_update, mock_context):
     mock_player = MagicMock()
     mock_player.name = "Luis"
     container.create_player().execute.return_value = mock_player
-
     mock_context.bot_data["container"] = container
 
     await new_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_once_with(
-        text=r"¡Jugador `Luis` creado como regular\!", parse_mode="MarkdownV2"
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -63,14 +66,16 @@ async def test_rename_player_handler_success(mock_update, mock_context):
     mock_player = MagicMock()
     mock_player.name = "New Name"
     container.rename_player().execute.return_value = mock_player
-
     mock_context.bot_data["container"] = container
 
     await rename_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_once_with(
-        text=r"¡Jugador renombrado a `New Name`\!", parse_mode="MarkdownV2"
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -82,7 +87,12 @@ async def test_delete_player_handler_success(mock_update, mock_context):
 
     await delete_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_once_with("¡Jugador eliminado!")
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -124,14 +134,16 @@ async def test_change_group_handler_success(mock_update, mock_context):
     from pyball.domain.player.models import PlayerId
 
     mock_player.player_id = PlayerId.generate()
-
     mock_context.bot_data["container"] = container
 
     await change_group_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_once_with(
-        text=r"¡Jugador `Luis` cambiado a `substitute`\!", parse_mode="MarkdownV2"
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -141,32 +153,36 @@ async def test_link_player_handler_success(mock_update, mock_context):
     container = MagicMock()
     mock_player = MagicMock()
     mock_player.name = "Luis"
+
     from pyball.domain.player.models import PlayerId
 
     mock_player.player_id = PlayerId.generate()
     container.player_repository.find_all.return_value = [mock_player]
-
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"] = MagicMock()
 
-    from pyball.infrastructure.telegram.mapping import TelegramMappingStore
+    mock_mapping = MagicMock()
+    mock_mapping.get_player_id.return_value = None  # player not yet linked
 
     with pytest.MonkeyPatch.context() as m:
         m.setattr(
-            "pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore", MagicMock()
+            "pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore",
+            MagicMock(return_value=mock_mapping),
         )
         await link_player_handler(mock_update, mock_context)
 
-    assert mock_update.message.reply_text.called
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_unlink_player_handler_success(mock_update, mock_context):
     mock_context.args = ["12345"]
-
     mock_context.bot_data["settings"] = MagicMock()
-
-    from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 
     mock_mapping_store = MagicMock()
     mock_mapping_store.get_player_id.return_value = "player1"
@@ -176,12 +192,14 @@ async def test_unlink_player_handler_success(mock_update, mock_context):
             "pyball.infrastructure.telegram.bot.handlers.player.TelegramMappingStore",
             MagicMock(return_value=mock_mapping_store),
         )
-
         await unlink_player_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_once_with(
-        text=r"¡Enlace para el ID de Telegram `12345` eliminado\!", parse_mode="MarkdownV2"
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
     )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio

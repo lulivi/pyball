@@ -23,6 +23,7 @@ def mock_update():
 def mock_context():
     """Build a minimal ContextTypes mock with an authorized admin user."""
     context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
+    context.bot = AsyncMock()
     settings = MagicMock()
     settings.telegram.is_authorized.return_value = True
     settings.pyball.display_date_format = "%Y-%m-%d %H:%M"

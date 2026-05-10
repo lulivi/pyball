@@ -106,8 +106,8 @@ async def test_create_teams_persists_teams(bot_update, bot_context):
 
     saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert saved.teams is not None
-    (text, *_), _ = bot_update.message.reply_text.call_args
-    assert "Equipos creados" in text
+    bot_context.bot.set_message_reaction.assert_called_once()
+    bot_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -178,9 +178,8 @@ async def test_next_meetup_creates_meetup(bot_update, bot_context):
     container = bot_context.bot_data["container"]
     meetups = container.meetup_repository.find_all()
     assert len(meetups) == 1
-    call = bot_update.message.reply_text.call_args_list[0]
-    first_call_text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-    assert "Creating meetup for" in first_call_text
+    bot_update.message.reply_text.assert_not_called()
+    bot_context.bot.set_message_reaction.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -216,8 +215,9 @@ async def test_add_player_partial_failure(bot_update, bot_context):
     await add_player_handler(bot_update, bot_context)
 
     (text, *_), _ = bot_update.message.reply_text.call_args
-    assert "Añadidos: Luis" in text
     assert "Fallidos:" in text
+    assert "Ghost" in text
+    assert "Añadidos" not in text
 
 
 @pytest.mark.asyncio
@@ -313,8 +313,8 @@ async def test_create_teams_manual_persists_teams(bot_update, bot_context):
     saved = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
     assert saved.teams is not None
     assert len(saved.teams) == 2
-    (text, *_), _ = bot_update.message.reply_text.call_args
-    assert "Equipos creados" in text
+    bot_context.bot.set_message_reaction.assert_called_once()
+    bot_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio

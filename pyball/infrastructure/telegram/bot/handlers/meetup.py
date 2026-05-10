@@ -41,6 +41,7 @@ from pyball.domain.meetup.errors import (
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.bot.auth import authorized
+from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
@@ -128,6 +129,7 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 )
             except telegram.error.Forbidden:
                 logger.error("Could not send message to '%s' admin", admin)
+        await react_ok(context.bot, message)
 
     except ValueError:
         await message.reply_text(
@@ -189,12 +191,6 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     settings = context.bot_data["settings"]
     next_date = _get_next_weekday(settings.pyball)
-    day_name = next_date.strftime("%A")
-    date_str = format_display(next_date, settings.pyball.display_date_format)
-    await message.reply_text(
-        text=rf"Creating meetup for `{date_str}` \({day_name}\)\.\.\.",
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
     await _create_meetup_and_send(next_date, update, context)
 
 
@@ -224,10 +220,7 @@ async def _create_meetup_and_send(
         return
 
     await _send_callup_messages(context, settings, container, meetup)
-    await message.reply_text(
-        text=rf"¡Meetup `{date_str}` creado y convocatoria enviada\!",
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
+    await react_ok(context.bot, message)
 
 
 async def _send_callup_messages(context, settings, container, meetup) -> None:
@@ -320,7 +313,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
-    added, failed = [], []
+    failed: list[str] = []
     meetup = None
     use_case = container.add_player_to_meetup()
 
@@ -333,7 +326,6 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     for name in names:
         try:
             meetup = use_case.execute(meetup_date, name)
-            added.append(name)
         except MeetupNotFoundError:
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return
@@ -346,12 +338,10 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if meetup is not None:
         await refresh_callup_messages(context.bot, settings, container, meetup)
 
-    lines = []
-    if added:
-        lines.append("Añadidos: " + ", ".join(added))
     if failed:
-        lines.append("Fallidos:\n" + "\n".join(f"  • {f}" for f in failed))
-    await message.reply_text("\n".join(lines) if lines else "No hay nada que hacer.")
+        await message.reply_text("Fallidos:\n" + "\n".join(f"  • {f}" for f in failed))
+    else:
+        await react_ok(context.bot, message)
 
 
 @log_func
@@ -382,7 +372,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
         meetup = container.remove_player_from_meetup().execute(meetup_date, player_name)
         await refresh_callup_messages(context.bot, settings, container, meetup)
-        await message.reply_text("¡Jugador eliminado del meetup!")
+        await react_ok(context.bot, message)
     except ValueError:
         await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
     except MeetupNotFoundError:
@@ -468,7 +458,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await refresh_callup_messages(
             context.bot, settings, container, meetup, include_keyboard=False
         )
-        await message.reply_text("Equipos creados ✅")
+        await react_ok(context.bot, message)
     except ValueError as error:
         await message.reply_text(str(error))
     except UnknownAlgorithmError as error:
@@ -623,7 +613,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
         )
 
-        await message.reply_text("¡Mensaje de suplentes enviado!")
+        await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
         logger.error("Telegram error sending substitutes message: %s", error)
         await message.reply_text("Error de Telegram al enviar el mensaje.")
@@ -671,6 +661,7 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             photo=png,
             caption=caption,
         )
+        await react_ok(context.bot, message)
     except Exception:
         logger.exception("Unexpected error sending stats")
         await message.reply_text("Error al generar las estadísticas.")
