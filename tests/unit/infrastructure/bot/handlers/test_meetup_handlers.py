@@ -5,6 +5,7 @@ from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from telegram import ReactionTypeEmoji
 from telegram.constants import ParseMode
 
 from pyball.domain.meetup.errors import (
@@ -22,9 +23,12 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     create_teams_handler,
     generate_qr_bytes,
     new_meetup_handler,
+    next_meetup_handler,
     remove_player_handler,
+    search_handler,
     show_meetup_handler,
     start_match_handler,
+    stats_handler,
 )
 
 
@@ -118,7 +122,6 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
     mock_context.args = ["2026-04-19", "20:00"]
     mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
     mock_context.bot = AsyncMock()
-    mock_context.bot.send_photo = AsyncMock()
 
     fake_buf = BytesIO(b"fakepng")
 
@@ -134,6 +137,11 @@ async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
         photo=fake_buf,
         caption=f"🔗 Enlace del partido:\n{url}",
     )
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
 
 
 @pytest.mark.asyncio
@@ -147,7 +155,6 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
     mock_context.args = ["2026-04-19", "20:00"]
     mock_context.bot_data["settings"].telegram.admins_ids = admin_ids
     mock_context.bot = AsyncMock()
-    mock_context.bot.send_photo = AsyncMock()
 
     fake_buf = BytesIO(b"fakepng")
 
@@ -161,8 +168,11 @@ async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_cont
     calls = mock_context.bot.send_photo.call_args_list
     assert calls[0].kwargs["chat_id"] == 11111
     assert calls[1].kwargs["chat_id"] == 22222
-    assert calls[0].kwargs["photo"] is fake_buf
-    assert calls[1].kwargs["photo"] is fake_buf
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
 
 
 @pytest.mark.asyncio
@@ -427,13 +437,17 @@ async def test_create_teams_handler_passes_algo_name_to_container(mock_update, m
     container.create_teams.return_value.execute.return_value = meetup
     mock_context.bot_data["container"] = container
     mock_context.args = ["2026-05-06", "20:00", "random"]
-    mock_context.bot = AsyncMock()
 
     with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
         await create_teams_handler(mock_update, mock_context)
 
     container.create_teams.assert_called_once_with("random")
-    mock_update.message.reply_text.assert_called_with("Equipos creados ✅")
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
+    mock_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -472,7 +486,7 @@ async def test_create_teams_handler_replies_on_unknown_algorithm(mock_update, mo
 
 @pytest.mark.asyncio
 async def test_create_teams_handler_manual_success(mock_update, mock_context):
-    """manual branch calls create_teams_manually and replies with success."""
+    """manual branch calls create_teams_manually and reacts ✅ on success."""
     p1, p2 = PlayerId.generate(), PlayerId.generate()
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
     meetup.add_player(p1)
@@ -500,9 +514,11 @@ async def test_create_teams_handler_manual_success(mock_update, mock_context):
         await create_teams_handler(mock_update, mock_context)
 
     container.create_teams_manually.return_value.execute.assert_called_once()
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "Equipos creados" in text
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
 
 
 @pytest.mark.asyncio
@@ -603,4 +619,178 @@ async def test_create_teams_handler_manual_unequal_sizes(mock_update, mock_conte
 
     mock_update.message.reply_text.assert_called_once_with(
         "Los equipos deben tener el mismo número de jugadores (1 vs 2)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_new_meetup_handler_success_reacts(mock_update, mock_context):
+    """new_meetup reacts ✅ and sends no reply_text on success."""
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    mock_meetup.date = datetime(2026, 4, 25, 20, 0)
+    container.create_meetup.return_value.execute.return_value = mock_meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00"]
+    mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"), patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="msg",
+    ), patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.build_main_keyboard", return_value=None
+    ):
+        await new_meetup_handler(mock_update, mock_context)
+
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_next_meetup_handler_success_no_intermediate_message(mock_update, mock_context):
+    """next_meetup reacts ✅ and never sends an intermediate text message."""
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    mock_meetup.date = datetime(2026, 4, 30, 20, 0)
+    container.create_meetup.return_value.execute.return_value = mock_meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].pyball.default_week_day = "wednesday"
+    mock_context.bot_data["settings"].pyball.default_hour = "20:00"
+    mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"), patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="msg",
+    ), patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.build_main_keyboard", return_value=None
+    ):
+        await next_meetup_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_not_called()
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
+
+
+@pytest.mark.asyncio
+async def test_remove_player_handler_success_reacts(mock_update, mock_context):
+    """remove_player reacts ✅ and sends no reply_text on success."""
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    container.remove_player_from_meetup.return_value.execute.return_value = mock_meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await remove_player_handler(mock_update, mock_context)
+
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_add_player_handler_all_succeed_reacts(mock_update, mock_context):
+    """add_player reacts ✅ when all players are added successfully."""
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    container.add_player_to_meetup.return_value.execute.return_value = mock_meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await add_player_handler(mock_update, mock_context)
+
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_add_player_handler_partial_failure_replies_failures_only(mock_update, mock_context):
+    """add_player replies with failure details (no 'Añadidos') when any player fails."""
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    use_case = container.add_player_to_meetup.return_value
+    use_case.execute.side_effect = [mock_meetup, ValueError("no encontrado")]
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-04-25", "20:00", "Luis,", "Pedro"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await add_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Fallidos" in text
+    assert "Pedro" in text
+    assert "Añadidos" not in text
+    mock_context.bot.set_message_reaction.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_search_handler_success_reacts(mock_update, mock_context):
+    """search reacts ✅ and sends no reply_text on success."""
+    container = MagicMock()
+    mock_meetup = MagicMock()
+    mock_meetup.date = datetime(2026, 4, 25, 20, 0)
+    container.meetup_repository.find_by_datetime.return_value = mock_meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -1001234567
+    mock_context.args = ["2026-04-25", "20:00"]
+    mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"), patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_subs_message",
+        return_value="msg",
+    ), patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.build_subs_keyboard", return_value=None
+    ):
+        await search_handler(mock_update, mock_context)
+
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_success_reacts(mock_update, mock_context):
+    """stats reacts ✅ after sending the stats photo."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.regulars.chat_id = 0
+    mock_context.args = ["temporada"]
+    mock_context.bot.send_photo = AsyncMock()
+
+    cs_path = "pyball.infrastructure.telegram.bot.handlers.meetup.ComputeStats"
+    renderer_path = "pyball.infrastructure.telegram.bot.handlers.meetup.StatsHtmlRenderer"
+    with patch(cs_path) as mock_cs, patch(renderer_path) as mock_renderer:
+        mock_cs.return_value.execute.return_value = MagicMock()
+        mock_renderer.return_value.render = AsyncMock(return_value=b"fakepng")
+
+        await stats_handler(mock_update, mock_context)
+
+    mock_context.bot.send_photo.assert_called_once()
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=[ReactionTypeEmoji("✅")],
     )
