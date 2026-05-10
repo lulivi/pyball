@@ -19,7 +19,7 @@
 # SOFTWARE.
 """Meetup repository interface."""
 
-from datetime import date
+from datetime import datetime
 from typing import Protocol
 
 from pyball.domain.meetup.models import Meetup, MeetupId
@@ -34,8 +34,8 @@ class MeetupRepository(Protocol):
     def find_by_id(self, meetup_id: MeetupId) -> Meetup | None:
         """Find a meetup by its ID."""
 
-    def find_by_date(self, meetup_date: date) -> Meetup | None:
-        """Find a meetup by its date."""
+    def find_by_datetime(self, meetup_date: datetime) -> Meetup | None:
+        """Find a meetup by its datetime."""
 
     def find_all(self) -> list[Meetup]:
         """Return all meetups."""

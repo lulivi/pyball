@@ -25,7 +25,7 @@ from io import BytesIO
 
 import qrcode
 import telegram
-from telegram import Update
+from telegram import Message, Update
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -397,6 +397,22 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
+async def _parse_manual_teams(
+    message: Message,
+    args: list[str],
+    usage: str,
+) -> tuple[list[str], list[str]] | None:
+    """Parse team names from manual create_teams args. Returns None if invalid."""
+    raw = " ".join(args[3:])
+    parts = raw.split(";")
+    team_a_names = [n.strip() for n in parts[0].split(",") if n.strip()]
+    team_b_names = [n.strip() for n in parts[1].split(",") if n.strip()] if len(parts) > 1 else []
+    if not team_a_names:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return None
+    return team_a_names, team_b_names
+
+
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -407,13 +423,21 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
+    usage = _date_usage_msg(
+        "create_teams",
+        settings.pyball.display_date_format,
+        suffix=(
+            r"\[algoritmo\]"
+            "\n"
+            r"• `balanced` \- por defecto"
+            "\n"
+            r"• `manual Nombre1,Nombre2;Nombre3,Nombre4` \- equipos manuales"
+        ),
+    )
 
     args = context.args
     if not args or len(args) < 2:
-        await message.reply_text(
-            _date_usage_msg("create_teams", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
     date_str = f"{args[0]} {args[1]}"
@@ -421,7 +445,21 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        meetup = container.create_teams(algo_name).execute(meetup_date)
+    except ValueError:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return
+
+    try:
+        if algo_name == "manual":
+            teams = await _parse_manual_teams(message, args, usage)
+            if teams is None:
+                return
+            team_a_names, team_b_names = teams
+            meetup = container.create_teams_manually().execute(
+                meetup_date, team_a_names, team_b_names
+            )
+        else:
+            meetup = container.create_teams(algo_name).execute(meetup_date)
 
         if not meetup.teams:
             await message.reply_text("No se han creado equipos.")
@@ -431,11 +469,8 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             context.bot, settings, container, meetup, include_keyboard=False
         )
         await message.reply_text("Equipos creados ✅")
-    except ValueError:
-        await message.reply_text(
-            _date_usage_msg("create_teams", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
+    except ValueError as error:
+        await message.reply_text(str(error))
     except UnknownAlgorithmError as error:
         available = ", ".join(error.available)
         await message.reply_text(f"Algoritmo '{error.name}' no existe. Disponibles: {available}")
@@ -443,6 +478,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("No existe ningún meetup para esa fecha.")
     except telegram.error.TelegramError as error:
         logger.error("Telegram error creating teams: %s", error)
+        await message.reply_text("Error de Telegram. Inténtalo de nuevo.")
     except Exception:
         logger.exception("Unexpected error creating teams")
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
@@ -504,7 +540,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    meetup = container.meetup_repository.find_by_date(meetup_date.date())
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
     if not meetup:
         await message.reply_text("No se ha encontrado el meetup para esa fecha.")
         return
@@ -547,7 +583,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
 
-    meetup = container.meetup_repository.find_by_date(meetup_date.date())
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
 
     if not meetup:
         await message.reply_text("No se ha encontrado el meetup para esa fecha.")

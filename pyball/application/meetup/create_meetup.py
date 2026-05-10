@@ -54,7 +54,7 @@ class CreateMeetup:
         Raises:
             DuplicateMeetupError: If a meetup already exists at the given date.
         """
-        if self.meetup_repository.find_by_date(date.date()) is not None:
+        if self.meetup_repository.find_by_datetime(date) is not None:
             raise DuplicateMeetupError("Meetup already exists at this time")
 
         meetup = Meetup.create(date=date, location=location or self.default_location)
