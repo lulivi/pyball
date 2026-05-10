@@ -313,7 +313,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
-    added, failed = [], []
+    failed: list[str] = []
     meetup = None
     use_case = container.add_player_to_meetup()
 
@@ -326,7 +326,6 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     for name in names:
         try:
             meetup = use_case.execute(meetup_date, name)
-            added.append(name)
         except MeetupNotFoundError:
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return
