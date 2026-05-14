@@ -1,5 +1,7 @@
 """Unit tests for StatsHtmlRenderer._build_html and _trend_prefix."""
 
+from datetime import datetime
+
 from pyball.application.meetup.compute_stats import PlayerStats, StatsScopedReport, WinningPair
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer, _trend_prefix
 
@@ -123,3 +125,25 @@ class TestBuildHtml:
         duo_start = html.index("Garantía de Victoria")
         assert "Alice" in html[duo_start:]
         assert "Bob" in html[duo_start:]
+
+
+class TestBuildHtmlLatestMatchDate:
+    """Tests for the latest_match_date subtitle in _build_html."""
+
+    def _make_scoped(self) -> StatsScopedReport:
+        """Return a minimal StatsScopedReport for template rendering."""
+        player = _make_player("a", "Alice", goals=1, assists=0, wins=1, draws=0, losses=0)
+        return StatsScopedReport(players=[player], chemistry=[], winning_pairs=[])
+
+    def test_date_appears_in_html_when_provided(self):
+        """When latest_match_date is provided, the formatted date appears in the HTML."""
+        scoped = self._make_scoped()
+        match_date = datetime(2026, 5, 14, 20, 30)
+        html = StatsHtmlRenderer()._build_html(scoped, "Esta temporada", match_date)
+        assert "14/05/2026 20:30" in html
+
+    def test_subtitle_absent_when_date_is_none(self):
+        """When latest_match_date is None, no subtitle element is rendered."""
+        scoped = self._make_scoped()
+        html = StatsHtmlRenderer()._build_html(scoped, "Esta temporada", None)
+        assert '<p class="card-subtitle">' not in html

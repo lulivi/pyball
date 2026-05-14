@@ -27,6 +27,13 @@ body {
   padding-bottom: 12px;
   border-bottom: 2px solid #f72585;
 }
+.card-subtitle {
+  font-size: 10px;
+  color: #6c6c9a;
+  text-align: center;
+  margin-top: -14px;
+  margin-bottom: 14px;
+}
 .section { margin-bottom: 16px; }
 .section-title {
   font-size: 10px;
@@ -107,6 +114,9 @@ body {
 <body>
 <div class="card">
   <div class="card-title">{{ title }}</div>
+  {% if latest_match_date %}
+  <p class="card-subtitle">{{ latest_match_date }}</p>
+  {% endif %}
 
   <div class="section">
     <div class="section-title" style="color:#3a86ff;">🏆 Clasificación</div>

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import fitz
@@ -88,30 +89,39 @@ class StatsHtmlRenderer:
             Raw PNG bytes for the requested scope.
         """
         if scope == "alltime":
-            return await self._render_scope(report.all_time, "Histórico")
+            return await self._render_scope(report.all_time, "Histórico", report.latest_match_date)
         if scope != "season":
             logger.warning("Unknown scope %r passed to render(); defaulting to 'season'", scope)
-        return await self._render_scope(report.season, "Esta temporada")
+        return await self._render_scope(report.season, "Esta temporada", report.latest_match_date)
 
-    async def _render_scope(self, scoped: StatsScopedReport, title: str) -> bytes:
+    async def _render_scope(
+        self, scoped: StatsScopedReport, title: str, latest_match_date: datetime | None
+    ) -> bytes:
         """Render a single scope into PNG bytes.
 
         Args:
             scoped: Scope-specific stats (players, chemistry, winning pairs).
             title: Section title shown at the top of the image.
+            latest_match_date: Datetime of the most recent finished match, or None.
 
         Returns:
             Raw PNG bytes.
         """
-        html = self._build_html(scoped, title)
+        html = self._build_html(scoped, title, latest_match_date)
         return await asyncio.to_thread(self._screenshot, html)
 
-    def _build_html(self, scoped: StatsScopedReport, title: str) -> str:
+    def _build_html(
+        self,
+        scoped: StatsScopedReport,
+        title: str,
+        latest_match_date: datetime | None = None,
+    ) -> str:
         """Render the Jinja2 template with the given scope data.
 
         Args:
             scoped: Scope-specific stats (players, chemistry, winning pairs).
             title: Section title shown at the top of the image.
+            latest_match_date: Datetime of the most recent finished match, or None.
 
         Returns:
             Rendered HTML string ready for WeasyPrint.
@@ -133,6 +143,8 @@ class StatsHtmlRenderer:
         max_chemistry = max((c.count for c in chemistry), default=0) or 1
         max_winning = max((wp.count for wp in winning_pairs), default=0) or 1
 
+        date_str = latest_match_date.strftime("%d/%m/%Y %H:%M") if latest_match_date else None
+
         template = _JINJA_ENV.get_template(_TEMPLATE_NAME)
         return template.render(
             title=title,
@@ -146,6 +158,7 @@ class StatsHtmlRenderer:
             max_assists=max_assists,
             max_chemistry=max_chemistry,
             max_winning=max_winning,
+            latest_match_date=date_str,
         )
 
     def _screenshot(self, html: str) -> bytes:
@@ -178,9 +191,6 @@ class StatsHtmlRenderer:
         samples = bytes(pix.samples)
         n = pix.n
 
-        # EL CAMBIO CLAVE: Tomamos la última fila COMPLETA como referencia matemática.
-        # Si hay distorsiones en los bordes debido al escalado x3, esta fila
-        # ya las contiene, haciendo que la comparación sea perfectamente simétrica.
         start_last_row = (h - 1) * w * n
         reference_row = samples[start_last_row:]
 
@@ -188,13 +198,10 @@ class StatsHtmlRenderer:
         for row in range(h - 1, -1, -1):
             start = row * w * n
             end = start + (w * n)
-
-            # Comparamos la fila actual contra nuestra fila de referencia
             if samples[start:end] != reference_row:
                 last_row = row
                 break
 
-        # Mantengo 40px de padding porque al escalar x3, los píxeles son más pequeños
         crop_h = min(last_row + 80, h)
 
         if crop_h >= h:
