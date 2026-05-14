@@ -1,5 +1,7 @@
 """Unit tests for StatsHtmlRenderer._build_html and _trend_prefix."""
 
+from datetime import datetime
+
 from pyball.application.meetup.compute_stats import PlayerStats, StatsScopedReport, WinningPair
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer, _trend_prefix
 
@@ -135,10 +137,8 @@ class TestBuildHtmlLatestMatchDate:
 
     def test_date_appears_in_html_when_provided(self):
         """When latest_match_date is provided, the formatted date appears in the HTML."""
-        from datetime import datetime as dt
-
         scoped = self._make_scoped()
-        match_date = dt(2026, 5, 14, 20, 30)
+        match_date = datetime(2026, 5, 14, 20, 30)
         html = StatsHtmlRenderer()._build_html(scoped, "Esta temporada", match_date)
         assert "14/05/2026 20:30" in html
 
