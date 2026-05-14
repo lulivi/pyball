@@ -625,9 +625,7 @@ class TestComputeStatsTiebreaker:
         alice_goal = GoalEvent(
             scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 1)
         )
-        bob_goal = GoalEvent(
-            scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 2)
-        )
+        bob_goal = GoalEvent(scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 2))
         charlie_goal_assisted_by_bob = GoalEvent(
             scorer_id=charlie.id, assistant_id=bob.id, team="A", timestamp=time(20, 3)
         )
