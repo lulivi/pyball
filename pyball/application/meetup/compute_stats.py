@@ -22,12 +22,23 @@
 from __future__ import annotations
 
 import itertools
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence import LegacyStats
+
+
+@dataclass
+class _PlayerCounters:
+    goals: int = 0
+    assists: int = 0
+    mp: int = 0
+    w: int = 0
+    d: int = 0
+    l: int = 0
 
 
 @dataclass
@@ -94,21 +105,16 @@ def _season_start(today: date) -> date:
     return date(today.year - 1, 9, 1)
 
 
-def _empty_counters() -> dict:
-    """Return a zeroed stat counter dict for a player."""
-    return {"goals": 0, "assists": 0, "mp": 0, "w": 0, "d": 0, "l": 0}
-
-
-def _points_from_counters(counters: dict) -> int:
-    """Return league points from a raw counter dict."""
-    return counters["w"] * 3 + counters["d"]
+def _points_from_counters(counters: _PlayerCounters) -> int:
+    """Return league points from a raw counter."""
+    return counters.w * 3 + counters.d
 
 
 def _aggregate(
     meetups: list,
     legacy_stats: LegacyStats | None = None,
     from_date: datetime | None = None,
-) -> tuple[dict[str, dict], dict[tuple[str, str], int], dict[tuple[str, str], int]]:
+) -> tuple[dict[str, _PlayerCounters], dict[tuple[str, str], int], dict[tuple[str, str], int]]:
     """Aggregate raw stats from a list of meetups.
 
     Returns:
@@ -117,7 +123,7 @@ def _aggregate(
         (scorer_id, assistant_id) to occurrence count, and winning_counts maps
         sorted (player_id_a, player_id_b) to co-win count.
     """
-    player_data: dict[str, dict] = {}
+    player_data: dict[str, _PlayerCounters] = {}
     chemistry_counts: dict[tuple[str, str], int] = {}
     winning_counts: dict[tuple[str, str], int] = {}
 
@@ -137,14 +143,14 @@ def _aggregate(
             for player_id in team.players:
                 pid = str(player_id.value)
                 if pid not in player_data:
-                    player_data[pid] = _empty_counters()
-                player_data[pid]["mp"] += 1
+                    player_data[pid] = _PlayerCounters()
+                player_data[pid].mp += 1
                 if team_wins:
-                    player_data[pid]["w"] += 1
+                    player_data[pid].w += 1
                 elif team_draws:
-                    player_data[pid]["d"] += 1
+                    player_data[pid].d += 1
                 else:
-                    player_data[pid]["l"] += 1
+                    player_data[pid].l += 1
 
             if team_wins:
                 for pid_a, pid_b in itertools.combinations(team.players, 2):
@@ -154,24 +160,23 @@ def _aggregate(
         for event in meetup.result.events:
             scorer_id = str(event.scorer_id.value)
             if scorer_id not in player_data:
-                player_data[scorer_id] = _empty_counters()
-            player_data[scorer_id]["goals"] += 1
+                player_data[scorer_id] = _PlayerCounters()
+            player_data[scorer_id].goals += 1
 
             if event.assistant_id is not None:
                 assistant_id = str(event.assistant_id.value)
                 if assistant_id not in player_data:
-                    player_data[assistant_id] = _empty_counters()
-                player_data[assistant_id]["assists"] += 1
+                    player_data[assistant_id] = _PlayerCounters()
+                player_data[assistant_id].assists += 1
                 pair_chem = (scorer_id, assistant_id)
                 chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
 
     if legacy_stats:
         for pid, data in player_data.items():
             if from_date is not None:
-                data["assists"] += legacy_stats.get_assists_since(pid, from_date)
+                data.assists += legacy_stats.get_assists_since(pid, from_date)
             else:
-                legacy = legacy_stats.get(pid)
-                data["assists"] += legacy.get("assists", 0)
+                data.assists += legacy_stats.get(pid).get("assists", 0)
         for pid in legacy_stats.all_players():
             if pid not in player_data:
                 leg_assists = (
@@ -180,8 +185,8 @@ def _aggregate(
                     else legacy_stats.get(pid).get("assists", 0)
                 )
                 if leg_assists > 0:
-                    player_data[pid] = _empty_counters()
-                    player_data[pid]["assists"] = leg_assists
+                    player_data[pid] = _PlayerCounters()
+                    player_data[pid].assists = leg_assists
 
     return player_data, chemistry_counts, winning_counts
 
@@ -200,12 +205,12 @@ def _build_scoped_report(
         PlayerStats(
             player_id=pid,
             player_name=player_names.get(pid, pid),
-            goals=d["goals"],
-            assists=d["assists"],
-            matches_played=d["mp"],
-            wins=d["w"],
-            draws=d["d"],
-            losses=d["l"],
+            goals=d.goals,
+            assists=d.assists,
+            matches_played=d.mp,
+            wins=d.w,
+            draws=d.d,
+            losses=d.l,
             points_rank_delta=None,
             goals_rank_delta=None,
             assists_rank_delta=None,
@@ -227,8 +232,8 @@ def _build_scoped_report(
                 player.points_rank_delta = prev_pts_rank[player.player_id] - (i + 1)
 
         prev_goals_ranked = sorted(
-            [pid for pid, d in prev_data.items() if d["goals"] > 0],
-            key=lambda pid: (-prev_data[pid]["goals"], player_names.get(pid, pid)),
+            [pid for pid, d in prev_data.items() if d.goals > 0],
+            key=lambda pid: (-prev_data[pid].goals, player_names.get(pid, pid)),
         )
         prev_goals_rank = {pid: i + 1 for i, pid in enumerate(prev_goals_ranked)}
         current_goals = sorted(
@@ -240,8 +245,8 @@ def _build_scoped_report(
                 player.goals_rank_delta = prev_goals_rank[player.player_id] - (i + 1)
 
         prev_assists_ranked = sorted(
-            [pid for pid, d in prev_data.items() if d["assists"] > 0],
-            key=lambda pid: (-prev_data[pid]["assists"], player_names.get(pid, pid)),
+            [pid for pid, d in prev_data.items() if d.assists > 0],
+            key=lambda pid: (-prev_data[pid].assists, player_names.get(pid, pid)),
         )
         prev_assists_rank = {pid: i + 1 for i, pid in enumerate(prev_assists_ranked)}
         current_assists = sorted(
