@@ -38,7 +38,7 @@ class _PlayerCounters:
     mp: int = 0
     w: int = 0
     d: int = 0
-    l: int = 0
+    losses: int = 0
 
 
 @dataclass
@@ -151,7 +151,7 @@ def _aggregate(
                 elif team_draws:
                     player_data[pid].d += 1
                 else:
-                    player_data[pid].l += 1
+                    player_data[pid].losses += 1
 
             if team_wins:
                 for pid_a, pid_b in itertools.combinations(team.players, 2):
@@ -235,7 +235,7 @@ def _build_scoped_report(
             matches_played=d.mp,
             wins=d.w,
             draws=d.d,
-            losses=d.l,
+            losses=d.losses,
             points_rank_delta=None,
             goals_rank_delta=None,
             assists_rank_delta=None,
