@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import itertools
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
@@ -190,6 +191,30 @@ def _aggregate(
     return player_data, chemistry_counts, winning_counts
 
 
+def _rank_from_prev(
+    prev_data: dict[str, _PlayerCounters],
+    eligible: Callable[[_PlayerCounters], bool],
+    key_fn: Callable[[str], tuple],
+) -> dict[str, int]:
+    """Return a {player_id: rank} dict for eligible players in prev_data."""
+    ranked = sorted(
+        [pid for pid in prev_data if eligible(prev_data[pid])],
+        key=key_fn,
+    )
+    return {pid: i + 1 for i, pid in enumerate(ranked)}
+
+
+def _apply_deltas(
+    players: list[PlayerStats],
+    prev_rank: dict[str, int],
+    attr: str,
+) -> None:
+    """Assign rank deltas by comparing each player's current position to prev_rank."""
+    for i, player in enumerate(players):
+        if player.player_id in prev_rank:
+            setattr(player, attr, prev_rank[player.player_id] - (i + 1))
+
+
 def _build_scoped_report(
     meetups: list,
     player_names: dict[str, str],
@@ -221,40 +246,47 @@ def _build_scoped_report(
     if prev_meetups is not None:
         prev_data, _, _ = _aggregate(prev_meetups, legacy_stats, from_date)
 
-        prev_pts_ranked = sorted(
-            [pid for pid, d in prev_data.items() if _points_from_counters(d) > 0],
-            key=lambda pid: (-_points_from_counters(prev_data[pid]), player_names.get(pid, pid)),
+        prev_pts_rank = _rank_from_prev(
+            prev_data,
+            eligible=lambda c: _points_from_counters(c) > 0,
+            key_fn=lambda pid: (
+                -_points_from_counters(prev_data[pid]),
+                player_names.get(pid, pid),
+            ),
         )
-        prev_pts_rank = {pid: i + 1 for i, pid in enumerate(prev_pts_ranked)}
-        for i, player in enumerate([p for p in stats_list if p.points > 0]):
-            if player.player_id in prev_pts_rank:
-                player.points_rank_delta = prev_pts_rank[player.player_id] - (i + 1)
+        _apply_deltas(
+            [p for p in stats_list if p.points > 0],
+            prev_pts_rank,
+            "points_rank_delta",
+        )
 
-        prev_goals_ranked = sorted(
-            [pid for pid, d in prev_data.items() if d.goals > 0],
-            key=lambda pid: (-prev_data[pid].goals, player_names.get(pid, pid)),
+        prev_goals_rank = _rank_from_prev(
+            prev_data,
+            eligible=lambda c: c.goals > 0,
+            key_fn=lambda pid: (-prev_data[pid].goals, player_names.get(pid, pid)),
         )
-        prev_goals_rank = {pid: i + 1 for i, pid in enumerate(prev_goals_ranked)}
-        current_goals = sorted(
-            [p for p in stats_list if p.goals > 0],
-            key=lambda p: (-p.goals, p.player_name),
+        _apply_deltas(
+            sorted(
+                [p for p in stats_list if p.goals > 0],
+                key=lambda p: (-p.goals, p.player_name),
+            ),
+            prev_goals_rank,
+            "goals_rank_delta",
         )
-        for i, player in enumerate(current_goals):
-            if player.player_id in prev_goals_rank:
-                player.goals_rank_delta = prev_goals_rank[player.player_id] - (i + 1)
 
-        prev_assists_ranked = sorted(
-            [pid for pid, d in prev_data.items() if d.assists > 0],
-            key=lambda pid: (-prev_data[pid].assists, player_names.get(pid, pid)),
+        prev_assists_rank = _rank_from_prev(
+            prev_data,
+            eligible=lambda c: c.assists > 0,
+            key_fn=lambda pid: (-prev_data[pid].assists, player_names.get(pid, pid)),
         )
-        prev_assists_rank = {pid: i + 1 for i, pid in enumerate(prev_assists_ranked)}
-        current_assists = sorted(
-            [p for p in stats_list if p.assists > 0],
-            key=lambda p: (-p.assists, p.player_name),
+        _apply_deltas(
+            sorted(
+                [p for p in stats_list if p.assists > 0],
+                key=lambda p: (-p.assists, p.player_name),
+            ),
+            prev_assists_rank,
+            "assists_rank_delta",
         )
-        for i, player in enumerate(current_assists):
-            if player.player_id in prev_assists_rank:
-                player.assists_rank_delta = prev_assists_rank[player.player_id] - (i + 1)
 
     chemistry = sorted(
         [
