@@ -1,5 +1,7 @@
 """Integration tests for StatsHtmlRenderer (requires WeasyPrint + pymupdf)."""
 
+from datetime import datetime
+
 import pytest
 
 from pyball.application.meetup.compute_stats import (
@@ -124,3 +126,11 @@ class TestStatsHtmlRenderer:
         # pylint: disable=protected-access
         html = StatsHtmlRenderer()._build_html(scoped, "Test")
         assert "★" not in html
+
+    @pytest.mark.asyncio
+    async def test_render_with_latest_match_date_returns_bytes(self):
+        """render() with a non-None latest_match_date produces valid PNG bytes."""
+        report = _make_full_report()
+        report.latest_match_date = datetime(2026, 5, 14, 20, 30)
+        png = await StatsHtmlRenderer().render(report, scope="season")
+        assert png[:4] == b"\x89PNG"

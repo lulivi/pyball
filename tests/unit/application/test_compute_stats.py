@@ -582,3 +582,111 @@ class TestComputeStatsLegacyAssistsInRankDelta:
         # Alice had 5 season legacy assists before the latest meetup (rank #1)
         # and still has 5 after — rank unchanged → delta must be 0
         assert alice_stats.assists_rank_delta == 0
+
+
+class TestComputeStatsTiebreaker:
+    """Points ranking tiebreaker: wins → goals → assists → name."""
+
+    def test_goals_break_equal_points(self):
+        """Two players with equal points are ranked by goals descending."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        dummy = make_player("Dummy")
+
+        # Alice and Bob are both on team A → both win (3 pts each)
+        # Alice scores 2 goals, Bob scores 1
+        e1 = GoalEvent(scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 1))
+        e2 = GoalEvent(scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 2))
+        e3 = GoalEvent(scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 3))
+
+        meetup = make_meetup(
+            datetime(2026, 1, 10, 20, 0),
+            [alice.id, bob.id],
+            [dummy.id],
+            3,
+            0,
+            [e1, e2, e3],
+        )
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob, dummy])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        pts_players = [p for p in report.all_time.players if p.points > 0]
+        assert pts_players[0].player_name == "Alice"
+        assert pts_players[1].player_name == "Bob"
+
+    def test_assists_break_equal_points_and_goals(self):
+        """Two players with equal points and goals are ranked by assists descending."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        charlie = make_player("Charlie")  # scorer so bob/charlie can have assists
+        dummy = make_player("Dummy")
+
+        # Alice and Bob both win with 1 goal each; Bob has 1 assist, Alice has 0
+        alice_goal = GoalEvent(
+            scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 1)
+        )
+        bob_goal = GoalEvent(scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 2))
+        charlie_goal_assisted_by_bob = GoalEvent(
+            scorer_id=charlie.id, assistant_id=bob.id, team="A", timestamp=time(20, 3)
+        )
+
+        meetup = make_meetup(
+            datetime(2026, 1, 10, 20, 0),
+            [alice.id, bob.id, charlie.id],
+            [dummy.id],
+            3,
+            0,
+            [alice_goal, bob_goal, charlie_goal_assisted_by_bob],
+        )
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob, charlie, dummy])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        pts_players = [p for p in report.all_time.players if p.points > 0]
+        names = [p.player_name for p in pts_players]
+        # Charlie has 1 win + 1 goal; Alice has 1 win + 1 goal + 0 assists;
+        # Bob has 1 win + 1 goal + 1 assist → Bob ranks above Alice
+        assert names.index("Bob") < names.index("Alice")
+
+    def test_alphabetical_breaks_fully_equal_players(self):
+        """Players equal on all stats are ranked alphabetically."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        dummy = make_player("Dummy")
+
+        # Alice and Bob both win with 0 goals — no tiebreaker stat differs
+        meetup = make_meetup(
+            datetime(2026, 1, 10, 20, 0),
+            [alice.id, bob.id],
+            [dummy.id],
+            1,
+            0,
+        )
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob, dummy])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        pts_players = [p for p in report.all_time.players if p.points > 0]
+        assert pts_players[0].player_name == "Alice"
+        assert pts_players[1].player_name == "Bob"
+
+
+class TestComputeStatsLatestMatchDate:
+    """StatsReport.latest_match_date reflects the most recent finished meetup."""
+
+    def test_latest_match_date_is_most_recent_finished(self):
+        """latest_match_date equals the datetime of the most recently finished meetup."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+
+        m1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
+        m2 = make_meetup(datetime(2026, 2, 14, 20, 30), [alice.id], [bob.id], 0, 1)
+
+        meetup_repo, player_repo = make_repos([m1, m2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        assert report.latest_match_date == datetime(2026, 2, 14, 20, 30)
+
+    def test_latest_match_date_none_when_no_finished_meetups(self):
+        """latest_match_date is None when there are no finished meetups."""
+        meetup_repo, player_repo = make_repos([], [])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        assert report.latest_match_date is None
