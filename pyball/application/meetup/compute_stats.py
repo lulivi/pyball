@@ -96,6 +96,7 @@ class StatsReport:
 
     season: StatsScopedReport
     all_time: StatsScopedReport
+    latest_match_date: datetime | None = None
 
 
 def _season_start(today: date) -> date:
@@ -350,10 +351,12 @@ class ComputeStats:
         finished = [m for m in all_meetups if m.result is not None]
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
+        latest_match_date: datetime | None = None
         if finished:
             latest = max(finished, key=lambda m: m.date)
             prev_all = [m for m in finished if m is not latest]
             prev_season = [m for m in season_meetups if m is not latest]
+            latest_match_date = latest.date
         else:
             prev_all = None
             prev_season = None
@@ -365,4 +368,5 @@ class ComputeStats:
                 season_meetups, player_names, prev_season, self.legacy_stats, season_start_dt
             ),
             all_time=_build_scoped_report(finished, player_names, prev_all, self.legacy_stats),
+            latest_match_date=latest_match_date,
         )

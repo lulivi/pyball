@@ -667,3 +667,26 @@ class TestComputeStatsTiebreaker:
         pts_players = [p for p in report.all_time.players if p.points > 0]
         assert pts_players[0].player_name == "Alice"
         assert pts_players[1].player_name == "Bob"
+
+
+class TestComputeStatsLatestMatchDate:
+    """StatsReport.latest_match_date reflects the most recent finished meetup."""
+
+    def test_latest_match_date_is_most_recent_finished(self):
+        """latest_match_date equals the datetime of the most recently finished meetup."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+
+        m1 = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0)
+        m2 = make_meetup(datetime(2026, 2, 14, 20, 30), [alice.id], [bob.id], 0, 1)
+
+        meetup_repo, player_repo = make_repos([m1, m2], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        assert report.latest_match_date == datetime(2026, 2, 14, 20, 30)
+
+    def test_latest_match_date_none_when_no_finished_meetups(self):
+        """latest_match_date is None when there are no finished meetups."""
+        meetup_repo, player_repo = make_repos([], [])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        assert report.latest_match_date is None
