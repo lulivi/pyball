@@ -43,29 +43,38 @@ def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
     return datetime.strptime(s, fmt)
 
 
-def _escape_mdv2(text: str) -> str:
-    """Escape special characters for Telegram MarkdownV2."""
-    return _MDV2_RE.sub(r"\\\1", text)
-
-
-def build_main_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
+def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> InlineKeyboardMarkup:
     """Build inline keyboard for main chat."""
-    return InlineKeyboardMarkup(
+    rows = [
         [
+            InlineKeyboardButton(
+                text="✔ Unirse",
+                style=KeyboardButtonStyle.GREEN,
+                callback_data=build_callback_data("join", meetup_date),
+            ),
+            InlineKeyboardButton(
+                text="✖ Salir",
+                style=KeyboardButtonStyle.RED,
+                callback_data=build_callback_data("leave", meetup_date),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔀 Crear equipos",
+                callback_data=build_callback_data("create_teams", meetup_date),
+            ),
+        ],
+    ]
+    if has_teams:
+        rows.append(
             [
                 InlineKeyboardButton(
-                    text="✔ Unirse",
-                    style=KeyboardButtonStyle.GREEN,
-                    callback_data=build_callback_data("join", meetup_date),
-                ),
-                InlineKeyboardButton(
-                    text="✖ Salir",
-                    style=KeyboardButtonStyle.RED,
-                    callback_data=build_callback_data("leave", meetup_date),
+                    text="▶ Empezar partido",
+                    callback_data=build_callback_data("start_match", meetup_date),
                 ),
             ]
-        ]
-    )
+        )
+    return InlineKeyboardMarkup(rows)
 
 
 def build_subs_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
@@ -234,6 +243,11 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     if ":" not in callback_data:
         return None
     action, date_str = callback_data.split(":", 1)
-    if action not in ("join", "leave", "join_sub", "leave_sub"):
+    if action not in ("join", "leave", "join_sub", "leave_sub", "create_teams", "start_match"):
         return None
     return action, date_str
+
+
+def _escape_mdv2(text: str) -> str:
+    """Escape special characters for Telegram MarkdownV2."""
+    return _MDV2_RE.sub(r"\\\1", text)

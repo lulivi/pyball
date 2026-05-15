@@ -38,6 +38,7 @@ from pyball.domain.meetup.errors import (
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
 )
+from pyball.domain.meetup.models import Meetup
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.bot.auth import authorized
@@ -56,28 +57,6 @@ from pyball.logger import log_func
 from pyball.settings import CoreSettings, Settings, TelegramSettings
 
 logger = logging.getLogger(__name__)
-
-
-def generate_qr_bytes(url: str) -> BytesIO:
-    """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
-    img = qrcode.make(url)
-    buf = BytesIO()
-    img.save(buf)
-    buf.seek(0)
-    return buf
-
-
-def _date_usage_msg(cmd: str, fmt: str, suffix: str = "") -> str:
-    """Build a MarkdownV2-escaped date-format help message for bot commands."""
-    example = format_display(datetime.now(), fmt)
-    suffix_part = rf" {suffix}" if suffix else ""
-    return (
-        r"Formato de fecha no válido\."
-        "\n"
-        rf"Formato: `{fmt}`"
-        "\n"
-        rf"Ejemplo: `/{cmd}` `{example}`{suffix_part}"
-    )
 
 
 def setup_meetup_handlers(application):
@@ -104,7 +83,6 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     args = context.args
     settings: Settings = context.bot_data["settings"]
-    telegram_settings: TelegramSettings = settings.telegram
     if not args or len(args) < 2:
         await message.reply_text(
             _date_usage_msg("start_match", settings.pyball.display_date_format),
@@ -117,20 +95,8 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        url = container.start_match().execute(meetup_date)
-        qr = generate_qr_bytes(url)
-        for admin in telegram_settings.admins_ids:
-            try:
-                qr.seek(0)
-                await context.bot.send_photo(
-                    chat_id=admin,
-                    photo=qr,
-                    caption=f"🔗 Enlace del partido:\n{url}",
-                )
-            except telegram.error.Forbidden:
-                logger.error("Could not send message to '%s' admin", admin)
+        await _do_start_match(meetup_date, container, context.bot, settings)
         await react_ok(context.bot, message)
-
     except ValueError:
         await message.reply_text(
             _date_usage_msg("start_match", settings.pyball.display_date_format),
@@ -192,97 +158,6 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     settings = context.bot_data["settings"]
     next_date = _get_next_weekday(settings.pyball)
     await _create_meetup_and_send(next_date, update, context)
-
-
-async def _create_meetup_and_send(
-    date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
-    message = update.message
-    if message is None:
-        return
-
-    container: Container = context.bot_data["container"]
-    settings: Settings = context.bot_data["settings"]
-
-    date_str = format_display(date, settings.pyball.display_date_format)
-    try:
-        meetup = container.create_meetup().execute(date, settings.pyball.location)
-    except DuplicateMeetupError:
-        await message.reply_text(
-            text=rf"Ya existe un meetup el `{date_str}`\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-    except Exception:
-        logger.exception("Unexpected error creating meetup")
-        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
-        return
-
-    await _send_callup_messages(context, settings, container, meetup)
-    await react_ok(context.bot, message)
-
-
-async def _send_callup_messages(context, settings, container, meetup) -> None:
-    """Send callup messages to regulars and substitutes chats."""
-    player_repo = container.player_repository
-    player_names = _get_player_names(player_repo)
-
-    text = format_main_message(
-        meetup,
-        player_names,
-        team_display_names=settings.pyball.team_display_names,
-        date_fmt=settings.pyball.display_date_format,
-    )
-    keyboard = build_main_keyboard(meetup.date)
-
-    try:
-        msg = await context.bot.send_message(
-            chat_id=settings.telegram.regulars.chat_id,
-            text=text,
-            reply_markup=keyboard,
-            message_thread_id=settings.telegram.regulars.meetups_thread_id or None,
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-
-        store = TelegramMessageStore(settings.paths.bot_messages_file)
-        store.save_message(
-            meetup.date,
-            "regular",
-            MessageTracking(
-                chat_id=settings.telegram.regulars.chat_id,
-                thread_id=settings.telegram.regulars.meetups_thread_id or None,
-                message_id=msg.message_id,
-            ),
-        )
-    except telegram.error.TelegramError as error:
-        logger.error("Error sending regulars message (Telegram): %s", error)
-    except Exception as error:
-        logger.exception("Error sending regulars message: %s", error)
-
-
-def _get_next_weekday(pyball_settings: CoreSettings) -> datetime:
-    """Calculate next occurrence of default weekday."""
-    day_map = {
-        "monday": 0,
-        "tuesday": 1,
-        "wednesday": 2,
-        "thursday": 3,
-        "friday": 4,
-        "saturday": 5,
-        "sunday": 6,
-    }
-    target_weekday = day_map.get(pyball_settings.default_week_day.lower(), 2)
-
-    today = datetime.now()
-    days_until_target = (target_weekday - today.weekday() + 7) % 7
-
-    if days_until_target == 0:
-        days_until_target = 7
-
-    next_date = today + timedelta(days=days_until_target)
-    hour, minute = map(int, pyball_settings.default_hour.split(":"))
-    return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 
 @log_func
@@ -387,22 +262,6 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
-async def _parse_manual_teams(
-    message: Message,
-    args: list[str],
-    usage: str,
-) -> tuple[list[str], list[str]] | None:
-    """Parse team names from manual create_teams args. Returns None if invalid."""
-    raw = " ".join(args[3:])
-    parts = raw.split(";")
-    team_a_names = [n.strip() for n in parts[0].split(",") if n.strip()]
-    team_b_names = [n.strip() for n in parts[1].split(",") if n.strip()] if len(parts) > 1 else []
-    if not team_a_names:
-        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
-        return None
-    return team_a_names, team_b_names
-
-
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -419,7 +278,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         suffix=(
             r"\[algoritmo\]"
             "\n"
-            r"• `balanced` \- por defecto"
+            r"• `balanceado` \- por defecto"
             "\n"
             r"• `manual Nombre1,Nombre2;Nombre3,Nombre4` \- equipos manuales"
         ),
@@ -448,16 +307,18 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             meetup = container.create_teams_manually().execute(
                 meetup_date, team_a_names, team_b_names
             )
+            if not meetup.teams:
+                await message.reply_text("No se han creado equipos.")
+                return
+            await refresh_callup_messages(context.bot, settings, container, meetup)
         else:
-            meetup = container.create_teams(algo_name).execute(meetup_date)
+            meetup = await _do_create_teams(
+                meetup_date, container, context.bot, settings, algo_name
+            )
+            if not meetup.teams:
+                await message.reply_text("No se han creado equipos.")
+                return
 
-        if not meetup.teams:
-            await message.reply_text("No se han creado equipos.")
-            return
-
-        await refresh_callup_messages(
-            context.bot, settings, container, meetup, include_keyboard=False
-        )
         await react_ok(context.bot, message)
     except ValueError as error:
         await message.reply_text(str(error))
@@ -665,6 +526,170 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception:
         logger.exception("Unexpected error sending stats")
         await message.reply_text("Error al generar las estadísticas.")
+
+
+def generate_qr_bytes(url: str) -> BytesIO:
+    """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
+    img = qrcode.make(url)
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+    return buf
+
+
+async def _do_create_teams(
+    meetup_date: datetime,
+    container: Container,
+    bot: telegram.Bot,
+    settings: Settings,
+    algo_name: str | None = None,
+) -> Meetup:
+    """Execute create_teams and refresh callup messages with updated keyboard."""
+    meetup = container.create_teams(algo_name).execute(meetup_date)
+    await refresh_callup_messages(bot, settings, container, meetup)
+    return meetup
+
+
+async def _do_start_match(
+    meetup_date: datetime,
+    container: Container,
+    bot: telegram.Bot,
+    settings: Settings,
+) -> str:
+    """Execute start_match, send QR to each admin by DM, and return the URL."""
+    url = container.start_match().execute(meetup_date)
+    qr = generate_qr_bytes(url)
+    for admin in settings.telegram.admins_ids:
+        try:
+            qr.seek(0)
+            await bot.send_photo(
+                chat_id=admin,
+                photo=qr,
+                caption=f"🔗 Enlace del partido:\n{url}",
+            )
+        except telegram.error.Forbidden:
+            logger.error("Could not send message to '%s' admin", admin)
+    return url
+
+
+async def _create_meetup_and_send(
+    date: datetime, update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Create meetup and send callup messages. Shared by new_meetup and next_meetup."""
+    message = update.message
+    if message is None:
+        return
+
+    container: Container = context.bot_data["container"]
+    settings: Settings = context.bot_data["settings"]
+
+    date_str = format_display(date, settings.pyball.display_date_format)
+    try:
+        meetup = container.create_meetup().execute(date, settings.pyball.location)
+    except DuplicateMeetupError:
+        await message.reply_text(
+            text=rf"Ya existe un meetup el `{date_str}`\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return
+    except Exception:
+        logger.exception("Unexpected error creating meetup")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
+        return
+
+    await _send_callup_messages(context, settings, container, meetup)
+    await react_ok(context.bot, message)
+
+
+async def _send_callup_messages(context, settings, container, meetup) -> None:
+    """Send callup messages to regulars and substitutes chats."""
+    player_repo = container.player_repository
+    player_names = _get_player_names(player_repo)
+
+    text = format_main_message(
+        meetup,
+        player_names,
+        team_display_names=settings.pyball.team_display_names,
+        date_fmt=settings.pyball.display_date_format,
+    )
+    keyboard = build_main_keyboard(meetup.date)
+
+    try:
+        msg = await context.bot.send_message(
+            chat_id=settings.telegram.regulars.chat_id,
+            text=text,
+            reply_markup=keyboard,
+            message_thread_id=settings.telegram.regulars.meetups_thread_id or None,
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+
+        store = TelegramMessageStore(settings.paths.bot_messages_file)
+        store.save_message(
+            meetup.date,
+            "regular",
+            MessageTracking(
+                chat_id=settings.telegram.regulars.chat_id,
+                thread_id=settings.telegram.regulars.meetups_thread_id or None,
+                message_id=msg.message_id,
+            ),
+        )
+    except telegram.error.TelegramError as error:
+        logger.error("Error sending regulars message (Telegram): %s", error)
+    except Exception as error:
+        logger.exception("Error sending regulars message: %s", error)
+
+
+async def _parse_manual_teams(
+    message: Message,
+    args: list[str],
+    usage: str,
+) -> tuple[list[str], list[str]] | None:
+    """Parse team names from manual create_teams args. Returns None if invalid."""
+    raw = " ".join(args[3:])
+    parts = raw.split(";")
+    team_a_names = [n.strip() for n in parts[0].split(",") if n.strip()]
+    team_b_names = [n.strip() for n in parts[1].split(",") if n.strip()] if len(parts) > 1 else []
+    if not team_a_names:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return None
+    return team_a_names, team_b_names
+
+
+def _get_next_weekday(pyball_settings: CoreSettings) -> datetime:
+    """Calculate next occurrence of default weekday."""
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target_weekday = day_map.get(pyball_settings.default_week_day.lower(), 2)
+
+    today = datetime.now()
+    days_until_target = (target_weekday - today.weekday() + 7) % 7
+
+    if days_until_target == 0:
+        days_until_target = 7
+
+    next_date = today + timedelta(days=days_until_target)
+    hour, minute = map(int, pyball_settings.default_hour.split(":"))
+    return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+
+def _date_usage_msg(cmd: str, fmt: str, suffix: str = "") -> str:
+    """Build a MarkdownV2-escaped date-format help message for bot commands."""
+    example = format_display(datetime.now(), fmt)
+    suffix_part = rf" {suffix}" if suffix else ""
+    return (
+        r"Formato de fecha no válido\."
+        "\n"
+        rf"Formato: `{fmt}`"
+        "\n"
+        rf"Ejemplo: `/{cmd}` `{example}`{suffix_part}"
+    )
 
 
 def _get_player_names(player_repo) -> dict:

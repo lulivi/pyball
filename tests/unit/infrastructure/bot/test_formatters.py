@@ -1,0 +1,55 @@
+"""Tests for Telegram message formatters."""
+from datetime import datetime
+
+from pyball.infrastructure.telegram.formatters import build_main_keyboard, parse_callback_data
+
+
+def test_build_main_keyboard_without_teams_has_two_rows():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=False)
+    assert len(kb.inline_keyboard) == 2
+
+
+def test_build_main_keyboard_without_teams_has_create_teams_button():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=False)
+    all_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert any("create_teams" in (d or "") for d in all_data)
+
+
+def test_build_main_keyboard_without_teams_no_start_match_button():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=False)
+    all_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert not any("start_match" in (d or "") for d in all_data)
+
+
+def test_build_main_keyboard_with_teams_has_three_rows():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=True)
+    assert len(kb.inline_keyboard) == 3
+
+
+def test_build_main_keyboard_with_teams_has_start_match_button():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=True)
+    all_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert any("start_match" in (d or "") for d in all_data)
+
+
+def test_build_main_keyboard_default_no_teams():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0))
+    assert len(kb.inline_keyboard) == 2
+
+
+def test_parse_callback_data_create_teams():
+    assert parse_callback_data("create_teams:2026-05-15T20:00") == (
+        "create_teams",
+        "2026-05-15T20:00",
+    )
+
+
+def test_parse_callback_data_start_match():
+    assert parse_callback_data("start_match:2026-05-15T20:00") == (
+        "start_match",
+        "2026-05-15T20:00",
+    )
+
+
+def test_parse_callback_data_rejects_unknown_action():
+    assert parse_callback_data("unknown_action:2026-05-15T20:00") is None

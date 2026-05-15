@@ -87,99 +87,70 @@ _COST_EPSILON = 0.20
 _WEIGHTED_PICK_TEMPERATURE = 0.08
 
 
-def _player_stats(
-    player_id: PlayerId,
-    meetups: list[Meetup],
-    legacy_stats: LegacyStats | None = None,
-    from_date: datetime | None = None,
-) -> tuple[int, float, float, float]:
-    """Return (matches_played, goals_per_match, assists_per_match, win_rate)."""
-    goals = assists = wins = mp = 0
-    for meetup in meetups:
-        if meetup.result is None or meetup.teams is None:
-            continue
-        score_a = meetup.result.score_a
-        score_b = meetup.result.score_b
-        for team in meetup.teams:
-            if player_id in team.players:
-                mp += 1
-                team_wins = (team.name == "A" and score_a > score_b) or (
-                    team.name == "B" and score_b > score_a
-                )
-                if team_wins:
-                    wins += 1
-        for event in meetup.result.events:
-            if event.scorer_id == player_id:
-                goals += 1
-            if event.assistant_id == player_id:
-                assists += 1
-    if legacy_stats and mp > 0:
-        pid_str = str(player_id.value)
-        if from_date is not None:
-            assists += legacy_stats.get_assists_since(pid_str, from_date)
-        else:
-            legacy = legacy_stats.get(pid_str)
-            assists += legacy["assists"]
+class BalancedAlgorithm:
+    """History-aware team assignment using score optimization and role balancing."""
 
-    if mp == 0:
-        return 0, 0.0, 0.0, 0.0
-    return mp, goals / mp, assists / mp, wins / mp
+    def __init__(self, legacy_stats: LegacyStats | None = None) -> None:
+        """Initialize with optional legacy stats for pre-app historical data."""
+        self.legacy_stats = legacy_stats
+
+    def assign(
+        self,
+        players: list[PlayerId],
+        finished_meetups: list[Meetup],
+        season_meetups: list[Meetup],
+        season_start: datetime,
+    ) -> tuple[list[PlayerId], list[PlayerId]]:
+        """Assign players to two balanced teams using historical performance data."""
+        player_scores = compute_player_scores(
+            players, season_meetups, finished_meetups, self.legacy_stats, season_start
+        )
+        player_roles = compute_player_roles(
+            players, season_meetups, finished_meetups, self.legacy_stats, season_start
+        )
+        winning_counts = extract_winning_counts(finished_meetups)
+        return optimize_teams(players, player_scores, winning_counts, player_roles)
 
 
-def _player_role(
-    player_id: PlayerId,
-    season_meetups: list[Meetup],
-    all_meetups: list[Meetup] | None = None,
-    legacy_stats: LegacyStats | None = None,
-    from_date: datetime | None = None,
-) -> str:
-    """Classify player as 'scorer', 'assister', or 'neutral' based on goals vs assists.
+def optimize_teams(
+    player_ids: list[PlayerId],
+    player_scores: dict[PlayerId, float],
+    winning_counts: dict[tuple[str, str], int],
+    role_scores: dict[PlayerId, str] | None = None,
+) -> tuple[list[PlayerId], list[PlayerId]]:
+    """Assign players to two balanced teams using a broad good-candidate pool.
 
-    Uses season data when player has >= 3 matches, otherwise falls back to
-    full history. If no history exists, returns 'neutral'.
+    For normal meetup sizes, every unique partition is scored. The final assignment
+    is picked from a weighted pool of good options, so repeated calls preserve
+    balance while avoiding the same few local optima every time.
     """
-    if all_meetups is None:
-        all_meetups = []
+    if len(player_ids) < 2:
+        raise ValueError("Need at least 2 players to create teams")
 
-    def _count_events(meetups: list[Meetup]) -> tuple[int, int]:
-        goals = assists = 0
-        for meetup in meetups:
-            if meetup.result is None:
-                continue
-            for event in meetup.result.events:
-                if event.scorer_id == player_id:
-                    goals += 1
-                if event.assistant_id == player_id:
-                    assists += 1
-        return goals, assists
+    if role_scores is None:
+        role_scores = {}
 
-    goals_s, assists_s = _count_events(season_meetups)
-    if sum((goals_s, assists_s)) > 0 and len(season_meetups) >= _SEASON_MIN_MATCHES:
-        goals, assists = goals_s, assists_s
+    max_pair_wins = max(winning_counts.values(), default=0)
+    if len(player_ids) <= _MAX_EXHAUSTIVE_PLAYERS:
+        partitions = _unique_partitions(player_ids)
     else:
-        goals_h, assists_h = _count_events(all_meetups)
-        if goals_h + assists_h > 0:
-            goals, assists = goals_h, assists_h
-        else:
-            return "neutral"
+        partitions = _sampled_partitions(player_ids)
 
-    if legacy_stats and from_date is not None:
-        pid_str = str(player_id.value)
-        assists += legacy_stats.get_assists_since(pid_str, from_date)
-
-    if goals > assists:
-        return "scorer"
-    if assists > goals:
-        return "assister"
-    return "neutral"
-
-
-def _normalize(values: list[float]) -> list[float]:
-    """Normalize a list of floats to [0, 1]. Returns [0.5, ...] if all equal."""
-    min_v, max_v = min(values), max(values)
-    if max_v == min_v:
-        return [0.5] * len(values)
-    return [(v - min_v) / (max_v - min_v) for v in values]
+    cost_config: AssignmentCostConfig = (
+        player_scores,
+        winning_counts,
+        max_pair_wins,
+        role_scores,
+    )
+    candidates = [
+        (
+            _assignment_cost(team_a, team_b, cost_config),
+            team_a,
+            team_b,
+        )
+        for team_a, team_b in partitions
+    ]
+    return _weighted_choice(_selection_pool(candidates))
 
 
 def compute_player_scores(
@@ -259,136 +230,6 @@ def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
     return counts
 
 
-def _team_score(
-    team: list[PlayerId],
-    player_scores: dict[PlayerId, float],
-    winning_counts: dict[tuple[str, str], int],
-    max_pair_wins: int,
-    role_penalty: float = 0.0,
-) -> float:
-    """Compute the aggregate strength score for a team."""
-    total = sum(player_scores.get(pid, 0.5) for pid in team)
-    if max_pair_wins == 0:
-        return total
-    for pid_a, pid_b in itertools.combinations(team, 2):
-        key: tuple[str, str] = tuple(  # type: ignore[assignment]
-            sorted([str(pid_a.value), str(pid_b.value)])
-        )
-        pair_wins = winning_counts.get(key, 0)
-        total -= (pair_wins / max_pair_wins) * _PAIR_WEIGHT
-    return total + role_penalty
-
-
-def _team_strength(team: list[PlayerId], player_scores: dict[PlayerId, float]) -> float:
-    """Return the team's raw player strength without composition penalties."""
-    return sum(player_scores.get(pid, 0.5) for pid in team)
-
-
-def _pair_repeat_penalty(
-    team_a: list[PlayerId],
-    team_b: list[PlayerId],
-    winning_counts: dict[tuple[str, str], int],
-    max_pair_wins: int,
-) -> float:
-    """Return a normalized penalty for keeping historically successful pairs together."""
-    if max_pair_wins == 0:
-        return 0.0
-
-    repeated_strength = 0.0
-    total_pairs = 0
-    for team in (team_a, team_b):
-        for pid_a, pid_b in itertools.combinations(team, 2):
-            key: tuple[str, str] = tuple(  # type: ignore[assignment]
-                sorted([str(pid_a.value), str(pid_b.value)])
-            )
-            repeated_strength += winning_counts.get(key, 0) / max_pair_wins
-            total_pairs += 1
-
-    if total_pairs == 0:
-        return 0.0
-    return repeated_strength / total_pairs
-
-
-def _role_imbalance_penalty(
-    team_a: list[PlayerId],
-    team_b: list[PlayerId],
-    role_scores: dict[PlayerId, str],
-) -> float:
-    """Return a normalized scorer-ratio imbalance penalty."""
-
-    def _scorer_ratio(team: list[PlayerId]) -> float:
-        if not team:
-            return 0.0
-        return sum(1 for pid in team if role_scores.get(pid) == "scorer") / len(team)
-
-    return abs(_scorer_ratio(team_a) - _scorer_ratio(team_b))
-
-
-AssignmentCostConfig = tuple[
-    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
-]
-
-
-def _assignment_cost(
-    team_a: list[PlayerId],
-    team_b: list[PlayerId],
-    config: AssignmentCostConfig,
-) -> float:
-    """Return total assignment cost: strength balance plus composition diversity."""
-    player_scores, winning_counts, max_pair_wins, role_scores = config
-    balance_cost = abs(
-        _team_strength(team_a, player_scores) - _team_strength(team_b, player_scores)
-    )
-    pair_cost = _pair_repeat_penalty(team_a, team_b, winning_counts, max_pair_wins)
-    role_cost = _role_imbalance_penalty(team_a, team_b, role_scores) if role_scores else 0.0
-    return balance_cost + (_PAIR_WEIGHT * pair_cost) + (_ROLE_WEIGHT * role_cost)
-
-
-def _unique_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
-    """Return unique two-team partitions, avoiding mirrored duplicates."""
-    team_a_size = len(player_ids) // 2
-    if team_a_size == 0:
-        return []
-
-    partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
-
-    def _append_partition(team_a: list[PlayerId]) -> None:
-        team_a_set = set(team_a)
-        team_b = [pid for pid in player_ids if pid not in team_a_set]
-        partitions.append((team_a, team_b))
-
-    if len(player_ids) % 2 == 0:
-        anchor = player_ids[0]
-        for rest in itertools.combinations(player_ids[1:], team_a_size - 1):
-            _append_partition([anchor, *rest])
-    else:
-        for combination in itertools.combinations(player_ids, team_a_size):
-            _append_partition(list(combination))
-
-    return partitions
-
-
-def _sampled_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
-    """Return random unique-ish partitions for player counts too large to exhaustively search."""
-    partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
-    seen: set[frozenset[PlayerId]] = set()
-    team_a_size = len(player_ids) // 2
-
-    while len(partitions) < _SAMPLED_CANDIDATES:
-        players = list(player_ids)
-        random.shuffle(players)
-        team_a = players[:team_a_size]
-        team_b = players[team_a_size:]
-        key = frozenset(team_a)
-        mirror_key = frozenset(team_b)
-        if key in seen or mirror_key in seen:
-            continue
-        seen.add(key)
-        partitions.append((team_a, team_b))
-
-    return partitions
-
-
 def _selection_pool(
     candidates: list[tuple[float, list[PlayerId], list[PlayerId]]],
 ) -> list[tuple[float, list[PlayerId], list[PlayerId]]]:
@@ -418,67 +259,226 @@ def _weighted_choice(
     return list(team_a), list(team_b)
 
 
-def optimize_teams(
-    player_ids: list[PlayerId],
+def _sampled_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
+    """Return random unique-ish partitions for player counts too large to exhaustively search."""
+    partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
+    seen: set[frozenset[PlayerId]] = set()
+    team_a_size = len(player_ids) // 2
+
+    while len(partitions) < _SAMPLED_CANDIDATES:
+        players = list(player_ids)
+        random.shuffle(players)
+        team_a = players[:team_a_size]
+        team_b = players[team_a_size:]
+        key = frozenset(team_a)
+        mirror_key = frozenset(team_b)
+        if key in seen or mirror_key in seen:
+            continue
+        seen.add(key)
+        partitions.append((team_a, team_b))
+
+    return partitions
+
+
+def _unique_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
+    """Return unique two-team partitions, avoiding mirrored duplicates."""
+    team_a_size = len(player_ids) // 2
+    if team_a_size == 0:
+        return []
+
+    partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
+
+    def _append_partition(team_a: list[PlayerId]) -> None:
+        team_a_set = set(team_a)
+        team_b = [pid for pid in player_ids if pid not in team_a_set]
+        partitions.append((team_a, team_b))
+
+    if len(player_ids) % 2 == 0:
+        anchor = player_ids[0]
+        for rest in itertools.combinations(player_ids[1:], team_a_size - 1):
+            _append_partition([anchor, *rest])
+    else:
+        for combination in itertools.combinations(player_ids, team_a_size):
+            _append_partition(list(combination))
+
+    return partitions
+
+
+AssignmentCostConfig = tuple[
+    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
+]
+
+
+def _assignment_cost(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    config: AssignmentCostConfig,
+) -> float:
+    """Return total assignment cost: strength balance plus composition diversity."""
+    player_scores, winning_counts, max_pair_wins, role_scores = config
+    balance_cost = abs(
+        _team_strength(team_a, player_scores) - _team_strength(team_b, player_scores)
+    )
+    pair_cost = _pair_repeat_penalty(team_a, team_b, winning_counts, max_pair_wins)
+    role_cost = _role_imbalance_penalty(team_a, team_b, role_scores) if role_scores else 0.0
+    return balance_cost + (_PAIR_WEIGHT * pair_cost) + (_ROLE_WEIGHT * role_cost)
+
+
+def _role_imbalance_penalty(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    role_scores: dict[PlayerId, str],
+) -> float:
+    """Return a normalized scorer-ratio imbalance penalty."""
+
+    def _scorer_ratio(team: list[PlayerId]) -> float:
+        if not team:
+            return 0.0
+        return sum(1 for pid in team if role_scores.get(pid) == "scorer") / len(team)
+
+    return abs(_scorer_ratio(team_a) - _scorer_ratio(team_b))
+
+
+def _pair_repeat_penalty(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    winning_counts: dict[tuple[str, str], int],
+    max_pair_wins: int,
+) -> float:
+    """Return a normalized penalty for keeping historically successful pairs together."""
+    if max_pair_wins == 0:
+        return 0.0
+
+    repeated_strength = 0.0
+    total_pairs = 0
+    for team in (team_a, team_b):
+        for pid_a, pid_b in itertools.combinations(team, 2):
+            key: tuple[str, str] = tuple(  # type: ignore[assignment]
+                sorted([str(pid_a.value), str(pid_b.value)])
+            )
+            repeated_strength += winning_counts.get(key, 0) / max_pair_wins
+            total_pairs += 1
+
+    if total_pairs == 0:
+        return 0.0
+    return repeated_strength / total_pairs
+
+
+def _team_strength(team: list[PlayerId], player_scores: dict[PlayerId, float]) -> float:
+    """Return the team's raw player strength without composition penalties."""
+    return sum(player_scores.get(pid, 0.5) for pid in team)
+
+
+def _team_score(
+    team: list[PlayerId],
     player_scores: dict[PlayerId, float],
     winning_counts: dict[tuple[str, str], int],
-    role_scores: dict[PlayerId, str] | None = None,
-) -> tuple[list[PlayerId], list[PlayerId]]:
-    """Assign players to two balanced teams using a broad good-candidate pool.
+    max_pair_wins: int,
+    role_penalty: float = 0.0,
+) -> float:
+    """Compute the aggregate strength score for a team."""
+    total = sum(player_scores.get(pid, 0.5) for pid in team)
+    if max_pair_wins == 0:
+        return total
+    for pid_a, pid_b in itertools.combinations(team, 2):
+        key: tuple[str, str] = tuple(  # type: ignore[assignment]
+            sorted([str(pid_a.value), str(pid_b.value)])
+        )
+        pair_wins = winning_counts.get(key, 0)
+        total -= (pair_wins / max_pair_wins) * _PAIR_WEIGHT
+    return total + role_penalty
 
-    For normal meetup sizes, every unique partition is scored. The final assignment
-    is picked from a weighted pool of good options, so repeated calls preserve
-    balance while avoiding the same few local optima every time.
+
+def _normalize(values: list[float]) -> list[float]:
+    """Normalize a list of floats to [0, 1]. Returns [0.5, ...] if all equal."""
+    min_v, max_v = min(values), max(values)
+    if max_v == min_v:
+        return [0.5] * len(values)
+    return [(v - min_v) / (max_v - min_v) for v in values]
+
+
+def _player_role(
+    player_id: PlayerId,
+    season_meetups: list[Meetup],
+    all_meetups: list[Meetup] | None = None,
+    legacy_stats: LegacyStats | None = None,
+    from_date: datetime | None = None,
+) -> str:
+    """Classify player as 'scorer', 'assister', or 'neutral' based on goals vs assists.
+
+    Uses season data when player has >= 3 matches, otherwise falls back to
+    full history. If no history exists, returns 'neutral'.
     """
-    if len(player_ids) < 2:
-        raise ValueError("Need at least 2 players to create teams")
+    if all_meetups is None:
+        all_meetups = []
 
-    if role_scores is None:
-        role_scores = {}
+    def _count_events(meetups: list[Meetup]) -> tuple[int, int]:
+        goals = assists = 0
+        for meetup in meetups:
+            if meetup.result is None:
+                continue
+            for event in meetup.result.events:
+                if event.scorer_id == player_id:
+                    goals += 1
+                if event.assistant_id == player_id:
+                    assists += 1
+        return goals, assists
 
-    max_pair_wins = max(winning_counts.values(), default=0)
-    if len(player_ids) <= _MAX_EXHAUSTIVE_PLAYERS:
-        partitions = _unique_partitions(player_ids)
+    goals_s, assists_s = _count_events(season_meetups)
+    if sum((goals_s, assists_s)) > 0 and len(season_meetups) >= _SEASON_MIN_MATCHES:
+        goals, assists = goals_s, assists_s
     else:
-        partitions = _sampled_partitions(player_ids)
+        goals_h, assists_h = _count_events(all_meetups)
+        if goals_h + assists_h > 0:
+            goals, assists = goals_h, assists_h
+        else:
+            return "neutral"
 
-    cost_config: AssignmentCostConfig = (
-        player_scores,
-        winning_counts,
-        max_pair_wins,
-        role_scores,
-    )
-    candidates = [
-        (
-            _assignment_cost(team_a, team_b, cost_config),
-            team_a,
-            team_b,
-        )
-        for team_a, team_b in partitions
-    ]
-    return _weighted_choice(_selection_pool(candidates))
+    if legacy_stats and from_date is not None:
+        pid_str = str(player_id.value)
+        assists += legacy_stats.get_assists_since(pid_str, from_date)
+
+    if goals > assists:
+        return "scorer"
+    if assists > goals:
+        return "assister"
+    return "neutral"
 
 
-class BalancedAlgorithm:
-    """History-aware team assignment using score optimization and role balancing."""
+def _player_stats(
+    player_id: PlayerId,
+    meetups: list[Meetup],
+    legacy_stats: LegacyStats | None = None,
+    from_date: datetime | None = None,
+) -> tuple[int, float, float, float]:
+    """Return (matches_played, goals_per_match, assists_per_match, win_rate)."""
+    goals = assists = wins = mp = 0
+    for meetup in meetups:
+        if meetup.result is None or meetup.teams is None:
+            continue
+        score_a = meetup.result.score_a
+        score_b = meetup.result.score_b
+        for team in meetup.teams:
+            if player_id in team.players:
+                mp += 1
+                team_wins = (team.name == "A" and score_a > score_b) or (
+                    team.name == "B" and score_b > score_a
+                )
+                if team_wins:
+                    wins += 1
+        for event in meetup.result.events:
+            if event.scorer_id == player_id:
+                goals += 1
+            if event.assistant_id == player_id:
+                assists += 1
+    if legacy_stats and mp > 0:
+        pid_str = str(player_id.value)
+        if from_date is not None:
+            assists += legacy_stats.get_assists_since(pid_str, from_date)
+        else:
+            legacy = legacy_stats.get(pid_str)
+            assists += legacy["assists"]
 
-    def __init__(self, legacy_stats: LegacyStats | None = None) -> None:
-        """Initialize with optional legacy stats for pre-app historical data."""
-        self.legacy_stats = legacy_stats
-
-    def assign(
-        self,
-        players: list[PlayerId],
-        finished_meetups: list[Meetup],
-        season_meetups: list[Meetup],
-        season_start: datetime,
-    ) -> tuple[list[PlayerId], list[PlayerId]]:
-        """Assign players to two balanced teams using historical performance data."""
-        player_scores = compute_player_scores(
-            players, season_meetups, finished_meetups, self.legacy_stats, season_start
-        )
-        player_roles = compute_player_roles(
-            players, season_meetups, finished_meetups, self.legacy_stats, season_start
-        )
-        winning_counts = extract_winning_counts(finished_meetups)
-        return optimize_teams(players, player_scores, winning_counts, player_roles)
+    if mp == 0:
+        return 0, 0.0, 0.0, 0.0
+    return mp, goals / mp, assists / mp, wins / mp

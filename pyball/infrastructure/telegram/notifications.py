@@ -44,32 +44,33 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def _post_match_stats(
-    bot: telegram.Bot,
-    container: "Container",
-    settings: "Settings",
-) -> None:
-    """Compute and post the season stats image to the regulars stats topic.
+class TelegramMatchNotifier(MatchNotifier):
+    """Telegram implementation of MatchNotifier."""
 
-    Runs as a background asyncio task. Errors are logged and swallowed.
-    """
-    try:
-        report = ComputeStats(
-            container.meetup_repository,
-            container.player_repository,
-            container.legacy_stats,
-        ).execute()
-        season_png = await StatsHtmlRenderer().render(report, scope="season")
-        stats_thread_id = settings.telegram.regulars.stats_thread_id or None
-        chat_id = settings.telegram.regulars.chat_id
-        await bot.send_photo(
-            chat_id=chat_id,
-            photo=season_png,
-            caption="📊 Estadísticas",
-            message_thread_id=int(stats_thread_id) if stats_thread_id else None,
+    def __init__(
+        self,
+        bot: telegram.Bot,
+        settings: "Settings",
+        container: "Container",
+    ) -> None:
+        """Initialize with Telegram bot, application settings, and DI container."""
+        self._bot = bot
+        self._settings = settings
+        self._container = container
+
+    async def on_meetup_updated(self, meetup: Meetup) -> None:
+        """Handle a meetup update by refreshing platform messages."""
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
+
+    async def on_match_closed(self, meetup: Meetup) -> None:
+        """Handle a closed match by updating messages, clearing tracking, and posting stats."""
+        await refresh_callup_messages(
+            self._bot, self._settings, self._container, meetup, include_keyboard=False
         )
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("Error posting match stats")
+        message_store = TelegramMessageStore(self._settings.paths.bot_messages_file)
+        message_store.delete_message(meetup.date, "regular")
+        message_store.delete_message(meetup.date, "substitute")
+        asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
 
 
 async def refresh_callup_messages(
@@ -104,7 +105,11 @@ async def refresh_callup_messages(
             team_display_names=settings.pyball.team_display_names,
             date_fmt=date_fmt,
         )
-        kb = build_main_keyboard(meetup.date) if include_keyboard else None
+        kb = (
+            build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
+            if include_keyboard
+            else None
+        )
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
@@ -142,30 +147,29 @@ async def refresh_callup_messages(
             logger.error("Error editing substitutes message: %s", error)
 
 
-class TelegramMatchNotifier(MatchNotifier):
-    """Telegram implementation of MatchNotifier."""
+async def _post_match_stats(
+    bot: telegram.Bot,
+    container: "Container",
+    settings: "Settings",
+) -> None:
+    """Compute and post the season stats image to the regulars stats topic.
 
-    def __init__(
-        self,
-        bot: telegram.Bot,
-        settings: "Settings",
-        container: "Container",
-    ) -> None:
-        """Initialize with Telegram bot, application settings, and DI container."""
-        self._bot = bot
-        self._settings = settings
-        self._container = container
-
-    async def on_meetup_updated(self, meetup: Meetup) -> None:
-        """Handle a meetup update by refreshing platform messages."""
-        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
-
-    async def on_match_closed(self, meetup: Meetup) -> None:
-        """Handle a closed match by updating messages, clearing tracking, and posting stats."""
-        await refresh_callup_messages(
-            self._bot, self._settings, self._container, meetup, include_keyboard=False
+    Runs as a background asyncio task. Errors are logged and swallowed.
+    """
+    try:
+        report = ComputeStats(
+            container.meetup_repository,
+            container.player_repository,
+            container.legacy_stats,
+        ).execute()
+        season_png = await StatsHtmlRenderer().render(report, scope="season")
+        stats_thread_id = settings.telegram.regulars.stats_thread_id or None
+        chat_id = settings.telegram.regulars.chat_id
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=season_png,
+            caption="📊 Estadísticas",
+            message_thread_id=int(stats_thread_id) if stats_thread_id else None,
         )
-        message_store = TelegramMessageStore(self._settings.paths.bot_messages_file)
-        message_store.delete_message(meetup.date, "regular")
-        message_store.delete_message(meetup.date, "substitute")
-        asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Error posting match stats")
