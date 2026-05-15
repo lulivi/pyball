@@ -38,6 +38,7 @@ from pyball.domain.meetup.errors import (
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
 )
+from pyball.domain.meetup.models import Meetup
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.bot.auth import authorized
@@ -80,6 +81,41 @@ def _date_usage_msg(cmd: str, fmt: str, suffix: str = "") -> str:
     )
 
 
+async def _do_create_teams(
+    meetup_date: datetime,
+    container: Container,
+    bot,
+    settings: Settings,
+    algo_name: str | None = None,
+) -> Meetup:
+    """Execute create_teams and refresh callup messages with updated keyboard."""
+    meetup = container.create_teams(algo_name).execute(meetup_date)
+    await refresh_callup_messages(bot, settings, container, meetup)
+    return meetup
+
+
+async def _do_start_match(
+    meetup_date: datetime,
+    container: Container,
+    bot,
+    settings: Settings,
+) -> str:
+    """Execute start_match, send QR to each admin by DM, and return the URL."""
+    url = container.start_match().execute(meetup_date)
+    qr = generate_qr_bytes(url)
+    for admin in settings.telegram.admins_ids:
+        try:
+            qr.seek(0)
+            await bot.send_photo(
+                chat_id=admin,
+                photo=qr,
+                caption=f"🔗 Enlace del partido:\n{url}",
+            )
+        except telegram.error.Forbidden:
+            logger.error("Could not send message to '%s' admin", admin)
+    return url
+
+
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
     application.add_handler(CommandHandler("new_meetup", new_meetup_handler))
@@ -104,7 +140,6 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     args = context.args
     settings: Settings = context.bot_data["settings"]
-    telegram_settings: TelegramSettings = settings.telegram
     if not args or len(args) < 2:
         await message.reply_text(
             _date_usage_msg("start_match", settings.pyball.display_date_format),
@@ -117,20 +152,8 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        url = container.start_match().execute(meetup_date)
-        qr = generate_qr_bytes(url)
-        for admin in telegram_settings.admins_ids:
-            try:
-                qr.seek(0)
-                await context.bot.send_photo(
-                    chat_id=admin,
-                    photo=qr,
-                    caption=f"🔗 Enlace del partido:\n{url}",
-                )
-            except telegram.error.Forbidden:
-                logger.error("Could not send message to '%s' admin", admin)
+        await _do_start_match(meetup_date, container, context.bot, settings)
         await react_ok(context.bot, message)
-
     except ValueError:
         await message.reply_text(
             _date_usage_msg("start_match", settings.pyball.display_date_format),
@@ -419,7 +442,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         suffix=(
             r"\[algoritmo\]"
             "\n"
-            r"• `balanced` \- por defecto"
+            r"• `balanceado` \- por defecto"
             "\n"
             r"• `manual Nombre1,Nombre2;Nombre3,Nombre4` \- equipos manuales"
         ),
@@ -448,16 +471,18 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             meetup = container.create_teams_manually().execute(
                 meetup_date, team_a_names, team_b_names
             )
+            if not meetup.teams:
+                await message.reply_text("No se han creado equipos.")
+                return
+            await refresh_callup_messages(context.bot, settings, container, meetup)
         else:
-            meetup = container.create_teams(algo_name).execute(meetup_date)
+            meetup = await _do_create_teams(
+                meetup_date, container, context.bot, settings, algo_name
+            )
+            if not meetup.teams:
+                await message.reply_text("No se han creado equipos.")
+                return
 
-        if not meetup.teams:
-            await message.reply_text("No se han creado equipos.")
-            return
-
-        await refresh_callup_messages(
-            context.bot, settings, container, meetup, include_keyboard=False
-        )
         await react_ok(context.bot, message)
     except ValueError as error:
         await message.reply_text(str(error))

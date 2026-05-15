@@ -184,7 +184,8 @@ async def test_create_teams_handler_no_teams(mock_update, mock_context):
     container.create_teams.return_value.execute.return_value = mock_meetup
     mock_context.bot_data["container"] = container
 
-    await create_teams_handler(mock_update, mock_context)
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_with("No se han creado equipos.")
 
