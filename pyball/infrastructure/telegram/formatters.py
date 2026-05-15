@@ -43,11 +43,6 @@ def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
     return datetime.strptime(s, fmt)
 
 
-def _escape_mdv2(text: str) -> str:
-    """Escape special characters for Telegram MarkdownV2."""
-    return _MDV2_RE.sub(r"\\\1", text)
-
-
 def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> InlineKeyboardMarkup:
     """Build inline keyboard for main chat."""
     rows = [
@@ -251,3 +246,8 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     if action not in ("join", "leave", "join_sub", "leave_sub", "create_teams", "start_match"):
         return None
     return action, date_str
+
+
+def _escape_mdv2(text: str) -> str:
+    """Escape special characters for Telegram MarkdownV2."""
+    return _MDV2_RE.sub(r"\\\1", text)
