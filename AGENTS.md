@@ -156,3 +156,28 @@ The `lint` nox session runs all checks in sequence and reports all failures befo
 `black --check`, `isort --check`, `pydocstyle`, `pycodestyle` (max-line-length 99), `mypy`, `pylint`.
 
 Line length is **99** characters. pylint must score **10.00/10**.
+
+## Code Organization — Top-Bottom Ordering
+
+Apply the **two-zone top-bottom** pattern in every Python module:
+
+1. **Zone 1 — High-level / public** (top): entry points, main classes, public functions, `setup_*` registrars.
+2. **Zone 2 — Low-level / private** (bottom): helper functions and methods prefixed with `_`.
+
+Within each zone, apply the same rule recursively (callers above callees).
+
+**Rules:**
+- The main class in a module goes at the top, even if it calls private module-level helpers defined below it.
+- `from __future__ import annotations` must be added to any file where moving a class or type to the top would create a forward-reference error.
+- Module-level `setup_*` / factory / entry-point functions go above the handlers or objects they register.
+- Do not mix the two zones — all private helpers must appear after all public items.
+
+**Example ordering for a handler module:**
+```
+setup_handlers()          ← Zone 1: registrar
+public_handler_a()        ← Zone 1: public handler
+public_handler_b()        ← Zone 1: public handler
+_helper_for_a()           ← Zone 2: private helper
+_helper_for_b()           ← Zone 2: private helper
+_shared_utility()         ← Zone 2: private utility
+```
