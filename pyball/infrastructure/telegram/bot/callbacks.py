@@ -26,9 +26,11 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
+from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
+from pyball.infrastructure.telegram.bot.handlers.meetup import _do_create_teams, _do_start_match
 from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.infrastructure.telegram.notifications import refresh_callup_messages
@@ -41,13 +43,11 @@ logger = logging.getLogger(__name__)
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline button callbacks."""
     query = update.callback_query
-
     if query is None or query.message is None:
         return
 
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
-    mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
 
     callback_data = query.data
     if callback_data is None:
@@ -60,16 +60,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     action, date_str = parsed
-
     meetup_date = _parse_meetup_date(date_str)
     if meetup_date is None:
         await query.answer("Formato de fecha no válido.", show_alert=True)
         return
 
-    meetup_repo = container.meetup_repository
-
-    meetup = _find_meetup(meetup_repo, meetup_date)
-
+    meetup = _find_meetup(container.meetup_repository, meetup_date)
     if not meetup:
         await query.answer("No se ha encontrado el meetup.", show_alert=True)
         return
@@ -78,7 +74,35 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if from_user is None:
         await query.answer("Usuario no identificado.", show_alert=True)
         return
-    telegram_id = from_user.id
+
+    if action in ("join", "leave", "join_sub", "leave_sub"):
+        mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+        await _handle_player_action(
+            action, meetup, meetup_date, query, container, mapping_store, context.bot, settings
+        )
+    elif action == "create_teams":
+        await _handle_create_teams_callback(
+            meetup_date, query, container, context.bot, settings, from_user.id
+        )
+    elif action == "start_match":
+        await _handle_start_match_callback(
+            meetup_date, query, container, context.bot, settings, from_user.id
+        )
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+async def _handle_player_action(
+    action: str,
+    meetup: Meetup,
+    meetup_date: datetime,
+    query,
+    container: Container,
+    mapping_store: TelegramMappingStore,
+    bot,
+    settings,
+) -> None:
+    """Handle join/leave/join_sub/leave_sub callback actions."""
+    telegram_id = query.from_user.id
 
     player_id_str = _get_player_id(telegram_id, mapping_store)
     if not player_id_str:
@@ -114,12 +138,64 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     modified = _process_action(action, meetup_date, player_name, container)
-
     if modified:
-        meetup = _find_meetup(meetup_repo, meetup_date)
-        if meetup:
-            await refresh_callup_messages(context.bot, settings, container, meetup)
+        updated_meetup = _find_meetup(container.meetup_repository, meetup_date)
+        if updated_meetup:
+            await refresh_callup_messages(bot, settings, container, updated_meetup)
         await query.answer()
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+async def _handle_create_teams_callback(
+    meetup_date: datetime,
+    query,
+    container: Container,
+    bot,
+    settings,
+    user_id: int,
+) -> None:
+    """Handle create_teams admin button callback."""
+    if not settings.telegram.is_authorized(user_id):
+        await query.answer(
+            "Solo los administradores pueden realizar esta acción.", show_alert=True
+        )
+        return
+    try:
+        await _do_create_teams(meetup_date, container, bot, settings)
+        await query.answer()
+    except MeetupNotFoundError:
+        await query.answer("No se ha encontrado el meetup.", show_alert=True)
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Unexpected error in create_teams callback")
+        await query.answer("Ha ocurrido un error inesperado.", show_alert=True)
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+async def _handle_start_match_callback(
+    meetup_date: datetime,
+    query,
+    container: Container,
+    bot,
+    settings,
+    user_id: int,
+) -> None:
+    """Handle start_match admin button callback."""
+    if not settings.telegram.is_authorized(user_id):
+        await query.answer(
+            "Solo los administradores pueden realizar esta acción.", show_alert=True
+        )
+        return
+    try:
+        await _do_start_match(meetup_date, container, bot, settings)
+        await query.message.edit_reply_markup(reply_markup=None)
+        await query.answer()
+    except MeetupNotFoundError:
+        await query.answer("No se ha encontrado el meetup.", show_alert=True)
+    except MeetupHasNoTeamsError:
+        await query.answer("Crea los equipos primero.", show_alert=True)
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Unexpected error in start_match callback")
+        await query.answer("Ha ocurrido un error inesperado.", show_alert=True)
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:
@@ -152,7 +228,7 @@ def _process_action(
             container.add_player_to_meetup().execute(meetup_date, player_name)
             logger.info("Player '%s' joined meetup %s", player_name, meetup_date)
             return True
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.exception("Unexpected error processing join for player '%s'", player_name)
             return False
     if "leave" in action:
@@ -160,7 +236,7 @@ def _process_action(
             container.remove_player_from_meetup().execute(meetup_date, player_name)
             logger.info("Player '%s' left meetup %s", player_name, meetup_date)
             return True
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.exception("Unexpected error processing leave for player '%s'", player_name)
             return False
     return False
