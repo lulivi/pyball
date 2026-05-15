@@ -104,7 +104,11 @@ async def refresh_callup_messages(
             team_display_names=settings.pyball.team_display_names,
             date_fmt=date_fmt,
         )
-        kb = build_main_keyboard(meetup.date) if include_keyboard else None
+        kb = (
+            build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
+            if include_keyboard
+            else None
+        )
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
