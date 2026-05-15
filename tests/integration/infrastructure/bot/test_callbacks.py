@@ -297,12 +297,12 @@ async def test_start_match_callback_authorized_sends_qr_and_removes_buttons(
     bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
     bot_context.bot_data["settings"].telegram.admins_ids = [99999]
     callback_update.callback_query.data = "start_match:2026-04-25T20:00"
-    callback_update.callback_query.message.edit_reply_markup = AsyncMock()
+    callback_update.callback_query.edit_message_reply_markup = AsyncMock()
 
     await callback_handler(callback_update, bot_context)
 
     bot_context.bot.send_photo.assert_called()
-    callback_update.callback_query.message.edit_reply_markup.assert_called_once_with(
+    callback_update.callback_query.edit_message_reply_markup.assert_called_once_with(
         reply_markup=None
     )
     callback_update.callback_query.answer.assert_called_once()

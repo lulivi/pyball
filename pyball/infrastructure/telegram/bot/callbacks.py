@@ -21,8 +21,10 @@
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from telegram import Update
+import telegram
+from telegram import CallbackQuery, Update
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
@@ -35,6 +37,9 @@ from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
+
+if TYPE_CHECKING:
+    from pyball.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +70,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Formato de fecha no válido.", show_alert=True)
         return
 
-    meetup = _find_meetup(container.meetup_repository, meetup_date)
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
     if not meetup:
         await query.answer("No se ha encontrado el meetup.", show_alert=True)
         return
@@ -95,16 +100,22 @@ async def _handle_player_action(
     action: str,
     meetup: Meetup,
     meetup_date: datetime,
-    query,
+    query: CallbackQuery,
     container: Container,
     mapping_store: TelegramMappingStore,
-    bot,
-    settings,
+    bot: telegram.Bot,
+    settings: "Settings",
 ) -> None:
-    """Handle join/leave/join_sub/leave_sub callback actions."""
+    """Handle join/leave/join_sub/leave_sub callback actions.
+
+    The regular and substitute variants share behaviour, so membership and
+    action branching is decided by substring matching (``"join" in action``
+    matches both ``join`` and ``join_sub``). This is safe because the action
+    set is constrained by ``parse_callback_data``.
+    """
     telegram_id = query.from_user.id
 
-    player_id_str = _get_player_id(telegram_id, mapping_store)
+    player_id_str = mapping_store.get_player_id(telegram_id)
     if not player_id_str:
         await query.answer(
             "No tienes ningún jugador vinculado. Contacta con el administrador para registrarte.",
@@ -139,7 +150,7 @@ async def _handle_player_action(
 
     modified = _process_action(action, meetup_date, player_name, container)
     if modified:
-        updated_meetup = _find_meetup(container.meetup_repository, meetup_date)
+        updated_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if updated_meetup:
             await refresh_callup_messages(bot, settings, container, updated_meetup)
         await query.answer()
@@ -148,10 +159,10 @@ async def _handle_player_action(
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def _handle_create_teams_callback(
     meetup_date: datetime,
-    query,
+    query: CallbackQuery,
     container: Container,
-    bot,
-    settings,
+    bot: telegram.Bot,
+    settings: "Settings",
     user_id: int,
 ) -> None:
     """Handle create_teams admin button callback."""
@@ -173,10 +184,10 @@ async def _handle_create_teams_callback(
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def _handle_start_match_callback(
     meetup_date: datetime,
-    query,
+    query: CallbackQuery,
     container: Container,
-    bot,
-    settings,
+    bot: telegram.Bot,
+    settings: "Settings",
     user_id: int,
 ) -> None:
     """Handle start_match admin button callback."""
@@ -187,7 +198,7 @@ async def _handle_start_match_callback(
         return
     try:
         await _do_start_match(meetup_date, container, bot, settings)
-        await query.message.edit_reply_markup(reply_markup=None)
+        await query.edit_message_reply_markup(reply_markup=None)
         await query.answer()
     except MeetupNotFoundError:
         await query.answer("No se ha encontrado el meetup.", show_alert=True)
@@ -205,14 +216,6 @@ def _parse_meetup_date(date_str: str) -> datetime | None:
         return None
 
 
-def _find_meetup(meetup_repo, date: datetime) -> Meetup | None:
-    return meetup_repo.find_by_datetime(date)
-
-
-def _get_player_id(telegram_id: int, mapping_store: TelegramMappingStore) -> str | None:
-    return mapping_store.get_player_id(telegram_id)
-
-
 def _validate_player_id(player_id_str: str) -> PlayerId | None:
     try:
         return PlayerId.from_string(player_id_str)
@@ -223,6 +226,11 @@ def _validate_player_id(player_id_str: str) -> PlayerId | None:
 def _process_action(
     action: str, meetup_date: datetime, player_name: str, container: Container
 ) -> bool:
+    """Add or remove the player based on the action.
+
+    Substring matching covers both the regular and substitute variants
+    (``join``/``join_sub`` and ``leave``/``leave_sub``).
+    """
     if "join" in action:
         try:
             container.add_player_to_meetup().execute(meetup_date, player_name)

@@ -84,7 +84,7 @@ def _date_usage_msg(cmd: str, fmt: str, suffix: str = "") -> str:
 async def _do_create_teams(
     meetup_date: datetime,
     container: Container,
-    bot,
+    bot: telegram.Bot,
     settings: Settings,
     algo_name: str | None = None,
 ) -> Meetup:
@@ -97,7 +97,7 @@ async def _do_create_teams(
 async def _do_start_match(
     meetup_date: datetime,
     container: Container,
-    bot,
+    bot: telegram.Bot,
     settings: Settings,
 ) -> str:
     """Execute start_match, send QR to each admin by DM, and return the URL."""
