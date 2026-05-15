@@ -42,39 +42,6 @@ _BG_COLOR_HEX = "#0f0f1a"
 _BG_COLOR_BYTES = bytes(int(_BG_COLOR_HEX[i : i + 2], 16) for i in (1, 3, 5))
 
 
-def _trend_prefix(delta: int | None) -> Markup:
-    """Return an HTML span with the trend symbol for the given delta.
-
-    Args:
-        delta: Rank position change (positive=up, negative=down, None=new entrant).
-
-    Returns:
-        Safe HTML Markup with the trend span.
-    """
-    if delta is None or delta > 0:
-        return Markup('<span class="trend-up">▲</span>')
-    if delta < 0:
-        return Markup('<span class="trend-down">▼</span>')
-    return Markup('<span class="trend-same">─</span>')
-
-
-def _build_jinja_env() -> jinja2.Environment:
-    """Build and return the Jinja2 environment with the trend_prefix filter registered.
-
-    Returns:
-        Configured Jinja2 Environment.
-    """
-    env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(_TEMPLATE_DIR),
-        autoescape=True,
-    )
-    env.filters["trend_prefix"] = _trend_prefix
-    return env
-
-
-_JINJA_ENV = _build_jinja_env()
-
-
 class StatsHtmlRenderer:
     """Renders a StatsReport into a PNG image for the requested scope via WeasyPrint."""
 
@@ -210,3 +177,36 @@ class StatsHtmlRenderer:
         result = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, crop_h), False)
         result.copy(pix, fitz.IRect(0, 0, w, crop_h))
         return result
+
+
+def _build_jinja_env() -> jinja2.Environment:
+    """Build and return the Jinja2 environment with the trend_prefix filter registered.
+
+    Returns:
+        Configured Jinja2 Environment.
+    """
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(_TEMPLATE_DIR),
+        autoescape=True,
+    )
+    env.filters["trend_prefix"] = _trend_prefix
+    return env
+
+
+def _trend_prefix(delta: int | None) -> Markup:
+    """Return an HTML span with the trend symbol for the given delta.
+
+    Args:
+        delta: Rank position change (positive=up, negative=down, None=new entrant).
+
+    Returns:
+        Safe HTML Markup with the trend span.
+    """
+    if delta is None or delta > 0:
+        return Markup('<span class="trend-up">▲</span>')
+    if delta < 0:
+        return Markup('<span class="trend-down">▼</span>')
+    return Markup('<span class="trend-same">─</span>')
+
+
+_JINJA_ENV = _build_jinja_env()

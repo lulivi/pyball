@@ -30,25 +30,6 @@ from pyball.domain.meetup.errors import InvalidMeetupIdError, PlayerNotInMeetupE
 from pyball.domain.player.models import PlayerId
 
 
-@dataclass(frozen=True)
-class GoalEvent(ValueObject):
-    """Value object representing a single goal event."""
-
-    scorer_id: PlayerId
-    assistant_id: PlayerId | None
-    team: str
-    timestamp: time
-
-
-@dataclass(frozen=True)
-class MatchResult(ValueObject):
-    """Value object representing the final result of a match."""
-
-    score_a: int
-    score_b: int
-    events: tuple[GoalEvent, ...]
-
-
 @dataclass
 class Meetup(Entity["MeetupId"]):
     """Meetup entity - represents a football session."""
@@ -97,6 +78,25 @@ class Meetup(Entity["MeetupId"]):
     def clear_teams(self) -> None:
         """Clear any assigned teams."""
         self.teams = None
+
+
+@dataclass(frozen=True)
+class GoalEvent(ValueObject):
+    """Value object representing a single goal event."""
+
+    scorer_id: PlayerId
+    assistant_id: PlayerId | None
+    team: str
+    timestamp: time
+
+
+@dataclass(frozen=True)
+class MatchResult(ValueObject):
+    """Value object representing the final result of a match."""
+
+    score_a: int
+    score_b: int
+    events: tuple[GoalEvent, ...]
 
 
 @dataclass(frozen=True)
