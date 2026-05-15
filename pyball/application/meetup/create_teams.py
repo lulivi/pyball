@@ -27,13 +27,6 @@ from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.repository import MeetupRepository
 
 
-def _season_start(today: date) -> date:
-    """Return Sep 1 of the current season year."""
-    if today.month >= 9:
-        return date(today.year, 9, 1)
-    return date(today.year - 1, 9, 1)
-
-
 class CreateTeams:
     """Use case for creating history-aware balanced teams."""
 
@@ -68,3 +61,10 @@ class CreateTeams:
         meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
         self.meetup_repository.save(meetup)
         return meetup
+
+
+def _season_start(today: date) -> date:
+    """Return Sep 1 of the current season year."""
+    if today.month >= 9:
+        return date(today.year, 9, 1)
+    return date(today.year - 1, 9, 1)
