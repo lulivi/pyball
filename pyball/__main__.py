@@ -42,18 +42,9 @@ from pyball.settings import load_settings
 logger = logging.getLogger(__name__)
 
 
-class _Server(uvicorn.Server):
-    """Uvicorn server that defers signal handling to the caller."""
-
-    def install_signal_handlers(self) -> None:
-        """No-op: signals are managed by main_async."""
-
-
-def log_startup_info() -> None:
-    """Log startup information."""
-    logger.info("*" * 40)
-    logger.info("PyBall v%s", __version__)
-    logger.info("*" * 40)
+def main() -> None:
+    """Entry point."""
+    asyncio.run(main_async())
 
 
 async def main_async() -> None:
@@ -111,9 +102,18 @@ async def main_async() -> None:
         logger.info("All services stopped")
 
 
-def main() -> None:
-    """Entry point."""
-    asyncio.run(main_async())
+class _Server(uvicorn.Server):
+    """Uvicorn server that defers signal handling to the caller."""
+
+    def install_signal_handlers(self) -> None:
+        """No-op: signals are managed by main_async."""
+
+
+def log_startup_info() -> None:
+    """Log startup information."""
+    logger.info("*" * 40)
+    logger.info("PyBall v%s", __version__)
+    logger.info("*" * 40)
 
 
 if __name__ == "__main__":
