@@ -46,7 +46,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
 
     core_cfg = config.get("pyball", {}).get("core", {})
 
-    pyball = CoreSettings(
+    pyball = PyballConfig(
         location=_get_env_override("core", "location", core_cfg.get("location", "")),
         default_week_day=_get_env_override(
             "core", "default_week_day", core_cfg.get("default_week_day", "wednesday")
@@ -158,7 +158,7 @@ def load_settings(config_path: Path = Path("config.toml")) -> Settings:
         management=management,
     )
 
-    pyball = CoreSettings(
+    pyball = PyballConfig(
         location=_get_env_override("core", "location", core_cfg.get("location", "")),
         default_week_day=_get_env_override(
             "core", "default_week_day", core_cfg.get("default_week_day", "wednesday")
@@ -249,7 +249,7 @@ class TelegramSettings:
 
 
 @dataclass
-class CoreSettings:  # pylint: disable=too-many-instance-attributes
+class PyballConfig:  # pylint: disable=too-many-instance-attributes
     """PyBall-specific configuration."""
 
     location: str = ""
@@ -287,17 +287,15 @@ class Paths:
 class AppSettings:
     """Base application settings with core and path configuration."""
 
-    pyball: CoreSettings = field(default_factory=CoreSettings)
+    pyball: PyballConfig = field(default_factory=PyballConfig)
     paths: Paths = field(default_factory=Paths)
 
 
 @dataclass
-class Settings:
+class Settings(AppSettings):
     """Application settings container."""
 
     telegram: TelegramSettings = field(default_factory=TelegramSettings)
-    pyball: CoreSettings = field(default_factory=CoreSettings)
-    paths: Paths = field(default_factory=Paths)
 
 
 def _parse_team_display_names(value) -> tuple[str, str]:

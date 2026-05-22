@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pyball.settings import CoreSettings
+from pyball.settings import PyballConfig
 
 
 class TestGetNextWeekday:
@@ -15,7 +15,7 @@ class TestGetNextWeekday:
         """When today is not wednesday, returns next wednesday."""
         from pyball.infrastructure.telegram.bot.handlers.meetup import _get_next_weekday
 
-        settings = CoreSettings(default_week_day="wednesday", default_hour="20:00")
+        settings = PyballConfig(default_week_day="wednesday", default_hour="20:00")
 
         with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 10, 10, 0)  # Wednesday
@@ -31,7 +31,7 @@ class TestGetNextWeekday:
         """When today IS wednesday, returns next wednesday (7 days)."""
         from pyball.infrastructure.telegram.bot.handlers.meetup import _get_next_weekday
 
-        settings = CoreSettings(default_week_day="wednesday", default_hour="20:00")
+        settings = PyballConfig(default_week_day="wednesday", default_hour="20:00")
 
         with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 10, 10, 0)  # Wednesday
@@ -46,7 +46,7 @@ class TestGetNextWeekday:
         """Friday -> Monday (3 days)."""
         from pyball.infrastructure.telegram.bot.handlers.meetup import _get_next_weekday
 
-        settings = CoreSettings(default_week_day="monday", default_hour="19:00")
+        settings = PyballConfig(default_week_day="monday", default_hour="19:00")
 
         with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 5, 10, 0)  # Friday

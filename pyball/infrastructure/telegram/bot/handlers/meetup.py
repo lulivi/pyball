@@ -54,7 +54,7 @@ from pyball.infrastructure.telegram.formatters import (
 from pyball.infrastructure.telegram.message_store import MessageTracking
 from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
-from pyball.settings import CoreSettings, Settings, TelegramSettings
+from pyball.settings import PyballConfig, Settings, TelegramSettings
 
 logger = logging.getLogger(__name__)
 
@@ -655,7 +655,7 @@ async def _parse_manual_teams(
     return team_a_names, team_b_names
 
 
-def _get_next_weekday(pyball_settings: CoreSettings) -> datetime:
+def _get_next_weekday(pyball_settings: PyballConfig) -> datetime:
     """Calculate next occurrence of default weekday."""
     day_map = {
         "monday": 0,
