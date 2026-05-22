@@ -19,13 +19,73 @@
 # SOFTWARE.
 """Application settings."""
 
+from __future__ import annotations
+
 import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 
-def load_settings(config_path: Path = Path("config.toml")) -> "Settings":
+def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
+    """Load core application settings from TOML config with env var overrides.
+
+    Args:
+        config_path: Path to config.toml (defaults to project root)
+
+    Returns:
+        AppSettings instance with core configuration loaded.
+
+    Raises:
+        SettingsValidationError: If required core settings are missing.
+    """
+    config: dict = {}
+    if config_path.exists():
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+
+    core_cfg = config.get("pyball", {}).get("core", {})
+
+    pyball = CoreSettings(
+        location=_get_env_override("core", "location", core_cfg.get("location", "")),
+        default_week_day=_get_env_override(
+            "core", "default_week_day", core_cfg.get("default_week_day", "wednesday")
+        ),
+        default_hour=_get_env_override(
+            "core", "default_hour", core_cfg.get("default_hour", "20:00")
+        ),
+        base_url=_get_env_override(
+            "core", "base_url", core_cfg.get("base_url", "http://localhost:8000")
+        ),
+        team_display_names=_parse_team_display_names(
+            _get_env_override(
+                "core",
+                "team_display_names",
+                core_cfg.get("team_display_names", ["Claro", "Oscuro"]),
+            )
+        ),
+        locale=_get_env_override("core", "locale", core_cfg.get("locale", "en_US.UTF-8")),
+        display_date_format=_get_env_override(
+            "core",
+            "display_date_format",
+            core_cfg.get("display_date_format", "%Y-%m-%d %H:%M"),
+        ),
+        data_dir=_get_env_override("core", "data_dir", core_cfg.get("data_dir", "data")),
+    )
+
+    missing = []
+    if not pyball.location:
+        missing.append("core.location")
+    if missing:
+        raise SettingsValidationError(
+            f"Faltan parámetros requeridos: {', '.join(missing)}. "
+            "Copia example.config.toml a config.toml y completa los valores."
+        )
+
+    return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
+
+
+def load_settings(config_path: Path = Path("config.toml")) -> Settings:
     """Load settings from TOML config file with env var overrides.
 
     Args:
@@ -221,6 +281,14 @@ class Paths:
         self.meetups_dir = self.data_dir / "meetups"
         self.bot_mappings_file = self.data_dir / "bot" / "telegram-uuid.json"
         self.bot_messages_file = self.data_dir / "bot" / "messages.json"
+
+
+@dataclass
+class AppSettings:
+    """Base application settings with core and path configuration."""
+
+    pyball: CoreSettings = field(default_factory=CoreSettings)
+    paths: Paths = field(default_factory=Paths)
 
 
 @dataclass
