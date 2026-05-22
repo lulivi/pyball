@@ -44,13 +44,13 @@ from pyball.infrastructure.persistence import (
     JsonPlayerRepository,
     LegacyStats,
 )
-from pyball.settings import Settings
+from pyball.settings import AppSettings
 
 
 class Container:
     """Simple dependency injection container."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: AppSettings) -> None:
         """Initialize the container with application settings."""
         self._settings = settings
         self._player_repository: PlayerRepository | None = None

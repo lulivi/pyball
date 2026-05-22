@@ -33,3 +33,13 @@ class MatchNotifier(ABC):
     @abstractmethod
     async def on_meetup_updated(self, meetup: Meetup) -> None:
         """Handle a meetup update by refreshing platform messages."""
+
+
+class NullMatchNotifier(MatchNotifier):
+    """No-op notifier used by topologies that have no notification channel."""
+
+    async def on_match_closed(self, meetup: Meetup) -> None:
+        """Do nothing."""
+
+    async def on_meetup_updated(self, meetup: Meetup) -> None:
+        """Do nothing."""
