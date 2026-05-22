@@ -57,53 +57,68 @@ Clean architecture with strict layer boundaries:
 ```
 pyball/
 ├── domain/                  # Core models and repository interfaces (no deps on other layers)
-│   ├── player/              #   Player entity, PlayerId, errors, repository ABC
-│   └── meetup/              #   Meetup entity, Team, MatchResult, GoalEvent, MeetupId, errors
+│   ├── player/
+│   └── meetup/
 ├── application/             # Use cases — one file per action, injected with repository interfaces
-│   ├── player/              #   create_player, rename_player, delete_player, change_group
-│   ├── meetup/              #   create_meetup, add_player, remove_player, create_teams,
-│   │                           start_match, finish_match, compute_stats, balance
-│   ├── notifier.py          #   MatchNotifier ABC
-│   ├── container.py         #   Simple DI container
-│   └── fuzzy_match.py       #   Shared fuzzy player search utility
+│   ├── player/
+│   ├── meetup/
+│   ├── bootstrap.py         #   bootstrap_core() — shared init for all topologies
+│   ├── notifier.py          #   MatchNotifier ABC + NullMatchNotifier
+│   ├── container.py         #   Simple DI container (accepts AppSettings)
+│   └── fuzzy_match.py
 ├── infrastructure/          # Concrete implementations of domain interfaces
 │   ├── persistence/         #   JsonPlayerRepository, JsonMeetupRepository, LegacyStats
 │   ├── images/              #   StatsHtmlRenderer (WeasyPrint + Jinja2)
 │   ├── telegram/
+│   │   ├── settings.py      #     TelegramSettings, TelegramAppSettings, loader
+│   │   ├── logging.py       #     TelegramLogHandler, config_telegram_logging()
 │   │   ├── bot/
-│   │   │   ├── handlers/    #     general, player, meetup handlers
-│   │   │   ├── callbacks.py #     Inline button callback dispatcher
-│   │   │   ├── auth.py      #     @authorized decorator
-│   │   │   └── entrypoint.py #     create_application() factory
+│   │   │   ├── handlers/    #       general, player, meetup handlers
+│   │   │   ├── callbacks.py #       Inline button callback dispatcher
+│   │   │   ├── auth.py      #       @authorized decorator
+│   │   │   └── entrypoint.py #      create_application() factory
 │   │   ├── formatters.py
 │   │   ├── notifications.py
 │   │   ├── mapping.py
 │   │   └── message_store.py
 │   └── http/
-│       └── app.py           #   FastAPI — POST /api/match/finish + serves static/
-├── __main__.py              # Starts Telegram bot + FastAPI (port 8000)
-├── settings.py              # Loads config.toml + env var overrides
+│       └── app.py           #   FastAPI factory + _Server
+├── cmd/
+│   ├── run_web.py           #   Topology: FastAPI only  (uv run pyball-web)
+│   └── run_telegram.py      #   Topology: Telegram + FastAPI  (uv run pyball-tg)
+├── settings.py              #   AppSettings, PyballConfig, Paths, load_app_settings()
 └── exceptions.py
 ```
 
-**Data flow:** `__main__.py` builds a `Container` and a `TelegramMatchNotifier`, attaches the container to `bot_data`, handlers pull use cases from it, use cases interact only with domain repository interfaces, infrastructure implementations handle I/O. The `notifier` is injected into `create_app` so the HTTP layer can call `notifier.on_match_closed()` without any knowledge of Telegram.
+**Data flow:** `bootstrap_core()` loads `AppSettings`, configures logging, sets locale, and
+builds the `Container`. Each `cmd/run_*.py` is the Composition Root for its topology —
+it calls `bootstrap_core()`, loads any integration-specific settings, wires
+infrastructure components, and manages graceful shutdown.
 
-**Two concurrent services** run in a single asyncio loop: the Telegram polling bot and the FastAPI HTTP server (port 8000). The HTTP API is consumed by the `static/index.html` match-tracking UI.
+**Topology: Telegram+FastAPI** (`uv run pyball-tg`): bot polls Telegram, FastAPI serves
+the match-tracking UI on port 8000. Both run in the same asyncio event loop.
+
+**Topology: Web-only** (`uv run pyball-web`): FastAPI only, with a `NullMatchNotifier`.
+Does not require `python-telegram-bot` to be installed.
 
 ## Package Management
 
 This project uses **uv** for dependency management.
 
 ```bash
-# Sync all dependencies (including dev extras)
+# Install with Telegram support (default for development)
+uv sync --extra telegram
+
+# Install without Telegram (web-only topology)
+uv sync
+
+# Install all extras including dev tools
 uv sync --all-extras
 
-# Run a command inside the uv-managed environment
-uv run python -c "..."
-uv run pytest ...
+# Run topologies
+uv run pyball-tg   # Telegram + FastAPI
+uv run pyball-web  # FastAPI only
 ```
-
-Prefer uv run over activating the virtualenv manually. After editing pyproject.toml, run uv sync --all-extras to apply changes.
 
 ## Configuration
 
