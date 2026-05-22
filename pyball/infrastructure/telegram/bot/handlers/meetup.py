@@ -53,8 +53,9 @@ from pyball.infrastructure.telegram.formatters import (
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking
 from pyball.infrastructure.telegram.notifications import refresh_callup_messages
+from pyball.infrastructure.telegram.settings import TelegramAppSettings, TelegramSettings
 from pyball.logger import log_func
-from pyball.settings import PyballConfig, Settings, TelegramSettings
+from pyball.settings import PyballConfig
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     args = context.args
-    settings: Settings = context.bot_data["settings"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
     if not args or len(args) < 2:
         await message.reply_text(
             _date_usage_msg("start_match", settings.pyball.display_date_format),
@@ -126,7 +127,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if message is None:
         return
 
-    settings: Settings = context.bot_data["settings"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
@@ -344,7 +345,7 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     container: Container = context.bot_data["container"]
-    settings: Settings = context.bot_data["settings"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
 
     meetups = container.meetup_repository.find_all()
 
@@ -372,7 +373,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     container: Container = context.bot_data["container"]
-    settings: Settings = context.bot_data["settings"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
 
     args = context.args
     if not args or len(args) < 2:
@@ -541,7 +542,7 @@ async def _do_create_teams(
     meetup_date: datetime,
     container: Container,
     bot: telegram.Bot,
-    settings: Settings,
+    settings: TelegramAppSettings,
     algo_name: str | None = None,
 ) -> Meetup:
     """Execute create_teams and refresh callup messages with updated keyboard."""
@@ -554,7 +555,7 @@ async def _do_start_match(
     meetup_date: datetime,
     container: Container,
     bot: telegram.Bot,
-    settings: Settings,
+    settings: TelegramAppSettings,
 ) -> str:
     """Execute start_match, send QR to each admin by DM, and return the URL."""
     url = container.start_match().execute(meetup_date)
@@ -581,7 +582,7 @@ async def _create_meetup_and_send(
         return
 
     container: Container = context.bot_data["container"]
-    settings: Settings = context.bot_data["settings"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
 
     date_str = format_display(date, settings.pyball.display_date_format)
     try:

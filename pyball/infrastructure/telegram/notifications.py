@@ -39,7 +39,7 @@ from pyball.infrastructure.telegram.message_store import TelegramMessageStore
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
-    from pyball.settings import Settings
+    from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class TelegramMatchNotifier(MatchNotifier):
     def __init__(
         self,
         bot: telegram.Bot,
-        settings: "Settings",
+        settings: "TelegramAppSettings",
         container: "Container",
     ) -> None:
         """Initialize with Telegram bot, application settings, and DI container."""
@@ -75,7 +75,7 @@ class TelegramMatchNotifier(MatchNotifier):
 
 async def refresh_callup_messages(
     bot: telegram.Bot,
-    settings: "Settings",
+    settings: "TelegramAppSettings",
     container: "Container",
     meetup: Meetup,
     include_keyboard: bool = True,
@@ -150,7 +150,7 @@ async def refresh_callup_messages(
 async def _post_match_stats(
     bot: telegram.Bot,
     container: "Container",
-    settings: "Settings",
+    settings: "TelegramAppSettings",
 ) -> None:
     """Compute and post the season stats image to the regulars stats topic.
 
