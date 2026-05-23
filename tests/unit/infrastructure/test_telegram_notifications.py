@@ -13,7 +13,7 @@ def _make_notifier(tmp_path):
     """Build a TelegramMatchNotifier with mocked bot, settings, and container."""
     bot = AsyncMock()
     settings = MagicMock()
-    settings.paths.bot_messages_file = tmp_path / "messages.json"
+    settings.paths.data_dir = tmp_path
     settings.pyball.team_display_names = ("A", "B")
     settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
     container = MagicMock()
@@ -25,7 +25,7 @@ def _make_notifier(tmp_path):
 async def test_on_meetup_updated_edits_tracked_regular_message(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
-    store = TelegramMessageStore(tmp_path / "messages.json")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
     store.save_message(
         datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
     )
@@ -58,7 +58,7 @@ def _discard_task(coro):
 async def test_on_match_closed_edits_without_keyboard(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
-    store = TelegramMessageStore(tmp_path / "messages.json")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
     store.save_message(
         datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
     )
@@ -78,7 +78,7 @@ async def test_on_match_closed_edits_without_keyboard(tmp_path):
 async def test_on_match_closed_deletes_tracking_entries(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
-    store = TelegramMessageStore(tmp_path / "messages.json")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
     store.save_message(
         datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
     )

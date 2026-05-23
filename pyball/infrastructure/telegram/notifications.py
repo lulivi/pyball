@@ -67,7 +67,9 @@ class TelegramMatchNotifier(MatchNotifier):
         await refresh_callup_messages(
             self._bot, self._settings, self._container, meetup, include_keyboard=False
         )
-        message_store = TelegramMessageStore(self._settings.paths.bot_messages_file)
+        message_store = TelegramMessageStore(
+            self._settings.paths.data_dir / "bot" / "messages.json"
+        )
         message_store.delete_message(meetup.date, "regular")
         message_store.delete_message(meetup.date, "substitute")
         asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
@@ -94,7 +96,7 @@ async def refresh_callup_messages(
     player_names = {str(p.id.value): p.name for p in all_players}
     player_groups = {str(p.id.value): p.group for p in all_players}
 
-    store = TelegramMessageStore(settings.paths.bot_messages_file)
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
     date_fmt = settings.pyball.display_date_format
 
     regular_tracking = store.get_message(meetup.date, "regular")

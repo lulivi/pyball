@@ -81,7 +81,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if action in ("join", "leave", "join_sub", "leave_sub"):
-        mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+        mapping_store = TelegramMappingStore(
+            settings.paths.data_dir / "bot" / "telegram-uuid.json"
+        )
         await _handle_player_action(
             action, meetup, meetup_date, query, container, mapping_store, context.bot, settings
         )

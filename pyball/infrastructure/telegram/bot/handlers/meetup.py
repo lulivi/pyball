@@ -465,7 +465,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode=ParseMode.MARKDOWN_V2,
         )
 
-        store = TelegramMessageStore(settings.paths.bot_messages_file)
+        store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
         store.save_message(
             meetup.date,
             "substitute",
@@ -624,7 +624,7 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
             parse_mode=ParseMode.MARKDOWN_V2,
         )
 
-        store = TelegramMessageStore(settings.paths.bot_messages_file)
+        store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
         store.save_message(
             meetup.date,
             "regular",

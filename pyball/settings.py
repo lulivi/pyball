@@ -113,8 +113,6 @@ class Paths:
     data_dir: Path = field(default_factory=lambda: Path("data"))
     players_file: Path = field(init=False)
     meetups_dir: Path = field(init=False)
-    bot_mappings_file: Path = field(init=False)
-    bot_messages_file: Path = field(init=False)
     _data_dir_override: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -123,8 +121,6 @@ class Paths:
             self.data_dir = Path(self._data_dir_override)
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
-        self.bot_mappings_file = self.data_dir / "bot" / "telegram-uuid.json"
-        self.bot_messages_file = self.data_dir / "bot" / "messages.json"
 
 
 @dataclass
