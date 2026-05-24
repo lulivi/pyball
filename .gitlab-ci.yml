@@ -64,7 +64,7 @@ publish:
     - apk add --no-cache git
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
   script:
-    - ./deploy/docker_build.sh --push --release
+    - ./deploy/docker_build.sh --push --release --topology telegram
 
 deploy:
   stage: deploy

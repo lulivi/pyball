@@ -285,7 +285,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     container: Container = context.bot_data["container"]
 
     settings = context.bot_data["settings"]
-    mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+    mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
 
     args = context.args
     if args is None or len(args) < 2:
@@ -338,7 +338,7 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     settings = context.bot_data["settings"]
-    mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+    mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
 
     args = context.args
     if args is None or not args:

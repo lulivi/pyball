@@ -48,8 +48,7 @@ def bot_settings(tmp_data):
     settings.telegram.regulars.chat_id = -100111
     settings.telegram.regulars.meetups_thread_id = None
     settings.telegram.substitutes.chat_id = -100222
-    settings.paths.bot_messages_file = tmp_data / "bot_messages.json"
-    settings.paths.bot_mappings_file = tmp_data / "bot_mappings.json"
+    settings.paths.data_dir = tmp_data
     settings.pyball.location = "Test Field"
     settings.pyball.default_week_day = "wednesday"
     settings.pyball.default_hour = "20:00"

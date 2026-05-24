@@ -39,7 +39,7 @@ from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
 
 if TYPE_CHECKING:
-    from pyball.settings import Settings
+    from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if action in ("join", "leave", "join_sub", "leave_sub"):
-        mapping_store = TelegramMappingStore(settings.paths.bot_mappings_file)
+        mapping_store = TelegramMappingStore(
+            settings.paths.data_dir / "bot" / "telegram-uuid.json"
+        )
         await _handle_player_action(
             action, meetup, meetup_date, query, container, mapping_store, context.bot, settings
         )
@@ -104,7 +106,7 @@ async def _handle_player_action(
     container: Container,
     mapping_store: TelegramMappingStore,
     bot: telegram.Bot,
-    settings: "Settings",
+    settings: "TelegramAppSettings",
 ) -> None:
     """Handle join/leave/join_sub/leave_sub callback actions.
 
@@ -162,7 +164,7 @@ async def _handle_create_teams_callback(
     query: CallbackQuery,
     container: Container,
     bot: telegram.Bot,
-    settings: "Settings",
+    settings: "TelegramAppSettings",
     user_id: int,
 ) -> None:
     """Handle create_teams admin button callback."""
@@ -187,7 +189,7 @@ async def _handle_start_match_callback(
     query: CallbackQuery,
     container: Container,
     bot: telegram.Bot,
-    settings: "Settings",
+    settings: "TelegramAppSettings",
     user_id: int,
 ) -> None:
     """Handle start_match admin button callback."""

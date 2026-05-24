@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# --- builder: compile the wheel from source ---
 FROM python:3.12.13-slim-trixie AS builder
 
 ARG VERSION
@@ -30,7 +31,8 @@ COPY . .
 RUN uv build --wheel --out-dir /dist
 
 
-FROM python:3.12.13-slim-trixie
+# --- base: shared system deps, locale, venv, unprivileged user ---
+FROM python:3.12.13-slim-trixie AS base
 
 ENV VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:${PATH} \
@@ -58,14 +60,31 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 WORKDIR /builder
 COPY --from=builder /dist/*.whl .
 
-RUN $VIRTUAL_ENV/bin/python3 -m pip install --no-cache *.whl \
+
+# --- telegram: Telegram + FastAPI topology ---
+FROM base AS telegram
+
+RUN WHEEL=$(ls /builder/*.whl) && \
+    $VIRTUAL_ENV/bin/pip install --no-cache "${WHEEL}[telegram]" \
     && rm -rf /builder
 
 WORKDIR /pyball
 COPY static/ static/
-
 RUN chown -R pyballuser:pyballgroup /pyball
 
 USER pyballuser
+ENTRYPOINT ["pyball-tg"]
 
-ENTRYPOINT ["pyball"]
+
+# --- web: FastAPI-only topology ---
+FROM base AS web
+
+RUN $VIRTUAL_ENV/bin/pip install --no-cache /builder/*.whl \
+    && rm -rf /builder
+
+WORKDIR /pyball
+COPY static/ static/
+RUN chown -R pyballuser:pyballgroup /pyball
+
+USER pyballuser
+ENTRYPOINT ["pyball-web"]

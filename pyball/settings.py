@@ -19,86 +19,34 @@
 # SOFTWARE.
 """Application settings."""
 
+from __future__ import annotations
+
 import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 
-def load_settings(config_path: Path = Path("config.toml")) -> "Settings":
-    """Load settings from TOML config file with env var overrides.
+def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
+    """Load core application settings from TOML config with env var overrides.
 
     Args:
         config_path: Path to config.toml (defaults to project root)
 
     Returns:
-        Settings instance with loaded configuration
+        AppSettings instance with core configuration loaded.
 
     Raises:
-        SettingsValidationError: If required settings are missing
+        SettingsValidationError: If required core settings are missing.
     """
-    LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
-
-    config = {}
+    config: dict = {}
     if config_path.exists():
         with open(config_path, "rb") as f:
             config = tomllib.load(f)
 
-    telegram_cfg = config.get("pyball", {}).get("telegram", {})
     core_cfg = config.get("pyball", {}).get("core", {})
 
-    regulars_cfg = telegram_cfg.get("regulars", {})
-    substitutes_cfg = telegram_cfg.get("substitutes", {})
-
-    regulars = RegularsChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override(
-                "pyball.telegram.regulars", "chat_id", regulars_cfg.get("chat_id", 0)
-            )
-        ),
-        meetups_thread_id=_get_env_override(
-            "pyball.telegram.regulars",
-            "meetups_thread_id",
-            regulars_cfg.get("meetups_thread_id", ""),
-        ),
-        stats_thread_id=_get_env_override(
-            "pyball.telegram.regulars",
-            "stats_thread_id",
-            regulars_cfg.get("stats_thread_id", ""),
-        ),
-    )
-    substitutes = TelegramChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override(
-                "pyball.telegram.substitutes", "chat_id", substitutes_cfg.get("chat_id", 0)
-            )
-        ),
-    )
-
-    management_cfg = telegram_cfg.get("management", {})
-    management = ManagementChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override(
-                "pyball.telegram.management",
-                "chat_id",
-                management_cfg.get("chat_id", 0),
-            )
-        ),
-    )
-
-    telegram = TelegramSettings(
-        bot_token=_get_env_override(
-            "pyball.telegram", "bot_token", telegram_cfg.get("bot_token", "")
-        ),
-        admins_ids=_parse_admins_ids(
-            _get_env_override("pyball.telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
-        ),
-        regulars=regulars,
-        substitutes=substitutes,
-        management=management,
-    )
-
-    pyball = CoreSettings(
+    pyball = PyballConfig(
         location=_get_env_override("core", "location", core_cfg.get("location", "")),
         default_week_day=_get_env_override(
             "core", "default_week_day", core_cfg.get("default_week_day", "wednesday")
@@ -126,24 +74,15 @@ def load_settings(config_path: Path = Path("config.toml")) -> "Settings":
     )
 
     missing = []
-    if not telegram.bot_token:
-        missing.append("telegram.bot_token")
     if not pyball.location:
-        missing.append("pyball.location")
-    if not telegram.regulars.chat_id:
-        missing.append("telegram.regulars.chat_id")
-    if not telegram.substitutes.chat_id:
-        missing.append("telegram.substitutes.chat_id")
-
+        missing.append("core.location")
     if missing:
         raise SettingsValidationError(
             f"Faltan parámetros requeridos: {', '.join(missing)}. "
             "Copia example.config.toml a config.toml y completa los valores."
         )
 
-    return Settings(
-        telegram=telegram, pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir)
-    )
+    return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
 
 
 LOGS_DIRECTORY_PATH = Path("logs")
@@ -154,42 +93,7 @@ class SettingsValidationError(ValueError):
 
 
 @dataclass
-class TelegramChatSettings:
-    """Base Telegram chat configuration."""
-
-    chat_id: int = 0
-
-
-@dataclass
-class ManagementChatSettings(TelegramChatSettings):
-    """Telegram chat configuration for the management channel."""
-
-
-@dataclass
-class RegularsChatSettings(TelegramChatSettings):
-    """Telegram chat configuration for the regulars group."""
-
-    meetups_thread_id: str | int = ""
-    stats_thread_id: str | int = ""
-
-
-@dataclass
-class TelegramSettings:
-    """Telegram bot and chat configuration."""
-
-    bot_token: str = ""
-    admins_ids: tuple[int, ...] = ()
-    regulars: RegularsChatSettings = field(default_factory=RegularsChatSettings)
-    substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
-    management: ManagementChatSettings = field(default_factory=ManagementChatSettings)
-
-    def is_authorized(self, user_id: int) -> bool:
-        """Check if user ID is in the admin list."""
-        return user_id in self.admins_ids
-
-
-@dataclass
-class CoreSettings:  # pylint: disable=too-many-instance-attributes
+class PyballConfig:  # pylint: disable=too-many-instance-attributes
     """PyBall-specific configuration."""
 
     location: str = ""
@@ -209,8 +113,6 @@ class Paths:
     data_dir: Path = field(default_factory=lambda: Path("data"))
     players_file: Path = field(init=False)
     meetups_dir: Path = field(init=False)
-    bot_mappings_file: Path = field(init=False)
-    bot_messages_file: Path = field(init=False)
     _data_dir_override: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -219,16 +121,13 @@ class Paths:
             self.data_dir = Path(self._data_dir_override)
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
-        self.bot_mappings_file = self.data_dir / "bot" / "telegram-uuid.json"
-        self.bot_messages_file = self.data_dir / "bot" / "messages.json"
 
 
 @dataclass
-class Settings:
-    """Application settings container."""
+class AppSettings:
+    """Base application settings with core and path configuration."""
 
-    telegram: TelegramSettings = field(default_factory=TelegramSettings)
-    pyball: CoreSettings = field(default_factory=CoreSettings)
+    pyball: PyballConfig = field(default_factory=PyballConfig)
     paths: Paths = field(default_factory=Paths)
 
 
@@ -241,22 +140,6 @@ def _parse_team_display_names(value) -> tuple[str, str]:
         if len(parts) == 2:
             return (parts[0], parts[1])
     return ("Claro", "Oscuro")
-
-
-def _parse_chat_id(value) -> int:
-    """Parse chat_id from config or env, handling empty strings."""
-    if isinstance(value, str) and not value:
-        return 0
-    return int(value)
-
-
-def _parse_admins_ids(value) -> tuple[int, ...]:
-    """Parse admins_ids from config or env override."""
-    if isinstance(value, list):
-        return tuple(int(x) for x in value)
-    if isinstance(value, str):
-        return tuple(int(x.strip()) for x in value.split(",") if x.strip())
-    return ()
 
 
 def _get_env_override(section: str, key: str, default):

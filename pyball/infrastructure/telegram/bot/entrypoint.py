@@ -22,10 +22,10 @@
 from telegram.ext import Application, CallbackQueryHandler
 
 from pyball.infrastructure.telegram.bot.callbacks import callback_handler
-from pyball.settings import Settings
+from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 
-def create_application(settings: Settings) -> Application:
+def create_application(settings: TelegramAppSettings) -> Application:
     """Create and configure the Telegram application."""
     application = (
         Application.builder().token(settings.telegram.bot_token).concurrent_updates(False).build()
