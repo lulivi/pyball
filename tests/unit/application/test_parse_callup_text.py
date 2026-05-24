@@ -169,3 +169,16 @@ class TestParseCallupText:
         """Parenthetical note is stripped before fuzzy-matching."""
         result = self.use_case.execute("1. Jesús (Luvo)\n", self.players)
         assert result.titulars[0].name == "Jesús Romero"
+
+    def test_exact_name_wins_when_tokens_overlap(self):
+        """Exact full-name match resolves confidently even when other players share the token."""
+        players_with_luvo = self.players + [
+            _make_player("Alberto Luvo"),
+            _make_player("Alvaro Luvo"),
+            _make_player("Diego Luvo"),
+        ]
+        result = self.use_case.execute("1. Luvo\n", players_with_luvo)
+        match = result.titulars[0]
+        assert match.player_id is not None
+        assert match.name == "Luvo"
+        assert match.confidence == 1.0

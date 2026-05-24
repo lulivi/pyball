@@ -115,6 +115,12 @@ def _clean_name(raw: str) -> str:
 def _match_name(raw: str, players: list[Player]) -> MatchedPlayer:
     """Fuzzy-match a raw name string against all players."""
     cleaned = _clean_name(raw)
+    cleaned_lower = cleaned.lower()
+    for player in players:
+        if player.name.lower() == cleaned_lower:
+            return MatchedPlayer(
+                raw=raw, player_id=str(player.id.value), name=player.name, confidence=1.0
+            )
     candidates = _score_candidates(cleaned, players)
     if not candidates:
         return MatchedPlayer(raw=raw, player_id=None, name=None, confidence=0.0)
