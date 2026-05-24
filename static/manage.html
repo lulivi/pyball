@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
 <title>PyBall Gestión</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="/qrcode.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100%; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
@@ -312,18 +312,35 @@ async function generateTeams() {
       return;
     }
     lastTeamsPayload = await res.json();
-    showTeamsResult();
-  } catch(e) { alert('Error de red: ' + e.message); }
+  } catch(e) { alert('Error de red: ' + e.message); return; }
+  showTeamsResult();
 }
 
 function showTeamsResult() {
   const {team_a, team_b, name_a, name_b, match_url} = lastTeamsPayload;
   const text = `*${name_a}*\n${team_a.join('\n')}\n\n*${name_b}*\n${team_b.join('\n')}`;
   document.getElementById('teams-text').textContent = text;
-
-  const canvas = document.getElementById('qr-canvas');
-  QRCode.toCanvas(canvas, match_url, {width: 150, color: {dark:'#000000', light:'#ffffff'}});
   document.getElementById('qr-hint').textContent = match_url;
+
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(match_url);
+    qr.make();
+    const canvas = document.getElementById('qr-canvas');
+    const cells = qr.getModuleCount();
+    const scale = Math.max(2, Math.floor(150 / cells));
+    canvas.width = cells * scale;
+    canvas.height = cells * scale;
+    const ctx = canvas.getContext('2d');
+    for (let r = 0; r < cells; r++) {
+      for (let c = 0; c < cells; c++) {
+        ctx.fillStyle = qr.isDark(r, c) ? '#000000' : '#ffffff';
+        ctx.fillRect(c * scale, r * scale, scale, scale);
+      }
+    }
+  } catch(e) {
+    document.getElementById('qr-canvas').style.display = 'none';
+  }
 
   showStep('teams');
 }

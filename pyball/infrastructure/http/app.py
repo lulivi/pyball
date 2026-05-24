@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -99,7 +99,7 @@ def create_app(
     """Create and configure the FastAPI application."""
     app = FastAPI(title="PyBall API")
 
-    _register_health(app)
+    _register_health(app, static_dir)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
     _register_meetup_routes(app, container)
@@ -120,13 +120,18 @@ class _Server(uvicorn.Server):
 # ── Route registrars ──────────────────────────────────────────────────────────
 
 
-def _register_health(app: FastAPI) -> None:
-    """Register the health-check route."""
+def _register_health(app: FastAPI, static_dir: Path) -> None:
+    """Register the health-check and static-page routes."""
 
     @app.get("/")
     async def health():
         """Return a simple status response."""
         return {"status": "ok"}
+
+    @app.get("/match")
+    async def match_page():
+        """Serve the match tracker SPA."""
+        return FileResponse(static_dir / "match.html")
 
 
 def _register_match_routes(
