@@ -36,14 +36,19 @@
   .btn-sm.gray  { background: #334155; }
   .btn-sm.green { background: #16a34a; }
 
-  /* Player chips */
-  .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; padding: 5px 9px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; user-select: none; }
+  /* Player list rows */
+  #chip-container { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .chip { display: flex; align-items: center; gap: 8px; border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; user-select: none; width: 100%; }
   .chip.ok   { background: #1e293b; border-color: #22c55e; color: #f8fafc; }
   .chip.warn { background: #1e293b; border-color: #f59e0b; color: #fbbf24; }
   .chip.err  { background: #1e293b; border-color: #ef4444; color: #fca5a5; }
   .chip.excl { background: #1e293b; border-color: #334155; color: #475569; text-decoration: line-through; }
-  .chip .chev { font-size: 0.6rem; color: #94a3b8; }
+  .chip-num  { font-size: 0.72rem; color: #64748b; min-width: 22px; flex-shrink: 0; }
+  .chip-label { flex: 1; }
+  .chip .chev { font-size: 0.6rem; color: #94a3b8; margin-left: auto; }
+
+  /* Parsed date badge */
+  .date-badge { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #38bdf8; background: #0c1f33; border: 1px solid #1e4a73; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
 
   /* Expanded chip panel */
   .chip-panel { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 10px; margin-bottom: 8px; width: 100%; }
@@ -66,7 +71,7 @@
   /* Teams result */
   .teams-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.8; white-space: pre-wrap; }
   .qr-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; gap: 8px; margin-bottom: 10px; }
-  .qr-hint { font-size: 0.75rem; color: #94a3b8; text-align: center; }
+  .qr-hint { font-size: 0.75rem; color: #38bdf8; text-align: center; text-decoration: underline; }
   .regen-row { display: flex; gap: 8px; margin-top: 6px; }
 
   /* Summary tab */
@@ -99,6 +104,7 @@
   <!-- STEP 2: Review players -->
   <div id="step-review" style="display:none">
     <div class="step-label">2. Revisa los jugadores</div>
+    <div id="parsed-date-display" class="date-badge" style="display:none">📅 <span id="parsed-date-text"></span></div>
     <div id="review-legend" style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">
       ✓ Reconocido &nbsp; ⚠ Dudoso (toca para elegir) &nbsp; ✗ No encontrado (toca para buscar) &nbsp; Tachado = Reserva excluida
     </div>
@@ -115,7 +121,7 @@
     <div class="step-label">4. Abre el marcador en otro móvil</div>
     <div class="qr-box">
       <canvas id="qr-canvas"></canvas>
-      <div class="qr-hint" id="qr-hint"></div>
+      <a class="qr-hint" id="qr-hint" target="_blank" rel="noopener"></a>
     </div>
     <div class="regen-row">
       <button class="btn-sm gray" onclick="backToReview()">← Cambiar jugadores</button>
@@ -136,6 +142,7 @@ let allPlayers = [];        // [{id, name}, ...] from /api/players
 let parsedPlayers = [];     // [{raw, player_id, name, confidence, candidates, excluded}, ...]
 let lastTeamsPayload = null; // last successful create-with-teams response
 let expandedIdx = null;     // which chip is expanded
+let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:00"
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -160,6 +167,14 @@ async function parseCallup() {
       }).then(r => r.json())
     ]);
     allPlayers = playersRes;
+    lastParsedDate = parseRes.date || null;
+    const dateDisplay = document.getElementById('parsed-date-display');
+    if (lastParsedDate) {
+      document.getElementById('parsed-date-text').textContent = _formatDate(lastParsedDate);
+      dateDisplay.style.display = 'flex';
+    } else {
+      dateDisplay.style.display = 'none';
+    }
     parsedPlayers = [
       ...parseRes.titulars.map(p => ({...p, excluded: false})),
       ...parseRes.reserves.map(p => ({...p, excluded: true}))
@@ -199,9 +214,9 @@ function chipLabel(p) {
 
 function buildChip(i) {
   const p = parsedPlayers[i];
-  const el = document.createElement('span');
+  const el = document.createElement('div');
   el.className = 'chip ' + chipClass(p);
-  el.innerHTML = escHtml(chipLabel(p)) + (p.excluded ? '' : ' <span class="chev">▼</span>');
+  el.innerHTML = `<span class="chip-num">${i + 1}.</span><span class="chip-label">${escHtml(chipLabel(p))}</span>${p.excluded ? '' : '<span class="chev">▼</span>'}`;
   if (!p.excluded) {
     el.onclick = () => { expandedIdx = (expandedIdx === i ? null : i); renderChips(); };
   } else {
@@ -294,7 +309,8 @@ async function generateTeams() {
 
   const today = new Date();
   const pad = n => String(n).padStart(2, '0');
-  const date = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}T20:00`;
+  const date = lastParsedDate ||
+    `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}T20:00`;
 
   try {
     const res = await fetch('/api/meetup/create-with-teams', {
@@ -320,7 +336,9 @@ function showTeamsResult() {
   const {team_a, team_b, name_a, name_b, match_url} = lastTeamsPayload;
   const text = `*${name_a}*\n${team_a.join('\n')}\n\n*${name_b}*\n${team_b.join('\n')}`;
   document.getElementById('teams-text').textContent = text;
-  document.getElementById('qr-hint').textContent = match_url;
+  const qrHint = document.getElementById('qr-hint');
+  qrHint.textContent = 'Link del partido';
+  qrHint.href = match_url;
 
   try {
     const qr = qrcode(0, 'M');
@@ -408,6 +426,15 @@ function escHtml(s) {
 
 function escAttr(s) {
   return String(s).replace(/'/g,"\\'");
+}
+
+function _formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
 </script>
 </body>

@@ -19,7 +19,7 @@
 # SOFTWARE.
 """FastAPI application factory."""
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -99,7 +99,7 @@ def create_app(
     """Create and configure the FastAPI application."""
     app = FastAPI(title="PyBall API")
 
-    _register_health(app, static_dir)
+    _register_static(app, static_dir)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
     _register_meetup_routes(app, container)
@@ -120,7 +120,7 @@ class _Server(uvicorn.Server):
 # ── Route registrars ──────────────────────────────────────────────────────────
 
 
-def _register_health(app: FastAPI, static_dir: Path) -> None:
+def _register_static(app: FastAPI, static_dir: Path) -> None:
     """Register the health-check and static-page routes."""
 
     @app.get("/")
@@ -132,6 +132,11 @@ def _register_health(app: FastAPI, static_dir: Path) -> None:
     async def match_page():
         """Serve the match tracker SPA."""
         return FileResponse(static_dir / "match.html")
+
+    @app.get("/manage")
+    async def manage_page():
+        """Serve the manage tracker SPA."""
+        return FileResponse(static_dir / "manage.html")
 
 
 def _register_match_routes(
@@ -249,10 +254,12 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
         """Parse a WhatsApp callup text and fuzzy-match player names."""
         players = container.player_repository.find_all()
         result = ParseCallupText().execute(body.text, players)
+        date_str = _parse_callup_date(body.text, container.default_hour)
 
         return {
             "titulars": [_serialise_match(m) for m in result.titulars],
             "reserves": [_serialise_match(m) for m in result.reserves],
+            "date": date_str,
         }
 
     @app.post("/api/meetup/create-with-teams")
@@ -330,3 +337,32 @@ def _serialise_match(match) -> dict:
             for c in match.candidates
         ],
     }
+
+
+def _parse_callup_date(text: str, default_hour: str) -> str:
+    """Extract the meetup date from a callup header line using locale-aware strptime.
+
+    Tries each line as '%A %d %B' (e.g. 'lunes 18 mayo'). Falls back to today
+    when no line matches. If the parsed date is more than 7 days in the past,
+    bumps to the next year.
+
+    Returns an ISO 8601 string 'YYYY-MM-DDTHH:MM'.
+    """
+    try:
+        hour, minute = (int(p) for p in default_hour.split(":", 1))
+    except ValueError:
+        hour, minute = 20, 0
+    today = datetime.now()
+    for line in text.splitlines():
+        parts = line.strip().split()
+        if len(parts) < 3:
+            continue
+        try:
+            parsed = datetime.strptime(" ".join(parts[:3]).lower(), "%A %d %B")
+        except ValueError:
+            continue
+        candidate = datetime(today.year, parsed.month, parsed.day, hour, minute)
+        if candidate < today - timedelta(days=7):
+            candidate = candidate.replace(year=today.year + 1)
+        return candidate.strftime("%Y-%m-%dT%H:%M")
+    return datetime(today.year, today.month, today.day, hour, minute).strftime("%Y-%m-%dT%H:%M")

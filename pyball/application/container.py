@@ -122,6 +122,11 @@ class Container:
         return (names[0], names[1])
 
     @property
+    def default_hour(self) -> str:
+        """Return the configured default match hour as 'HH:MM'."""
+        return self._settings.pyball.default_hour
+
+    @property
     def player_repository(self) -> PlayerRepository:
         """Get the player repository, creating it if necessary."""
         if self._player_repository is None:
