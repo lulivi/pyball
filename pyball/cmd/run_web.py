@@ -19,8 +19,10 @@
 # SOFTWARE.
 """Web-only topology entrypoint — FastAPI without Telegram."""
 
+import argparse
 import asyncio
 import signal
+from pathlib import Path
 
 import uvicorn
 
@@ -31,12 +33,20 @@ from pyball.infrastructure.http.app import _Server, create_app
 
 def main() -> None:
     """Start the FastAPI server without any Telegram integration."""
-    asyncio.run(_main_async())
+    parser = argparse.ArgumentParser(description="PyBall web-only server")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.toml"),
+        help="Path to config.toml (default: config.toml)",
+    )
+    args = parser.parse_args()
+    asyncio.run(_main_async(args.config))
 
 
-async def _main_async() -> None:
+async def _main_async(config_path: Path) -> None:
     """Boot the web-only topology."""
-    _, container = bootstrap_core()
+    _, container = bootstrap_core(config_path)
     notifier = NullMatchNotifier()
     app = create_app(container, notifier)
 
