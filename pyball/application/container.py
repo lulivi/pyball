@@ -21,6 +21,7 @@
 
 from pyball.application.meetup import (
     AddPlayerToMeetup,
+    ComputeStats,
     CreateMeetup,
     CreateTeams,
     CreateTeamsManually,
@@ -116,6 +117,16 @@ class Container:
     def finish_match(self) -> FinishMatch:
         """Create a new FinishMatch use case."""
         return FinishMatch(self.meetup_repository, self.player_repository)
+
+    def compute_stats(self) -> "ComputeStats":
+        """Create a new ComputeStats use case."""
+        return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
+
+    @property
+    def team_display_names(self) -> tuple[str, str]:
+        """Return the configured display names for team A and team B."""
+        names = self._settings.pyball.team_display_names
+        return (names[0], names[1])
 
     @property
     def player_repository(self) -> PlayerRepository:
