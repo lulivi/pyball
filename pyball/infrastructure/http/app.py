@@ -42,6 +42,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
+    from pyball.application.notifier import MatchNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class CreateWithTeamsInput(BaseModel):
 
 def create_app(
     container: "Container",
-    notifier,
+    notifier: "MatchNotifier",
     static_dir: Path = Path("static"),
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -128,7 +129,9 @@ def _register_health(app: FastAPI) -> None:
         return {"status": "ok"}
 
 
-def _register_match_routes(app: FastAPI, container: "Container", notifier) -> None:
+def _register_match_routes(
+    app: FastAPI, container: "Container", notifier: "MatchNotifier"
+) -> None:
     """Register match-related routes."""
 
     @app.post("/api/match/finish")

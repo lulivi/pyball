@@ -98,13 +98,6 @@ class Container:
         """Create a new CreateTeamsManually use case."""
         return CreateTeamsManually(self.meetup_repository, self.player_repository)
 
-    def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
-        """Build the algorithm registry with all available algorithms."""
-        return {
-            "balanceado": BalancedAlgorithm(self.legacy_stats),
-            "random": RandomAlgorithm(),
-        }
-
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""
         return StartMatch(
@@ -118,7 +111,7 @@ class Container:
         """Create a new FinishMatch use case."""
         return FinishMatch(self.meetup_repository, self.player_repository)
 
-    def compute_stats(self) -> "ComputeStats":
+    def compute_stats(self) -> ComputeStats:
         """Create a new ComputeStats use case."""
         return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
 
@@ -149,3 +142,10 @@ class Container:
             legacy_path = self._settings.paths.data_dir / "legacy_stats.json"
             self._legacy_stats = LegacyStats.from_file(str(legacy_path))
         return self._legacy_stats
+
+    def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
+        """Build the algorithm registry with all available algorithms."""
+        return {
+            "balanceado": BalancedAlgorithm(self.legacy_stats),
+            "random": RandomAlgorithm(),
+        }
