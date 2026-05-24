@@ -1,7 +1,7 @@
 {
     "name": "PyBall - Muro de Partido",
     "short_name": "PyBall",
-    "start_url": "/",
+    "start_url": "/match",
     "display": "standalone",
     "background_color": "#0f172a",
     "theme_color": "#0f172a",

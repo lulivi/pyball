@@ -78,4 +78,4 @@ class StartMatch:
                 "nameB": self.team_display_names[1],
             }
         )
-        return f"{self.base_url}/?{params}"
+        return f"{self.base_url}/match?{params}"
