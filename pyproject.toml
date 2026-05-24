@@ -14,7 +14,6 @@ authors = [{ name = "Luis Liñán", email = "luislivilla@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "python-telegram-bot>=22,<23",
     "pydantic>=2.0,<3",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
@@ -24,8 +23,12 @@ dependencies = [
     "qrcode[pil]>=8,<9",
 ]
 
+[project.optional-dependencies]
+telegram = ["python-telegram-bot>=22,<23"]
+
 [project.scripts]
-pyball = "pyball.__main__:main"
+pyball-web = "pyball.cmd.run_web:main"
+pyball-tg = "pyball.cmd.run_telegram:main"
 
 [dependency-groups]
 dev = [

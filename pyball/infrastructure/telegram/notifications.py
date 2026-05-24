@@ -39,7 +39,7 @@ from pyball.infrastructure.telegram.message_store import TelegramMessageStore
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
-    from pyball.settings import Settings
+    from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class TelegramMatchNotifier(MatchNotifier):
     def __init__(
         self,
         bot: telegram.Bot,
-        settings: "Settings",
+        settings: "TelegramAppSettings",
         container: "Container",
     ) -> None:
         """Initialize with Telegram bot, application settings, and DI container."""
@@ -67,7 +67,9 @@ class TelegramMatchNotifier(MatchNotifier):
         await refresh_callup_messages(
             self._bot, self._settings, self._container, meetup, include_keyboard=False
         )
-        message_store = TelegramMessageStore(self._settings.paths.bot_messages_file)
+        message_store = TelegramMessageStore(
+            self._settings.paths.data_dir / "bot" / "messages.json"
+        )
         message_store.delete_message(meetup.date, "regular")
         message_store.delete_message(meetup.date, "substitute")
         asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
@@ -75,7 +77,7 @@ class TelegramMatchNotifier(MatchNotifier):
 
 async def refresh_callup_messages(
     bot: telegram.Bot,
-    settings: "Settings",
+    settings: "TelegramAppSettings",
     container: "Container",
     meetup: Meetup,
     include_keyboard: bool = True,
@@ -94,7 +96,7 @@ async def refresh_callup_messages(
     player_names = {str(p.id.value): p.name for p in all_players}
     player_groups = {str(p.id.value): p.group for p in all_players}
 
-    store = TelegramMessageStore(settings.paths.bot_messages_file)
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
     date_fmt = settings.pyball.display_date_format
 
     regular_tracking = store.get_message(meetup.date, "regular")
@@ -150,7 +152,7 @@ async def refresh_callup_messages(
 async def _post_match_stats(
     bot: telegram.Bot,
     container: "Container",
-    settings: "Settings",
+    settings: "TelegramAppSettings",
 ) -> None:
     """Compute and post the season stats image to the regulars stats topic.
 

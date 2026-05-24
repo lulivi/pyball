@@ -39,7 +39,7 @@ def linked_player(bot_context):
     container.player_repository.save(player)
 
     settings = bot_context.bot_data["settings"]
-    store = TelegramMappingStore(settings.paths.bot_mappings_file)
+    store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
     store.set_player_id(12345, str(player.id.value))
     return player
 

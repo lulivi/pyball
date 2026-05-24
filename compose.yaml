@@ -1,6 +1,6 @@
 services:
   bot:
-    image: lulivi/pyball:${TAG:-latest}
+    image: lulivi/pyball-telegram:${TAG:-latest}
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:8000:8000"

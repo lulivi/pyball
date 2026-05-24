@@ -22,6 +22,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -110,3 +111,10 @@ def create_app(
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     return app
+
+
+class _Server(uvicorn.Server):
+    """Uvicorn server that defers signal handling to the caller."""
+
+    def install_signal_handlers(self) -> None:
+        """No-op: signals are managed by the entrypoint."""

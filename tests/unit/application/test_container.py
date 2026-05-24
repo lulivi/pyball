@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pyball.application.container import Container
+from pyball.application.notifier import NullMatchNotifier
 
 
 class TestContainerInit:
@@ -32,3 +33,19 @@ class TestContainerInit:
         """Container requires a settings argument."""
         with pytest.raises(TypeError):
             Container()  # type: ignore[call-arg]  # pylint: disable=no-value-for-parameter
+
+
+class TestNullMatchNotifier:
+    """NullMatchNotifier satisfies the MatchNotifier interface with no side effects."""
+
+    @pytest.mark.asyncio
+    async def test_on_match_closed_does_not_raise(self):
+        """on_match_closed completes without error."""
+        notifier = NullMatchNotifier()
+        await notifier.on_match_closed(None)  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_on_meetup_updated_does_not_raise(self):
+        """on_meetup_updated completes without error."""
+        notifier = NullMatchNotifier()
+        await notifier.on_meetup_updated(None)  # type: ignore[arg-type]

@@ -116,7 +116,7 @@ async def test_link_player_writes_mapping(bot_update, bot_context):
     await link_player_handler(bot_update, bot_context)
 
     settings = bot_context.bot_data["settings"]
-    store = TelegramMappingStore(settings.paths.bot_mappings_file)
+    store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
     assert store.get_player_id(55555) == str(player.id.value)
 
 
@@ -128,7 +128,7 @@ async def test_unlink_player_removes_mapping(bot_update, bot_context):
     container.player_repository.save(player)
 
     settings = bot_context.bot_data["settings"]
-    store = TelegramMappingStore(settings.paths.bot_mappings_file)
+    store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
     store.set_player_id(55555, str(player.id.value))
 
     bot_context.args = ["55555"]

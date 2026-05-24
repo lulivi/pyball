@@ -17,54 +17,49 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Bot main file."""
+"""Telegram+FastAPI topology entrypoint."""
 
 import asyncio
-import locale
 import logging
 import signal
 
 import uvicorn
 
-from pyball import __version__
-from pyball.application.container import Container
-from pyball.infrastructure.http.app import create_app
-from pyball.infrastructure.telegram.bot import create_application
+from pyball.application.bootstrap import bootstrap_core
+from pyball.infrastructure.http.app import _Server, create_app
+from pyball.infrastructure.telegram.bot.entrypoint import create_application
 from pyball.infrastructure.telegram.bot.handlers import (
     setup_general_handlers,
     setup_meetup_handlers,
     setup_player_handlers,
 )
+from pyball.infrastructure.telegram.logging import config_telegram_logging
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
-from pyball.logger import config_logging
-from pyball.settings import load_settings
+from pyball.infrastructure.telegram.settings import load_telegram_app_settings
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Entry point."""
-    asyncio.run(main_async())
+    """Start the Telegram bot and FastAPI server together."""
+    asyncio.run(_main_async())
 
 
-async def main_async() -> None:
-    """Start the bot and HTTP server under the same asyncio event loop."""
-    settings = load_settings()
-    config_logging(settings)
-    log_startup_info()
-    container = Container(settings)
+async def _main_async() -> None:
+    """Boot the Telegram+FastAPI topology."""
+    app_settings, container = bootstrap_core()
+    tg_settings = load_telegram_app_settings(app_settings)
+    config_telegram_logging(tg_settings.telegram)
 
-    locale.setlocale(locale.LC_ALL, settings.pyball.locale)
-
-    application = create_application(settings)
+    application = create_application(tg_settings)
     application.bot_data["container"] = container
-    application.bot_data["settings"] = settings
+    application.bot_data["settings"] = tg_settings
 
     setup_player_handlers(application)
     setup_meetup_handlers(application)
     setup_general_handlers(application)
 
-    notifier = TelegramMatchNotifier(application.bot, settings, container)
+    notifier = TelegramMatchNotifier(application.bot, tg_settings, container)
     fastapi_app = create_app(container, notifier)
     server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
     server = _Server(server_config)
@@ -100,21 +95,3 @@ async def main_async() -> None:
         await server_task
 
         logger.info("All services stopped")
-
-
-class _Server(uvicorn.Server):
-    """Uvicorn server that defers signal handling to the caller."""
-
-    def install_signal_handlers(self) -> None:
-        """No-op: signals are managed by main_async."""
-
-
-def log_startup_info() -> None:
-    """Log startup information."""
-    logger.info("*" * 40)
-    logger.info("PyBall v%s", __version__)
-    logger.info("*" * 40)
-
-
-if __name__ == "__main__":
-    main()
