@@ -233,7 +233,7 @@ function buildCandidateList(i) {
   let html = '<div class="step-label" style="font-size:0.68rem;margin-bottom:4px;">Candidatos por similitud</div><div class="cand-list">';
   p.candidates.forEach(c => {
     const pct = Math.round(c.confidence * 100);
-    html += `<div class="cand-item" onclick="pickCandidate(${i},'${c.player_id}','${escAttr(c.name)}')">
+    html += `<div class="cand-item" onclick="pickCandidate(${i},'${c.player_id}')">
       ${escHtml(c.name)} <span class="cand-score">${pct}%</span>
     </div>`;
   });
@@ -256,11 +256,14 @@ function renderSearchResults(i) {
   if (!query) { resultsEl.innerHTML = ''; return; }
   const matches = allPlayers.filter(p => p.name.toLowerCase().includes(query)).slice(0, 6);
   resultsEl.innerHTML = matches.map(p =>
-    `<div class="cand-item" onclick="pickCandidate(${i},'${p.id}','${escAttr(p.name)}')">${escHtml(p.name)}</div>`
+    `<div class="cand-item" onclick="pickCandidate(${i},'${p.id}')">${escHtml(p.name)}</div>`
   ).join('');
 }
 
-function pickCandidate(i, player_id, name) {
+function pickCandidate(i, player_id) {
+  const fromCandidates = parsedPlayers[i].candidates.find(c => c.player_id === player_id);
+  const fromAllPlayers = allPlayers.find(p => p.id === player_id);
+  const name = (fromCandidates && fromCandidates.name) || (fromAllPlayers && fromAllPlayers.name) || player_id;
   parsedPlayers[i].player_id = player_id;
   parsedPlayers[i].name = name;
   parsedPlayers[i].candidates = [];
@@ -356,7 +359,7 @@ async function loadResumen() {
       <div class="stats-box">
         <div class="stats-icon">📊</div>
         <div style="font-size:0.8rem;color:#94a3b8;text-align:center;">Generada por PyBall · ${escHtml(date_label)}</div>
-        <button class="btn btn-sm green" onclick="downloadStats('${date}')">⬇ Descargar imagen</button>
+        <button class="btn btn-sm green" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">⬇ Descargar imagen</button>
       </div>
     `;
   } catch(e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
