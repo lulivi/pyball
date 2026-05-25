@@ -1,8 +1,10 @@
 stages:
   - prepare
   - ci
-  - publish
-  - deploy
+  - publish-telegram
+  - publish-web
+  - deploy-telegram
+  - deploy-web
 
 build-ci-image:
   stage: prepare
@@ -52,7 +54,7 @@ test:
       junit: TestReport.xml
 
 publish-telegram:
-  stage: publish
+  stage: publish-telegram
   image: docker:latest
   services:
     - docker:dind
@@ -67,7 +69,7 @@ publish-telegram:
     - ./deploy/docker_build.sh --push --release --topology telegram
 
 deploy-telegram:
-  stage: deploy
+  stage: deploy-telegram
   image: alpine:latest
   rules:
     - if: $CI_COMMIT_TAG
@@ -85,7 +87,7 @@ deploy-telegram:
     - ssh "$SERVER_USER@$SERVER_IP" "VERSION=$VERSION APP_DIR=$SERVER_TENSORES_DIR sh -s" < deploy/deploy.sh
 
 publish-web:
-  stage: publish
+  stage: publish-web
   image: docker:latest
   services:
     - docker:dind
@@ -100,7 +102,7 @@ publish-web:
     - ./deploy/docker_build.sh --push --release --topology web
 
 deploy-web:
-  stage: deploy
+  stage: deploy-web
   image: alpine:latest
   rules:
     - if: $CI_COMMIT_TAG
