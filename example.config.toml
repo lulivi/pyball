@@ -13,8 +13,8 @@ default_week_day = "wednesday"
 # Override with PYBALL_CORE_DEFAULT_HOUR (HH:MM)
 default_hour = "20:00"
 
-# Override with PYBALL_CORE_BASE_URL (use Tailscale hostname)
-base_url = "http://pyball:8000"
+# Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
+display_date_format = "%Y-%m-%d %H:%M"
 
 # Colors for the two teams (display names, emojis and match UI)
 # Override with PYBALL_CORE_TEAM_COLORS (comma-separated, e.g. "amarillo,negro")
@@ -22,14 +22,17 @@ base_url = "http://pyball:8000"
 #            verde 🟢  azul 🔵  morado 🟣  marron 🟤
 team_colors = ["blanco", "negro"]
 
+# Override with PYBALL_CORE_BASE_URL
+base_url = "http://pyball:8000"
+
+# Override with PYBALL_CORE_API_PORT
+api_port = 8000
+
 # Override with PYBALL_CORE_LOCALE
 locale = "es_ES.UTF-8"
 
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
-
-# Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
-display_date_format = "%Y-%m-%d %H:%M"
 
 [pyball.telegram]
 # Override with PYBALL_TELEGRAM_BOT_TOKEN

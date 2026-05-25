@@ -52,11 +52,13 @@ def main() -> None:
 
 async def _main_async(config_path: Path) -> None:
     """Boot the web-only topology."""
-    _, container = bootstrap_core(config_path)
+    app_settings, container = bootstrap_core(config_path)
     notifier = NullMatchNotifier()
     app = create_app(container, notifier)
 
-    server_config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server_config = uvicorn.Config(
+        app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+    )
     server = _Server(server_config)
 
     loop = asyncio.get_running_loop()

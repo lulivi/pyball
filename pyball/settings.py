@@ -58,6 +58,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "locale",
         "display_date_format",
         "data_dir",
+        "api_port",
     )
     raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
 
@@ -79,6 +80,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         locale=raw["locale"],
         display_date_format=raw["display_date_format"],
         data_dir=raw["data_dir"],
+        api_port=_parse_api_port(raw["api_port"]),
     )
 
     return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
@@ -113,6 +115,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     default_week_day: str = "wednesday"
     default_hour: str = "20:00"
     base_url: str = "http://localhost:8000"
+    api_port: int = 8000
     team_colors: tuple[str, str] = ("blanco", "negro")
     team_emojis: tuple[str, str] = field(init=False)
     team_hex_bg: tuple[str, str] = field(init=False)
@@ -164,6 +167,14 @@ class AppSettings:
 
     pyball: PyballConfig = field(default_factory=PyballConfig)
     paths: Paths = field(default_factory=Paths)
+
+
+def _parse_api_port(value) -> int:
+    """Parse api_port from config int or env var string."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 8000
 
 
 def _parse_team_colors(value) -> tuple[str, str]:

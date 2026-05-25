@@ -77,7 +77,9 @@ async def _main_async(config_path: Path) -> None:
 
     notifier = TelegramMatchNotifier(application.bot, tg_settings, container)
     fastapi_app = create_app(container, notifier)
-    server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
+    server_config = uvicorn.Config(
+        fastapi_app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+    )
     server = _Server(server_config)
 
     assert application.updater is not None, "Updater must be set before starting"

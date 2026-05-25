@@ -20,6 +20,7 @@ team_colors = ["blanco", "negro"]
 locale = "en_US.UTF-8"
 display_date_format = "%Y-%m-%d %H:%M"
 data_dir = "data"
+api_port = 8000
 """
 
 
