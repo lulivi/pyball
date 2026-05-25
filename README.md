@@ -32,12 +32,13 @@ uv sync --all-extras
 make up
 ```
 
-This starts both the Telegram polling bot and the FastAPI HTTP server (port 8000) for the match-tracking UI inside the Docker container.
+This builds and starts the Telegram topology (bot + FastAPI on port 8000) inside Docker.
 
-Or run directly without Docker container:
+Or run directly without Docker:
 
 ```bash
-uv run pyball
+uv run pyball-tg   # Telegram + FastAPI (port 8000)
+uv run pyball-web  # FastAPI only (port 8000) — no Telegram required
 ```
 
 ## Development
