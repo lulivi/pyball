@@ -1,7 +1,5 @@
 from datetime import datetime
 
-import pytest
-
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _DATA = {
