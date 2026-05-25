@@ -21,6 +21,7 @@
 
 from pyball.application.meetup import (
     AddPlayerToMeetup,
+    ComputeStats,
     CreateMeetup,
     CreateTeams,
     CreateTeamsManually,
@@ -97,25 +98,39 @@ class Container:
         """Create a new CreateTeamsManually use case."""
         return CreateTeamsManually(self.meetup_repository, self.player_repository)
 
-    def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
-        """Build the algorithm registry with all available algorithms."""
-        return {
-            "balanceado": BalancedAlgorithm(self.legacy_stats),
-            "random": RandomAlgorithm(),
-        }
-
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""
         return StartMatch(
             self.meetup_repository,
             self.player_repository,
             self._settings.pyball.base_url,
-            team_display_names=self._settings.pyball.team_display_names,
+            team_colors=self._settings.pyball.team_colors,
+            team_hex_bg=self._settings.pyball.team_hex_bg,
+            team_hex_text=self._settings.pyball.team_hex_text,
         )
 
     def finish_match(self) -> FinishMatch:
         """Create a new FinishMatch use case."""
         return FinishMatch(self.meetup_repository, self.player_repository)
+
+    def compute_stats(self) -> ComputeStats:
+        """Create a new ComputeStats use case."""
+        return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
+
+    @property
+    def team_colors(self) -> tuple[str, str]:
+        """Return the configured team color names."""
+        return self._settings.pyball.team_colors
+
+    @property
+    def team_emojis(self) -> tuple[str, str]:
+        """Return the configured team emojis."""
+        return self._settings.pyball.team_emojis
+
+    @property
+    def default_hour(self) -> str:
+        """Return the configured default match hour as 'HH:MM'."""
+        return self._settings.pyball.default_hour
 
     @property
     def player_repository(self) -> PlayerRepository:
@@ -138,3 +153,10 @@ class Container:
             legacy_path = self._settings.paths.data_dir / "legacy_stats.json"
             self._legacy_stats = LegacyStats.from_file(str(legacy_path))
         return self._legacy_stats
+
+    def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
+        """Build the algorithm registry with all available algorithms."""
+        return {
+            "balanceado": BalancedAlgorithm(self.legacy_stats),
+            "random": RandomAlgorithm(),
+        }

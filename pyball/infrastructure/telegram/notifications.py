@@ -104,7 +104,8 @@ async def refresh_callup_messages(
         text = format_main_message(
             meetup,
             player_names,
-            team_display_names=settings.pyball.team_display_names,
+            team_colors=settings.pyball.team_colors,
+            team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
         )
         kb = (
@@ -131,7 +132,8 @@ async def refresh_callup_messages(
             meetup,
             player_names,
             player_groups,
-            team_display_names=settings.pyball.team_display_names,
+            team_colors=settings.pyball.team_colors,
+            team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
         )
         kb = build_subs_keyboard(meetup.date) if include_keyboard else None

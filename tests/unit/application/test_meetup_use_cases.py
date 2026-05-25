@@ -381,7 +381,9 @@ class TestStartMatch:
             self.meetup_repo,
             self.player_repo,
             "http://pyball:8000",
-            team_display_names=("Claro", "Oscuro"),
+            team_colors=("blanco", "negro"),
+            team_hex_bg=("#e4e4e7", "#27272a"),
+            team_hex_text=("#27272a", "#e4e4e7"),
         )
 
     def _add_players_and_teams(self, meetup):
@@ -419,14 +421,28 @@ class TestStartMatch:
             self.use_case.execute(datetime(2026, 4, 12, 20, 0))
 
     def test_url_contains_name_params(self):
-        """StartMatch URL contains nameA and nameB query params with display names."""
+        """StartMatch URL contains nameA and nameB derived from capitalized color names."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self._add_players_and_teams(meetup)
 
         url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
+        decoded = urllib.parse.unquote(url)
 
-        assert "nameA=Claro" in url or "nameA=Claro" in urllib.parse.unquote(url)
-        assert "nameB=Oscuro" in url or "nameB=Oscuro" in urllib.parse.unquote(url)
+        assert "nameA=Blanco" in decoded
+        assert "nameB=Negro" in decoded
+
+    def test_url_contains_color_params(self):
+        """StartMatch URL contains colorA/colorB/colorTextA/colorTextB params."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        self._add_players_and_teams(meetup)
+
+        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
+        decoded = urllib.parse.unquote(url)
+
+        assert "colorA=#e4e4e7" in decoded
+        assert "colorB=#27272a" in decoded
+        assert "colorTextA=#27272a" in decoded
+        assert "colorTextB=#e4e4e7" in decoded
 
 
 class TestFinishMatch:

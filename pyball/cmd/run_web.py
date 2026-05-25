@@ -19,28 +19,46 @@
 # SOFTWARE.
 """Web-only topology entrypoint — FastAPI without Telegram."""
 
+import argparse
 import asyncio
 import signal
+import sys
+from pathlib import Path
 
 import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
 from pyball.application.notifier import NullMatchNotifier
 from pyball.infrastructure.http.app import _Server, create_app
+from pyball.settings import SettingsValidationError
 
 
 def main() -> None:
     """Start the FastAPI server without any Telegram integration."""
-    asyncio.run(_main_async())
+    parser = argparse.ArgumentParser(description="PyBall web-only server")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.toml"),
+        help="Path to config.toml (default: config.toml)",
+    )
+    args = parser.parse_args()
+    try:
+        asyncio.run(_main_async(args.config))
+    except SettingsValidationError as exc:
+        print(f"Error de configuración: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
-async def _main_async() -> None:
+async def _main_async(config_path: Path) -> None:
     """Boot the web-only topology."""
-    _, container = bootstrap_core()
+    app_settings, container = bootstrap_core(config_path)
     notifier = NullMatchNotifier()
     app = create_app(container, notifier)
 
-    server_config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server_config = uvicorn.Config(
+        app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+    )
     server = _Server(server_config)
 
     loop = asyncio.get_running_loop()

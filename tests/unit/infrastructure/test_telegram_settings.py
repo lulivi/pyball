@@ -43,6 +43,14 @@ def _write_config(tmp_path: Path, content: str) -> Path:
 _MINIMAL_CONFIG = """
 [pyball.core]
 location = "Test Park"
+default_week_day = "wednesday"
+default_hour = "20:00"
+base_url = "http://localhost:8000"
+team_colors = ["blanco", "negro"]
+locale = "en_US.UTF-8"
+display_date_format = "%Y-%m-%d %H:%M"
+data_dir = "data"
+api_port = 8000
 
 [pyball.telegram]
 bot_token = "tok"
@@ -50,9 +58,14 @@ admins_ids = [1]
 
 [pyball.telegram.regulars]
 chat_id = -100111
+meetups_thread_id = ""
+stats_thread_id = ""
 
 [pyball.telegram.substitutes]
 chat_id = -100222
+
+[pyball.telegram.management]
+chat_id = 0
 """
 
 
@@ -142,16 +155,40 @@ class TestLoadTelegramAppSettings:
         settings = load_telegram_app_settings(base, cfg)
         assert settings.telegram.substitutes.chat_id == -100222
 
-    def test_management_defaults_to_zero(self, tmp_path):
-        """management.chat_id defaults to 0 when section absent."""
+    def test_management_chat_id_zero_is_valid(self, tmp_path):
+        """management.chat_id = 0 is valid (means disabled)."""
         base = _base(tmp_path)
         cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
         settings = load_telegram_app_settings(base, cfg)
         assert settings.telegram.management.chat_id == 0
 
+    def test_missing_management_chat_id_raises(self, tmp_path):
+        """Absent management.chat_id raises SettingsValidationError."""
+        config = _MINIMAL_CONFIG.replace("\n[pyball.telegram.management]\nchat_id = 0\n", "")
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, config)
+        with pytest.raises(SettingsValidationError, match="management.chat_id"):
+            load_telegram_app_settings(base, cfg)
+
+    def test_missing_meetups_thread_id_raises(self, tmp_path):
+        """Absent meetups_thread_id raises SettingsValidationError."""
+        config = _MINIMAL_CONFIG.replace('meetups_thread_id = ""\n', "")
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, config)
+        with pytest.raises(SettingsValidationError, match="meetups_thread_id"):
+            load_telegram_app_settings(base, cfg)
+
+    def test_missing_stats_thread_id_raises(self, tmp_path):
+        """Absent stats_thread_id raises SettingsValidationError."""
+        config = _MINIMAL_CONFIG.replace('stats_thread_id = ""\n', "")
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, config)
+        with pytest.raises(SettingsValidationError, match="stats_thread_id"):
+            load_telegram_app_settings(base, cfg)
+
     def test_loads_management_chat_id(self, tmp_path):
         """management.chat_id is read when present."""
-        config = _MINIMAL_CONFIG + "\n[pyball.telegram.management]\nchat_id = -999\n"
+        config = _MINIMAL_CONFIG.replace("chat_id = 0", "chat_id = -999")
         base = _base(tmp_path)
         cfg = _write_config(tmp_path, config)
         settings = load_telegram_app_settings(base, cfg)
@@ -160,8 +197,8 @@ class TestLoadTelegramAppSettings:
     def test_loads_thread_ids(self, tmp_path):
         """meetups_thread_id and stats_thread_id are read from config."""
         config = _MINIMAL_CONFIG.replace(
-            "chat_id = -100111",
-            "chat_id = -100111\nmeetups_thread_id = '42'\nstats_thread_id = '7'",
+            'meetups_thread_id = ""\nstats_thread_id = ""',
+            "meetups_thread_id = '42'\nstats_thread_id = '7'",
         )
         base = _base(tmp_path)
         cfg = _write_config(tmp_path, config)
@@ -169,12 +206,26 @@ class TestLoadTelegramAppSettings:
         assert settings.telegram.regulars.meetups_thread_id == "42"
         assert settings.telegram.regulars.stats_thread_id == "7"
 
+    def test_missing_config_file_raises(self, tmp_path):
+        """Missing config file raises SettingsValidationError immediately."""
+        base = _base(tmp_path)
+        with pytest.raises(SettingsValidationError, match="No se encontró"):
+            load_telegram_app_settings(base, tmp_path / "nonexistent.toml")
+
     def test_missing_bot_token_raises(self, tmp_path):
         """Empty bot_token raises SettingsValidationError."""
         config = _MINIMAL_CONFIG.replace('bot_token = "tok"', 'bot_token = ""')
         base = _base(tmp_path)
         cfg = _write_config(tmp_path, config)
         with pytest.raises(SettingsValidationError):
+            load_telegram_app_settings(base, cfg)
+
+    def test_missing_admins_ids_raises(self, tmp_path):
+        """Empty admins_ids raises SettingsValidationError."""
+        config = _MINIMAL_CONFIG.replace("admins_ids = [1]", "admins_ids = []")
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, config)
+        with pytest.raises(SettingsValidationError, match="admins_ids"):
             load_telegram_app_settings(base, cfg)
 
     def test_missing_regulars_chat_id_raises(self, tmp_path):

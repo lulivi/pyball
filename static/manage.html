@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest-manage.json">
+<title>PyBall Gestión</title>
+<script src="/qrcode.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+  body { padding: 8px 12px 24px; max-width: 480px; margin: 0 auto; }
+
+  .page-title { text-align: center; padding: 8px 0 12px; font-size: 1.1rem; font-weight: bold; color: #64748b; }
+
+  /* Tab bar — identical to match page */
+  .tab-bar { display: flex; justify-content: space-around; background: #1e293b; border-radius: 8px; margin-bottom: 12px; padding: 4px; }
+  .tab-btn { flex: 1; padding: 8px 12px; font-size: 0.9rem; font-weight: bold; color: #94a3b8; background: transparent; border: none; border-radius: 6px; cursor: pointer; }
+  .tab-btn.active { background: #334155; color: #f8fafc; }
+
+  .tab-view { display: none; }
+  .tab-view.active { display: block; }
+
+  /* Section labels */
+  .step-label { font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+
+  /* Textarea */
+  .paste-area { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; font-size: 0.82rem; padding: 10px; resize: vertical; font-family: monospace; line-height: 1.5; min-height: 140px; }
+
+  /* Buttons */
+  .btn { width: 100%; padding: 12px; font-size: 0.95rem; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+  .btn-blue  { background: #2563eb; }
+  .btn-green { background: #16a34a; }
+  .btn-teal  { background: #0f766e; }
+  .btn-sm { width: auto; padding: 8px 14px; font-size: 0.82rem; font-weight: bold; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  .btn-sm.gray  { background: #334155; }
+  .btn-sm.green { background: #16a34a; }
+
+  /* Player list rows */
+  #chip-container { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .chip { display: flex; align-items: center; gap: 8px; border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; user-select: none; width: 100%; }
+  .chip.ok   { background: #1e293b; border-color: #22c55e; color: #f8fafc; }
+  .chip.warn { background: #1e293b; border-color: #f59e0b; color: #fbbf24; }
+  .chip.err  { background: #1e293b; border-color: #ef4444; color: #fca5a5; }
+  .chip.excl { background: #1e293b; border-color: #334155; color: #475569; text-decoration: line-through; }
+  .chip-num  { font-size: 0.72rem; color: #64748b; min-width: 22px; flex-shrink: 0; }
+  .chip-label { flex: 1; }
+  .chip .chev { font-size: 0.6rem; color: #94a3b8; margin-left: auto; }
+
+  /* Parsed date badge */
+  .date-badge { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #38bdf8; background: #0c1f33; border: 1px solid #1e4a73; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
+
+  /* Expanded chip panel */
+  .chip-panel { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 10px; margin-bottom: 8px; width: 100%; }
+  .chip-panel.warn-panel { border-color: #f59e0b; }
+  .chip-panel.err-panel  { border-color: #ef4444; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .panel-raw  { font-size: 0.72rem; color: #94a3b8; }
+  .panel-raw span { color: #f8fafc; font-weight: bold; }
+  .close-x { font-size: 0.7rem; color: #64748b; cursor: pointer; padding: 2px 6px; border: 1px solid #334155; border-radius: 4px; background: transparent; }
+  .cand-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .cand-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; border: 1px solid transparent; }
+  .cand-item:hover { background: #334155; }
+  .cand-item.picked { background: #1d4ed8; border-color: #3b82f6; }
+  .cand-score { font-size: 0.7rem; color: #64748b; }
+  .cand-item.picked .cand-score { color: #93c5fd; }
+  .search-box { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.82rem; padding: 7px 10px; margin-bottom: 6px; }
+  .search-box::placeholder { color: #475569; }
+  .skip-link { width: 100%; padding: 6px; font-size: 0.78rem; font-weight: bold; color: #94a3b8; background: transparent; border: 1px solid #334155; border-radius: 6px; cursor: pointer; }
+
+  /* Teams result */
+  .teams-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.8; white-space: pre-wrap; }
+  .qr-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; gap: 8px; margin-bottom: 10px; }
+  .qr-hint { font-size: 0.75rem; color: #38bdf8; text-align: center; text-decoration: underline; }
+  .regen-row { display: flex; gap: 8px; margin-top: 6px; }
+
+  /* Summary tab */
+  .summary-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; }
+  .stats-box { background: #1e293b; border: 1px dashed #475569; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .stats-icon { font-size: 2rem; }
+  .divider { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
+  .empty-state { text-align: center; padding: 40px 16px; color: #64748b; font-size: 0.9rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="page-title">⚽ PyBall Gestión</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('equipos', this)">Equipos</button>
+  <button class="tab-btn" onclick="switchTab('resumen', this)">Resumen</button>
+</div>
+
+<!-- ── TAB: EQUIPOS ────────────────────────────────────────────────────── -->
+<div id="tab-equipos" class="tab-view active">
+
+  <!-- STEP 1: Paste callup -->
+  <div id="step-paste">
+    <div class="step-label">1. Pega la convocatoria</div>
+    <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
+    <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>
+  </div>
+
+  <!-- STEP 2: Review players -->
+  <div id="step-review" style="display:none">
+    <div class="step-label">2. Revisa los jugadores</div>
+    <div id="parsed-date-display" class="date-badge" style="display:none">📅 <span id="parsed-date-text"></span></div>
+    <div id="review-legend" style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">
+      ✓ Reconocido &nbsp; ⚠ Dudoso (toca para elegir) &nbsp; ✗ No encontrado (toca para buscar) &nbsp; Tachado = Reserva excluida
+    </div>
+    <div id="chip-container"></div>
+    <button class="btn btn-green" onclick="generateTeams()">⚽ Generar equipos equilibrados</button>
+  </div>
+
+  <!-- STEP 3: Teams + QR -->
+  <div id="step-teams" style="display:none">
+    <div class="step-label">3. Equipos generados</div>
+    <div id="teams-text" class="teams-box"></div>
+    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
+    <hr class="divider">
+    <div class="step-label">4. Abre el marcador en otro móvil</div>
+    <div class="qr-box">
+      <canvas id="qr-canvas"></canvas>
+      <a class="qr-hint" id="qr-hint" target="_blank" rel="noopener"></a>
+    </div>
+    <div class="regen-row">
+      <button class="btn-sm gray" onclick="backToReview()">← Cambiar jugadores</button>
+      <button class="btn-sm green" onclick="generateTeams()">↺ Regenerar equipos</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── TAB: RESUMEN ────────────────────────────────────────────────────── -->
+<div id="tab-resumen" class="tab-view">
+  <div id="resumen-content"></div>
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────────────────────
+let allPlayers = [];        // [{id, name}, ...] from /api/players
+let parsedPlayers = [];     // [{raw, player_id, name, confidence, candidates, excluded}, ...]
+let lastTeamsPayload = null; // last successful create-with-teams response
+let expandedIdx = null;     // which chip is expanded
+let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:00"
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'resumen') loadResumen();
+}
+
+// ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
+async function parseCallup() {
+  const text = document.getElementById('callup-input').value.trim();
+  if (!text) { alert('Pega la convocatoria primero.'); return; }
+  try {
+    const [playersRes, parseRes] = await Promise.all([
+      fetch('/api/players').then(r => r.json()),
+      fetch('/api/meetup/parse-callup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+      }).then(r => r.json())
+    ]);
+    allPlayers = playersRes;
+    lastParsedDate = parseRes.date || null;
+    const dateDisplay = document.getElementById('parsed-date-display');
+    if (lastParsedDate) {
+      document.getElementById('parsed-date-text').textContent = _formatDate(lastParsedDate);
+      dateDisplay.style.display = 'flex';
+    } else {
+      dateDisplay.style.display = 'none';
+    }
+    parsedPlayers = [
+      ...parseRes.titulars.map(p => ({...p, excluded: false})),
+      ...parseRes.reserves.map(p => ({...p, excluded: true}))
+    ];
+    expandedIdx = null;
+    showStep('review');
+    renderChips();
+  } catch(e) { alert('Error al reconocer jugadores: ' + e.message); }
+}
+
+// ── CHIP RENDERING ────────────────────────────────────────────────────────────
+function renderChips() {
+  const container = document.getElementById('chip-container');
+  container.innerHTML = '';
+  parsedPlayers.forEach((p, i) => {
+    if (expandedIdx === i) {
+      container.appendChild(buildPanel(i));
+    } else {
+      container.appendChild(buildChip(i));
+    }
+  });
+}
+
+function chipClass(p) {
+  if (p.excluded) return 'excl';
+  if (p.player_id) return 'ok';
+  if (p.candidates && p.candidates.length > 0) return 'warn';
+  return 'err';
+}
+
+function chipLabel(p) {
+  if (p.excluded) return p.name || p.raw;
+  if (p.player_id) return '✓ ' + p.name;
+  if (p.candidates && p.candidates.length > 0) return '⚠ ' + p.raw;
+  return '✗ ' + p.raw;
+}
+
+function buildChip(i) {
+  const p = parsedPlayers[i];
+  const el = document.createElement('div');
+  el.className = 'chip ' + chipClass(p);
+  el.innerHTML = `<span class="chip-num">${i + 1}.</span><span class="chip-label">${escHtml(chipLabel(p))}</span>${p.excluded ? '' : '<span class="chev">▼</span>'}`;
+  if (!p.excluded) {
+    el.onclick = () => { expandedIdx = (expandedIdx === i ? null : i); renderChips(); };
+  } else {
+    el.onclick = () => { p.excluded = false; renderChips(); };
+    el.title = 'Clic para incluir';
+  }
+  return el;
+}
+
+function buildPanel(i) {
+  const p = parsedPlayers[i];
+  const isWarn = p.candidates && p.candidates.length > 0;
+  const div = document.createElement('div');
+  div.className = 'chip-panel ' + (isWarn ? 'warn-panel' : 'err-panel');
+
+  div.innerHTML = `
+    <div class="panel-header">
+      <div class="panel-raw">Texto original: <span>${escHtml(p.raw)}</span></div>
+      <button class="close-x" onclick="closePanel()">✕</button>
+    </div>
+    ${isWarn ? buildCandidateList(i) : buildSearch(i)}
+    <button class="skip-link" onclick="excludePlayer(${i})">⊘ No incluir este jugador</button>
+  `;
+  return div;
+}
+
+function buildCandidateList(i) {
+  const p = parsedPlayers[i];
+  let html = '<div class="step-label" style="font-size:0.68rem;margin-bottom:4px;">Candidatos por similitud</div><div class="cand-list">';
+  p.candidates.forEach(c => {
+    const pct = Math.round(c.confidence * 100);
+    html += `<div class="cand-item" onclick="pickCandidate(${i},'${c.player_id}')">
+      ${escHtml(c.name)} <span class="cand-score">${pct}%</span>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function buildSearch(i) {
+  return `
+    <div class="step-label" style="font-size:0.68rem;margin-bottom:4px;">Buscar en la base de datos</div>
+    <input class="search-box" id="search-${i}" type="text" placeholder="Escribe para buscar..."
+      oninput="renderSearchResults(${i})">
+    <div id="search-results-${i}" class="cand-list"></div>
+  `;
+}
+
+function renderSearchResults(i) {
+  const query = document.getElementById('search-' + i).value.toLowerCase();
+  const resultsEl = document.getElementById('search-results-' + i);
+  if (!query) { resultsEl.innerHTML = ''; return; }
+  const matches = allPlayers.filter(p => p.name.toLowerCase().includes(query)).slice(0, 6);
+  resultsEl.innerHTML = matches.map(p =>
+    `<div class="cand-item" onclick="pickCandidate(${i},'${p.id}')">${escHtml(p.name)}</div>`
+  ).join('');
+}
+
+function pickCandidate(i, player_id) {
+  const fromCandidates = parsedPlayers[i].candidates.find(c => c.player_id === player_id);
+  const fromAllPlayers = allPlayers.find(p => p.id === player_id);
+  const name = (fromCandidates && fromCandidates.name) || (fromAllPlayers && fromAllPlayers.name) || player_id;
+  parsedPlayers[i].player_id = player_id;
+  parsedPlayers[i].name = name;
+  parsedPlayers[i].candidates = [];
+  parsedPlayers[i].confidence = 1.0;
+  closePanel();
+}
+
+function excludePlayer(i) {
+  parsedPlayers[i].excluded = true;
+  parsedPlayers[i].player_id = null;
+  closePanel();
+}
+
+function closePanel() { expandedIdx = null; renderChips(); }
+
+// ── STEP 2 → 3: GENERATE TEAMS ───────────────────────────────────────────────
+async function generateTeams() {
+  const confirmed = parsedPlayers.filter(p => !p.excluded && p.player_id);
+  if (confirmed.length < 2) {
+    alert('Necesitas al menos 2 jugadores reconocidos para generar equipos.');
+    return;
+  }
+  const unresolved = parsedPlayers.filter(p => !p.excluded && !p.player_id);
+  if (unresolved.length > 0) {
+    const names = unresolved.map(p => p.raw).join(', ');
+    if (!confirm(`Hay ${unresolved.length} jugador(es) sin resolver: ${names}.\n¿Continuar igualmente?`)) return;
+  }
+
+  const today = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const date = lastParsedDate ||
+    `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}T20:00`;
+
+  try {
+    const res = await fetch('/api/meetup/create-with-teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date,
+        player_ids: confirmed.map(p => p.player_id),
+        algorithm: 'balanceado'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.detail || res.statusText));
+      return;
+    }
+    lastTeamsPayload = await res.json();
+  } catch(e) { alert('Error de red: ' + e.message); return; }
+  showTeamsResult();
+}
+
+function showTeamsResult() {
+  const {team_a, team_b, name_a, name_b, emoji_a, emoji_b, match_url} = lastTeamsPayload;
+  const text = `${emoji_a} *${name_a}*\n${team_a.join('\n')}\n\n${emoji_b} *${name_b}*\n${team_b.join('\n')}`;
+  document.getElementById('teams-text').textContent = text;
+  const qrHint = document.getElementById('qr-hint');
+  qrHint.textContent = 'Link del partido';
+  qrHint.href = match_url;
+
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(match_url);
+    qr.make();
+    const canvas = document.getElementById('qr-canvas');
+    const cells = qr.getModuleCount();
+    const scale = Math.max(2, Math.floor(150 / cells));
+    canvas.width = cells * scale;
+    canvas.height = cells * scale;
+    const ctx = canvas.getContext('2d');
+    for (let r = 0; r < cells; r++) {
+      for (let c = 0; c < cells; c++) {
+        ctx.fillStyle = qr.isDark(r, c) ? '#000000' : '#ffffff';
+        ctx.fillRect(c * scale, r * scale, scale, scale);
+      }
+    }
+  } catch(e) {
+    document.getElementById('qr-canvas').style.display = 'none';
+  }
+
+  showStep('teams');
+}
+
+function copyTeams() {
+  const text = document.getElementById('teams-text').textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+}
+
+function backToReview() { showStep('review'); renderChips(); }
+
+// ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
+async function loadResumen() {
+  const el = document.getElementById('resumen-content');
+  el.innerHTML = '<div class="empty-state">Cargando...</div>';
+  try {
+    const latestRes = await fetch('/api/match/latest');
+    if (latestRes.status === 404) {
+      el.innerHTML = '<div class="empty-state">Aún no hay partidos terminados.</div>';
+      return;
+    }
+    const {date} = await latestRes.json();
+    const summaryRes = await fetch(`/api/match/${encodeURIComponent(date)}/summary`);
+    if (!summaryRes.ok) { el.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>'; return; }
+    const {date_label, message} = await summaryRes.json();
+
+    el.innerHTML = `
+      <div class="step-label">${escHtml(date_label)}</div>
+      <div class="summary-box" id="summary-msg">${escHtml(message)}</div>
+      <button class="btn btn-teal" onclick="copySummary()">📋 Copiar para WhatsApp</button>
+      <hr class="divider">
+      <div class="step-label">Imagen de estadísticas</div>
+      <div class="stats-box">
+        <div class="stats-icon">📊</div>
+        <div style="font-size:0.8rem;color:#94a3b8;text-align:center;">Generada por PyBall · ${escHtml(date_label)}</div>
+        <button class="btn btn-sm green" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">⬇ Descargar imagen</button>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
+}
+
+function copySummary() {
+  const text = document.getElementById('summary-msg').textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+}
+
+async function downloadStats(date) {
+  const url = `/api/match/${encodeURIComponent(date)}/stats.png`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `stats-${date}.png`;
+  a.click();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function showStep(name) {
+  ['paste','review','teams'].forEach(s =>
+    document.getElementById('step-' + s).style.display = s === name ? 'block' : 'none'
+  );
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(s) {
+  return String(s).replace(/'/g,"\\'");
+}
+
+function _formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
+}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+}
+</script>
+</body>
+</html>
