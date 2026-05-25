@@ -1,5 +1,5 @@
 const CACHE_NAME = 'pyball-v1';
-const STATIC_ASSETS = ['/match', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
+const STATIC_ASSETS = ['/match', '/manage', '/manifest-match.json', '/manifest-manage.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', event => {
     event.waitUntil(

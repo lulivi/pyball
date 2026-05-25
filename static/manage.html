@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest-manage.json">
 <title>PyBall Gestión</title>
 <script src="/qrcode.js"></script>
 <style>
@@ -435,6 +437,10 @@ function _formatDate(iso) {
   const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
+}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
 }
 </script>
 </body>
