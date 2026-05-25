@@ -401,7 +401,8 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = format_main_message(
         meetup,
         player_names,
-        team_display_names=settings.pyball.team_display_names,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
     )
     await message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
@@ -452,7 +453,8 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         meetup,
         player_names,
         player_groups,
-        team_display_names=settings.pyball.team_display_names,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
     )
     keyboard = build_subs_keyboard(meetup.date)
@@ -610,7 +612,8 @@ async def _send_callup_messages(context, settings, container, meetup) -> None:
     text = format_main_message(
         meetup,
         player_names,
-        team_display_names=settings.pyball.team_display_names,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
     )
     keyboard = build_main_keyboard(meetup.date)

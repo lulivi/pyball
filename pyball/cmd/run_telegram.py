@@ -19,9 +19,12 @@
 # SOFTWARE.
 """Telegram+FastAPI topology entrypoint."""
 
+import argparse
 import asyncio
 import logging
 import signal
+import sys
+from pathlib import Path
 
 import uvicorn
 
@@ -36,19 +39,32 @@ from pyball.infrastructure.telegram.bot.handlers import (
 from pyball.infrastructure.telegram.logging import config_telegram_logging
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 from pyball.infrastructure.telegram.settings import load_telegram_app_settings
+from pyball.settings import SettingsValidationError
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
     """Start the Telegram bot and FastAPI server together."""
-    asyncio.run(_main_async())
+    parser = argparse.ArgumentParser(description="PyBall Telegram+web server")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.toml"),
+        help="Path to config.toml (default: config.toml)",
+    )
+    args = parser.parse_args()
+    try:
+        asyncio.run(_main_async(args.config))
+    except SettingsValidationError as exc:
+        print(f"Error de configuración: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
-async def _main_async() -> None:
+async def _main_async(config_path: Path) -> None:
     """Boot the Telegram+FastAPI topology."""
-    app_settings, container = bootstrap_core()
-    tg_settings = load_telegram_app_settings(app_settings)
+    app_settings, container = bootstrap_core(config_path)
+    tg_settings = load_telegram_app_settings(app_settings, config_path)
     config_telegram_logging(tg_settings.telegram)
 
     application = create_application(tg_settings)
@@ -61,7 +77,9 @@ async def _main_async() -> None:
 
     notifier = TelegramMatchNotifier(application.bot, tg_settings, container)
     fastapi_app = create_app(container, notifier)
-    server_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
+    server_config = uvicorn.Config(
+        fastapi_app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+    )
     server = _Server(server_config)
 
     assert application.updater is not None, "Updater must be set before starting"

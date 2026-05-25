@@ -436,7 +436,7 @@ def _player_role(
 
     if legacy_stats and from_date is not None:
         pid_str = str(player_id.value)
-        assists += legacy_stats.get_assists_since(pid_str, from_date)
+        assists += legacy_stats.get_assists(pid_str, from_date)
 
     if goals > assists:
         return "scorer"
@@ -473,11 +473,7 @@ def _player_stats(
                 assists += 1
     if legacy_stats and mp > 0:
         pid_str = str(player_id.value)
-        if from_date is not None:
-            assists += legacy_stats.get_assists_since(pid_str, from_date)
-        else:
-            legacy = legacy_stats.get(pid_str)
-            assists += legacy["assists"]
+        assists += legacy_stats.get_assists(pid_str, from_date)
 
     if mp == 0:
         return 0, 0.0, 0.0, 0.0

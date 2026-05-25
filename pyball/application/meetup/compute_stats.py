@@ -174,17 +174,10 @@ def _aggregate(
 
     if legacy_stats:
         for pid, data in player_data.items():
-            if from_date is not None:
-                data.assists += legacy_stats.get_assists_since(pid, from_date)
-            else:
-                data.assists += legacy_stats.get(pid).get("assists", 0)
+            data.assists += legacy_stats.get_assists(pid, from_date)
         for pid in legacy_stats.all_players():
             if pid not in player_data:
-                leg_assists = (
-                    legacy_stats.get_assists_since(pid, from_date)
-                    if from_date is not None
-                    else legacy_stats.get(pid).get("assists", 0)
-                )
+                leg_assists = legacy_stats.get_assists(pid, from_date)
                 if leg_assists > 0:
                     player_data[pid] = _PlayerCounters()
                     player_data[pid].assists = leg_assists

@@ -21,6 +21,7 @@
 
 import locale
 import logging
+from pathlib import Path
 
 from pyball import __version__
 from pyball.application.container import Container
@@ -30,17 +31,20 @@ from pyball.settings import AppSettings, load_app_settings
 logger = logging.getLogger(__name__)
 
 
-def bootstrap_core() -> tuple[AppSettings, Container]:
+def bootstrap_core(config_path: Path = Path("config.toml")) -> tuple[AppSettings, Container]:
     """Initialise shared application components common to all topologies.
 
     Loads pyball.core settings, configures logging, sets locale, and builds
     the DI container. Integration-specific setup (Telegram, logging handlers,
     etc.) is the caller's responsibility.
 
+    Args:
+        config_path: Path to the TOML config file.
+
     Returns:
         Tuple of (AppSettings, Container).
     """
-    settings = load_app_settings()
+    settings = load_app_settings(config_path)
     config_logging()
     _log_startup_info()
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)

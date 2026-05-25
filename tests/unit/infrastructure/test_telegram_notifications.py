@@ -14,7 +14,8 @@ def _make_notifier(tmp_path):
     bot = AsyncMock()
     settings = MagicMock()
     settings.paths.data_dir = tmp_path
-    settings.pyball.team_display_names = ("A", "B")
+    settings.pyball.team_colors = ("blanco", "negro")
+    settings.pyball.team_emojis = ("⚪", "⚫")
     settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
     container = MagicMock()
     container.player_repository.find_all.return_value = []

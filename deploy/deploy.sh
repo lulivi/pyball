@@ -24,7 +24,7 @@ docker compose pull
 docker compose up -d
 
 sleep 5
-if docker compose ps | grep -q " Up "; then
+if docker compose ps | grep -qE "running| Up "; then
     notify "🚀 \#version ${SCAPED_VERSION} desplegada 🚀"
 else
     notify "💥 ERROR ${SCAPED_VERSION} no arrancó correctamente 💥"

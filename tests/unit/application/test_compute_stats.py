@@ -545,12 +545,9 @@ class TestComputeStatsLegacyAssistsInRankDelta:
         bob_id = str(bob.id.value)
         legacy = MagicMock(spec=LegacyStats)
         legacy.all_players.return_value = [bob_id]
-        legacy.get.side_effect = lambda pid: (
-            {"assists": 5, "goals": 0, "matches": 0}
-            if pid == bob_id
-            else {"assists": 0, "goals": 0, "matches": 0}
+        legacy.get_assists.side_effect = lambda pid, since: (
+            5 if pid == bob_id and since is None else 0
         )
-        legacy.get_assists_since.return_value = 0
 
         meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob, charlie])
         report = ComputeStats(meetup_repo, player_repo, legacy).execute()
@@ -572,8 +569,9 @@ class TestComputeStatsLegacyAssistsInRankDelta:
         legacy = MagicMock(spec=LegacyStats)
         legacy.all_players.return_value = [alice_id]
         # Alice has 0 all-time (pre-season) legacy assists but 5 season legacy assists
-        legacy.get.side_effect = lambda pid: {"assists": 0, "goals": 0, "matches": 0}
-        legacy.get_assists_since.side_effect = lambda pid, since: (5 if pid == alice_id else 0)
+        legacy.get_assists.side_effect = lambda pid, since: (
+            5 if pid == alice_id and since is not None else 0
+        )
 
         meetup_repo, player_repo = make_repos([meetup1, meetup2], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo, legacy).execute()
