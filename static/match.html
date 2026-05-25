@@ -109,7 +109,6 @@
 
         .btn-a { background: var(--color-light); color: var(--color-light-text); }
         .btn-b { background: var(--color-dark); color: var(--color-dark-text); }
-        .btn-noassist { background: #ca8a04; }
 
         /* ── TABS ────────────────────────────────────────── */
         .tab-bar {
@@ -297,6 +296,16 @@
         const savedState = localStorage.getItem('pyball_current_match');
         const savedTeams = localStorage.getItem('pyball_teams');
         const params = new URLSearchParams(window.location.search);
+        const colorA = params.get('colorA');
+        const colorB = params.get('colorB');
+        const colorTextA = params.get('colorTextA');
+        const colorTextB = params.get('colorTextB');
+        if (colorA) {
+            document.documentElement.style.setProperty('--color-light', colorA);
+            document.documentElement.style.setProperty('--color-light-text', colorTextA);
+            document.documentElement.style.setProperty('--color-dark', colorB);
+            document.documentElement.style.setProperty('--color-dark-text', colorTextB);
+        }
         const urlDate = params.get('date') || '';
 
         if (savedState && savedTeams) {
@@ -307,6 +316,12 @@
                 teamA = teams.teamA; teamB = teams.teamB;
                 nameA = teams.nameA || 'A'; nameB = teams.nameB || 'B';
                 meetupDate = teams.meetupDate;
+                if (teams.colorA) {
+                    document.documentElement.style.setProperty('--color-light', teams.colorA);
+                    document.documentElement.style.setProperty('--color-light-text', teams.colorTextA);
+                    document.documentElement.style.setProperty('--color-dark', teams.colorB);
+                    document.documentElement.style.setProperty('--color-dark-text', teams.colorTextB);
+                }
                 renderApp();
                 return;
             }
@@ -317,6 +332,12 @@
                 teamA = teams.teamA; teamB = teams.teamB;
                 nameA = teams.nameA || 'A'; nameB = teams.nameB || 'B';
                 meetupDate = teams.meetupDate;
+                if (teams.colorA) {
+                    document.documentElement.style.setProperty('--color-light', teams.colorA);
+                    document.documentElement.style.setProperty('--color-light-text', teams.colorTextA);
+                    document.documentElement.style.setProperty('--color-dark', teams.colorB);
+                    document.documentElement.style.setProperty('--color-dark-text', teams.colorTextB);
+                }
                 renderApp();
                 return;
             }
@@ -334,7 +355,13 @@
         teamA = teamAParam.split(',');
         teamB = teamBParam.split(',');
 
-        localStorage.setItem('pyball_teams', JSON.stringify({ teamA, teamB, nameA, nameB, meetupDate }));
+        localStorage.setItem('pyball_teams', JSON.stringify({
+            teamA, teamB, nameA, nameB, meetupDate,
+            colorA: colorA || null,
+            colorB: colorB || null,
+            colorTextA: colorTextA || null,
+            colorTextB: colorTextB || null,
+        }));
         renderApp();
     }
 
@@ -448,7 +475,7 @@
                 <span class="truncate-text">${escHtml(e.scorer)}</span> <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
             </button>`;
 
-        const assistLabel = e.assistant ? e.assistant : 'Sin asist.';
+        const assistLabel = e.assistant ? e.assistant : 'Sin asistente';
         const assistChip = `
             <button class="player-chip ${assistOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'assistant')">
                 <span class="truncate-text">${escHtml(assistLabel)}</span> <span class="chevron">${assistOpen ? '▲' : '▼'}</span>
@@ -475,18 +502,21 @@
         let colAClass = 'team-col', colBClass = 'team-col';
 
         const btnHtml = (p, teamId) => `<button class="player-btn btn-${teamId.toLowerCase()}" onclick="selectPlayer('${p}', '${teamId}')">${p}</button>`;
-        const noAssistBtn = `<button class="player-btn btn-noassist" onclick="registerGoal(null)">Sin asist.</button>`;
+        const noAssistBtn = (scorerTeam) => {
+            const oppositeClass = scorerTeam === 'A' ? 'btn-b' : 'btn-a';
+            return `<button class="player-btn ${oppositeClass}" onclick="registerGoal(null)">Sin asistente</button>`;
+        };
         const cancelBtn = (teamId) => `<button class="cancel-full-btn btn-${teamId.toLowerCase()}" onclick="cancelGoal()">Cancelar</button>`;
 
         if (currentStep === 1) {
             colAHtml = teamA.map(p => btnHtml(p, 'A')).join('');
             colBHtml = teamB.map(p => btnHtml(p, 'B')).join('');
         } else if (tempScorerTeam === 'A') {
-            colAHtml = teamA.map(p => p === tempScorer ? noAssistBtn : btnHtml(p, 'A')).join('');
+            colAHtml = teamA.map(p => p === tempScorer ? noAssistBtn('A') : btnHtml(p, 'A')).join('');
             colBHtml = cancelBtn('B');
             colBClass += ' waiting';
         } else {
-            colBHtml = teamB.map(p => p === tempScorer ? noAssistBtn : btnHtml(p, 'B')).join('');
+            colBHtml = teamB.map(p => p === tempScorer ? noAssistBtn('B') : btnHtml(p, 'B')).join('');
             colAHtml = cancelBtn('A');
             colAClass += ' waiting';
         }

@@ -27,11 +27,12 @@ from pyball.domain.meetup.models import Meetup
 class FormatMatchSummary:
     """Build the WhatsApp-format post-match summary for a finished meetup."""
 
-    def execute(
+    def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         meetup: Meetup,
         player_names: dict[str, str],
-        team_display_names: tuple[str, str] = ("A", "B"),
+        team_colors: tuple[str, str] = ("blanco", "negro"),
+        team_emojis: tuple[str, str] = ("⚪", "⚫"),
         date_label: str | None = None,
     ) -> str:
         """Return the WhatsApp-ready summary string.
@@ -39,7 +40,8 @@ class FormatMatchSummary:
         Args:
             meetup: A finished meetup with result and teams.
             player_names: Mapping of str(player_id.value) to display name.
-            team_display_names: Display names for team A and team B.
+            team_colors: Color name for team A and team B (capitalized as display name).
+            team_emojis: Circle emoji for team A and team B.
             date_label: Pre-formatted date string (e.g. "18 Mayo"). If None,
                 derived from meetup.date using the current locale.
 
@@ -53,7 +55,10 @@ class FormatMatchSummary:
 
         result = meetup.result
         teams = meetup.teams
-        name_a, name_b = team_display_names
+        name_a = team_colors[0].capitalize()
+        name_b = team_colors[1].capitalize()
+        emoji_a = team_emojis[0]
+        emoji_b = team_emojis[1]
         label = date_label or meetup.date.strftime("%-d %B").title()
 
         goals: dict[str, int] = {}
@@ -74,10 +79,10 @@ class FormatMatchSummary:
             "",
             "*RESULTADO:*",
             "",
-            f"*{name_a} - {result.score_a}*",
+            f"{emoji_a} *{name_a} - {result.score_a}*",
             *[_player_line(pid, player_names, goals, assists) for pid in team_a_ids],
             "",
-            f"*{name_b} - {result.score_b}*",
+            f"{emoji_b} *{name_b} - {result.score_b}*",
             *[_player_line(pid, player_names, goals, assists) for pid in team_b_ids],
         ]
         return "\n".join(lines)

@@ -333,8 +333,8 @@ async function generateTeams() {
 }
 
 function showTeamsResult() {
-  const {team_a, team_b, name_a, name_b, match_url} = lastTeamsPayload;
-  const text = `*${name_a}*\n${team_a.join('\n')}\n\n*${name_b}*\n${team_b.join('\n')}`;
+  const {team_a, team_b, name_a, name_b, emoji_a, emoji_b, match_url} = lastTeamsPayload;
+  const text = `${emoji_a} *${name_a}*\n${team_a.join('\n')}\n\n${emoji_b} *${name_b}*\n${team_b.join('\n')}`;
   document.getElementById('teams-text').textContent = text;
   const qrHint = document.getElementById('qr-hint');
   qrHint.textContent = 'Link del partido';

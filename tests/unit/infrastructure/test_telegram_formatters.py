@@ -167,7 +167,7 @@ def test_escape_mdv2_special_characters():
 
 
 def test_format_main_message_team_emojis():
-    """Teams should show ⚪ and ⚫ emojis."""
+    """Teams should show the configured emojis."""
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
@@ -176,7 +176,9 @@ def test_format_main_message_team_emojis():
     meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
-    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+    text = format_main_message(
+        meetup, player_names, team_colors=("blanco", "negro"), team_emojis=("⚪", "⚫")
+    )
 
     assert "⚪" in text
     assert "⚫" in text
@@ -191,18 +193,20 @@ def test_format_main_message_with_teams():
     meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
-    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+    text = format_main_message(
+        meetup, player_names, team_colors=("blanco", "negro"), team_emojis=("⚪", "⚫")
+    )
 
     assert "*Equipos:*" in text
-    assert "Claro" in text
-    assert "Oscuro" in text
+    assert "Blanco" in text
+    assert "Negro" in text
     assert "⚪" in text
     assert "⚫" in text
     assert "Luis" in text or "Carlos" in text
 
 
-def test_format_main_message_with_teams_shows_custom_display_names():
-    """format_main_message uses team_display_names instead of internal 'A'/'B'."""
+def test_format_main_message_with_teams_shows_color_as_name():
+    """format_main_message uses capitalized color name as team display name."""
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
@@ -211,10 +215,12 @@ def test_format_main_message_with_teams_shows_custom_display_names():
     meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
 
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
-    text = format_main_message(meetup, player_names, team_display_names=("Blancos", "Negros"))
+    text = format_main_message(
+        meetup, player_names, team_colors=("amarillo", "negro"), team_emojis=("🟡", "⚫")
+    )
 
-    assert "Blancos" in text
-    assert "Negros" in text
+    assert "Amarillo" in text
+    assert "Negro" in text
     assert "*A:*" not in text
     assert "*B:*" not in text
 
@@ -241,11 +247,13 @@ def test_format_main_message_with_result_shows_events():
     meetup.set_result(MatchResult(score_a=1, score_b=1, events=(event1, event2)))
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
-    text = format_main_message(meetup, player_names, team_display_names=("Claro", "Oscuro"))
+    text = format_main_message(
+        meetup, player_names, team_colors=("blanco", "negro"), team_emojis=("⚪", "⚫")
+    )
 
     assert "⏱️ *Goles:*" in text
-    assert r"\- ⚽ 10' `Dani` \- `Rafa`" in text
-    assert r"\- ⚽ 25' `Rafa`" in text
+    assert r"  \- ⚽ 10' `Dani` \- `Rafa`" in text
+    assert r"  \- ⚽ 25' `Rafa`" in text
 
 
 def test_format_main_message_with_result_shows_score():
@@ -258,10 +266,12 @@ def test_format_main_message_with_result_shows_score():
     meetup.set_result(MatchResult(score_a=3, score_b=1, events=(event,)))
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
-    text = format_main_message(meetup, player_names, team_display_names=("A", "B"))
+    text = format_main_message(
+        meetup, player_names, team_colors=("blanco", "negro"), team_emojis=("⚪", "⚫")
+    )
 
-    assert "A (3)" in text or r"A \(3\)" in text
-    assert "B (1)" in text or r"B \(1\)" in text
+    assert "Blanco" in text and "3" in text
+    assert "Negro" in text and "1" in text
     assert "Dani" in text
     assert "Rafa" in text
 

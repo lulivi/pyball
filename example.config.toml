@@ -1,69 +1,60 @@
 # PyBall Configuration
 # Copy this file to config.toml and fill in your values
+# All fields are required — the app will fail at startup if any are missing.
 # Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
 
 [pyball.core]
-# Required: Default location for meetups
 # Override with PYBALL_CORE_LOCATION
 location = "Parque Central"
 
-# Optional: Default weekday for meetups (monday, tuesday, wednesday, thursday, friday, saturday, sunday)
-# Override with PYBALL_CORE_DEFAULT_WEEK_DAY
+# Override with PYBALL_CORE_DEFAULT_WEEK_DAY (monday–sunday)
 default_week_day = "wednesday"
 
-# Optional: Default hour for meetups (HH:MM format)
-# Override with PYBALL_CORE_DEFAULT_HOUR
+# Override with PYBALL_CORE_DEFAULT_HOUR (HH:MM)
 default_hour = "20:00"
 
-# Optional: Base URL used to generate match links (use Tailscale hostname)
-# Override with PYBALL_CORE_BASE_URL
+# Override with PYBALL_CORE_BASE_URL (use Tailscale hostname)
 base_url = "http://pyball:8000"
 
-# Optional: Display names for the two teams (shown in Telegram messages and the match UI)
-# Override with PYBALL_CORE_TEAM_DISPLAY_NAMES (comma-separated, e.g. "Claro,Oscuro")
-team_display_names = ["Claro", "Oscuro"]
+# Colors for the two teams (display names, emojis and match UI)
+# Override with PYBALL_CORE_TEAM_COLORS (comma-separated, e.g. "amarillo,negro")
+# Available: blanco ⚪  negro ⚫  rojo 🔴  naranja 🟠  amarillo 🟡
+#            verde 🟢  azul 🔵  morado 🟣  marron 🟤
+team_colors = ["blanco", "negro"]
 
-# Optional: Locale for player name sorting
 # Override with PYBALL_CORE_LOCALE
 locale = "es_ES.UTF-8"
 
-# Optional: Directory for data files (players, meetups, etc.)
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
-# Optional: Display date format for Telegram messages and bot command parsing
 # Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
 display_date_format = "%Y-%m-%d %H:%M"
 
 [pyball.telegram]
-# Required: Telegram bot token
 # Override with PYBALL_TELEGRAM_BOT_TOKEN
 bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 
-# Required: List of authorized Telegram user IDs
 # Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
 admins_ids = [123456789, 987654321]
 
 [pyball.telegram.regulars]
-# Required: The main chat ID (negative number for groups)
-# Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID
+# Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID (negative number for groups)
 chat_id = -1000000000000
 
-# Optional: The forum topic thread for meetup callup messages
+# Forum topic thread for meetup callup messages (empty string to disable)
 # Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_THREAD_ID
 meetups_thread_id = ""
 
-# Optional: The forum topic thread where post-match statistics are posted
+# Forum topic thread where post-match statistics are posted (empty string to disable)
 # Override with PYBALL_TELEGRAM_REGULARS_STATS_THREAD_ID
 stats_thread_id = ""
 
 [pyball.telegram.substitutes]
-# Required: The substitutes chat ID (negative number for groups)
-# Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID (negative number for groups)
 chat_id = -1000000000001
 
 [pyball.telegram.management]
-# Optional: Management channel ID for operational log messages (INFO+ from pyball.*, ERROR+ from telegram)
+# Management channel ID for operational log messages (0 to disable)
 # Override with PYBALL_TELEGRAM_MANAGEMENT_CHAT_ID
-# Leave as 0 or omit the section to disable log forwarding
 chat_id = 0

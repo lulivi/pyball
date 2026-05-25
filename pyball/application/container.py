@@ -104,7 +104,9 @@ class Container:
             self.meetup_repository,
             self.player_repository,
             self._settings.pyball.base_url,
-            team_display_names=self._settings.pyball.team_display_names,
+            team_colors=self._settings.pyball.team_colors,
+            team_hex_bg=self._settings.pyball.team_hex_bg,
+            team_hex_text=self._settings.pyball.team_hex_text,
         )
 
     def finish_match(self) -> FinishMatch:
@@ -116,10 +118,14 @@ class Container:
         return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
 
     @property
-    def team_display_names(self) -> tuple[str, str]:
-        """Return the configured display names for team A and team B."""
-        names = self._settings.pyball.team_display_names
-        return (names[0], names[1])
+    def team_colors(self) -> tuple[str, str]:
+        """Return the configured team color names."""
+        return self._settings.pyball.team_colors
+
+    @property
+    def team_emojis(self) -> tuple[str, str]:
+        """Return the configured team emojis."""
+        return self._settings.pyball.team_emojis
 
     @property
     def default_hour(self) -> str:

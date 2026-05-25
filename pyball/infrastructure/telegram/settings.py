@@ -87,30 +87,35 @@ def load_telegram_app_settings(
     Raises:
         SettingsValidationError: If required Telegram settings are missing.
     """
-    config: dict = {}
-    if config_path.exists():
-        with open(config_path, "rb") as f:
-            config = tomllib.load(f)
+    if not config_path.exists():
+        raise SettingsValidationError(
+            f"No se encontró el archivo de configuración: '{config_path}'. "
+            "Copia example.config.toml a config.toml y completa los valores."
+        )
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
 
     telegram_cfg = config.get("pyball", {}).get("telegram", {})
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
     management_cfg = telegram_cfg.get("management", {})
 
+    raw_meetups_thread = _get_env_override(
+        "telegram.regulars", "meetups_thread_id", regulars_cfg.get("meetups_thread_id")
+    )
+    raw_stats_thread = _get_env_override(
+        "telegram.regulars", "stats_thread_id", regulars_cfg.get("stats_thread_id")
+    )
+    raw_management_chat = _get_env_override(
+        "telegram.management", "chat_id", management_cfg.get("chat_id")
+    )
+
     regulars = RegularsChatSettings(
         chat_id=_parse_chat_id(
             _get_env_override("telegram.regulars", "chat_id", regulars_cfg.get("chat_id", 0))
         ),
-        meetups_thread_id=_get_env_override(
-            "telegram.regulars",
-            "meetups_thread_id",
-            regulars_cfg.get("meetups_thread_id", ""),
-        ),
-        stats_thread_id=_get_env_override(
-            "telegram.regulars",
-            "stats_thread_id",
-            regulars_cfg.get("stats_thread_id", ""),
-        ),
+        meetups_thread_id=raw_meetups_thread if raw_meetups_thread is not None else "",
+        stats_thread_id=raw_stats_thread if raw_stats_thread is not None else "",
     )
     substitutes = TelegramChatSettings(
         chat_id=_parse_chat_id(
@@ -118,9 +123,7 @@ def load_telegram_app_settings(
         ),
     )
     management = ManagementChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override("telegram.management", "chat_id", management_cfg.get("chat_id", 0))
-        ),
+        chat_id=_parse_chat_id(raw_management_chat if raw_management_chat is not None else 0),
     )
     telegram = TelegramSettings(
         bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
@@ -135,10 +138,18 @@ def load_telegram_app_settings(
     missing = []
     if not telegram.bot_token:
         missing.append("telegram.bot_token")
+    if not telegram.admins_ids:
+        missing.append("telegram.admins_ids")
     if not telegram.regulars.chat_id:
         missing.append("telegram.regulars.chat_id")
     if not telegram.substitutes.chat_id:
         missing.append("telegram.substitutes.chat_id")
+    if raw_meetups_thread is None:
+        missing.append("telegram.regulars.meetups_thread_id")
+    if raw_stats_thread is None:
+        missing.append("telegram.regulars.stats_thread_id")
+    if raw_management_chat is None:
+        missing.append("telegram.management.chat_id")
 
     if missing:
         raise SettingsValidationError(

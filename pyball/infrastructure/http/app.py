@@ -200,10 +200,12 @@ def _register_match_routes(
 
         all_players = container.player_repository.find_all()
         player_names = {str(p.id.value): p.name for p in all_players}
-        name_a, name_b = container.team_display_names
 
         message = FormatMatchSummary().execute(
-            meetup, player_names, team_display_names=(name_a, name_b)
+            meetup,
+            player_names,
+            team_colors=container.team_colors,
+            team_emojis=container.team_emojis,
         )
         date_label = meetup.date.strftime("%-d %B").title()
         return {"date_label": date_label, "message": message}
@@ -301,15 +303,18 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
 
         all_players = container.player_repository.find_all()
         player_names = {str(p.id.value): p.name for p in all_players}
-        name_a, name_b = container.team_display_names
+        colors = container.team_colors
+        emojis = container.team_emojis
         team_a = [player_names[str(pid.value)] for pid in saved_meetup.teams[0].players]
         team_b = [player_names[str(pid.value)] for pid in saved_meetup.teams[1].players]
 
         return {
             "team_a": team_a,
             "team_b": team_b,
-            "name_a": name_a,
-            "name_b": name_b,
+            "name_a": colors[0].capitalize(),
+            "name_b": colors[1].capitalize(),
+            "emoji_a": emojis[0],
+            "emoji_b": emojis[1],
             "match_url": match_url,
         }
 

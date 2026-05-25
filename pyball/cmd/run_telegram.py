@@ -23,6 +23,7 @@ import argparse
 import asyncio
 import logging
 import signal
+import sys
 from pathlib import Path
 
 import uvicorn
@@ -38,6 +39,7 @@ from pyball.infrastructure.telegram.bot.handlers import (
 from pyball.infrastructure.telegram.logging import config_telegram_logging
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 from pyball.infrastructure.telegram.settings import load_telegram_app_settings
+from pyball.settings import SettingsValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,11 @@ def main() -> None:
         help="Path to config.toml (default: config.toml)",
     )
     args = parser.parse_args()
-    asyncio.run(_main_async(args.config))
+    try:
+        asyncio.run(_main_async(args.config))
+    except SettingsValidationError as exc:
+        print(f"Error de configuración: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 async def _main_async(config_path: Path) -> None:

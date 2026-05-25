@@ -105,7 +105,8 @@ def build_callback_data(action: str, meetup_date: datetime) -> str:
 def format_main_message(
     meetup: Meetup,
     player_names: dict,
-    team_display_names: tuple[str, str] = ("A", "B"),
+    team_colors: tuple[str, str] = ("blanco", "negro"),
+    team_emojis: tuple[str, str] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for main (regulars) chat.
@@ -136,9 +137,8 @@ def format_main_message(
             lines.append(rf"  \- `{name}`")
     else:
         lines.append("*Equipos:*")
-        team_emojis = ("⚪", "⚫")
         for i, team in enumerate(meetup.teams):
-            display_name = team_display_names[i] if i < len(team_display_names) else team.name
+            display_name = team_colors[i].capitalize() if i < len(team_colors) else team.name
             score = None
             if meetup.result is not None:
                 score = meetup.result.score_a if i == 0 else meetup.result.score_b
@@ -170,11 +170,12 @@ def format_main_message(
     return "\n".join(lines)
 
 
-def format_subs_message(
+def format_subs_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     meetup: Meetup,
     player_names: dict,
     player_groups: dict,
-    team_display_names: tuple[str, str] = ("Equipo A", "Equipo B"),
+    team_colors: tuple[str, str] = ("blanco", "negro"),
+    team_emojis: tuple[str, str] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only."""
@@ -196,7 +197,6 @@ def format_subs_message(
             for player in team.players:
                 team_map[str(player.value)] = i
 
-        team_emojis = ("⚪", "⚫")
         subs_by_team: dict[int, list[str]] = {}
         for player_id, name in suplentes:
             team_idx = team_map.get(str(player_id.value), -1)
@@ -211,8 +211,8 @@ def format_subs_message(
         for team_idx in sorted(subs_by_team.keys()):
             emoji = team_emojis[team_idx] if team_idx < len(team_emojis) else ""
             display_name = (
-                f"{team_display_names[team_idx]}:"
-                if team_idx < len(team_display_names)
+                f"{team_colors[team_idx].capitalize()}:"
+                if team_idx < len(team_colors)
                 else f"Equipo {team_idx}:"
             )
             names = ", ".join([f"`{player}`" for player in sorted(subs_by_team[team_idx])])

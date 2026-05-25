@@ -30,18 +30,22 @@ from pyball.domain.player.repository import PlayerRepository
 class StartMatch:
     """Use case for generating a match tracking URL."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         meetup_repository: MeetupRepository,
         player_repository: PlayerRepository,
         base_url: str,
-        team_display_names: tuple[str, str] = ("A", "B"),
+        team_colors: tuple[str, str] = ("blanco", "negro"),
+        team_hex_bg: tuple[str, str] = ("#e4e4e7", "#27272a"),
+        team_hex_text: tuple[str, str] = ("#27272a", "#e4e4e7"),
     ):
-        """Initialize with repositories, the base URL, and team display names."""
+        """Initialize with repositories, base URL, and team color data."""
         self.meetup_repository = meetup_repository
         self.player_repository = player_repository
         self.base_url = base_url
-        self.team_display_names = team_display_names
+        self.team_colors = team_colors
+        self.team_hex_bg = team_hex_bg
+        self.team_hex_text = team_hex_text
 
     def execute(self, meetup_date: datetime) -> str:
         """Generate the match tracking URL for the given meetup date.
@@ -50,7 +54,7 @@ class StartMatch:
             meetup_date: Meetup datetime.
 
         Returns:
-            URL string with encoded team names and date.
+            URL string with encoded team names, color params, and date.
 
         Raises:
             MeetupNotFoundError: If no meetup exists on that date.
@@ -74,8 +78,12 @@ class StartMatch:
                 "date": meetup_date.strftime("%Y-%m-%dT%H:%M"),
                 "teamA": ",".join(team_a_names),
                 "teamB": ",".join(team_b_names),
-                "nameA": self.team_display_names[0],
-                "nameB": self.team_display_names[1],
+                "nameA": self.team_colors[0].capitalize(),
+                "nameB": self.team_colors[1].capitalize(),
+                "colorA": self.team_hex_bg[0],
+                "colorB": self.team_hex_bg[1],
+                "colorTextA": self.team_hex_text[0],
+                "colorTextB": self.team_hex_text[1],
             }
         )
         return f"{self.base_url}/match?{params}"

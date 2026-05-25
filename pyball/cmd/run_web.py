@@ -22,6 +22,7 @@
 import argparse
 import asyncio
 import signal
+import sys
 from pathlib import Path
 
 import uvicorn
@@ -29,6 +30,7 @@ import uvicorn
 from pyball.application.bootstrap import bootstrap_core
 from pyball.application.notifier import NullMatchNotifier
 from pyball.infrastructure.http.app import _Server, create_app
+from pyball.settings import SettingsValidationError
 
 
 def main() -> None:
@@ -41,7 +43,11 @@ def main() -> None:
         help="Path to config.toml (default: config.toml)",
     )
     args = parser.parse_args()
-    asyncio.run(_main_async(args.config))
+    try:
+        asyncio.run(_main_async(args.config))
+    except SettingsValidationError as exc:
+        print(f"Error de configuración: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 async def _main_async(config_path: Path) -> None:

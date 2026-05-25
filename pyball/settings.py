@@ -39,53 +39,66 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     Raises:
         SettingsValidationError: If required core settings are missing.
     """
-    config: dict = {}
-    if config_path.exists():
-        with open(config_path, "rb") as f:
-            config = tomllib.load(f)
+    if not config_path.exists():
+        raise SettingsValidationError(
+            f"No se encontró el archivo de configuración: '{config_path}'. "
+            "Copia example.config.toml a config.toml y completa los valores."
+        )
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
 
     core_cfg = config.get("pyball", {}).get("core", {})
 
-    pyball = PyballConfig(
-        location=_get_env_override("core", "location", core_cfg.get("location", "")),
-        default_week_day=_get_env_override(
-            "core", "default_week_day", core_cfg.get("default_week_day", "wednesday")
-        ),
-        default_hour=_get_env_override(
-            "core", "default_hour", core_cfg.get("default_hour", "20:00")
-        ),
-        base_url=_get_env_override(
-            "core", "base_url", core_cfg.get("base_url", "http://localhost:8000")
-        ),
-        team_display_names=_parse_team_display_names(
-            _get_env_override(
-                "core",
-                "team_display_names",
-                core_cfg.get("team_display_names", ["Claro", "Oscuro"]),
-            )
-        ),
-        locale=_get_env_override("core", "locale", core_cfg.get("locale", "en_US.UTF-8")),
-        display_date_format=_get_env_override(
-            "core",
-            "display_date_format",
-            core_cfg.get("display_date_format", "%Y-%m-%d %H:%M"),
-        ),
-        data_dir=_get_env_override("core", "data_dir", core_cfg.get("data_dir", "data")),
+    core_keys = (
+        "location",
+        "default_week_day",
+        "default_hour",
+        "base_url",
+        "team_colors",
+        "locale",
+        "display_date_format",
+        "data_dir",
     )
+    raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
 
-    missing = []
-    if not pyball.location:
-        missing.append("core.location")
+    missing = [f"core.{k}" for k, v in raw.items() if v is None]
+    if raw.get("location") is not None and not raw["location"]:
+        missing.append("core.location (está vacío)")
     if missing:
         raise SettingsValidationError(
             f"Faltan parámetros requeridos: {', '.join(missing)}. "
             "Copia example.config.toml a config.toml y completa los valores."
         )
 
+    pyball = PyballConfig(
+        location=raw["location"],
+        default_week_day=raw["default_week_day"],
+        default_hour=raw["default_hour"],
+        base_url=raw["base_url"],
+        team_colors=_parse_team_colors(raw["team_colors"]),
+        locale=raw["locale"],
+        display_date_format=raw["display_date_format"],
+        data_dir=raw["data_dir"],
+    )
+
     return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
 
 
 LOGS_DIRECTORY_PATH = Path("logs")
+
+COLOR_PALETTE: dict[str, dict[str, str]] = {
+    # Colores disponibles: blanco ⚪  negro ⚫  rojo 🔴  naranja 🟠  amarillo 🟡
+    #                      verde 🟢  azul 🔵  morado 🟣  marron 🟤
+    "blanco": {"bg": "#e4e4e7", "text": "#27272a", "emoji": "⚪"},
+    "negro": {"bg": "#27272a", "text": "#e4e4e7", "emoji": "⚫"},
+    "rojo": {"bg": "#b91c1c", "text": "#fff1f2", "emoji": "🔴"},
+    "naranja": {"bg": "#ea580c", "text": "#ffffff", "emoji": "🟠"},
+    "amarillo": {"bg": "#fbbf24", "text": "#422006", "emoji": "🟡"},
+    "verde": {"bg": "#16a34a", "text": "#f0fdf4", "emoji": "🟢"},
+    "azul": {"bg": "#1d4ed8", "text": "#eff6ff", "emoji": "🔵"},
+    "morado": {"bg": "#7e22ce", "text": "#faf5ff", "emoji": "🟣"},
+    "marron": {"bg": "#92400e", "text": "#fef3c7", "emoji": "🟤"},
+}
 
 
 class SettingsValidationError(ValueError):
@@ -100,10 +113,32 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     default_week_day: str = "wednesday"
     default_hour: str = "20:00"
     base_url: str = "http://localhost:8000"
-    team_display_names: tuple[str, str] = ("Claro", "Oscuro")
+    team_colors: tuple[str, str] = ("blanco", "negro")
+    team_emojis: tuple[str, str] = field(init=False)
+    team_hex_bg: tuple[str, str] = field(init=False)
+    team_hex_text: tuple[str, str] = field(init=False)
     locale: str = "en_US.UTF-8"
     display_date_format: str = "%Y-%m-%d %H:%M"
     data_dir: str = "data"
+
+    def __post_init__(self) -> None:
+        """Resolve team_colors into derived emoji and hex fields."""
+        for name in self.team_colors:
+            if name not in COLOR_PALETTE:
+                valid = ", ".join(COLOR_PALETTE)
+                raise ValueError(f"Color de equipo desconocido: '{name}'. Opciones: {valid}")
+        self.team_emojis = (
+            COLOR_PALETTE[self.team_colors[0]]["emoji"],
+            COLOR_PALETTE[self.team_colors[1]]["emoji"],
+        )
+        self.team_hex_bg = (
+            COLOR_PALETTE[self.team_colors[0]]["bg"],
+            COLOR_PALETTE[self.team_colors[1]]["bg"],
+        )
+        self.team_hex_text = (
+            COLOR_PALETTE[self.team_colors[0]]["text"],
+            COLOR_PALETTE[self.team_colors[1]]["text"],
+        )
 
 
 @dataclass
@@ -131,15 +166,15 @@ class AppSettings:
     paths: Paths = field(default_factory=Paths)
 
 
-def _parse_team_display_names(value) -> tuple[str, str]:
-    """Parse team_display_names from config list or comma-separated env string."""
+def _parse_team_colors(value) -> tuple[str, str]:
+    """Parse team_colors from config list or comma-separated env string."""
     if isinstance(value, list) and len(value) == 2:
-        return (str(value[0]), str(value[1]))
+        return (str(value[0]).strip().lower(), str(value[1]).strip().lower())
     if isinstance(value, str):
-        parts = [p.strip() for p in value.split(",") if p.strip()]
+        parts = [p.strip().lower() for p in value.split(",") if p.strip()]
         if len(parts) == 2:
             return (parts[0], parts[1])
-    return ("Claro", "Oscuro")
+    return ("blanco", "negro")
 
 
 def _get_env_override(section: str, key: str, default):
