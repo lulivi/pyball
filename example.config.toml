@@ -1,6 +1,6 @@
 # PyBall Configuration
 # Copy this file to config.toml and fill in your values
-# All fields are required — the app will fail at startup if any are missing.
+# Most fields are required — the app will fail at startup if any are missing. Optional fields are marked.
 # Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
 
 [pyball.core]
