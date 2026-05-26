@@ -1,4 +1,5 @@
 """Tests for the FastAPI HTTP application."""
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -123,8 +124,6 @@ class TestActiveMatch:
     @pytest.mark.asyncio
     async def test_returns_200_with_team_data(self):
         """Returns team data for the most recent unfinished meetup with teams."""
-        from datetime import datetime
-
         meetup = MagicMock()
         meetup.result = None
         meetup.date = datetime(2026, 5, 26, 20, 0)
@@ -162,6 +161,8 @@ class TestActiveMatch:
         assert data["nameB"] == "Negro"
         assert data["colorA"] == "#e4e4e7"
         assert data["colorTextA"] == "#27272a"
+        assert data["colorB"] == "#27272a"
+        assert data["colorTextB"] == "#e4e4e7"
 
     @pytest.mark.asyncio
     async def test_returns_404_when_no_active_meetup(self):
