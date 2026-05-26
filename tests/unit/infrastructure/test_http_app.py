@@ -102,3 +102,16 @@ async def test_finish_match_422_does_not_call_notifier():
 
     assert response.status_code == 422
     assert len(notifier.closed) == 0
+
+
+@pytest.mark.asyncio
+async def test_auth_enforced_when_tokens_configured():
+    """create_app registers auth middleware when tokens are provided."""
+    container = MagicMock()
+    notifier = _StubNotifier()
+    auth_app = create_app(container, notifier, match_token="match-tok", manage_token="manage-tok")
+    async with AsyncClient(
+        transport=ASGITransport(app=auth_app), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/match/finish", json=_VALID_BODY)
+    assert response.status_code == 401

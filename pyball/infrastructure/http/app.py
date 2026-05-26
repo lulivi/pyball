@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from pyball.application.meetup import FormatMatchSummary, ParseCallupText
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.domain.player.models import PlayerId
+from pyball.infrastructure.http.auth import TokenAuthMiddleware
 
 try:
     from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer as _StatsRenderer
@@ -95,9 +96,14 @@ def create_app(
     container: "Container",
     notifier: "MatchNotifier",
     static_dir: Path = Path("static"),
+    match_token: str = "",
+    manage_token: str = "",
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="PyBall API")
+
+    if match_token or manage_token:
+        app.add_middleware(TokenAuthMiddleware, match_token=match_token, manage_token=manage_token)
 
     _register_static(app, static_dir)
     _register_match_routes(app, container, notifier)
