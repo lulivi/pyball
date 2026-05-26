@@ -34,6 +34,13 @@ locale = "es_ES.UTF-8"
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
+# Static tokens for Tailscale Funnel access (optional — leave empty to disable auth)
+# Override with PYBALL_CORE_MATCH_TOKEN
+# match_token = ""
+
+# Override with PYBALL_CORE_MANAGE_TOKEN
+# manage_token = ""
+
 [pyball.telegram]
 # Override with PYBALL_TELEGRAM_BOT_TOKEN
 bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"

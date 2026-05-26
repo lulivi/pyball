@@ -153,3 +153,37 @@ class TestPyballConfigColors:
         """Every color in COLOR_PALETTE can be used without raising."""
         for color in COLOR_PALETTE:
             PyballConfig(team_colors=(color, "negro"))
+
+
+class TestTokenSettings:
+    """Tests for optional match_token / manage_token config fields."""
+
+    def test_tokens_default_to_empty_string(self):
+        """PyballConfig defaults both tokens to empty string."""
+        settings = PyballConfig()
+        assert settings.match_token == ""
+        assert settings.manage_token == ""
+
+    def test_tokens_load_from_config(self, tmp_path):
+        """Tokens present in config.toml are loaded correctly."""
+        content = _FULL_CORE + 'match_token = "abc"\nmanage_token = "xyz"\n'
+        f = _write(tmp_path, content)
+        settings = load_app_settings(f)
+        assert settings.pyball.match_token == "abc"
+        assert settings.pyball.manage_token == "xyz"
+
+    def test_tokens_absent_from_config_default_to_empty(self, tmp_path):
+        """Absent token fields do not cause a validation error."""
+        f = _write(tmp_path, _FULL_CORE)
+        settings = load_app_settings(f)
+        assert settings.pyball.match_token == ""
+        assert settings.pyball.manage_token == ""
+
+    def test_tokens_env_var_override(self, tmp_path, monkeypatch):
+        """Env vars PYBALL_CORE_MATCH_TOKEN / PYBALL_CORE_MANAGE_TOKEN override config."""
+        f = _write(tmp_path, _FULL_CORE)
+        monkeypatch.setenv("PYBALL_CORE_MATCH_TOKEN", "env-match")
+        monkeypatch.setenv("PYBALL_CORE_MANAGE_TOKEN", "env-manage")
+        settings = load_app_settings(f)
+        assert settings.pyball.match_token == "env-match"
+        assert settings.pyball.manage_token == "env-manage"
