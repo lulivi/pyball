@@ -347,7 +347,10 @@
 
         const teamAParam = params.get('teamA');
         const teamBParam = params.get('teamB');
-        if (!teamAParam || !teamBParam) return renderNoMatch();
+        if (!teamAParam || !teamBParam) {
+            loadActiveMatch();
+            return;
+        }
 
         meetupDate = urlDate;
         nameA = params.get('nameA') || 'A';
@@ -363,6 +366,34 @@
             colorTextB: colorTextB || null,
         }));
         renderApp();
+    }
+
+    async function loadActiveMatch() {
+        try {
+            const res = await fetch('/api/match/active');
+            if (!res.ok) {
+                renderNoMatch();
+                return;
+            }
+            const data = await res.json();
+            meetupDate = data.date;
+            nameA = data.nameA;
+            nameB = data.nameB;
+            teamA = data.teamA;
+            teamB = data.teamB;
+            document.documentElement.style.setProperty('--color-light', data.colorA);
+            document.documentElement.style.setProperty('--color-light-text', data.colorTextA);
+            document.documentElement.style.setProperty('--color-dark', data.colorB);
+            document.documentElement.style.setProperty('--color-dark-text', data.colorTextB);
+            localStorage.setItem('pyball_teams', JSON.stringify({
+                teamA, teamB, nameA, nameB, meetupDate,
+                colorA: data.colorA, colorB: data.colorB,
+                colorTextA: data.colorTextA, colorTextB: data.colorTextB,
+            }));
+            renderApp();
+        } catch {
+            renderNoMatch();
+        }
     }
 
     function formatMatchDate(dateStr) {
@@ -567,7 +598,8 @@
             <div class="no-match">
                 <div class="no-match-icon">⚽</div>
                 <div class="no-match-title">PyBall</div>
-                <div class="no-match-msg">Abre el enlace desde<br>Telegram para empezar un partido.</div>
+                <div class="no-match-msg">No hay partido activo.<br>Espera a que se generen los equipos.</div>
+                <button class="save-btn" style="max-width:200px;margin-top:8px;" onclick="loadActiveMatch()">🔄 Reintentar</button>
             </div>`;
     }
 
