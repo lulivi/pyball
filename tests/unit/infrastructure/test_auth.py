@@ -183,7 +183,7 @@ class TestTokenQueryParam:
     """?token= param sets a cookie and redirects to the clean URL."""
 
     @pytest.mark.asyncio
-    async def test_valid_match_token_sets_cookie_and_redirects(self):
+    async def test_valid_match_token_sets_cookie_and_redirects_over_http(self):
         app = _make_app()
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test", follow_redirects=False
@@ -194,9 +194,20 @@ class TestTokenQueryParam:
         set_cookie = response.headers.get("set-cookie", "")
         assert "pyball_token" in set_cookie
         assert "HttpOnly" in set_cookie
-        assert "Secure" in set_cookie
+        assert "Secure" not in set_cookie
         assert "SameSite=lax" in set_cookie
         assert "Max-Age=31536000" in set_cookie
+
+    @pytest.mark.asyncio
+    async def test_valid_match_token_sets_secure_cookie_over_https(self):
+        app = _make_app()
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test", follow_redirects=False
+        ) as c:
+            response = await c.get(f"/match?token={MATCH_TOKEN}")
+        assert response.status_code == 302
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "Secure" in set_cookie
 
     @pytest.mark.asyncio
     async def test_valid_manage_token_sets_cookie_and_redirects(self):

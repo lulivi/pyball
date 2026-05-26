@@ -81,7 +81,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
             "pyball_token",
             token,
             httponly=True,
-            secure=True,
+            secure=request.url.scheme == "https",
             samesite="lax",
             max_age=31536000,
             path="/",
