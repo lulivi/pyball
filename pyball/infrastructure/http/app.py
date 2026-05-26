@@ -18,6 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """FastAPI application factory."""
+import functools
+import locale
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -351,8 +353,15 @@ def _build_active_match_response(container: "Container") -> dict:
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
-    team_a = [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[0].players]
-    team_b = [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[1].players]
+    _sort = functools.cmp_to_key(locale.strcoll)
+    team_a = sorted(
+        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[0].players],
+        key=_sort,
+    )
+    team_b = sorted(
+        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[1].players],
+        key=_sort,
+    )
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
