@@ -48,7 +48,7 @@ from pyball.infrastructure.persistence import (
 from pyball.settings import AppSettings
 
 
-class Container:
+class Container:  # pylint: disable=too-many-public-methods
     """Simple dependency injection container."""
 
     def __init__(self, settings: AppSettings) -> None:
@@ -136,6 +136,11 @@ class Container:
     def team_hex_text(self) -> tuple[str, str]:
         """Return the configured team text hex colors."""
         return self._settings.pyball.team_hex_text
+
+    @property
+    def base_url(self) -> str:
+        """Return the configured base URL."""
+        return self._settings.pyball.base_url
 
     @property
     def default_hour(self) -> str:

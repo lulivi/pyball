@@ -108,7 +108,7 @@ def create_app(
     _register_static(app, static_dir)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
-    _register_meetup_routes(app, container)
+    _register_meetup_routes(app, container, match_token=match_token)
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
@@ -259,7 +259,7 @@ def _register_player_routes(app: FastAPI, container: "Container") -> None:
         return [{"id": str(p.id.value), "name": p.name} for p in players]
 
 
-def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
+def _register_meetup_routes(app: FastAPI, container: "Container", match_token: str = "") -> None:
     """Register meetup-related routes."""
 
     @app.post("/api/meetup/parse-callup")
@@ -306,7 +306,10 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
         except Exception as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        match_url = container.start_match().execute(meetup_date)
+        if match_token:
+            match_url = f"{container.base_url}/match?token={match_token}"
+        else:
+            match_url = container.start_match().execute(meetup_date)
 
         saved_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if saved_meetup is None or saved_meetup.teams is None:
