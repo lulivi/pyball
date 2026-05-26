@@ -348,8 +348,8 @@ def _build_active_match_response(container: "Container") -> dict:
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
-    team_a = [player_names[str(pid.value)] for pid in meetup.teams[0].players]
-    team_b = [player_names[str(pid.value)] for pid in meetup.teams[1].players]
+    team_a = [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[0].players]
+    team_b = [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[1].players]
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
