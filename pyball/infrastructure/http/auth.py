@@ -1,6 +1,7 @@
 """Token-based authentication middleware for the FastAPI application."""
 from __future__ import annotations
 
+import hmac
 import urllib.parse
 from typing import TYPE_CHECKING, Callable
 
@@ -89,9 +90,9 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
 
     def _classify(self, token: str) -> str | None:
         """Return 'manage', 'match', or None for an unrecognised token."""
-        if self._manage_token and token == self._manage_token:
+        if self._manage_token and hmac.compare_digest(token, self._manage_token):
             return "manage"
-        if self._match_token and token == self._match_token:
+        if self._match_token and hmac.compare_digest(token, self._match_token):
             return "match"
         return None
 

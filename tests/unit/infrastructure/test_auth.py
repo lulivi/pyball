@@ -191,7 +191,12 @@ class TestTokenQueryParam:
             response = await c.get(f"/match?token={MATCH_TOKEN}")
         assert response.status_code == 302
         assert response.headers["location"] == "/match"
-        assert "pyball_token" in response.headers.get("set-cookie", "")
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "pyball_token" in set_cookie
+        assert "HttpOnly" in set_cookie
+        assert "Secure" in set_cookie
+        assert "SameSite=lax" in set_cookie
+        assert "Max-Age=31536000" in set_cookie
 
     @pytest.mark.asyncio
     async def test_valid_manage_token_sets_cookie_and_redirects(self):
