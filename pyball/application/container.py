@@ -128,6 +128,16 @@ class Container:
         return self._settings.pyball.team_emojis
 
     @property
+    def team_hex_bg(self) -> tuple[str, str]:
+        """Return the configured team background hex colors."""
+        return self._settings.pyball.team_hex_bg
+
+    @property
+    def team_hex_text(self) -> tuple[str, str]:
+        """Return the configured team text hex colors."""
+        return self._settings.pyball.team_hex_text
+
+    @property
     def default_hour(self) -> str:
         """Return the configured default match hour as 'HH:MM'."""
         return self._settings.pyball.default_hour

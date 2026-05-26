@@ -190,6 +190,11 @@ def _register_match_routes(
         latest = max(finished, key=lambda m: m.date)
         return {"date": latest.date.strftime("%Y-%m-%dT%H:%M")}
 
+    @app.get("/api/match/active")
+    async def active_match():
+        """Return the current unfinished meetup with teams, or 404."""
+        return _build_active_match_response(container)
+
     @app.get("/api/match/{date}/summary")
     async def match_summary(date: str):
         """Return the WhatsApp-format summary for a finished match."""
@@ -326,6 +331,37 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _build_active_match_response(container: "Container") -> dict:
+    """Build the response dict for GET /api/match/active, or raise 404."""
+    all_meetups = container.meetup_repository.find_all()
+    active = [m for m in all_meetups if m.teams is not None and m.result is None]
+    if not active:
+        raise HTTPException(404, "No active match found")
+    meetup = max(active, key=lambda m: m.date)
+    assert meetup.teams is not None  # guaranteed by the active filter above
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+
+    team_a = [player_names[str(pid.value)] for pid in meetup.teams[0].players]
+    team_b = [player_names[str(pid.value)] for pid in meetup.teams[1].players]
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "teamA": team_a,
+        "teamB": team_b,
+        "nameA": colors[0].capitalize(),
+        "nameB": colors[1].capitalize(),
+        "colorA": hex_bg[0],
+        "colorB": hex_bg[1],
+        "colorTextA": hex_text[0],
+        "colorTextB": hex_text[1],
+    }
 
 
 def _serialise_match(match) -> dict:
