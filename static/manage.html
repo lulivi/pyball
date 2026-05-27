@@ -82,6 +82,25 @@
   .stats-icon { font-size: 2rem; }
   .divider { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
   .empty-state { text-align: center; padding: 40px 16px; color: #64748b; font-size: 0.9rem; line-height: 1.6; }
+
+  /* ── Loading state ───────────────────────────── */
+  .loading-state { display: flex; justify-content: center; align-items: center; padding: 60px 0; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #334155; border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .load-warning { background: #431407; border: 1px solid #7c2d12; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem; color: #fca5a5; margin-bottom: 10px; }
+
+  /* ── Edit panel ──────────────────────────────── */
+  .edit-panel { background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; padding: 10px; margin-top: 8px; }
+  .edit-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .edit-chip { display: flex; align-items: center; justify-content: space-between; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; margin-bottom: 3px; font-size: 0.85rem; }
+  .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
+  .remove-btn:hover { color: #fca5a5; }
+  .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -145,6 +164,10 @@ let parsedPlayers = [];     // [{raw, player_id, name, confidence, candidates, e
 let lastTeamsPayload = null; // last successful create-with-teams response
 let expandedIdx = null;     // which chip is expanded
 let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:00"
+// state-driven page state (null = state 0; populated = state 1 or 2)
+let activeMatchData = null;
+let editPlayers = [];
+let editPanelOpen = false;
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -342,29 +365,7 @@ function showTeamsResult() {
   qrHint.textContent = 'Link del partido';
   qrHint.href = match_url;
 
-  try {
-    const qr = qrcode(0, 'M');
-    qr.addData(match_url);
-    qr.make();
-    const canvas = document.getElementById('qr-canvas');
-    const cells = qr.getModuleCount();
-    const margin = 4;
-    const scale = Math.max(4, Math.floor(220 / cells));
-    const size = (cells + margin * 2) * scale;
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
-    for (let r = 0; r < cells; r++) {
-      for (let c = 0; c < cells; c++) {
-        ctx.fillStyle = qr.isDark(r, c) ? '#000000' : '#ffffff';
-        ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
-      }
-    }
-  } catch(e) {
-    document.getElementById('qr-canvas').style.display = 'none';
-  }
+  _renderQR(match_url, document.getElementById('qr-canvas'));
 
   showStep('teams');
 }
@@ -375,6 +376,241 @@ function copyTeams() {
 }
 
 function backToReview() { showStep('review'); renderChips(); }
+
+// ── STATE 1: match without teams ──────────────────────────────────────────
+function renderState1(data) {
+  const chips = data.players
+    .map(p => `<div class="chip ok"><span class="chip-num">✓</span><span class="chip-label">${escHtml(p.name)}</span></div>`)
+    .join('');
+  document.getElementById('tab-equipos').innerHTML = `
+    <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
+    <div class="step-label">Jugadores convocados (${data.players.length})</div>
+    <div id="chip-container">${chips}</div>
+    <button class="btn btn-green" onclick="generateFromActive()">⚽ Generar equipos</button>
+  `;
+}
+
+async function generateFromActive() {
+  const btn = document.querySelector('#tab-equipos .btn-green');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
+  try {
+    const res = await fetch('/api/meetup/create-with-teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date: activeMatchData.date,
+        player_ids: activeMatchData.players.map(p => p.id),
+        algorithm: 'balanceado'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.detail || res.statusText));
+      if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
+      return;
+    }
+    const data = await res.json();
+    activeMatchData = {
+      date: activeMatchData.date,
+      players: activeMatchData.players,
+      teams: {
+        teamA: data.team_a, teamB: data.team_b,
+        nameA: data.name_a, nameB: data.name_b,
+        emojiA: data.emoji_a, emojiB: data.emoji_b,
+        matchUrl: data.match_url,
+      }
+    };
+    renderState2(activeMatchData);
+  } catch(e) {
+    alert('Error de red: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
+  }
+}
+
+// ── STATE 2: match with teams ─────────────────────────────────────────────
+function renderState2(data) {
+  editPanelOpen = false;
+  const t = data.teams;
+  const teamsText = `${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}\n\n${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`;
+  document.getElementById('tab-equipos').innerHTML = `
+    <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
+    <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
+    <button class="btn btn-teal" onclick="copyState2Teams()">📋 Copiar para WhatsApp</button>
+    <hr class="divider">
+    <div class="step-label">Abre el marcador en otro móvil</div>
+    <div class="qr-box">
+      <canvas id="qr-canvas"></canvas>
+      <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
+    </div>
+    <div class="regen-row">
+      <button class="btn-sm gray" onclick="toggleEditPanel()">✏️ Editar jugadores</button>
+      <button class="btn-sm green" onclick="regenerateCurrentTeams()">↺ Regenerar</button>
+    </div>
+    <div id="edit-panel-container"></div>
+  `;
+  _renderQR(t.matchUrl, document.getElementById('qr-canvas'));
+}
+
+function copyState2Teams() {
+  const text = document.getElementById('teams-text').textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+}
+
+async function regenerateCurrentTeams() {
+  const btn = document.querySelector('.regen-row .btn-sm.green');
+  if (btn) { btn.textContent = 'Regenerando...'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/meetup/create-with-teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date: activeMatchData.date,
+        player_ids: activeMatchData.players.map(p => p.id),
+        algorithm: 'balanceado'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.detail || res.statusText));
+      if (btn) { btn.textContent = '↺ Regenerar'; btn.disabled = false; }
+      return;
+    }
+    const data = await res.json();
+    activeMatchData = {
+      ...activeMatchData,
+      teams: {
+        teamA: data.team_a, teamB: data.team_b,
+        nameA: data.name_a, nameB: data.name_b,
+        emojiA: data.emoji_a, emojiB: data.emoji_b,
+        matchUrl: data.match_url,
+      }
+    };
+    renderState2(activeMatchData);
+  } catch(e) {
+    alert('Error de red: ' + e.message);
+    if (btn) { btn.textContent = '↺ Regenerar'; btn.disabled = false; }
+  }
+}
+
+// ── EDIT PANEL ────────────────────────────────────────────────────────────
+async function toggleEditPanel() {
+  if (editPanelOpen) {
+    editPanelOpen = false;
+    document.getElementById('edit-panel-container').innerHTML = '';
+    return;
+  }
+  if (!allPlayers.length) {
+    try {
+      const res = await fetch('/api/players');
+      allPlayers = await res.json();
+    } catch(e) {
+      alert('Error al cargar la lista de jugadores: ' + e.message);
+      return;
+    }
+  }
+  editPlayers = activeMatchData.players.map(p => ({...p}));
+  editPanelOpen = true;
+  _renderEditPanel();
+}
+
+function _renderEditPanel() {
+  const chips = editPlayers
+    .map(p => `
+      <div class="edit-chip">
+        <span>${escHtml(p.name)}</span>
+        <button class="remove-btn" onclick="removeEditPlayer('${escAttr(p.id)}')">×</button>
+      </div>`)
+    .join('');
+  document.getElementById('edit-panel-container').innerHTML = `
+    <div class="edit-panel">
+      <div class="edit-panel-header">
+        <div class="step-label" style="margin:0;">Jugadores (${editPlayers.length})</div>
+        <button class="close-x" onclick="closeEditPanel()">✕</button>
+      </div>
+      <div id="edit-chips">${chips}</div>
+      <hr class="divider" style="margin:8px 0;">
+      <div class="step-label">Añadir jugador</div>
+      <input class="search-box" id="edit-search" type="text" placeholder="Buscar por nombre..."
+        oninput="renderEditSearchResults()">
+      <div id="edit-search-results" class="cand-list"></div>
+      <hr class="divider" style="margin:8px 0;">
+      <div class="regen-note">Los cambios se aplican al regenerar</div>
+      <button class="btn btn-green" style="margin-top:0;" onclick="regenerateWithEdits()">⚽ Regenerar equipos</button>
+    </div>
+  `;
+}
+
+function renderEditSearchResults() {
+  const query = document.getElementById('edit-search').value.toLowerCase();
+  const resultsEl = document.getElementById('edit-search-results');
+  if (!query) { resultsEl.innerHTML = ''; return; }
+  const editIds = new Set(editPlayers.map(p => p.id));
+  const matches = allPlayers
+    .filter(p => p.name.toLowerCase().includes(query) && !editIds.has(p.id))
+    .slice(0, 6);
+  resultsEl.innerHTML = matches
+    .map(p => `<div class="cand-item" onclick="addEditPlayer('${escAttr(p.id)}','${escAttr(p.name)}')">${escHtml(p.name)}</div>`)
+    .join('');
+}
+
+function removeEditPlayer(id) {
+  editPlayers = editPlayers.filter(p => p.id !== id);
+  _renderEditPanel();
+}
+
+function addEditPlayer(id, name) {
+  if (!editPlayers.find(p => p.id === id)) {
+    editPlayers.push({id, name});
+  }
+  _renderEditPanel();
+}
+
+function closeEditPanel() {
+  editPanelOpen = false;
+  editPlayers = activeMatchData.players.map(p => ({...p}));
+  document.getElementById('edit-panel-container').innerHTML = '';
+}
+
+async function regenerateWithEdits() {
+  if (editPlayers.length < 2) {
+    alert('Necesitas al menos 2 jugadores para generar equipos.');
+    return;
+  }
+  const btn = document.querySelector('#edit-panel-container .btn-green');
+  if (btn) { btn.disabled = true; btn.textContent = 'Regenerando...'; }
+  try {
+    const res = await fetch('/api/meetup/create-with-teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date: activeMatchData.date,
+        player_ids: editPlayers.map(p => p.id),
+        algorithm: 'balanceado'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.detail || res.statusText));
+      if (btn) { btn.disabled = false; btn.textContent = '⚽ Regenerar equipos'; }
+      return;
+    }
+    const data = await res.json();
+    activeMatchData = {
+      date: activeMatchData.date,
+      players: editPlayers.map(p => ({...p})),
+      teams: {
+        teamA: data.team_a, teamB: data.team_b,
+        nameA: data.name_a, nameB: data.name_b,
+        emojiA: data.emoji_a, emojiB: data.emoji_b,
+        matchUrl: data.match_url,
+      }
+    };
+    renderState2(activeMatchData);
+  } catch(e) {
+    alert('Error de red: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚽ Regenerar equipos'; }
+  }
+}
 
 // ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
 async function loadResumen() {
@@ -443,9 +679,102 @@ function _formatDate(iso) {
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+function _renderQR(url, canvas) {
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    const cells = qr.getModuleCount();
+    const margin = 4;
+    const scale = Math.max(4, Math.floor(220 / cells));
+    const size = (cells + margin * 2) * scale;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    for (let r = 0; r < cells; r++) {
+      for (let c = 0; c < cells; c++) {
+        ctx.fillStyle = qr.isDark(r, c) ? '#000000' : '#ffffff';
+        ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+      }
+    }
+  } catch(e) {
+    canvas.style.display = 'none';
+  }
 }
+
+// ── BOOTSTRAP ─────────────────────────────────────────────────────────────
+function _restoreStepHTML() {
+  document.getElementById('tab-equipos').innerHTML = `
+    <div id="step-paste">
+      <div class="step-label">1. Pega la convocatoria</div>
+      <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
+      <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>
+    </div>
+    <div id="step-review" style="display:none">
+      <div class="step-label">2. Revisa los jugadores</div>
+      <div id="parsed-date-display" class="date-badge" style="display:none">📅 <span id="parsed-date-text"></span></div>
+      <div id="review-legend" style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">
+        ✓ Reconocido &nbsp; ⚠ Dudoso (toca para elegir) &nbsp; ✗ No encontrado (toca para buscar) &nbsp; Tachado = Reserva excluida
+      </div>
+      <div id="chip-container"></div>
+      <button class="btn btn-green" onclick="generateTeams()">⚽ Generar equipos equilibrados</button>
+    </div>
+    <div id="step-teams" style="display:none">
+      <div class="step-label">3. Equipos generados</div>
+      <div id="teams-text" class="teams-box"></div>
+      <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
+      <hr class="divider">
+      <div class="step-label">4. Abre el marcador en otro móvil</div>
+      <div class="qr-box">
+        <canvas id="qr-canvas"></canvas>
+        <a class="qr-hint" id="qr-hint" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="regen-row">
+        <button class="btn-sm gray" onclick="backToReview()">← Cambiar jugadores</button>
+        <button class="btn-sm green" onclick="generateTeams()">↺ Regenerar equipos</button>
+      </div>
+    </div>
+  `;
+}
+
+async function initManagePage() {
+  document.getElementById('tab-equipos').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch('/api/meetup/active');
+    if (res.status === 404) {
+      _restoreStepHTML();
+      showStep('paste');
+      return;
+    }
+    if (!res.ok) {
+      _restoreStepHTML();
+      showStep('paste');
+      document.getElementById('step-paste').insertAdjacentHTML(
+        'afterbegin',
+        '<div class="load-warning">⚠ Error al cargar el partido activo. Puedes crear uno nuevo.</div>'
+      );
+      return;
+    }
+    activeMatchData = await res.json();
+    if (activeMatchData.teams) {
+      renderState2(activeMatchData);
+    } else {
+      renderState1(activeMatchData);
+    }
+  } catch {
+    _restoreStepHTML();
+    showStep('paste');
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+}
+
+initManagePage();
 </script>
 </body>
 </html>
