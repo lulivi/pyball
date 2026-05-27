@@ -3,9 +3,9 @@ set -eu
 
 VERSION="${VERSION:?VERSION env var is required}"
 SCAPED_VERSION=" \[\`v${VERSION}\`\] "
-APP_DIR="${APP_DIR:-$HOME/apps/pyball}"
+APP_DIR="${APP_DIR:?APP_DIR env var is required}"
 
-ENV_FILE="$APP_DIR/tg_notify.env"
+ENV_FILE="$HOME/envs/tg_notify.env"
 [ -f "$ENV_FILE" ] && . "$ENV_FILE"
 
 notify() {
