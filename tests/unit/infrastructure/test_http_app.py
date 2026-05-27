@@ -340,11 +340,12 @@ class TestMeetupActive:
             match_token="my-match-tok",
             manage_token="my-manage-tok",
         )
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get(
-                "/api/meetup/active",
-                cookies={"pyball_token": "my-manage-tok"},
-            )
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            cookies={"pyball_token": "my-manage-tok"},
+        ) as c:
+            response = await c.get("/api/meetup/active")
 
         assert response.status_code == 200
         assert response.json()["teams"]["matchUrl"] == (
