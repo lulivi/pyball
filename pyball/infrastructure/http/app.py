@@ -264,6 +264,11 @@ def _register_player_routes(app: FastAPI, container: "Container") -> None:
 def _register_meetup_routes(app: FastAPI, container: "Container", match_token: str = "") -> None:
     """Register meetup-related routes."""
 
+    @app.get("/api/meetup/active")
+    async def meetup_active():
+        """Return the current active meetup with or without teams, or 404."""
+        return _build_meetup_active_response(container, match_token=match_token)
+
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
         """Parse a WhatsApp callup text and fuzzy-match player names."""
@@ -373,6 +378,72 @@ def _build_active_match_response(container: "Container") -> dict:
         "colorB": hex_bg[1],
         "colorTextA": hex_text[0],
         "colorTextB": hex_text[1],
+    }
+
+
+def _build_meetup_active_response(container: "Container", match_token: str = "") -> dict:
+    """Build the response for GET /api/meetup/active, or raise 404.
+
+    Returns the most recent unfinished meetup regardless of whether teams exist.
+    players and teamA/teamB names are sorted with locale.strcoll.
+    """
+    all_meetups = container.meetup_repository.find_all()
+    active = [m for m in all_meetups if m.result is None]
+    if not active:
+        raise HTTPException(404, "No active meetup found")
+    meetup = max(active, key=lambda m: m.date)
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+
+    _sort = functools.cmp_to_key(locale.strcoll)
+
+    players = sorted(
+        [
+            {"id": str(pid.value), "name": player_names.get(str(pid.value), "(desconocido)")}
+            for pid in meetup.players
+        ],
+        key=lambda p: _sort(p["name"]),
+    )
+
+    if meetup.teams is None:
+        return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
+
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+    emojis = container.team_emojis
+
+    team_a = sorted(
+        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[0].players],
+        key=_sort,
+    )
+    team_b = sorted(
+        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[1].players],
+        key=_sort,
+    )
+
+    if match_token:
+        match_url = f"{container.base_url}/match?token={match_token}"
+    else:
+        match_url = container.start_match().execute(meetup.date)
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "players": players,
+        "teams": {
+            "teamA": team_a,
+            "teamB": team_b,
+            "nameA": colors[0].capitalize(),
+            "nameB": colors[1].capitalize(),
+            "emojiA": emojis[0],
+            "emojiB": emojis[1],
+            "colorA": hex_bg[0],
+            "colorB": hex_bg[1],
+            "colorTextA": hex_text[0],
+            "colorTextB": hex_text[1],
+            "matchUrl": match_url,
+        },
     }
 
 
