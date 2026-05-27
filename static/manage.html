@@ -394,35 +394,15 @@ async function generateFromActive() {
   const btn = document.querySelector('#tab-equipos .btn-green');
   if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
   try {
-    const res = await fetch('/api/meetup/create-with-teams', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        date: activeMatchData.date,
-        player_ids: activeMatchData.players.map(p => p.id),
-        algorithm: 'balanceado'
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Error: ' + (err.detail || res.statusText));
-      if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
-      return;
-    }
-    const data = await res.json();
+    const data = await _callCreateWithTeams(activeMatchData.players.map(p => p.id));
     activeMatchData = {
       date: activeMatchData.date,
       players: activeMatchData.players,
-      teams: {
-        teamA: data.team_a, teamB: data.team_b,
-        nameA: data.name_a, nameB: data.name_b,
-        emojiA: data.emoji_a, emojiB: data.emoji_b,
-        matchUrl: data.match_url,
-      }
+      teams: _teamsFromResponse(data),
     };
     renderState2(activeMatchData);
   } catch(e) {
-    alert('Error de red: ' + e.message);
+    alert('Error: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
   }
 }
@@ -460,34 +440,11 @@ async function regenerateCurrentTeams() {
   const btn = document.querySelector('.regen-row .btn-sm.green');
   if (btn) { btn.textContent = 'Regenerando...'; btn.disabled = true; }
   try {
-    const res = await fetch('/api/meetup/create-with-teams', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        date: activeMatchData.date,
-        player_ids: activeMatchData.players.map(p => p.id),
-        algorithm: 'balanceado'
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Error: ' + (err.detail || res.statusText));
-      if (btn) { btn.textContent = '↺ Regenerar'; btn.disabled = false; }
-      return;
-    }
-    const data = await res.json();
-    activeMatchData = {
-      ...activeMatchData,
-      teams: {
-        teamA: data.team_a, teamB: data.team_b,
-        nameA: data.name_a, nameB: data.name_b,
-        emojiA: data.emoji_a, emojiB: data.emoji_b,
-        matchUrl: data.match_url,
-      }
-    };
+    const data = await _callCreateWithTeams(activeMatchData.players.map(p => p.id));
+    activeMatchData = { ...activeMatchData, teams: _teamsFromResponse(data) };
     renderState2(activeMatchData);
   } catch(e) {
-    alert('Error de red: ' + e.message);
+    alert('Error: ' + e.message);
     if (btn) { btn.textContent = '↺ Regenerar'; btn.disabled = false; }
   }
 }
@@ -511,33 +468,6 @@ async function toggleEditPanel() {
   editPlayers = activeMatchData.players.map(p => ({...p}));
   editPanelOpen = true;
   _renderEditPanel();
-}
-
-function _renderEditPanel() {
-  const chips = editPlayers
-    .map(p => `
-      <div class="edit-chip">
-        <span>${escHtml(p.name)}</span>
-        <button class="remove-btn" onclick="removeEditPlayer('${escAttr(p.id)}')">×</button>
-      </div>`)
-    .join('');
-  document.getElementById('edit-panel-container').innerHTML = `
-    <div class="edit-panel">
-      <div class="edit-panel-header">
-        <div class="step-label" style="margin:0;">Jugadores (${editPlayers.length})</div>
-        <button class="close-x" onclick="closeEditPanel()">✕</button>
-      </div>
-      <div id="edit-chips">${chips}</div>
-      <hr class="divider" style="margin:8px 0;">
-      <div class="step-label">Añadir jugador</div>
-      <input class="search-box" id="edit-search" type="text" placeholder="Buscar por nombre..."
-        oninput="renderEditSearchResults()">
-      <div id="edit-search-results" class="cand-list"></div>
-      <hr class="divider" style="margin:8px 0;">
-      <div class="regen-note">Los cambios se aplican al regenerar</div>
-      <button class="btn btn-green" style="margin-top:0;" onclick="regenerateWithEdits()">⚽ Regenerar equipos</button>
-    </div>
-  `;
 }
 
 function renderEditSearchResults() {
@@ -579,37 +509,44 @@ async function regenerateWithEdits() {
   const btn = document.querySelector('#edit-panel-container .btn-green');
   if (btn) { btn.disabled = true; btn.textContent = 'Regenerando...'; }
   try {
-    const res = await fetch('/api/meetup/create-with-teams', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        date: activeMatchData.date,
-        player_ids: editPlayers.map(p => p.id),
-        algorithm: 'balanceado'
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Error: ' + (err.detail || res.statusText));
-      if (btn) { btn.disabled = false; btn.textContent = '⚽ Regenerar equipos'; }
-      return;
-    }
-    const data = await res.json();
+    const data = await _callCreateWithTeams(editPlayers.map(p => p.id));
     activeMatchData = {
       date: activeMatchData.date,
       players: editPlayers.map(p => ({...p})),
-      teams: {
-        teamA: data.team_a, teamB: data.team_b,
-        nameA: data.name_a, nameB: data.name_b,
-        emojiA: data.emoji_a, emojiB: data.emoji_b,
-        matchUrl: data.match_url,
-      }
+      teams: _teamsFromResponse(data),
     };
     renderState2(activeMatchData);
   } catch(e) {
-    alert('Error de red: ' + e.message);
+    alert('Error: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '⚽ Regenerar equipos'; }
   }
+}
+
+function _renderEditPanel() {
+  const chips = editPlayers
+    .map(p => `
+      <div class="edit-chip">
+        <span>${escHtml(p.name)}</span>
+        <button class="remove-btn" onclick="removeEditPlayer('${escAttr(p.id)}')">×</button>
+      </div>`)
+    .join('');
+  document.getElementById('edit-panel-container').innerHTML = `
+    <div class="edit-panel">
+      <div class="edit-panel-header">
+        <div class="step-label" style="margin:0;">Jugadores (${editPlayers.length})</div>
+        <button class="close-x" onclick="closeEditPanel()">✕</button>
+      </div>
+      <div id="edit-chips">${chips}</div>
+      <hr class="divider" style="margin:8px 0;">
+      <div class="step-label">Añadir jugador</div>
+      <input class="search-box" id="edit-search" type="text" placeholder="Buscar por nombre..."
+        oninput="renderEditSearchResults()">
+      <div id="edit-search-results" class="cand-list"></div>
+      <hr class="divider" style="margin:8px 0;">
+      <div class="regen-note">Los cambios se aplican al regenerar</div>
+      <button class="btn btn-green" style="margin-top:0;" onclick="regenerateWithEdits()">⚽ Regenerar equipos</button>
+    </div>
+  `;
 }
 
 // ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
@@ -704,7 +641,64 @@ function _renderQR(url, canvas) {
   }
 }
 
+async function _callCreateWithTeams(playerIds) {
+  const res = await fetch('/api/meetup/create-with-teams', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      date: activeMatchData.date,
+      player_ids: playerIds,
+      algorithm: 'balanceado'
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function _teamsFromResponse(data) {
+  return {
+    teamA: data.team_a, teamB: data.team_b,
+    nameA: data.name_a, nameB: data.name_b,
+    emojiA: data.emoji_a, emojiB: data.emoji_b,
+    matchUrl: data.match_url,
+  };
+}
+
 // ── BOOTSTRAP ─────────────────────────────────────────────────────────────
+async function initManagePage() {
+  document.getElementById('tab-equipos').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch('/api/meetup/active');
+    if (res.status === 404) {
+      _restoreStepHTML();
+      showStep('paste');
+      return;
+    }
+    if (!res.ok) {
+      _restoreStepHTML();
+      showStep('paste');
+      document.getElementById('step-paste').insertAdjacentHTML(
+        'afterbegin',
+        '<div class="load-warning">⚠ Error al cargar el partido activo. Puedes crear uno nuevo.</div>'
+      );
+      return;
+    }
+    activeMatchData = await res.json();
+    if (activeMatchData.teams) {
+      renderState2(activeMatchData);
+    } else {
+      renderState1(activeMatchData);
+    }
+  } catch {
+    _restoreStepHTML();
+    showStep('paste');
+  }
+}
+
 function _restoreStepHTML() {
   document.getElementById('tab-equipos').innerHTML = `
     <div id="step-paste">
@@ -737,37 +731,6 @@ function _restoreStepHTML() {
       </div>
     </div>
   `;
-}
-
-async function initManagePage() {
-  document.getElementById('tab-equipos').innerHTML =
-    '<div class="loading-state"><div class="spinner"></div></div>';
-  try {
-    const res = await fetch('/api/meetup/active');
-    if (res.status === 404) {
-      _restoreStepHTML();
-      showStep('paste');
-      return;
-    }
-    if (!res.ok) {
-      _restoreStepHTML();
-      showStep('paste');
-      document.getElementById('step-paste').insertAdjacentHTML(
-        'afterbegin',
-        '<div class="load-warning">⚠ Error al cargar el partido activo. Puedes crear uno nuevo.</div>'
-      );
-      return;
-    }
-    activeMatchData = await res.json();
-    if (activeMatchData.teams) {
-      renderState2(activeMatchData);
-    } else {
-      renderState1(activeMatchData);
-    }
-  } catch {
-    _restoreStepHTML();
-    showStep('paste');
-  }
 }
 
 if ('serviceWorker' in navigator) {
