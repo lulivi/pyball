@@ -59,8 +59,12 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "display_date_format",
         "data_dir",
         "api_port",
+        "match_token",
+        "manage_token",
     )
     raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
+    raw["match_token"] = raw["match_token"] or ""
+    raw["manage_token"] = raw["manage_token"] or ""
 
     missing = [f"core.{k}" for k, v in raw.items() if v is None]
     if raw.get("location") is not None and not raw["location"]:
@@ -81,6 +85,8 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         display_date_format=raw["display_date_format"],
         data_dir=raw["data_dir"],
         api_port=_parse_api_port(raw["api_port"]),
+        match_token=raw["match_token"],
+        manage_token=raw["manage_token"],
     )
 
     return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
@@ -123,6 +129,8 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     locale: str = "en_US.UTF-8"
     display_date_format: str = "%Y-%m-%d %H:%M"
     data_dir: str = "data"
+    match_token: str = ""
+    manage_token: str = ""
 
     def __post_init__(self) -> None:
         """Resolve team_colors into derived emoji and hex fields."""

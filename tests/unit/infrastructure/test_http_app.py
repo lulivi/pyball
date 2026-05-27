@@ -1,4 +1,5 @@
 """Tests for the FastAPI HTTP application."""
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -102,3 +103,251 @@ async def test_finish_match_422_does_not_call_notifier():
 
     assert response.status_code == 422
     assert len(notifier.closed) == 0
+
+
+@pytest.mark.asyncio
+async def test_auth_enforced_when_tokens_configured():
+    """create_app registers auth middleware when tokens are provided."""
+    container = MagicMock()
+    notifier = _StubNotifier()
+    auth_app = create_app(container, notifier, match_token="match-tok", manage_token="manage-tok")
+    async with AsyncClient(
+        transport=ASGITransport(app=auth_app), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/match/finish", json=_VALID_BODY)
+    assert response.status_code == 401
+
+
+class TestActiveMatch:
+    """Tests for GET /api/match/active."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_with_team_data(self):
+        """Returns team data for the most recent unfinished meetup with teams."""
+        meetup = MagicMock()
+        meetup.result = None
+        meetup.date = datetime(2026, 5, 26, 20, 0)
+
+        pid_a = MagicMock()
+        pid_a.value = "p1"
+        pid_b = MagicMock()
+        pid_b.value = "p2"
+        meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+
+        player_a = MagicMock()
+        player_a.id.value = "p1"
+        player_a.name = "Juande"
+        player_b = MagicMock()
+        player_b.id.value = "p2"
+        player_b.name = "David"
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [meetup]
+        container.player_repository.find_all.return_value = [player_a, player_b]
+        container.team_colors = ("blanco", "negro")
+        container.team_hex_bg = ("#e4e4e7", "#27272a")
+        container.team_hex_text = ("#27272a", "#e4e4e7")
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/active")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["date"] == "2026-05-26T20:00"
+        assert data["teamA"] == ["Juande"]
+        assert data["teamB"] == ["David"]
+        assert data["nameA"] == "Blanco"
+        assert data["nameB"] == "Negro"
+        assert data["colorA"] == "#e4e4e7"
+        assert data["colorTextA"] == "#27272a"
+        assert data["colorB"] == "#27272a"
+        assert data["colorTextB"] == "#e4e4e7"
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_no_active_meetup(self):
+        """404 when there are no meetups with teams that are unfinished."""
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = []
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/active")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_ignores_finished_meetups(self):
+        """A meetup with result set is not considered active."""
+        finished = MagicMock()
+        finished.teams = [MagicMock(), MagicMock()]
+        finished.result = MagicMock()  # not None → finished
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [finished]
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/active")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_ignores_meetups_without_teams(self):
+        """A meetup with teams=None is not considered active."""
+        no_teams = MagicMock()
+        no_teams.teams = None
+        no_teams.result = None
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [no_teams]
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/active")
+        assert response.status_code == 404
+
+
+class TestMeetupActive:
+    """Tests for GET /api/meetup/active."""
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_no_meetups(self):
+        """404 when the repository is empty."""
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = []
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/meetup/active")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_all_meetups_finished(self):
+        """404 when every meetup has a result set."""
+        finished = MagicMock()
+        finished.result = MagicMock()  # not None → finished
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [finished]
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/meetup/active")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_players_and_null_teams_when_no_teams(self):
+        """200 with sorted players list and teams=null for a meetup without teams."""
+        meetup = MagicMock()
+        meetup.result = None
+        meetup.teams = None
+        meetup.date = datetime(2026, 5, 28, 20, 0)
+        pid = MagicMock()
+        pid.value = "p1"
+        meetup.players = [pid]
+
+        player = MagicMock()
+        player.id.value = "p1"
+        player.name = "Juande"
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [meetup]
+        container.player_repository.find_all.return_value = [player]
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/meetup/active")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["date"] == "2026-05-28T20:00"
+        assert data["players"] == [{"id": "p1", "name": "Juande"}]
+        assert data["teams"] is None
+
+    @pytest.mark.asyncio
+    async def test_returns_full_payload_when_teams_exist(self):
+        """200 with players list and populated teams object when meetup has teams."""
+        meetup = MagicMock()
+        meetup.result = None
+        meetup.date = datetime(2026, 5, 28, 20, 0)
+        pid_a = MagicMock()
+        pid_a.value = "p1"
+        pid_b = MagicMock()
+        pid_b.value = "p2"
+        meetup.players = [pid_a, pid_b]
+        meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+
+        player_a = MagicMock()
+        player_a.id.value = "p1"
+        player_a.name = "Juande"
+        player_b = MagicMock()
+        player_b.id.value = "p2"
+        player_b.name = "David"
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [meetup]
+        container.player_repository.find_all.return_value = [player_a, player_b]
+        container.team_colors = ("blanco", "negro")
+        container.team_hex_bg = ("#e4e4e7", "#27272a")
+        container.team_hex_text = ("#27272a", "#e4e4e7")
+        container.team_emojis = ("⚪", "⚫")
+        container.start_match.return_value.execute.return_value = "http://test/match"
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/meetup/active")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["players"] == [
+            {"id": "p2", "name": "David"},
+            {"id": "p1", "name": "Juande"},
+        ]
+        teams = data["teams"]
+        assert teams["teamA"] == ["Juande"]
+        assert teams["teamB"] == ["David"]
+        assert teams["nameA"] == "Blanco"
+        assert teams["nameB"] == "Negro"
+        assert teams["emojiA"] == "⚪"
+        assert teams["emojiB"] == "⚫"
+        assert teams["colorA"] == "#e4e4e7"
+        assert teams["colorTextA"] == "#27272a"
+        assert teams["colorB"] == "#27272a"
+        assert teams["colorTextB"] == "#e4e4e7"
+        assert teams["emojiB"] == "⚫"
+        assert teams["matchUrl"] == "http://test/match"
+
+    @pytest.mark.asyncio
+    async def test_uses_match_token_url_when_configured(self):
+        """matchUrl uses base_url + token path when match_token is set."""
+        meetup = MagicMock()
+        meetup.result = None
+        meetup.date = datetime(2026, 5, 28, 20, 0)
+        pid = MagicMock()
+        pid.value = "p1"
+        meetup.players = [pid]
+        meetup.teams = [MagicMock(players=[pid]), MagicMock(players=[])]
+
+        player = MagicMock()
+        player.id.value = "p1"
+        player.name = "Juande"
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [meetup]
+        container.player_repository.find_all.return_value = [player]
+        container.team_colors = ("blanco", "negro")
+        container.team_hex_bg = ("#e4e4e7", "#27272a")
+        container.team_hex_text = ("#27272a", "#e4e4e7")
+        container.team_emojis = ("⚪", "⚫")
+        container.base_url = "https://pyball.example.com"
+
+        app = create_app(
+            container,
+            _StubNotifier(),
+            match_token="my-match-tok",
+            manage_token="my-manage-tok",
+        )
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            cookies={"pyball_token": "my-manage-tok"},
+        ) as c:
+            response = await c.get("/api/meetup/active")
+
+        assert response.status_code == 200
+        assert response.json()["teams"]["matchUrl"] == (
+            "https://pyball.example.com/match?token=my-match-tok"
+        )

@@ -18,6 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """FastAPI application factory."""
+import functools
+import locale
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -32,6 +34,7 @@ from pydantic import BaseModel
 from pyball.application.meetup import FormatMatchSummary, ParseCallupText
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.domain.player.models import PlayerId
+from pyball.infrastructure.http.auth import TokenAuthMiddleware
 
 try:
     from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer as _StatsRenderer
@@ -95,14 +98,19 @@ def create_app(
     container: "Container",
     notifier: "MatchNotifier",
     static_dir: Path = Path("static"),
+    match_token: str = "",
+    manage_token: str = "",
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="PyBall API")
 
+    if match_token or manage_token:
+        app.add_middleware(TokenAuthMiddleware, match_token=match_token, manage_token=manage_token)
+
     _register_static(app, static_dir)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
-    _register_meetup_routes(app, container)
+    _register_meetup_routes(app, container, match_token=match_token)
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
@@ -184,6 +192,11 @@ def _register_match_routes(
         latest = max(finished, key=lambda m: m.date)
         return {"date": latest.date.strftime("%Y-%m-%dT%H:%M")}
 
+    @app.get("/api/match/active")
+    async def active_match():
+        """Return the current unfinished meetup with teams, or 404."""
+        return _build_active_match_response(container)
+
     @app.get("/api/match/{date}/summary")
     async def match_summary(date: str):
         """Return the WhatsApp-format summary for a finished match."""
@@ -248,8 +261,13 @@ def _register_player_routes(app: FastAPI, container: "Container") -> None:
         return [{"id": str(p.id.value), "name": p.name} for p in players]
 
 
-def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
+def _register_meetup_routes(app: FastAPI, container: "Container", match_token: str = "") -> None:
     """Register meetup-related routes."""
+
+    @app.get("/api/meetup/active")
+    async def meetup_active():
+        """Return the current active meetup with or without teams, or 404."""
+        return _build_meetup_active_response(container, match_token=match_token)
 
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
@@ -295,7 +313,10 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
         except Exception as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        match_url = container.start_match().execute(meetup_date)
+        if match_token:
+            match_url = f"{container.base_url}/match?token={match_token}"
+        else:
+            match_url = container.start_match().execute(meetup_date)
 
         saved_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if saved_meetup is None or saved_meetup.teams is None:
@@ -320,6 +341,106 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _build_active_match_response(container: "Container") -> dict:
+    """Build the response dict for GET /api/match/active, or raise 404."""
+    all_meetups = container.meetup_repository.find_all()
+    active = [m for m in all_meetups if m.teams is not None and m.result is None]
+    if not active:
+        raise HTTPException(404, "No active match found")
+    meetup = max(active, key=lambda m: m.date)
+    assert meetup.teams is not None  # guaranteed by the active filter above
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+
+    team_a = _sorted_names(meetup.teams[0].players, player_names)
+    team_b = _sorted_names(meetup.teams[1].players, player_names)
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "teamA": team_a,
+        "teamB": team_b,
+        "nameA": colors[0].capitalize(),
+        "nameB": colors[1].capitalize(),
+        "colorA": hex_bg[0],
+        "colorB": hex_bg[1],
+        "colorTextA": hex_text[0],
+        "colorTextB": hex_text[1],
+    }
+
+
+def _build_meetup_active_response(container: "Container", match_token: str = "") -> dict:
+    """Build the response for GET /api/meetup/active, or raise 404.
+
+    Returns the most recent unfinished meetup regardless of whether teams exist.
+    players and teamA/teamB names are sorted with locale.strcoll.
+    """
+    all_meetups = container.meetup_repository.find_all()
+    active = [m for m in all_meetups if m.result is None]
+    if not active:
+        raise HTTPException(404, "No active meetup found")
+    meetup = max(active, key=lambda m: m.date)
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+
+    _sort = functools.cmp_to_key(locale.strcoll)
+
+    players = sorted(
+        [
+            {"id": str(pid.value), "name": player_names.get(str(pid.value), "(desconocido)")}
+            for pid in meetup.players
+        ],
+        key=lambda p: _sort(p["name"]),
+    )
+
+    if meetup.teams is None:
+        return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
+
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+    emojis = container.team_emojis
+
+    team_a = _sorted_names(meetup.teams[0].players, player_names)
+    team_b = _sorted_names(meetup.teams[1].players, player_names)
+
+    if match_token:
+        match_url = f"{container.base_url}/match?token={match_token}"
+    else:
+        match_url = container.start_match().execute(meetup.date)
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "players": players,
+        "teams": {
+            "teamA": team_a,
+            "teamB": team_b,
+            "nameA": colors[0].capitalize(),
+            "nameB": colors[1].capitalize(),
+            "emojiA": emojis[0],
+            "emojiB": emojis[1],
+            "colorA": hex_bg[0],
+            "colorB": hex_bg[1],
+            "colorTextA": hex_text[0],
+            "colorTextB": hex_text[1],
+            "matchUrl": match_url,
+        },
+    }
+
+
+def _sorted_names(player_ids, player_names: dict[str, str]) -> list[str]:
+    """Return locale-sorted display names for a list of player IDs."""
+    _sort = functools.cmp_to_key(locale.strcoll)
+    return sorted(
+        [player_names.get(str(pid.value), "(desconocido)") for pid in player_ids],
+        key=_sort,
+    )
 
 
 def _serialise_match(match) -> dict:

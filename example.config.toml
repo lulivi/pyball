@@ -1,6 +1,6 @@
 # PyBall Configuration
 # Copy this file to config.toml and fill in your values
-# All fields are required — the app will fail at startup if any are missing.
+# Most fields are required — the app will fail at startup if any are missing. Optional fields are marked.
 # Environment variables can override any value using PYBALL_<SECTION>_<KEY> pattern
 
 [pyball.core]
@@ -33,6 +33,13 @@ locale = "es_ES.UTF-8"
 
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
+
+# Static tokens for Tailscale Funnel access (optional — leave empty to disable auth)
+# Override with PYBALL_CORE_MATCH_TOKEN
+# match_token = ""
+
+# Override with PYBALL_CORE_MANAGE_TOKEN
+# manage_token = ""
 
 [pyball.telegram]
 # Override with PYBALL_TELEGRAM_BOT_TOKEN
