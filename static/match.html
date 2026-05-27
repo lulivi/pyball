@@ -323,6 +323,7 @@
                     document.documentElement.style.setProperty('--color-dark-text', teams.colorTextB);
                 }
                 renderApp();
+                loadActiveMatch(); // validate against server; clears stale cache on 404
                 return;
             }
             const oldDate = formatMatchDate(teams.meetupDate);
@@ -372,6 +373,8 @@
         try {
             const res = await fetch('/api/match/active');
             if (!res.ok) {
+                localStorage.removeItem('pyball_current_match');
+                localStorage.removeItem('pyball_teams');
                 renderNoMatch();
                 return;
             }
