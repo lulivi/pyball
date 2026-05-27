@@ -305,6 +305,9 @@ class TestMeetupActive:
         assert teams["emojiB"] == "⚫"
         assert teams["colorA"] == "#e4e4e7"
         assert teams["colorTextA"] == "#27272a"
+        assert teams["colorB"] == "#27272a"
+        assert teams["colorTextB"] == "#e4e4e7"
+        assert teams["emojiB"] == "⚫"
         assert teams["matchUrl"] == "http://test/match"
 
     @pytest.mark.asyncio

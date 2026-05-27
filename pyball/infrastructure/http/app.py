@@ -358,15 +358,8 @@ def _build_active_match_response(container: "Container") -> dict:
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
-    _sort = functools.cmp_to_key(locale.strcoll)
-    team_a = sorted(
-        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[0].players],
-        key=_sort,
-    )
-    team_b = sorted(
-        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[1].players],
-        key=_sort,
-    )
+    team_a = _sorted_names(meetup.teams[0].players, player_names)
+    team_b = _sorted_names(meetup.teams[1].players, player_names)
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
@@ -414,14 +407,8 @@ def _build_meetup_active_response(container: "Container", match_token: str = "")
     hex_text = container.team_hex_text
     emojis = container.team_emojis
 
-    team_a = sorted(
-        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[0].players],
-        key=_sort,
-    )
-    team_b = sorted(
-        [player_names.get(str(pid.value), "(desconocido)") for pid in meetup.teams[1].players],
-        key=_sort,
-    )
+    team_a = _sorted_names(meetup.teams[0].players, player_names)
+    team_b = _sorted_names(meetup.teams[1].players, player_names)
 
     if match_token:
         match_url = f"{container.base_url}/match?token={match_token}"
@@ -445,6 +432,15 @@ def _build_meetup_active_response(container: "Container", match_token: str = "")
             "matchUrl": match_url,
         },
     }
+
+
+def _sorted_names(player_ids, player_names: dict[str, str]) -> list[str]:
+    """Return locale-sorted display names for a list of player IDs."""
+    _sort = functools.cmp_to_key(locale.strcoll)
+    return sorted(
+        [player_names.get(str(pid.value), "(desconocido)") for pid in player_ids],
+        key=_sort,
+    )
 
 
 def _serialise_match(match) -> dict:
