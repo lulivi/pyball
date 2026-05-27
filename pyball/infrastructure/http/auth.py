@@ -53,15 +53,15 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         if token_param is not None:
             return self._handle_token_param(request, token_param, path)
 
-        cookie_token = request.cookies.get("pyball_token")
-        if not cookie_token:
+        manage_cookie = request.cookies.get("pyball_manage_token")
+        if manage_cookie and self._classify(manage_cookie) == "manage":
+            return await call_next(request)
+
+        match_cookie = request.cookies.get("pyball_match_token")
+        if not match_cookie or self._classify(match_cookie) != "match":
             return _unauthorized(path)
 
-        token_type = self._classify(cookie_token)
-        if token_type is None:
-            return _unauthorized(path)
-
-        if _requires_manage(request.method, path) and token_type != "manage":
+        if _requires_manage(request.method, path):
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
         return await call_next(request)
@@ -77,8 +77,9 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         remaining = {k: v for k, v in request.query_params.items() if k != "token"}
         clean = path + ("?" + urllib.parse.urlencode(remaining) if remaining else "")
         response = RedirectResponse(url=clean, status_code=302)
+        cookie_name = "pyball_manage_token" if token_type == "manage" else "pyball_match_token"
         response.set_cookie(
-            "pyball_token",
+            cookie_name,
             token,
             httponly=True,
             secure=request.url.scheme == "https",

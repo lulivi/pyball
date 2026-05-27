@@ -343,7 +343,7 @@ class TestMeetupActive:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
-            cookies={"pyball_token": "my-manage-tok"},
+            cookies={"pyball_manage_token": "my-manage-tok"},
         ) as c:
             response = await c.get("/api/meetup/active")
 
