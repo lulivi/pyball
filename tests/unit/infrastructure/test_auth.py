@@ -103,7 +103,7 @@ class TestMatchTokenCookieAccess:
     async def test_allows_match_page(self):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MATCH_TOKEN)
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
             response = await c.get("/match")
         assert response.status_code == 200
 
@@ -111,7 +111,7 @@ class TestMatchTokenCookieAccess:
     async def test_allows_api_match_active(self):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MATCH_TOKEN)
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
             response = await c.get("/api/match/active")
         assert response.status_code == 200
 
@@ -119,7 +119,7 @@ class TestMatchTokenCookieAccess:
     async def test_allows_api_match_finish(self):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MATCH_TOKEN)
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
             response = await c.post("/api/match/finish")
         assert response.status_code == 200
 
@@ -128,7 +128,7 @@ class TestMatchTokenCookieAccess:
         """match_token must not access /manage."""
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MATCH_TOKEN)
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
             response = await c.get("/manage")
         assert response.status_code == 403
 
@@ -137,7 +137,7 @@ class TestMatchTokenCookieAccess:
         """match_token must not access admin API routes."""
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MATCH_TOKEN)
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
             response = await c.get("/api/admin")
         assert response.status_code == 403
 
@@ -149,7 +149,7 @@ class TestManageTokenCookieAccess:
     async def test_allows_manage_page(self):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MANAGE_TOKEN)
+            c.cookies.set("pyball_manage_token", MANAGE_TOKEN)
             response = await c.get("/manage")
         assert response.status_code == 200
 
@@ -157,7 +157,7 @@ class TestManageTokenCookieAccess:
     async def test_allows_match_page(self):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MANAGE_TOKEN)
+            c.cookies.set("pyball_manage_token", MANAGE_TOKEN)
             response = await c.get("/match")
         assert response.status_code == 200
 
@@ -165,7 +165,7 @@ class TestManageTokenCookieAccess:
     async def test_allows_other_api_routes(self):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", MANAGE_TOKEN)
+            c.cookies.set("pyball_manage_token", MANAGE_TOKEN)
             response = await c.get("/api/admin")
         assert response.status_code == 200
 
@@ -174,9 +174,19 @@ class TestManageTokenCookieAccess:
         """A cookie with an unrecognised token value is rejected."""
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            c.cookies.set("pyball_token", "wrong-token")
+            c.cookies.set("pyball_match_token", "wrong-token")
             response = await c.get("/match")
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_manage_cookie_not_overwritten_by_match_link(self):
+        """Opening the match link in the same browser must not revoke manage access."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_manage_token", MANAGE_TOKEN)
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
+            response = await c.get("/manage")
+        assert response.status_code == 200
 
 
 class TestTokenQueryParam:
@@ -192,7 +202,7 @@ class TestTokenQueryParam:
         assert response.status_code == 302
         assert response.headers["location"] == "/match"
         set_cookie = response.headers.get("set-cookie", "")
-        assert "pyball_token" in set_cookie
+        assert "pyball_match_token" in set_cookie
         assert "HttpOnly" in set_cookie
         assert "Secure" not in set_cookie
         assert "SameSite=lax" in set_cookie
