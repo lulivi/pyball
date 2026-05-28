@@ -51,3 +51,15 @@ def test_from_file_returns_empty_for_nonexistent_file(tmp_path):
     stats = LegacyStats.from_file(str(tmp_path / "nonexistent.json"))
     assert stats.get_assists("any") == 0
     assert stats.all_players() == []
+
+
+def test_get_assists_for_match_returns_count():
+    stats = LegacyStats(_DATA)
+    assert stats.get_assists_for_match("uuid-1", datetime(2023, 1, 1, 10, 0)) == 2
+    assert stats.get_assists_for_match("uuid-2", datetime(2023, 1, 1, 10, 0)) == 8
+
+
+def test_get_assists_for_match_returns_zero_for_miss():
+    stats = LegacyStats(_DATA)
+    assert stats.get_assists_for_match("uuid-1", datetime(2023, 3, 1, 10, 0)) == 0
+    assert stats.get_assists_for_match("unknown", datetime(2023, 1, 1, 10, 0)) == 0

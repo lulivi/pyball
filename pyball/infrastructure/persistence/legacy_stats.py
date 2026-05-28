@@ -39,8 +39,15 @@ class LegacyStats:
         entries = self._data.get("players", {}).get(player_id, {}).get("assists_by_match", [])
         if since is None:
             return sum(e["count"] for e in entries)
-        since_iso = since.isoformat()
-        return sum(e["count"] for e in entries if e["date"] >= since_iso)
+        return sum(e["count"] for e in entries if datetime.fromisoformat(e["date"]) >= since)
+
+    def get_assists_for_match(self, player_id: str, match_date: datetime) -> int:
+        """Return assists for player_id in the match at match_date, or 0 if not found."""
+        entries = self._data.get("players", {}).get(player_id, {}).get("assists_by_match", [])
+        for entry in entries:
+            if datetime.fromisoformat(entry["date"]) == match_date:
+                return entry["count"]
+        return 0
 
     def all_players(self) -> list[str]:
         """Return list of all player IDs in legacy stats."""
