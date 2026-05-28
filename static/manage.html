@@ -599,7 +599,7 @@ async function shareStats(date, summaryText) {
     const blob = await res.blob();
     const file = new File([blob], `stats-${date}.png`, { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], text: summaryText });
+      await navigator.share({ files: [file], text: summaryText || document.getElementById('summary-msg')?.textContent || '' });
     } else {
       alert('Compartir archivos no está disponible en este navegador.');
     }
