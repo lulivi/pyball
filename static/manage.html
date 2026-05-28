@@ -371,8 +371,7 @@ function showTeamsResult() {
 }
 
 function copyTeams() {
-  const text = document.getElementById('teams-text').textContent;
-  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+  _copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
 function backToReview() { showStep('review'); renderChips(); }
@@ -432,8 +431,7 @@ function renderState2(data) {
 }
 
 function copyState2Teams() {
-  const text = document.getElementById('teams-text').textContent;
-  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+  _copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
 async function regenerateCurrentTeams() {
@@ -580,8 +578,7 @@ async function loadResumen() {
 }
 
 function copySummary() {
-  const text = document.getElementById('summary-msg').textContent;
-  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+  _copyToClipboard(document.getElementById('summary-msg').textContent);
 }
 
 async function downloadStats(date) {
@@ -731,6 +728,26 @@ function _restoreStepHTML() {
       </div>
     </div>
   `;
+}
+
+function _copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    alert('Copiado al portapapeles ✓');
+  } catch (e) {
+    alert('No se pudo copiar. Por favor copia el texto manualmente.');
+  }
+  document.body.removeChild(ta);
 }
 
 if ('serviceWorker' in navigator) {
