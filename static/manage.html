@@ -572,7 +572,7 @@ async function loadResumen() {
         <div class="stats-icon">📊</div>
         <div style="font-size:0.8rem;color:#94a3b8;text-align:center;">Generada por PyBall · ${escHtml(date_label)}</div>
         <div style="display:flex;gap:8px;">
-          <button class="btn-sm green" data-share-date="${escHtml(date)}" onclick="shareStats(this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen</button>
+          <button class="btn-sm green" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen</button>
           <button class="btn-sm gray" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">⬇ Descargar</button>
         </div>
       </div>
@@ -592,8 +592,7 @@ async function downloadStats(date) {
   a.click();
 }
 
-async function shareStats(date, summaryText) {
-  const btn = document.querySelector(`[data-share-date="${CSS.escape(date)}"]`);
+async function shareStats(btn, date, summaryText) {
   if (btn) { btn.disabled = true; btn.textContent = 'Preparando…'; }
   try {
     const url = `/api/match/${encodeURIComponent(date)}/stats.png`;
