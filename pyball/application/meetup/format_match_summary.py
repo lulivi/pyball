@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 from pyball.domain.meetup.models import Meetup
+from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 
 class FormatMatchSummary:
@@ -34,6 +35,7 @@ class FormatMatchSummary:
         team_colors: tuple[str, str] = ("blanco", "negro"),
         team_emojis: tuple[str, str] = ("⚪", "⚫"),
         date_label: str | None = None,
+        legacy_stats: LegacyStats | None = None,
     ) -> str:
         """Return the WhatsApp-ready summary string.
 
@@ -44,6 +46,8 @@ class FormatMatchSummary:
             team_emojis: Circle emoji for team A and team B.
             date_label: Pre-formatted date string (e.g. "18 Mayo"). If None,
                 derived from meetup.date using the current locale.
+            legacy_stats: Optional legacy statistics. When provided, assists for
+                players with no event assists are read from it for this match date.
 
         Returns:
             Multi-line WhatsApp message string.
@@ -69,6 +73,14 @@ class FormatMatchSummary:
             if event.assistant_id:
                 aid = str(event.assistant_id.value)
                 assists[aid] = assists.get(aid, 0) + 1
+
+        if legacy_stats is not None:
+            all_pids = [str(pid.value) for team in teams for pid in team.players]
+            for pid in all_pids:
+                if assists.get(pid, 0) == 0:
+                    legacy_count = legacy_stats.get_assists_for_match(pid, meetup.date)
+                    if legacy_count:
+                        assists[pid] = legacy_count
 
         team_a_ids = [str(pid.value) for pid in teams[0].players]
         team_b_ids = [str(pid.value) for pid in teams[1].players]
