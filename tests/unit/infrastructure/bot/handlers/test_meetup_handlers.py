@@ -634,11 +634,16 @@ async def test_new_meetup_handler_success_reacts(mock_update, mock_context):
     mock_context.args = ["2026-04-25", "20:00"]
     mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
 
-    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"), patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
-        return_value="msg",
-    ), patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.build_main_keyboard", return_value=None
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+            return_value="msg",
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.build_main_keyboard",
+            return_value=None,
+        ),
     ):
         await new_meetup_handler(mock_update, mock_context)
 
@@ -663,11 +668,16 @@ async def test_next_meetup_handler_success_no_intermediate_message(mock_update, 
     mock_context.bot_data["settings"].pyball.default_hour = "20:00"
     mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
 
-    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"), patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
-        return_value="msg",
-    ), patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.build_main_keyboard", return_value=None
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+            return_value="msg",
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.build_main_keyboard",
+            return_value=None,
+        ),
     ):
         await next_meetup_handler(mock_update, mock_context)
 
@@ -755,11 +765,16 @@ async def test_search_handler_success_reacts(mock_update, mock_context):
     mock_context.args = ["2026-04-25", "20:00"]
     mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
 
-    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"), patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.format_subs_message",
-        return_value="msg",
-    ), patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.build_subs_keyboard", return_value=None
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_subs_message",
+            return_value="msg",
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.build_subs_keyboard",
+            return_value=None,
+        ),
     ):
         await search_handler(mock_update, mock_context)
 

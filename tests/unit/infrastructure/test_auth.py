@@ -1,4 +1,5 @@
 """Unit tests for TokenAuthMiddleware."""
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from starlette.applications import Starlette

@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Notifier interface for match lifecycle events."""
+
 from abc import ABC, abstractmethod
 
 from pyball.domain.meetup.models import Meetup

@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Telegram notification implementations for match and meetup events."""
+
 import asyncio
 import logging
 from typing import TYPE_CHECKING
