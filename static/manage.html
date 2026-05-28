@@ -589,6 +589,27 @@ async function downloadStats(date) {
   a.click();
 }
 
+async function shareStats(date, summaryText) {
+  const btn = document.querySelector(`[data-share-date="${CSS.escape(date)}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparando…'; }
+  try {
+    const url = `/api/match/${encodeURIComponent(date)}/stats.png`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Error al descargar la imagen');
+    const blob = await res.blob();
+    const file = new File([blob], `stats-${date}.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text: summaryText });
+    } else {
+      alert('Compartir archivos no está disponible en este navegador.');
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Error al compartir: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Compartir imagen'; }
+  }
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function showStep(name) {
   ['paste','review','teams'].forEach(s =>
