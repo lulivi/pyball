@@ -1,4 +1,5 @@
 """Tests for the FastAPI HTTP application."""
+
 from datetime import datetime
 from unittest.mock import MagicMock
 

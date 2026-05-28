@@ -1,4 +1,5 @@
 """Token-based authentication middleware for the FastAPI application."""
+
 from __future__ import annotations
 
 import hmac

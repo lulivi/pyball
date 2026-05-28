@@ -219,6 +219,7 @@ def _register_match_routes(
             player_names,
             team_colors=container.team_colors,
             team_emojis=container.team_emojis,
+            legacy_stats=container.legacy_stats,
         )
         date_label = meetup.date.strftime("%-d %B").title()
         return {"date_label": date_label, "message": message}
