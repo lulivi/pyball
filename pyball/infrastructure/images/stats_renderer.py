@@ -137,7 +137,8 @@ class StatsHtmlRenderer:
         Returns:
             Raw PNG bytes, cropped to content height.
         """
-        pdf = weasyprint.HTML(string=html).write_pdf()
+        _no_pagination = weasyprint.CSS(string="@page { size: 794px 100000px; margin: 0; }")
+        pdf = weasyprint.HTML(string=html).write_pdf(stylesheets=[_no_pagination])
         doc = fitz.open(stream=pdf, filetype="pdf")
         mat = fitz.Matrix(4, 4)
         pixmaps = [page.get_pixmap(matrix=mat) for page in doc]
