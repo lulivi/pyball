@@ -1,4 +1,5 @@
 """Tests for Telegram message formatters."""
+
 from datetime import datetime
 
 from pyball.infrastructure.telegram.formatters import build_main_keyboard, parse_callback_data

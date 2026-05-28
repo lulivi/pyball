@@ -54,9 +54,9 @@ class JsonMeetupRepository(MeetupRepository):
             events = tuple(
                 GoalEvent(
                     scorer_id=PlayerId(UUID(e["scorer_id"])),
-                    assistant_id=PlayerId(UUID(e["assistant_id"]))
-                    if e.get("assistant_id")
-                    else None,
+                    assistant_id=(
+                        PlayerId(UUID(e["assistant_id"])) if e.get("assistant_id") else None
+                    ),
                     team=e["team"],
                     timestamp=time.fromisoformat(e["timestamp"]),
                 )

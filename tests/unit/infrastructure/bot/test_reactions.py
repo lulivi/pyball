@@ -1,4 +1,5 @@
 """Tests for react_ok helper."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

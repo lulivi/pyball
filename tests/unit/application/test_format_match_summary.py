@@ -146,9 +146,7 @@ class TestFormatMatchSummaryWithLegacy:
         self.player_names = {self.pid_a1: "Juande", self.pid_b1: "Simón"}
         a1 = PlayerId.from_string(self.pid_a1)
         b1 = PlayerId.from_string(self.pid_b1)
-        events = (
-            GoalEvent(scorer_id=b1, assistant_id=None, team="B", timestamp=time(20, 5)),
-        )
+        events = (GoalEvent(scorer_id=b1, assistant_id=None, team="B", timestamp=time(20, 5)),)
         result = MatchResult(score_a=0, score_b=1, events=events)
         meetup = Meetup.create(date=datetime(2026, 2, 16, 22, 0), location="Parque")
         meetup.set_teams(
@@ -164,11 +162,7 @@ class TestFormatMatchSummaryWithLegacy:
         """Legacy assists are shown for players with 0 event assists."""
         legacy_data = {
             "players": {
-                self.pid_a1: {
-                    "assists_by_match": [
-                        {"date": "2026-02-16T22:00:00", "count": 2}
-                    ]
-                }
+                self.pid_a1: {"assists_by_match": [{"date": "2026-02-16T22:00:00", "count": 2}]}
             }
         }
         legacy = LegacyStats(legacy_data)
@@ -182,9 +176,7 @@ class TestFormatMatchSummaryWithLegacy:
 
     def test_without_legacy_stats_still_works(self):
         """Passing no legacy_stats (default) does not break the summary."""
-        msg = self.use_case.execute(
-            self.meetup, self.player_names, date_label="16 Febrero"
-        )
+        msg = self.use_case.execute(self.meetup, self.player_names, date_label="16 Febrero")
         assert "Juande" in msg
         assert "🅰️" not in msg
 
@@ -192,11 +184,7 @@ class TestFormatMatchSummaryWithLegacy:
         """Legacy assists for a different date are not shown."""
         legacy_data = {
             "players": {
-                self.pid_a1: {
-                    "assists_by_match": [
-                        {"date": "2026-02-23T22:00:00", "count": 3}
-                    ]
-                }
+                self.pid_a1: {"assists_by_match": [{"date": "2026-02-23T22:00:00", "count": 3}]}
             }
         }
         legacy = LegacyStats(legacy_data)
