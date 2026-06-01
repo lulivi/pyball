@@ -150,8 +150,9 @@ let expandedIdx = null;     // which chip is expanded
 let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:00"
 // state-driven page state (null = state 0; populated = state 1 or 2)
 let activeMatchData = null;
-let editPlayers = [];
-let editPanelOpen = false;
+let editTeamA = [];          // {id, name}[] — working copy of team A
+let editTeamB = [];          // {id, name}[] — working copy of team B
+let editReplacingPlayer = null; // {id, name, team: 'A'|'B'} | null
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -416,104 +417,108 @@ async function regenerateCurrentTeams() {
   }
 }
 
-// ── EDIT PANEL ────────────────────────────────────────────────────────────
-async function toggleEditPanel() {
-  if (editPanelOpen) {
-    editPanelOpen = false;
-    document.getElementById('edit-panel-container').innerHTML = '';
+// ── TEAMS EDIT PANEL ─────────────────────────────────────────────────────
+function toggleTeamsEditPanel() {
+  const container = document.getElementById('edit-panel-container');
+  if (container.innerHTML) {
+    editTeamA = [];
+    editTeamB = [];
+    editReplacingPlayer = null;
+    container.innerHTML = '';
     return;
   }
+  const open = () => {
+    const t = activeMatchData.teams;
+    const byName = {};
+    activeMatchData.players.forEach(p => { byName[p.name] = p; });
+    editTeamA = t.teamA.map(name => byName[name] || {id: null, name});
+    editTeamB = t.teamB.map(name => byName[name] || {id: null, name});
+    editReplacingPlayer = null;
+    _renderTeamsEditPanel();
+  };
   if (!allPlayers.length) {
-    try {
-      const res = await fetch('/api/players');
-      allPlayers = await res.json();
-    } catch(e) {
-      alert('Error al cargar la lista de jugadores: ' + e.message);
-      return;
-    }
+    fetch('/api/players').then(r => r.json()).then(data => {
+      allPlayers = data;
+      open();
+    }).catch(e => alert('Error al cargar jugadores: ' + e.message));
+    return;
   }
-  editPlayers = activeMatchData.players.map(p => ({...p}));
-  editPanelOpen = true;
-  _renderEditPanel();
+  open();
 }
 
-function renderEditSearchResults() {
-  const query = document.getElementById('edit-search').value.toLowerCase();
-  const resultsEl = document.getElementById('edit-search-results');
+function moveToOtherTeam(id, fromTeam) {
+  const fromArr = fromTeam === 'A' ? editTeamA : editTeamB;
+  const toArr   = fromTeam === 'A' ? editTeamB : editTeamA;
+  const idx = fromArr.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const [player] = fromArr.splice(idx, 1);
+  toArr.push(player);
+  _renderTeamsEditPanel();
+}
+
+function startReplacePlayer(id, team) {
+  const arr = team === 'A' ? editTeamA : editTeamB;
+  const player = arr.find(p => p.id === id);
+  if (!player) return;
+  editReplacingPlayer = {...player, team};
+  _renderTeamsEditPanel();
+}
+
+function pickReplacement(id, name) {
+  if (!editReplacingPlayer) return;
+  const arr = editReplacingPlayer.team === 'A' ? editTeamA : editTeamB;
+  const idx = arr.findIndex(p => p.id === editReplacingPlayer.id);
+  if (idx !== -1) arr[idx] = {id, name};
+  editReplacingPlayer = null;
+  _renderTeamsEditPanel();
+}
+
+function cancelReplace() {
+  editReplacingPlayer = null;
+  _renderTeamsEditPanel();
+}
+
+function renderReplaceSearchResults() {
+  const query = document.getElementById('replace-search').value.toLowerCase();
+  const resultsEl = document.getElementById('replace-results');
   if (!query) { resultsEl.innerHTML = ''; return; }
-  const editIds = new Set(editPlayers.map(p => p.id));
+  const editIds = new Set([...editTeamA, ...editTeamB].map(p => p.id));
   const matches = allPlayers
     .filter(p => p.name.toLowerCase().includes(query) && !editIds.has(p.id))
     .slice(0, 6);
   resultsEl.innerHTML = matches
-    .map(p => `<div class="cand-item" onclick="addEditPlayer('${escAttr(p.id)}','${escAttr(p.name)}')">${escHtml(p.name)}</div>`)
+    .map(p => `<div class="cand-item" onclick="pickReplacement('${escAttr(p.id)}','${escAttr(p.name)}')">${escHtml(p.name)}</div>`)
     .join('');
 }
 
-function removeEditPlayer(id) {
-  editPlayers = editPlayers.filter(p => p.id !== id);
-  _renderEditPanel();
-}
-
-function addEditPlayer(id, name) {
-  if (!editPlayers.find(p => p.id === id)) {
-    editPlayers.push({id, name});
-  }
-  _renderEditPanel();
-}
-
-function closeEditPanel() {
-  editPanelOpen = false;
-  editPlayers = activeMatchData.players.map(p => ({...p}));
-  document.getElementById('edit-panel-container').innerHTML = '';
-}
-
-async function regenerateWithEdits() {
-  if (editPlayers.length < 2) {
-    alert('Necesitas al menos 2 jugadores para generar equipos.');
-    return;
-  }
-  const btn = document.querySelector('#edit-panel-container .btn-green');
-  if (btn) { btn.disabled = true; btn.textContent = 'Regenerando...'; }
+async function saveTeams() {
+  const saveBtn = document.querySelector('#teams-edit-panel .btn-green');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando...'; }
   try {
-    const data = await _callCreateWithTeams(editPlayers.map(p => p.id));
-    activeMatchData = {
-      date: activeMatchData.date,
-      players: editPlayers.map(p => ({...p})),
-      teams: _teamsFromResponse(data),
-    };
+    const res = await fetch('/api/meetup/assign-teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date: activeMatchData.date,
+        team_a_ids: editTeamA.map(p => p.id),
+        team_b_ids: editTeamB.map(p => p.id),
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.detail || res.statusText));
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar equipos'; }
+      return;
+    }
+    activeMatchData = await res.json();
+    editTeamA = [];
+    editTeamB = [];
+    editReplacingPlayer = null;
     renderState2(activeMatchData);
   } catch(e) {
-    alert('Error: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '⚽ Regenerar equipos'; }
+    alert('Error de red: ' + e.message);
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar equipos'; }
   }
-}
-
-function _renderEditPanel() {
-  const chips = editPlayers
-    .map(p => `
-      <div class="edit-chip">
-        <span>${escHtml(p.name)}</span>
-        <button class="remove-btn" onclick="removeEditPlayer('${escAttr(p.id)}')">×</button>
-      </div>`)
-    .join('');
-  document.getElementById('edit-panel-container').innerHTML = `
-    <div class="edit-panel">
-      <div class="edit-panel-header">
-        <div class="step-label" style="margin:0;">Jugadores (${editPlayers.length})</div>
-        <button class="close-x" onclick="closeEditPanel()">✕</button>
-      </div>
-      <div id="edit-chips">${chips}</div>
-      <hr class="divider" style="margin:8px 0;">
-      <div class="step-label">Añadir jugador</div>
-      <input class="search-box" id="edit-search" type="text" placeholder="Buscar por nombre..."
-        oninput="renderEditSearchResults()">
-      <div id="edit-search-results" class="cand-list"></div>
-      <hr class="divider" style="margin:8px 0;">
-      <div class="regen-note">Los cambios se aplican al regenerar</div>
-      <button class="btn btn-green" style="margin-top:0;" onclick="regenerateWithEdits()">⚽ Regenerar equipos</button>
-    </div>
-  `;
 }
 
 // ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
@@ -646,6 +651,64 @@ function _teamsFromResponse(data) {
     emojiA: data.emoji_a, emojiB: data.emoji_b,
     matchUrl: data.match_url,
   };
+}
+
+function _renderTeamsEditPanel() {
+  const unequal = editTeamA.length !== editTeamB.length;
+  const t = activeMatchData.teams;
+
+  const row = (p, team) => {
+    const hl = editReplacingPlayer && editReplacingPlayer.id === p.id
+      ? 'background:#431407;border-color:#ef4444;' : '';
+    const nameBtn = `<span style="color:#38bdf8;text-decoration:underline;cursor:pointer;flex:1;"
+      onclick="startReplacePlayer('${escAttr(p.id)}','${team}')">${escHtml(p.name)}</span>`;
+    const arrow = team === 'A'
+      ? `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
+           onclick="moveToOtherTeam('${escAttr(p.id)}','A')">➡️</button>`
+      : `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
+           onclick="moveToOtherTeam('${escAttr(p.id)}','B')">⬅️</button>`;
+    const order = team === 'A'
+      ? `${nameBtn}${arrow}` : `${arrow}${nameBtn}`;
+    return `<div class="edit-chip" style="${hl}">${order}</div>`;
+  };
+
+  const replaceSearch = editReplacingPlayer ? `
+    <div style="background:#1e293b;border:1px solid #3b82f6;border-radius:6px;padding:8px;margin-bottom:8px;">
+      <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:5px;">
+        Reemplazar a <strong style="color:#fca5a5;">${escHtml(editReplacingPlayer.name)}</strong>:</div>
+      <input class="search-box" id="replace-search" type="text" placeholder="Buscar jugador..."
+        oninput="renderReplaceSearchResults()">
+      <div id="replace-results" class="cand-list"></div>
+      <button class="skip-link" style="margin-top:4px;" onclick="cancelReplace()">✕ Cancelar</button>
+    </div>` : '';
+
+  const saveBtn = unequal
+    ? `<button class="btn btn-green" style="margin-top:4px;opacity:0.5;cursor:not-allowed;"
+         disabled>💾 Guardar equipos</button>`
+    : `<button class="btn btn-green" style="margin-top:4px;"
+         onclick="saveTeams()">💾 Guardar equipos</button>`;
+
+  document.getElementById('edit-panel-container').innerHTML = `
+    <div class="edit-panel" id="teams-edit-panel">
+      <div class="edit-panel-header">
+        <div class="step-label" style="margin:0;">✏️ Editar equipos</div>
+        <button class="close-x" onclick="toggleTeamsEditPanel()">✕</button>
+      </div>
+      ${replaceSearch}
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="flex:1;">
+          <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiA)} ${escHtml(t.nameA)} (${editTeamA.length})</div>
+          ${editTeamA.map(p => row(p, 'A')).join('')}
+        </div>
+        <div style="flex:1;">
+          <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiB)} ${escHtml(t.nameB)} (${editTeamB.length})</div>
+          ${editTeamB.map(p => row(p, 'B')).join('')}
+        </div>
+      </div>
+      ${unequal ? '<div class="load-warning">⚠ Los equipos deben tener el mismo número de jugadores</div>' : ''}
+      ${saveBtn}
+    </div>
+  `;
 }
 
 // ── API CONNECTION GATE ───────────────────────────────────────────────────────
