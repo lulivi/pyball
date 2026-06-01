@@ -26,6 +26,7 @@ from pyball.application.meetup import (
     CreateMeetup,
     CreateTeams,
     CreateTeamsManually,
+    EditMatchResult,
     FinishMatch,
     RemovePlayerFromMeetup,
     StartMatch,
@@ -117,6 +118,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def finish_match(self) -> FinishMatch:
         """Create a new FinishMatch use case."""
         return FinishMatch(self.meetup_repository, self.player_repository)
+
+    def edit_match_result(self) -> EditMatchResult:
+        """Create a new EditMatchResult use case."""
+        return EditMatchResult(self.meetup_repository, self.player_repository)
 
     def compute_stats(self) -> ComputeStats:
         """Create a new ComputeStats use case."""
