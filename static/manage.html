@@ -389,13 +389,13 @@ function renderState2(data) {
       <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
       <button class="btn-sm green" onclick="regenerateCurrentTeams()">↺ Regenerar</button>
     </div>
+    <div id="edit-panel-container"></div>
     <hr class="divider">
     <div class="step-label">Abre el marcador en otro móvil</div>
     <div class="qr-box">
       <canvas id="qr-canvas"></canvas>
       <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
     </div>
-    <div id="edit-panel-container"></div>
   `;
   _renderQR(t.matchUrl, document.getElementById('qr-canvas'));
 }
