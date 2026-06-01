@@ -261,6 +261,57 @@ def _register_match_routes(
             headers={"Content-Disposition": f'attachment; filename="stats-{date}.png"'},
         )
 
+    @app.get("/api/match/{date}/events")
+    async def match_events(date: str):
+        """Return events of a closed match with player IDs resolved to names."""
+        try:
+            meetup_date = datetime.fromisoformat(date)
+        except ValueError as exc:
+            raise HTTPException(422, "Invalid date format") from exc
+
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            raise HTTPException(404, "Meetup not found")
+        if not meetup.is_closed():
+            raise HTTPException(409, "Match is not closed yet")
+
+        assert meetup.teams is not None
+        assert meetup.result is not None
+
+        all_players = container.player_repository.find_all()
+        player_names = {str(p.id.value): p.name for p in all_players}
+        colors = container.team_colors
+        hex_bg = container.team_hex_bg
+        hex_text = container.team_hex_text
+
+        team_a = _sorted_names(meetup.teams[0].players, player_names)
+        team_b = _sorted_names(meetup.teams[1].players, player_names)
+
+        events = [
+            {
+                "scorer": player_names.get(str(ev.scorer_id.value), "(desconocido)"),
+                "assistant": player_names.get(str(ev.assistant_id.value), "(desconocido)")
+                if ev.assistant_id
+                else None,
+                "team": ev.team,
+                "timestamp": ev.timestamp.strftime("%H:%M"),
+            }
+            for ev in reversed(meetup.result.events)
+        ]
+
+        return {
+            "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "nameA": colors[0].capitalize(),
+            "nameB": colors[1].capitalize(),
+            "teamA": team_a,
+            "teamB": team_b,
+            "colorA": hex_bg[0],
+            "colorB": hex_bg[1],
+            "colorTextA": hex_text[0],
+            "colorTextB": hex_text[1],
+            "events": events,
+        }
+
 
 def _register_player_routes(app: FastAPI, container: "Container") -> None:
     """Register player-related routes."""

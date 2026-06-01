@@ -352,3 +352,95 @@ class TestMeetupActive:
         assert response.json()["teams"]["matchUrl"] == (
             "https://pyball.example.com/match?token=my-match-tok"
         )
+
+
+class TestMatchEvents:
+    """Tests for GET /api/match/{date}/events."""
+
+    def _make_closed_meetup(self):
+        """Return a mock closed meetup with one goal event."""
+        ev = MagicMock()
+        ev.scorer_id.value = "p1"
+        ev.assistant_id = None
+        ev.team = "A"
+        ev.timestamp.strftime.return_value = "20:15"
+
+        pid_a = MagicMock()
+        pid_a.value = "p1"
+        pid_b = MagicMock()
+        pid_b.value = "p2"
+
+        meetup = MagicMock()
+        meetup.is_closed.return_value = True
+        meetup.date = datetime(2026, 5, 28, 20, 0)
+        meetup.result.events = (ev,)
+        meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+        return meetup
+
+    def _make_players(self):
+        """Return two mock player objects."""
+        player_a = MagicMock()
+        player_a.id.value = "p1"
+        player_a.name = "Dani"
+        player_b = MagicMock()
+        player_b.id.value = "p2"
+        player_b.name = "Rafa"
+        return [player_a, player_b]
+
+    @pytest.mark.asyncio
+    async def test_returns_200_with_event_data(self):
+        """Returns team names, colours, and events (newest-first) for a closed meetup."""
+        meetup = self._make_closed_meetup()
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = meetup
+        container.player_repository.find_all.return_value = self._make_players()
+        container.team_colors = ("blanco", "negro")
+        container.team_hex_bg = ("#ffffff", "#27272a")
+        container.team_hex_text = ("#27272a", "#e4e4e7")
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/2026-05-28T20:00/events")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["date"] == "2026-05-28T20:00"
+        assert data["nameA"] == "Blanco"
+        assert data["nameB"] == "Negro"
+        assert data["teamA"] == ["Dani"]
+        assert data["teamB"] == ["Rafa"]
+        assert data["colorA"] == "#ffffff"
+        assert data["colorB"] == "#27272a"
+        assert data["colorTextA"] == "#27272a"
+        assert data["colorTextB"] == "#e4e4e7"
+        assert len(data["events"]) == 1
+        assert data["events"][0]["scorer"] == "Dani"
+        assert data["events"][0]["assistant"] is None
+        assert data["events"][0]["team"] == "A"
+        assert data["events"][0]["timestamp"] == "20:15"
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_meetup_not_found(self):
+        """Returns 404 when no meetup exists on that date."""
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = None
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/2026-05-28T20:00/events")
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_409_when_meetup_not_closed(self):
+        """Returns 409 when the meetup exists but has no result yet."""
+        meetup = MagicMock()
+        meetup.is_closed.return_value = False
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = meetup
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/2026-05-28T20:00/events")
+
+        assert response.status_code == 409
