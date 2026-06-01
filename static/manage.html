@@ -102,6 +102,7 @@
   .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
   .remove-btn:hover { color: #fca5a5; }
   .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }
+  .edit-date-input { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.85rem; padding: 8px 10px; }
 </style>
 </head>
 <body>
@@ -549,6 +550,12 @@ async function loadResumen() {
       <button class="btn btn-teal" onclick="copySummary()">📋 Copiar texto</button>
       <button class="btn btn-purple" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen con texto</button>
       <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
+      <hr class="divider">
+      <div class="step-label">Corregir resultado</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input type="datetime-local" id="edit-date-input" class="edit-date-input" value="${escHtml(date)}">
+        <button class="btn-sm green" onclick="openEditMode(document.getElementById('edit-date-input').value)">✏️ Editar</button>
+      </div>
     `;
   } catch(e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
 }
@@ -809,6 +816,11 @@ function _copyToClipboard(text) {
     alert('No se pudo copiar. Por favor copia el texto manualmente.');
   }
   document.body.removeChild(ta);
+}
+
+function openEditMode(date) {
+  if (!date) { alert('Selecciona una fecha.'); return; }
+  window.location.href = '/match?edit=1&date=' + encodeURIComponent(date);
 }
 
 if ('serviceWorker' in navigator) {

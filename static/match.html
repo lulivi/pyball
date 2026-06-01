@@ -259,6 +259,17 @@
             font-size: 1rem;
             font-weight: bold;
         }
+
+        .edit-mode-banner {
+            background: #92400e;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: center;
+            color: #fef3c7;
+        }
     </style>
 </head>
 <body>
@@ -268,6 +279,7 @@
     let teamA = [], teamB = [];
     let nameA = 'A', nameB = 'B';
     let meetupDate = '';
+    let isEditMode = false;
 
     let appState = {
         events: [], // Goals are calculated dynamically from this array
@@ -279,7 +291,9 @@
 
     // ── STATE UTILITIES AND PERSISTENCE ───────────────────
     function persistState() {
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        if (!isEditMode) {
+            localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        }
     }
 
     function getGoals(teamId) {
@@ -293,8 +307,6 @@
 
     // ── INIT ──────────────────────────────────────────────
     function initializeApp() {
-        const savedState = localStorage.getItem('pyball_current_match');
-        const savedTeams = localStorage.getItem('pyball_teams');
         const params = new URLSearchParams(window.location.search);
         const colorA = params.get('colorA');
         const colorB = params.get('colorB');
@@ -306,6 +318,20 @@
             document.documentElement.style.setProperty('--color-dark', colorB);
             document.documentElement.style.setProperty('--color-dark-text', colorTextB);
         }
+
+        if (params.get('edit') === '1') {
+            isEditMode = true;
+            const editDate = params.get('date') || '';
+            if (editDate) {
+                loadEditMode(editDate);
+            } else {
+                renderNoMatch();
+            }
+            return;
+        }
+
+        const savedState = localStorage.getItem('pyball_current_match');
+        const savedTeams = localStorage.getItem('pyball_teams');
         const urlDate = params.get('date') || '';
 
         if (savedState && savedTeams) {
@@ -393,6 +419,30 @@
                 colorA: data.colorA, colorB: data.colorB,
                 colorTextA: data.colorTextA, colorTextB: data.colorTextB,
             }));
+            renderApp();
+        } catch {
+            renderNoMatch();
+        }
+    }
+
+    async function loadEditMode(date) {
+        try {
+            const res = await fetch('/api/match/' + encodeURIComponent(date) + '/events');
+            if (!res.ok) { renderNoMatch(); return; }
+            const data = await res.json();
+            meetupDate = data.date;
+            nameA = data.nameA;
+            nameB = data.nameB;
+            teamA = data.teamA;
+            teamB = data.teamB;
+            if (data.colorA) {
+                document.documentElement.style.setProperty('--color-light', data.colorA);
+                document.documentElement.style.setProperty('--color-light-text', data.colorTextA);
+                document.documentElement.style.setProperty('--color-dark', data.colorB);
+                document.documentElement.style.setProperty('--color-dark-text', data.colorTextB);
+            }
+            appState.events = data.events;
+            appState.editingEvent = null;
             renderApp();
         } catch {
             renderNoMatch();
@@ -580,8 +630,12 @@
             ? appState.events.map((e, i) => renderEventRow(e, i)).join('')
             : `<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>`;
 
+        const saveLabel = isEditMode ? '💾 GUARDAR CORRECCIÓN' : '💾 CONFIRMAR Y GUARDAR PARTIDO';
+        const saveAction = isEditMode ? 'editMatch()' : 'finishMatch()';
+
         return `
             <div>
+                ${isEditMode ? '<div class="edit-mode-banner">✏️ Modo edición — corrección de resultado</div>' : ''}
                 <div id="event-list">
                     <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
                         <span style="flex: 0 0 42px;"></span>
@@ -591,7 +645,7 @@
                     </div>
                     ${eventsHtml}
                 </div>
-                <button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>
+                <button id="save-btn" class="save-btn" onclick="${saveAction}">${saveLabel}</button>
             </div>
         `;
     }
@@ -657,6 +711,42 @@
             alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
+        }
+    }
+
+    async function editMatch() {
+        if (!confirm('¿Guardar la corrección y reenviar el resumen a Telegram?')) return;
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Enviando corrección...';
+        try {
+            const response = await fetch('/api/match/' + encodeURIComponent(meetupDate) + '/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meetup_date: meetupDate,
+                    events: [...appState.events].reverse(),
+                    finalScore: { A: getGoals('A'), B: getGoals('B') }
+                })
+            });
+            if (response.ok) {
+                document.getElementById('app').innerHTML = `
+                    <div class="no-match">
+                        <div class="success-banner">✅ Corrección guardada y reenviada a Telegram</div>
+                        <div class="no-match-icon">⚽</div>
+                        <div class="no-match-title">PyBall</div>
+                        <div class="no-match-msg">Resultado corregido correctamente.</div>
+                    </div>`;
+            } else {
+                const err = await response.json();
+                alert(`❌ Error del servidor: ${err.detail || response.statusText}`);
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 GUARDAR CORRECCIÓN';
+            }
+        } catch {
+            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 GUARDAR CORRECCIÓN';
         }
     }
 
