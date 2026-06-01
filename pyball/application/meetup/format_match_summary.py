@@ -107,4 +107,5 @@ def _player_line(
     assists: dict[str, int],
 ) -> str:
     name = player_names.get(pid, pid)
-    return name + "⚽" * goals.get(pid, 0) + "🅰️" * assists.get(pid, 0)
+    stats = "⚽" * goals.get(pid, 0) + "🅰️" * assists.get(pid, 0)
+    return name + (" " + stats if stats else "")

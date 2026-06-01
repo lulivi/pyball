@@ -103,7 +103,7 @@ class TestFormatMatchSummary:
             team_emojis=("🟡", "⚫"),
             date_label="18 Mayo",
         )
-        assert "Simón⚽⚽" in msg
+        assert "Simón ⚽⚽" in msg
 
     def test_assist_emoji_present(self):
         """A player with a goal and an assist gets both emojis."""
@@ -114,7 +114,7 @@ class TestFormatMatchSummary:
             team_emojis=("🟡", "⚫"),
             date_label="18 Mayo",
         )
-        assert "Juande⚽🅰️" in msg
+        assert "Juande ⚽🅰️" in msg
 
     def test_player_with_no_stats_has_no_emoji(self):
         """A player with no goals or assists appears without any emoji."""
@@ -172,7 +172,7 @@ class TestFormatMatchSummaryWithLegacy:
             date_label="16 Febrero",
             legacy_stats=legacy,
         )
-        assert "Juande🅰️🅰️" in msg
+        assert "Juande 🅰️🅰️" in msg
 
     def test_without_legacy_stats_still_works(self):
         """Passing no legacy_stats (default) does not break the summary."""

@@ -33,6 +33,7 @@ from pydantic import BaseModel
 
 from pyball.application.meetup import FormatMatchSummary, ParseCallupText
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
+from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.http.auth import TokenAuthMiddleware
 
@@ -357,7 +358,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
 
         try:
             container.assign_teams_by_id().execute(meetup_date, body.team_a_ids, body.team_b_ids)
-        except ValueError as exc:
+        except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
         return _build_meetup_active_response(container, match_token=match_token)
