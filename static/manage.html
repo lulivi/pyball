@@ -433,6 +433,13 @@ function toggleTeamsEditPanel() {
     activeMatchData.players.forEach(p => { byName[p.name] = p; });
     editTeamA = t.teamA.map(name => byName[name] || {id: null, name});
     editTeamB = t.teamB.map(name => byName[name] || {id: null, name});
+    const missing = [...editTeamA, ...editTeamB].filter(p => !p.id).map(p => p.name);
+    if (missing.length) {
+      editTeamA = [];
+      editTeamB = [];
+      alert('No se encontró ID para: ' + missing.join(', ') + '. Recarga la página e inténtalo de nuevo.');
+      return;
+    }
     editReplacingPlayer = null;
     _renderTeamsEditPanel();
   };
@@ -487,7 +494,7 @@ function renderReplaceSearchResults() {
     .filter(p => p.name.toLowerCase().includes(query) && !editIds.has(p.id))
     .slice(0, 6);
   resultsEl.innerHTML = matches
-    .map(p => `<div class="cand-item" onclick="pickReplacement('${escAttr(p.id)}','${escAttr(p.name)}')">${escHtml(p.name)}</div>`)
+    .map(p => `<div class="cand-item" data-pid="${escHtml(p.id)}" data-pname="${escHtml(p.name)}" onclick="pickReplacement(this.dataset.pid, this.dataset.pname)">${escHtml(p.name)}</div>`)
     .join('');
 }
 
