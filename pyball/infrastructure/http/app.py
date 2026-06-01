@@ -315,6 +315,7 @@ def _register_match_routes(
     @app.post("/api/match/{date}/edit")
     async def edit_match(date: str, body: FinishMatchInput):
         """Replace the result of a closed match and re-fire the Telegram notification."""
+        logger.info("edit_match called: date=%s", date)
         try:
             meetup_date = datetime.fromisoformat(date)
         except ValueError as exc:
@@ -331,6 +332,8 @@ def _register_match_routes(
             updated = container.edit_match_result().execute(
                 date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
             )
+        except MeetupNotFoundError as exc:
+            raise HTTPException(404, "Meetup not found") from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
