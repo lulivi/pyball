@@ -46,6 +46,7 @@ except ImportError:
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.application.notifier import MatchNotifier
+    from pyball.domain.meetup.models import Meetup
 
 logger = logging.getLogger(__name__)
 
@@ -356,8 +357,6 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
 
         try:
             container.assign_teams_by_id().execute(meetup_date, body.team_a_ids, body.team_b_ids)
-        except MeetupNotFoundError as exc:
-            raise HTTPException(404, str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
@@ -371,7 +370,7 @@ def _upsert_meetup_with_players(
     container: "Container",
     meetup_date: datetime,
     player_ids: list[str],
-    existing,
+    existing: "Meetup | None",
 ) -> None:
     """Create or reset a meetup and assign the given player IDs to it."""
     if existing:
