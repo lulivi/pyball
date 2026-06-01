@@ -312,6 +312,36 @@ def _register_match_routes(
             "events": events,
         }
 
+    @app.post("/api/match/{date}/edit")
+    async def edit_match(date: str, body: FinishMatchInput):
+        """Replace the result of a closed match and re-fire the Telegram notification."""
+        try:
+            meetup_date = datetime.fromisoformat(date)
+        except ValueError as exc:
+            raise HTTPException(422, "Invalid date format") from exc
+
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            raise HTTPException(404, "Meetup not found")
+        if not meetup.is_closed():
+            raise HTTPException(409, "Match is not closed; use POST /api/match/finish instead")
+
+        events = [e.model_dump() for e in body.events]
+        try:
+            updated = container.edit_match_result().execute(
+                date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        await notifier.on_match_closed(updated)
+
+        return {
+            "meetup_date": date,
+            "score_a": updated.result.score_a,
+            "score_b": updated.result.score_b,
+        }
+
 
 def _register_player_routes(app: FastAPI, container: "Container") -> None:
     """Register player-related routes."""
