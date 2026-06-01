@@ -680,6 +680,28 @@ function _teamsFromResponse(data) {
   };
 }
 
+// ── API CONNECTION GATE ───────────────────────────────────────────────────────
+async function waitForApi() {
+  document.getElementById('tab-equipos').innerHTML = `
+    <div class="loading-state" style="flex-direction:column;gap:12px;">
+      <div class="spinner"></div>
+      <div style="color:#64748b;font-size:0.85rem;">Conectando con el servidor...</div>
+    </div>
+  `;
+  while (true) {
+    try {
+      const res = await fetch('/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.status === 'ok') return;
+      }
+    } catch (_) {
+      // network error — keep retrying
+    }
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+}
+
 // ── BOOTSTRAP ─────────────────────────────────────────────────────────────
 async function initManagePage() {
   document.getElementById('tab-equipos').innerHTML =
@@ -770,7 +792,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
 }
 
-initManagePage();
+waitForApi().then(() => initManagePage());
 </script>
 </body>
 </html>
