@@ -91,6 +91,14 @@ class CreateWithTeamsInput(BaseModel):
     algorithm: str = "balanceado"
 
 
+class AssignTeamsInput(BaseModel):
+    """Request body for POST /api/meetup/assign-teams."""
+
+    date: str
+    team_a_ids: list[str]
+    team_b_ids: list[str]
+
+
 # ── App factory ───────────────────────────────────────────────────────────────
 
 
@@ -297,17 +305,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
         if existing and existing.is_closed():
             raise HTTPException(409, "Match already finished, cannot regenerate teams")
 
-        if existing:
-            existing.players.clear()
-            existing.clear_teams()
-            for pid_str in body.player_ids:
-                existing.add_player(PlayerId.from_string(pid_str))
-            container.meetup_repository.save(existing)
-        else:
-            meetup = container.create_meetup().execute(meetup_date)
-            for pid_str in body.player_ids:
-                meetup.add_player(PlayerId.from_string(pid_str))
-            container.meetup_repository.save(meetup)
+        _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
 
         try:
             container.create_teams(body.algorithm).execute(meetup_date)
@@ -340,8 +338,53 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
             "match_url": match_url,
         }
 
+    @app.post("/api/meetup/assign-teams")
+    async def assign_teams(body: AssignTeamsInput):
+        """Manually assign players to specific teams by player ID."""
+        try:
+            meetup_date = datetime.fromisoformat(body.date)
+        except ValueError as exc:
+            raise HTTPException(
+                422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM"
+            ) from exc
+
+        existing = container.meetup_repository.find_by_datetime(meetup_date)
+        if existing is None:
+            raise HTTPException(404, "No meetup found at the given date")
+        if existing.is_closed():
+            raise HTTPException(409, "Match already finished, cannot reassign teams")
+
+        try:
+            container.assign_teams_by_id().execute(meetup_date, body.team_a_ids, body.team_b_ids)
+        except MeetupNotFoundError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        return _build_meetup_active_response(container, match_token=match_token)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _upsert_meetup_with_players(
+    container: "Container",
+    meetup_date: datetime,
+    player_ids: list[str],
+    existing,
+) -> None:
+    """Create or reset a meetup and assign the given player IDs to it."""
+    if existing:
+        existing.players.clear()
+        existing.clear_teams()
+        for pid_str in player_ids:
+            existing.add_player(PlayerId.from_string(pid_str))
+        container.meetup_repository.save(existing)
+    else:
+        meetup = container.create_meetup().execute(meetup_date)
+        for pid_str in player_ids:
+            meetup.add_player(PlayerId.from_string(pid_str))
+        container.meetup_repository.save(meetup)
 
 
 def _build_active_match_response(container: "Container") -> dict:
