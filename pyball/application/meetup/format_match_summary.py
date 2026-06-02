@@ -66,13 +66,17 @@ class FormatMatchSummary:
         label = date_label or meetup.date.strftime("%-d %B").title()
 
         goals: dict[str, int] = {}
+        own_goals: dict[str, int] = {}
         assists: dict[str, int] = {}
         for event in result.events:
             sid = str(event.scorer_id.value)
-            goals[sid] = goals.get(sid, 0) + 1
-            if event.assistant_id:
-                aid = str(event.assistant_id.value)
-                assists[aid] = assists.get(aid, 0) + 1
+            if event.is_own_goal:
+                own_goals[sid] = own_goals.get(sid, 0) + 1
+            else:
+                goals[sid] = goals.get(sid, 0) + 1
+                if event.assistant_id:
+                    aid = str(event.assistant_id.value)
+                    assists[aid] = assists.get(aid, 0) + 1
 
         if legacy_stats is not None:
             all_pids = [str(pid.value) for team in teams for pid in team.players]
@@ -92,10 +96,10 @@ class FormatMatchSummary:
             "*RESULTADO:*",
             "",
             f"{emoji_a} *{name_a} - {result.score_a}*",
-            *[_player_line(pid, player_names, goals, assists) for pid in team_a_ids],
+            *[_player_line(pid, player_names, goals, own_goals, assists) for pid in team_a_ids],
             "",
             f"{emoji_b} *{name_b} - {result.score_b}*",
-            *[_player_line(pid, player_names, goals, assists) for pid in team_b_ids],
+            *[_player_line(pid, player_names, goals, own_goals, assists) for pid in team_b_ids],
         ]
         return "\n".join(lines)
 
@@ -104,8 +108,13 @@ def _player_line(
     pid: str,
     player_names: dict[str, str],
     goals: dict[str, int],
+    own_goals: dict[str, int],
     assists: dict[str, int],
 ) -> str:
     name = player_names.get(pid, pid)
-    stats = "⚽" * goals.get(pid, 0) + "🅰️" * assists.get(pid, 0)
+    stats = (
+        "⚽" * goals.get(pid, 0)
+        + "🥅" * own_goals.get(pid, 0)
+        + "🅰️" * assists.get(pid, 0)
+    )
     return name + (" " + stats if stats else "")
