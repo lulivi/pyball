@@ -139,3 +139,43 @@ class TestMeetupResult:
         result = MatchResult(score_a=1, score_b=0, events=())
         with pytest.raises(ValueError, match="Cannot set result without teams"):
             meetup.set_result(result)
+
+
+class TestGoalEventOwnGoal:
+    """GoalEvent own-goal field."""
+
+    def test_default_is_own_goal_is_false(self):
+        """GoalEvent.is_own_goal defaults to False."""
+        pid = PlayerId.generate()
+        event = GoalEvent(
+            scorer_id=pid,
+            assistant_id=None,
+            team="A",
+            timestamp=time(20, 5),
+        )
+        assert event.is_own_goal is False
+
+    def test_can_create_own_goal_event(self):
+        """GoalEvent can be created with is_own_goal=True."""
+        pid = PlayerId.generate()
+        event = GoalEvent(
+            scorer_id=pid,
+            assistant_id=None,
+            team="B",
+            timestamp=time(20, 5),
+            is_own_goal=True,
+        )
+        assert event.is_own_goal is True
+
+    def test_own_goal_event_is_frozen(self):
+        """GoalEvent is frozen — is_own_goal cannot be reassigned."""
+        pid = PlayerId.generate()
+        event = GoalEvent(
+            scorer_id=pid,
+            assistant_id=None,
+            team="B",
+            timestamp=time(20, 5),
+            is_own_goal=True,
+        )
+        with pytest.raises((AttributeError, TypeError)):
+            event.is_own_goal = False  # type: ignore[misc]
