@@ -33,6 +33,7 @@ from pydantic import BaseModel
 
 from pyball.application.meetup import FormatMatchSummary, ParseCallupText
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
+from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.http.auth import TokenAuthMiddleware
 
@@ -46,6 +47,7 @@ except ImportError:
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.application.notifier import MatchNotifier
+    from pyball.domain.meetup.models import Meetup
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,7 @@ class GoalEventInput(BaseModel):
     assistant: str | None
     team: str
     timestamp: str
+    is_own_goal: bool = False
 
 
 class FinalScore(BaseModel):
@@ -89,6 +92,14 @@ class CreateWithTeamsInput(BaseModel):
     date: str
     player_ids: list[str]
     algorithm: str = "balanceado"
+
+
+class AssignTeamsInput(BaseModel):
+    """Request body for POST /api/meetup/assign-teams."""
+
+    date: str
+    team_a_ids: list[str]
+    team_b_ids: list[str]
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -251,6 +262,17 @@ def _register_match_routes(
             headers={"Content-Disposition": f'attachment; filename="stats-{date}.png"'},
         )
 
+    @app.get("/api/match/{date}/events")
+    async def match_events(date: str):
+        """Return events of a closed match with player IDs resolved to names."""
+        return _handle_match_events(container, date)
+
+    @app.post("/api/match/{date}/edit")
+    async def edit_match(date: str, body: FinishMatchInput):
+        """Replace the result of a closed match and re-fire the Telegram notification."""
+        logger.info("edit_match called: date=%s", date)
+        return await _handle_edit_match(container, notifier, date, body)
+
 
 def _register_player_routes(app: FastAPI, container: "Container") -> None:
     """Register player-related routes."""
@@ -297,17 +319,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
         if existing and existing.is_closed():
             raise HTTPException(409, "Match already finished, cannot regenerate teams")
 
-        if existing:
-            existing.players.clear()
-            existing.clear_teams()
-            for pid_str in body.player_ids:
-                existing.add_player(PlayerId.from_string(pid_str))
-            container.meetup_repository.save(existing)
-        else:
-            meetup = container.create_meetup().execute(meetup_date)
-            for pid_str in body.player_ids:
-                meetup.add_player(PlayerId.from_string(pid_str))
-            container.meetup_repository.save(meetup)
+        _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
 
         try:
             container.create_teams(body.algorithm).execute(meetup_date)
@@ -340,8 +352,51 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
             "match_url": match_url,
         }
 
+    @app.post("/api/meetup/assign-teams")
+    async def assign_teams(body: AssignTeamsInput):
+        """Manually assign players to specific teams by player ID."""
+        try:
+            meetup_date = datetime.fromisoformat(body.date)
+        except ValueError as exc:
+            raise HTTPException(
+                422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM"
+            ) from exc
+
+        existing = container.meetup_repository.find_by_datetime(meetup_date)
+        if existing is None:
+            raise HTTPException(404, "No meetup found at the given date")
+        if existing.is_closed():
+            raise HTTPException(409, "Match already finished, cannot reassign teams")
+
+        try:
+            container.assign_teams_by_id().execute(meetup_date, body.team_a_ids, body.team_b_ids)
+        except (ValueError, InvalidPlayerIdError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        return _build_meetup_active_response(container, match_token=match_token)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _upsert_meetup_with_players(
+    container: "Container",
+    meetup_date: datetime,
+    player_ids: list[str],
+    existing: "Meetup | None",
+) -> None:
+    """Create or reset a meetup and assign the given player IDs to it."""
+    if existing:
+        existing.players.clear()
+        existing.clear_teams()
+        for pid_str in player_ids:
+            existing.add_player(PlayerId.from_string(pid_str))
+        container.meetup_repository.save(existing)
+    else:
+        meetup = container.create_meetup().execute(meetup_date)
+        for pid_str in player_ids:
+            meetup.add_player(PlayerId.from_string(pid_str))
+        container.meetup_repository.save(meetup)
 
 
 def _build_active_match_response(container: "Container") -> dict:
@@ -432,6 +487,96 @@ def _build_meetup_active_response(container: "Container", match_token: str = "")
             "colorTextB": hex_text[1],
             "matchUrl": match_url,
         },
+    }
+
+
+def _handle_match_events(container: "Container", date: str) -> dict:
+    """Load events of a closed match with player IDs resolved to names."""
+    try:
+        meetup_date = datetime.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format") from exc
+
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
+    if meetup is None:
+        raise HTTPException(404, "Meetup not found")
+    if not meetup.is_closed():
+        raise HTTPException(409, "Match is not closed yet")
+    if meetup.teams is None:
+        raise HTTPException(409, "Match has no teams")
+    if meetup.result is None:  # pragma: no cover — implied by is_closed()
+        raise HTTPException(409, "Match has no result")
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+
+    team_a = _sorted_names(meetup.teams[0].players, player_names)
+    team_b = _sorted_names(meetup.teams[1].players, player_names)
+
+    events = [
+        {
+            "scorer": player_names.get(str(ev.scorer_id.value), "(desconocido)"),
+            "assistant": player_names.get(str(ev.assistant_id.value), "(desconocido)")
+            if ev.assistant_id
+            else None,
+            "team": ev.team,
+            "timestamp": ev.timestamp.strftime("%H:%M"),
+            "is_own_goal": ev.is_own_goal,
+        }
+        for ev in reversed(meetup.result.events)
+    ]
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "nameA": colors[0].capitalize(),
+        "nameB": colors[1].capitalize(),
+        "teamA": team_a,
+        "teamB": team_b,
+        "colorA": hex_bg[0],
+        "colorB": hex_bg[1],
+        "colorTextA": hex_text[0],
+        "colorTextB": hex_text[1],
+        "events": events,
+    }
+
+
+async def _handle_edit_match(
+    container: "Container",
+    notifier: "MatchNotifier",
+    date: str,
+    body: FinishMatchInput,
+) -> dict:
+    """Replace result of a closed match and re-fire the notification."""
+    try:
+        meetup_date = datetime.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format") from exc
+
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
+    if meetup is None:
+        raise HTTPException(404, "Meetup not found")
+    if not meetup.is_closed():
+        raise HTTPException(409, "Match is not closed; use POST /api/match/finish instead")
+
+    events = [e.model_dump() for e in body.events]
+    try:
+        updated = container.edit_match_result().execute(
+            date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
+        )
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "Meetup not found") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_match_closed(updated)
+
+    return {
+        "meetup_date": date,
+        "score_a": updated.result.score_a,
+        "score_b": updated.result.score_b,
     }
 
 

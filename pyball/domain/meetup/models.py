@@ -88,6 +88,7 @@ class GoalEvent(ValueObject):
     assistant_id: PlayerId | None
     team: str
     timestamp: time
+    is_own_goal: bool = False
 
 
 @dataclass(frozen=True)

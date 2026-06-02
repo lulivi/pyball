@@ -20,6 +20,7 @@
 """Meetup use cases."""
 
 from pyball.application.meetup.add_player import AddPlayerToMeetup
+from pyball.application.meetup.assign_teams_by_id import AssignTeamsById
 from pyball.application.meetup.compute_stats import (
     ChemistryPair,
     ComputeStats,
@@ -30,6 +31,7 @@ from pyball.application.meetup.compute_stats import (
 from pyball.application.meetup.create_meetup import CreateMeetup
 from pyball.application.meetup.create_teams import CreateTeams
 from pyball.application.meetup.create_teams_manually import CreateTeamsManually
+from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.meetup.parse_callup_text import (
@@ -53,9 +55,11 @@ __all__ = [
     "AddPlayerToMeetup",
     "RemovePlayerFromMeetup",
     "CreateTeams",
+    "AssignTeamsById",
     "CreateTeamsManually",
     "StartMatch",
     "MeetupHasNoTeamsError",
+    "EditMatchResult",
     "FinishMatch",
     "FormatMatchSummary",
     "MeetupAlreadyClosedError",
