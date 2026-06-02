@@ -48,9 +48,8 @@ class EditMatchResult:
     ):
         """Replace the match result for the given meetup.
 
-        Unlike FinishMatch, does not raise MeetupAlreadyClosedError — it is the
-        caller's responsibility to ensure the meetup is already closed before
-        invoking this use case.
+        Unlike FinishMatch, does not raise MeetupAlreadyClosedError — it
+        overwrites the result regardless of whether the meetup is already closed.
 
         Args:
             date_str: Meetup date in ISO format (e.g. '2026-05-28T20:00').
