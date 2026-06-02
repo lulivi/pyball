@@ -59,6 +59,7 @@ class JsonMeetupRepository(MeetupRepository):
                     ),
                     team=e["team"],
                     timestamp=time.fromisoformat(e["timestamp"]),
+                    is_own_goal=e.get("is_own_goal", False),
                 )
                 for e in r.get("events", [])
             )
@@ -95,6 +96,7 @@ class JsonMeetupRepository(MeetupRepository):
                         "assistant_id": str(e.assistant_id.value) if e.assistant_id else None,
                         "team": e.team,
                         "timestamp": e.timestamp.isoformat(),
+                        "is_own_goal": e.is_own_goal,
                     }
                     for e in meetup.result.events
                 ],

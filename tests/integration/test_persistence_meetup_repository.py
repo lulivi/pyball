@@ -142,3 +142,55 @@ class TestJsonMeetupRepositoryResult:
         loaded = self.repo.find_by_id(meetup.id)
         assert loaded is not None
         assert loaded.result is None
+
+    def test_own_goal_round_trips(self):
+        """An own-goal event (is_own_goal=True) survives a save/load cycle."""
+        from datetime import time as dtime  # pylint: disable=import-outside-toplevel
+
+        meetup = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo Norte")
+        p1 = PlayerId.generate()
+        p2 = PlayerId.generate()
+        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        event = GoalEvent(
+            scorer_id=p1,
+            assistant_id=None,
+            team="B",
+            timestamp=dtime(20, 30),
+            is_own_goal=True,
+        )
+        meetup.set_result(MatchResult(score_a=0, score_b=1, events=(event,)))
+
+        self.repo.save(meetup)
+        loaded = self.repo.find_by_id(meetup.id)
+
+        assert loaded.result.events[0].is_own_goal is True
+
+    def test_missing_is_own_goal_defaults_to_false(self):
+        """Old JSON files without is_own_goal field load with is_own_goal=False."""
+        import json  # pylint: disable=import-outside-toplevel
+        from datetime import time as dtime  # pylint: disable=import-outside-toplevel
+
+        meetup = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo Norte")
+        p1 = PlayerId.generate()
+        p2 = PlayerId.generate()
+        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        event = GoalEvent(
+            scorer_id=p1,
+            assistant_id=None,
+            team="A",
+            timestamp=dtime(20, 15),
+        )
+        meetup.set_result(MatchResult(score_a=1, score_b=0, events=(event,)))
+        self.repo.save(meetup)
+
+        # Manually strip is_own_goal from the saved file
+        file_path = self.directory / f"{meetup.id.value}.json"
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+        for ev in data["result"]["events"]:
+            ev.pop("is_own_goal", None)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+
+        loaded = self.repo.find_by_id(meetup.id)
+        assert loaded.result.events[0].is_own_goal is False
