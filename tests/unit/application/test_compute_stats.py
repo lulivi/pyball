@@ -704,9 +704,7 @@ class TestComputeStatsOwnGoals:
             timestamp=time(20, 5),
             is_own_goal=True,
         )
-        meetup = make_meetup(
-            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1, [event]
-        )
+        meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1, [event])
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
 
@@ -725,13 +723,11 @@ class TestComputeStatsOwnGoals:
             timestamp=time(20, 5),
             is_own_goal=True,
         )
-        meetup = make_meetup(
-            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1, [event]
-        )
+        meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1, [event])
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
 
-        assert report.all_time.chemistry == []
+        assert not report.all_time.chemistry
 
     def test_regular_goal_own_goals_counter_stays_zero(self):
         """A regular goal event leaves own_goals at zero for the scorer."""
@@ -743,9 +739,7 @@ class TestComputeStatsOwnGoals:
             team="A",
             timestamp=time(20, 5),
         )
-        meetup = make_meetup(
-            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0, [event]
-        )
+        meetup = make_meetup(datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0, [event])
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
 

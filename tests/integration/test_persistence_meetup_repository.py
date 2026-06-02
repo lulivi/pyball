@@ -145,8 +145,6 @@ class TestJsonMeetupRepositoryResult:
 
     def test_own_goal_round_trips(self):
         """An own-goal event (is_own_goal=True) survives a save/load cycle."""
-        from datetime import time as dtime  # pylint: disable=import-outside-toplevel
-
         meetup = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()
@@ -155,7 +153,7 @@ class TestJsonMeetupRepositoryResult:
             scorer_id=p1,
             assistant_id=None,
             team="B",
-            timestamp=dtime(20, 30),
+            timestamp=time(20, 30),
             is_own_goal=True,
         )
         meetup.set_result(MatchResult(score_a=0, score_b=1, events=(event,)))
@@ -168,7 +166,6 @@ class TestJsonMeetupRepositoryResult:
     def test_missing_is_own_goal_defaults_to_false(self):
         """Old JSON files without is_own_goal field load with is_own_goal=False."""
         import json  # pylint: disable=import-outside-toplevel
-        from datetime import time as dtime  # pylint: disable=import-outside-toplevel
 
         meetup = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
@@ -178,7 +175,7 @@ class TestJsonMeetupRepositoryResult:
             scorer_id=p1,
             assistant_id=None,
             team="A",
-            timestamp=dtime(20, 15),
+            timestamp=time(20, 15),
         )
         meetup.set_result(MatchResult(score_a=1, score_b=0, events=(event,)))
         self.repo.save(meetup)

@@ -135,7 +135,6 @@ class TestFormatMatchSummary:
 
     def test_own_goal_shown_with_net_emoji_on_scorer_line(self):
         """An own-goal event shows 🥅 on the scorer's line; no goal on the benefiting team."""
-        from datetime import time as dtime
         a1 = PlayerId.from_string(self.pid_a1)
         b1 = PlayerId.from_string(self.pid_b1)
 
@@ -143,7 +142,7 @@ class TestFormatMatchSummary:
             scorer_id=a1,
             assistant_id=None,
             team="B",
-            timestamp=dtime(20, 20),
+            timestamp=time(20, 20),
             is_own_goal=True,
         )
         result = MatchResult(score_a=0, score_b=1, events=(own_goal_event,))
@@ -165,11 +164,11 @@ class TestFormatMatchSummary:
         )
 
         lines = msg.splitlines()
-        juande_line = next(l for l in lines if "Juande" in l)
+        juande_line = next(line for line in lines if "Juande" in line)
         assert "🥅" in juande_line
         assert "⚽" not in juande_line
         # No goal icon on Simón's line (he did not score)
-        simon_line = next(l for l in lines if "Simón" in l)
+        simon_line = next(line for line in lines if "Simón" in line)
         assert "⚽" not in simon_line
         assert "🥅" not in simon_line
 
