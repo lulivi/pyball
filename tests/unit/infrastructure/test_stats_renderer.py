@@ -24,6 +24,7 @@ def _make_player(
         player_name=name,
         goals=goals,
         assists=assists,
+        own_goals=0,
         matches_played=wins + draws + losses,
         wins=wins,
         draws=draws,

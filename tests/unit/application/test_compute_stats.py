@@ -688,3 +688,67 @@ class TestComputeStatsLatestMatchDate:
         meetup_repo, player_repo = make_repos([], [])
         report = ComputeStats(meetup_repo, player_repo).execute()
         assert report.latest_match_date is None
+
+
+class TestComputeStatsOwnGoals:
+    """Own-goal stat counting."""
+
+    def test_own_goal_increments_own_goals_not_goals(self):
+        """An own-goal event increments own_goals for the scorer, not goals."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        event = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="B",
+            timestamp=time(20, 5),
+            is_own_goal=True,
+        )
+        meetup = make_meetup(
+            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1, [event]
+        )
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
+        assert alice_stats.goals == 0
+        assert alice_stats.own_goals == 1
+
+    def test_own_goal_does_not_generate_chemistry(self):
+        """An own-goal event produces no chemistry pair."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        event = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="B",
+            timestamp=time(20, 5),
+            is_own_goal=True,
+        )
+        meetup = make_meetup(
+            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 0, 1, [event]
+        )
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        assert report.all_time.chemistry == []
+
+    def test_regular_goal_own_goals_counter_stays_zero(self):
+        """A regular goal event leaves own_goals at zero for the scorer."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        event = GoalEvent(
+            scorer_id=alice.id,
+            assistant_id=None,
+            team="A",
+            timestamp=time(20, 5),
+        )
+        meetup = make_meetup(
+            datetime(2026, 1, 10, 20, 0), [alice.id], [bob.id], 1, 0, [event]
+        )
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+
+        alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
+        assert alice_stats.own_goals == 0
+        assert alice_stats.goals == 1

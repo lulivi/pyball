@@ -35,6 +35,7 @@ from pyball.infrastructure.persistence import LegacyStats
 class _PlayerCounters:
     goals: int = 0
     assists: int = 0
+    own_goals: int = 0
     mp: int = 0
     w: int = 0
     d: int = 0
@@ -49,6 +50,7 @@ class PlayerStats:  # pylint: disable=too-many-instance-attributes
     player_name: str
     goals: int
     assists: int
+    own_goals: int
     matches_played: int
     wins: int
     draws: int
@@ -162,15 +164,18 @@ def _aggregate(
             scorer_id = str(event.scorer_id.value)
             if scorer_id not in player_data:
                 player_data[scorer_id] = _PlayerCounters()
-            player_data[scorer_id].goals += 1
 
-            if event.assistant_id is not None:
-                assistant_id = str(event.assistant_id.value)
-                if assistant_id not in player_data:
-                    player_data[assistant_id] = _PlayerCounters()
-                player_data[assistant_id].assists += 1
-                pair_chem = (scorer_id, assistant_id)
-                chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
+            if event.is_own_goal:
+                player_data[scorer_id].own_goals += 1
+            else:
+                player_data[scorer_id].goals += 1
+                if event.assistant_id is not None:
+                    assistant_id = str(event.assistant_id.value)
+                    if assistant_id not in player_data:
+                        player_data[assistant_id] = _PlayerCounters()
+                    player_data[assistant_id].assists += 1
+                    pair_chem = (scorer_id, assistant_id)
+                    chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
 
     if legacy_stats:
         for pid, data in player_data.items():
@@ -225,6 +230,7 @@ def _build_scoped_report(
             player_name=player_names.get(pid, pid),
             goals=d.goals,
             assists=d.assists,
+            own_goals=d.own_goals,
             matches_played=d.mp,
             wins=d.w,
             draws=d.d,
