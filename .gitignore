@@ -168,6 +168,7 @@ cython_debug/
 data/
 logs/
 scripts/
+!scripts/migrate_*.py
 .worktrees/
 
 # Claude
