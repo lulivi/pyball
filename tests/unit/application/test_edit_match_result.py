@@ -121,3 +121,43 @@ class TestEditMatchResult:
         assert len(result_meetup.result.events) == 0
         assert result_meetup.result.score_a == 0
         assert result_meetup.result.score_b == 0
+
+    def test_own_goal_stored_with_flag(self):
+        """An event with is_own_goal=True is stored with is_own_goal=True and no assistant."""
+        meetup, p1, p2 = _meetup_with_teams_and_result()
+        self.meetup_repo.meetups = [meetup]
+        self.player_repo.players = [p1, p2]
+
+        events = [
+            {
+                "scorer": "Dani",
+                "assistant": None,
+                "team": "B",
+                "timestamp": "20:15",
+                "is_own_goal": True,
+            }
+        ]
+        result_meetup = self.use_case.execute("2026-05-28T20:00", events, {"A": 0, "B": 1})
+
+        ev = result_meetup.result.events[0]
+        assert ev.is_own_goal is True
+        assert ev.assistant_id is None
+        assert ev.scorer_id == p1.id
+
+    def test_own_goal_with_assistant_raises(self):
+        """Passing assistant along with is_own_goal=True must raise ValueError."""
+        meetup, p1, p2 = _meetup_with_teams_and_result()
+        self.meetup_repo.meetups = [meetup]
+        self.player_repo.players = [p1, p2]
+
+        events = [
+            {
+                "scorer": "Dani",
+                "assistant": "Rafa",
+                "team": "B",
+                "timestamp": "20:15",
+                "is_own_goal": True,
+            }
+        ]
+        with pytest.raises(ValueError, match="own goal"):
+            self.use_case.execute("2026-05-28T20:00", events, {"A": 0, "B": 1})

@@ -81,9 +81,12 @@ class EditMatchResult:
 
         goal_events = []
         for e in events:
+            is_own_goal = bool(e.get("is_own_goal", False))
+            if is_own_goal and e.get("assistant"):
+                raise ValueError("An own goal cannot have an assistant")
             scorer_match = fuzzy_match_player(e["scorer"], all_players)
             assistant_id = None
-            if e.get("assistant"):
+            if not is_own_goal and e.get("assistant"):
                 assistant_match = fuzzy_match_player(e["assistant"], all_players)
                 assistant_id = assistant_match.player_id
             goal_events.append(
@@ -92,6 +95,7 @@ class EditMatchResult:
                     assistant_id=assistant_id,
                     team=e["team"],
                     timestamp=time.fromisoformat(e["timestamp"]),
+                    is_own_goal=is_own_goal,
                 )
             )
 
