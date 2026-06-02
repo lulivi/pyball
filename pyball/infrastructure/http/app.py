@@ -62,6 +62,7 @@ class GoalEventInput(BaseModel):
     assistant: str | None
     team: str
     timestamp: str
+    is_own_goal: bool = False
 
 
 class FinalScore(BaseModel):
@@ -523,6 +524,7 @@ def _handle_match_events(container: "Container", date: str) -> dict:
             else None,
             "team": ev.team,
             "timestamp": ev.timestamp.strftime("%H:%M"),
+            "is_own_goal": ev.is_own_goal,
         }
         for ev in reversed(meetup.result.events)
     ]
