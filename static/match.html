@@ -567,7 +567,7 @@
 
         return `
             <div class="event-log ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                <span class="event-time" style="flex: 0 0 42px; text-align:center;">${e.timestamp}</span>
+                <span class="event-time" style="flex: 0 0 42px; text-align:center;">${escHtml(e.timestamp)}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${assistChip}</span>
                 <button class="delete-btn" style="flex: 0 0 35px; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
