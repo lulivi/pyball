@@ -547,3 +547,16 @@ class TestEditMatchResult:
             await c.post("/api/match/2026-05-28T20:00/edit", json=self._EDIT_BODY)
 
         assert len(notifier.closed) == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_invalid_date(self):
+        """Returns 422 when the date path parameter is not a valid ISO datetime."""
+        container = MagicMock()
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.post(
+                "/api/match/not-a-date/edit",
+                json={"meetup_date": "", "events": [], "finalScore": {"A": 0, "B": 0}},
+            )
+
+        assert response.status_code == 422

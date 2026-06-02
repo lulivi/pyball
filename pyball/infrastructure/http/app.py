@@ -264,86 +264,13 @@ def _register_match_routes(
     @app.get("/api/match/{date}/events")
     async def match_events(date: str):
         """Return events of a closed match with player IDs resolved to names."""
-        try:
-            meetup_date = datetime.fromisoformat(date)
-        except ValueError as exc:
-            raise HTTPException(422, "Invalid date format") from exc
-
-        meetup = container.meetup_repository.find_by_datetime(meetup_date)
-        if meetup is None:
-            raise HTTPException(404, "Meetup not found")
-        if not meetup.is_closed():
-            raise HTTPException(409, "Match is not closed yet")
-
-        assert meetup.teams is not None
-        assert meetup.result is not None
-
-        all_players = container.player_repository.find_all()
-        player_names = {str(p.id.value): p.name for p in all_players}
-        colors = container.team_colors
-        hex_bg = container.team_hex_bg
-        hex_text = container.team_hex_text
-
-        team_a = _sorted_names(meetup.teams[0].players, player_names)
-        team_b = _sorted_names(meetup.teams[1].players, player_names)
-
-        events = [
-            {
-                "scorer": player_names.get(str(ev.scorer_id.value), "(desconocido)"),
-                "assistant": player_names.get(str(ev.assistant_id.value), "(desconocido)")
-                if ev.assistant_id
-                else None,
-                "team": ev.team,
-                "timestamp": ev.timestamp.strftime("%H:%M"),
-            }
-            for ev in reversed(meetup.result.events)
-        ]
-
-        return {
-            "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
-            "nameA": colors[0].capitalize(),
-            "nameB": colors[1].capitalize(),
-            "teamA": team_a,
-            "teamB": team_b,
-            "colorA": hex_bg[0],
-            "colorB": hex_bg[1],
-            "colorTextA": hex_text[0],
-            "colorTextB": hex_text[1],
-            "events": events,
-        }
+        return _handle_match_events(container, date)
 
     @app.post("/api/match/{date}/edit")
     async def edit_match(date: str, body: FinishMatchInput):
         """Replace the result of a closed match and re-fire the Telegram notification."""
         logger.info("edit_match called: date=%s", date)
-        try:
-            meetup_date = datetime.fromisoformat(date)
-        except ValueError as exc:
-            raise HTTPException(422, "Invalid date format") from exc
-
-        meetup = container.meetup_repository.find_by_datetime(meetup_date)
-        if meetup is None:
-            raise HTTPException(404, "Meetup not found")
-        if not meetup.is_closed():
-            raise HTTPException(409, "Match is not closed; use POST /api/match/finish instead")
-
-        events = [e.model_dump() for e in body.events]
-        try:
-            updated = container.edit_match_result().execute(
-                date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
-            )
-        except MeetupNotFoundError as exc:
-            raise HTTPException(404, "Meetup not found") from exc
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-
-        await notifier.on_match_closed(updated)
-
-        return {
-            "meetup_date": date,
-            "score_a": updated.result.score_a,
-            "score_b": updated.result.score_b,
-        }
+        return await _handle_edit_match(container, notifier, date, body)
 
 
 def _register_player_routes(app: FastAPI, container: "Container") -> None:
@@ -559,6 +486,95 @@ def _build_meetup_active_response(container: "Container", match_token: str = "")
             "colorTextB": hex_text[1],
             "matchUrl": match_url,
         },
+    }
+
+
+def _handle_match_events(container: "Container", date: str) -> dict:
+    """Load events of a closed match with player IDs resolved to names."""
+    try:
+        meetup_date = datetime.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format") from exc
+
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
+    if meetup is None:
+        raise HTTPException(404, "Meetup not found")
+    if not meetup.is_closed():
+        raise HTTPException(409, "Match is not closed yet")
+    if meetup.teams is None:
+        raise HTTPException(409, "Match has no teams")
+    if meetup.result is None:  # pragma: no cover — implied by is_closed()
+        raise HTTPException(409, "Match has no result")
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+
+    team_a = _sorted_names(meetup.teams[0].players, player_names)
+    team_b = _sorted_names(meetup.teams[1].players, player_names)
+
+    events = [
+        {
+            "scorer": player_names.get(str(ev.scorer_id.value), "(desconocido)"),
+            "assistant": player_names.get(str(ev.assistant_id.value), "(desconocido)")
+            if ev.assistant_id
+            else None,
+            "team": ev.team,
+            "timestamp": ev.timestamp.strftime("%H:%M"),
+        }
+        for ev in reversed(meetup.result.events)
+    ]
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "nameA": colors[0].capitalize(),
+        "nameB": colors[1].capitalize(),
+        "teamA": team_a,
+        "teamB": team_b,
+        "colorA": hex_bg[0],
+        "colorB": hex_bg[1],
+        "colorTextA": hex_text[0],
+        "colorTextB": hex_text[1],
+        "events": events,
+    }
+
+
+async def _handle_edit_match(
+    container: "Container",
+    notifier: "MatchNotifier",
+    date: str,
+    body: FinishMatchInput,
+) -> dict:
+    """Replace result of a closed match and re-fire the notification."""
+    try:
+        meetup_date = datetime.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format") from exc
+
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
+    if meetup is None:
+        raise HTTPException(404, "Meetup not found")
+    if not meetup.is_closed():
+        raise HTTPException(409, "Match is not closed; use POST /api/match/finish instead")
+
+    events = [e.model_dump() for e in body.events]
+    try:
+        updated = container.edit_match_result().execute(
+            date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
+        )
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "Meetup not found") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_match_closed(updated)
+
+    return {
+        "meetup_date": date,
+        "score_a": updated.result.score_a,
+        "score_b": updated.result.score_b,
     }
 
 
