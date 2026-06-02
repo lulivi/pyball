@@ -552,7 +552,7 @@
     function renderPickerDropdown(eventIndex, field) {
         const e = appState.events[eventIndex];
         const scorerTeam = e.is_own_goal ? (e.team === 'A' ? teamB : teamA) : (e.team === 'A' ? teamA : teamB);
-        const players = field === 'scorer' ? scorerTeam : (e.team === 'A' ? teamA : teamB).filter(p => p !== e.scorer);
+        const opts = field === 'scorer' ? scorerTeam : (e.team === 'A' ? teamA : teamB).filter(p => p !== e.scorer);
 
         let html = `<div class="picker-dropdown" onclick="event.stopPropagation()">`;
         opts.forEach(p => {
