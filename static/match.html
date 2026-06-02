@@ -195,6 +195,33 @@
             padding: 0; min-height: 44px;
         }
         .cancel-full-btn:hover { background: #d32f2f; }
+        .cancel-split-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+            height: 100%;
+        }
+        .own-goal-btn {
+            flex: 1; width: 100%; border: none; border-radius: 6px;
+            color: white; font-size: 0.9rem; font-weight: bold;
+            cursor: pointer; padding: 0; min-height: 44px; opacity: 0.85;
+        }
+        .own-goal-btn:hover { opacity: 1; }
+        .own-goal-badge {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            color: #fca5a5;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
         .delete-btn {
             background: transparent; border: none; color: #ef4444;
@@ -494,6 +521,22 @@
         renderApp();
     }
 
+    function registerOwnGoal() {
+        const oppositeTeam = appState.tempScorerTeam === 'A' ? 'B' : 'A';
+        appState.events.unshift({
+            scorer: appState.tempScorer,
+            assistant: null,
+            team: oppositeTeam,
+            timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            is_own_goal: true,
+        });
+        appState.currentStep = 1;
+        appState.tempScorer = null;
+        appState.tempScorerTeam = null;
+        persistState();
+        renderApp();
+    }
+
     function deleteEvent(i) {
         appState.events.splice(i, 1);
         appState.editingEvent = null;
@@ -508,8 +551,8 @@
 
     function renderPickerDropdown(eventIndex, field) {
         const e = appState.events[eventIndex];
-        const players = e.team === 'A' ? teamA : teamB;
-        const opts = field === 'scorer' ? players : players.filter(p => p !== e.scorer);
+        const scorerTeam = e.is_own_goal ? (e.team === 'A' ? teamB : teamA) : (e.team === 'A' ? teamA : teamB);
+        const players = field === 'scorer' ? scorerTeam : (e.team === 'A' ? teamA : teamB).filter(p => p !== e.scorer);
 
         let html = `<div class="picker-dropdown" onclick="event.stopPropagation()">`;
         opts.forEach(p => {
@@ -552,6 +595,24 @@
 
     function renderEventRow(e, i) {
         const scorerOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'scorer';
+
+        if (e.is_own_goal) {
+            const scorerChip = `
+                <button class="player-chip ${scorerOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'scorer')">
+                    <span class="truncate-text">${escHtml(e.scorer)}</span> <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
+                </button>`;
+            return `
+                <div class="event-log ${scorerOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+                    <span class="event-time" style="flex: 0 0 42px; text-align:center;">${escHtml(e.timestamp)}</span>
+                    <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
+                    <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">
+                        <span class="own-goal-badge">En propia 🔴</span>
+                    </span>
+                    <button class="delete-btn" style="flex: 0 0 35px; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
+                    ${scorerOpen ? renderPickerDropdown(i, 'scorer') : ''}
+                </div>`;
+        }
+
         const assistOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'assistant';
 
         const scorerChip = `
@@ -590,18 +651,25 @@
             const oppositeClass = scorerTeam === 'A' ? 'btn-b' : 'btn-a';
             return `<button class="player-btn ${oppositeClass}" onclick="registerGoal(null)">Sin asistente</button>`;
         };
-        const cancelBtn = (teamId) => `<button class="cancel-full-btn btn-${teamId.toLowerCase()}" onclick="cancelGoal()">Cancelar</button>`;
+        const cancelBtn = (scorerTeam) => {
+            const btnClass = `own-goal-btn btn-${scorerTeam.toLowerCase()}`;
+            return `
+                <div class="cancel-split-col">
+                    <button class="cancel-full-btn" style="flex:1;height:auto;" onclick="cancelGoal()">Cancelar</button>
+                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 Gol en propia puerta</button>
+                </div>`;
+        };
 
         if (currentStep === 1) {
             colAHtml = teamA.map(p => btnHtml(p, 'A')).join('');
             colBHtml = teamB.map(p => btnHtml(p, 'B')).join('');
         } else if (tempScorerTeam === 'A') {
             colAHtml = teamA.map(p => p === tempScorer ? noAssistBtn('A') : btnHtml(p, 'A')).join('');
-            colBHtml = cancelBtn('B');
+            colBHtml = cancelBtn('A');
             colBClass += ' waiting';
         } else {
             colBHtml = teamB.map(p => p === tempScorer ? noAssistBtn('B') : btnHtml(p, 'B')).join('');
-            colAHtml = cancelBtn('A');
+            colAHtml = cancelBtn('B');
             colAClass += ' waiting';
         }
 
