@@ -103,7 +103,7 @@ class TestFormatMatchSummary:
             team_emojis=("🟡", "⚫"),
             date_label="18 Mayo",
         )
-        assert "Simón⚽⚽" in msg
+        assert "Simón ⚽⚽" in msg
 
     def test_assist_emoji_present(self):
         """A player with a goal and an assist gets both emojis."""
@@ -114,7 +114,7 @@ class TestFormatMatchSummary:
             team_emojis=("🟡", "⚫"),
             date_label="18 Mayo",
         )
-        assert "Juande⚽🅰️" in msg
+        assert "Juande ⚽🅰️" in msg
 
     def test_player_with_no_stats_has_no_emoji(self):
         """A player with no goals or assists appears without any emoji."""
@@ -132,6 +132,45 @@ class TestFormatMatchSummary:
         msg = self.use_case.execute(self.meetup, self.player_names, date_label="18 Mayo")
         assert "⚪ *Blanco - 1*" in msg
         assert "⚫ *Negro - 2*" in msg
+
+    def test_own_goal_shown_with_net_emoji_on_scorer_line(self):
+        """An own-goal event shows 🥅 on the scorer's line; no goal on the benefiting team."""
+        a1 = PlayerId.from_string(self.pid_a1)
+        b1 = PlayerId.from_string(self.pid_b1)
+
+        own_goal_event = GoalEvent(
+            scorer_id=a1,
+            assistant_id=None,
+            team="B",
+            timestamp=time(20, 20),
+            is_own_goal=True,
+        )
+        result = MatchResult(score_a=0, score_b=1, events=(own_goal_event,))
+        meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
+        meetup.set_teams(
+            [
+                Team.create("A", [a1, PlayerId.from_string(self.pid_a2)]),
+                Team.create("B", [b1, PlayerId.from_string(self.pid_b2)]),
+            ]
+        )
+        meetup.set_result(result)
+
+        msg = self.use_case.execute(
+            meetup,
+            self.player_names,
+            team_colors=("amarillo", "negro"),
+            team_emojis=("🟡", "⚫"),
+            date_label="18 Mayo",
+        )
+
+        lines = msg.splitlines()
+        juande_line = next(line for line in lines if "Juande" in line)
+        assert "🥅" in juande_line
+        assert "⚽" not in juande_line
+        # No goal icon on Simón's line (he did not score)
+        simon_line = next(line for line in lines if "Simón" in line)
+        assert "⚽" not in simon_line
+        assert "🥅" not in simon_line
 
 
 class TestFormatMatchSummaryWithLegacy:
@@ -172,7 +211,7 @@ class TestFormatMatchSummaryWithLegacy:
             date_label="16 Febrero",
             legacy_stats=legacy,
         )
-        assert "Juande🅰️🅰️" in msg
+        assert "Juande 🅰️🅰️" in msg
 
     def test_without_legacy_stats_still_works(self):
         """Passing no legacy_stats (default) does not break the summary."""

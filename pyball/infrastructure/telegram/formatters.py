@@ -161,7 +161,9 @@ def format_main_message(
         for event in meetup.result.events:
             scorer = player_names.get(str(event.scorer_id.value), "?")
             minutes = event.timestamp.strftime("%M")
-            if event.assistant_id:
+            if event.is_own_goal:
+                lines.append(rf"  \- 🥅 {minutes}' `{scorer}` \(en propia\)")
+            elif event.assistant_id:
                 assistant = player_names.get(str(event.assistant_id.value), "?")
                 lines.append(rf"  \- ⚽ {minutes}' `{scorer}` \- `{assistant}`")
             else:

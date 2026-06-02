@@ -195,6 +195,33 @@
             padding: 0; min-height: 44px;
         }
         .cancel-full-btn:hover { background: #d32f2f; }
+        .cancel-split-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+            height: 100%;
+        }
+        .own-goal-btn {
+            flex: 1; width: 100%; border: none; border-radius: 6px;
+            color: white; font-size: 0.9rem; font-weight: bold;
+            cursor: pointer; padding: 0; min-height: 44px; opacity: 0.85;
+        }
+        .own-goal-btn:hover { opacity: 1; }
+        .own-goal-badge {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            color: #fca5a5;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
         .delete-btn {
             background: transparent; border: none; color: #ef4444;
@@ -259,6 +286,17 @@
             font-size: 1rem;
             font-weight: bold;
         }
+
+        .edit-mode-banner {
+            background: #92400e;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: center;
+            color: #fef3c7;
+        }
     </style>
 </head>
 <body>
@@ -268,6 +306,7 @@
     let teamA = [], teamB = [];
     let nameA = 'A', nameB = 'B';
     let meetupDate = '';
+    let isEditMode = false;
 
     let appState = {
         events: [], // Goals are calculated dynamically from this array
@@ -279,7 +318,9 @@
 
     // ── STATE UTILITIES AND PERSISTENCE ───────────────────
     function persistState() {
-        localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        if (!isEditMode) {
+            localStorage.setItem('pyball_current_match', JSON.stringify(appState));
+        }
     }
 
     function getGoals(teamId) {
@@ -293,8 +334,6 @@
 
     // ── INIT ──────────────────────────────────────────────
     function initializeApp() {
-        const savedState = localStorage.getItem('pyball_current_match');
-        const savedTeams = localStorage.getItem('pyball_teams');
         const params = new URLSearchParams(window.location.search);
         const colorA = params.get('colorA');
         const colorB = params.get('colorB');
@@ -306,6 +345,20 @@
             document.documentElement.style.setProperty('--color-dark', colorB);
             document.documentElement.style.setProperty('--color-dark-text', colorTextB);
         }
+
+        if (params.get('edit') === '1') {
+            isEditMode = true;
+            const editDate = params.get('date') || '';
+            if (editDate) {
+                loadEditMode(editDate);
+            } else {
+                renderNoMatch();
+            }
+            return;
+        }
+
+        const savedState = localStorage.getItem('pyball_current_match');
+        const savedTeams = localStorage.getItem('pyball_teams');
         const urlDate = params.get('date') || '';
 
         if (savedState && savedTeams) {
@@ -399,6 +452,30 @@
         }
     }
 
+    async function loadEditMode(date) {
+        try {
+            const res = await fetch('/api/match/' + encodeURIComponent(date) + '/events');
+            if (!res.ok) { renderNoMatch(); return; }
+            const data = await res.json();
+            meetupDate = data.date;
+            nameA = data.nameA;
+            nameB = data.nameB;
+            teamA = data.teamA;
+            teamB = data.teamB;
+            if (data.colorA) {
+                document.documentElement.style.setProperty('--color-light', data.colorA);
+                document.documentElement.style.setProperty('--color-light-text', data.colorTextA);
+                document.documentElement.style.setProperty('--color-dark', data.colorB);
+                document.documentElement.style.setProperty('--color-dark-text', data.colorTextB);
+            }
+            appState.events = data.events;
+            appState.editingEvent = null;
+            renderApp();
+        } catch {
+            renderNoMatch();
+        }
+    }
+
     function formatMatchDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
@@ -444,6 +521,22 @@
         renderApp();
     }
 
+    function registerOwnGoal() {
+        const oppositeTeam = appState.tempScorerTeam === 'A' ? 'B' : 'A';
+        appState.events.unshift({
+            scorer: appState.tempScorer,
+            assistant: null,
+            team: oppositeTeam,
+            timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            is_own_goal: true,
+        });
+        appState.currentStep = 1;
+        appState.tempScorer = null;
+        appState.tempScorerTeam = null;
+        persistState();
+        renderApp();
+    }
+
     function deleteEvent(i) {
         appState.events.splice(i, 1);
         appState.editingEvent = null;
@@ -458,8 +551,8 @@
 
     function renderPickerDropdown(eventIndex, field) {
         const e = appState.events[eventIndex];
-        const players = e.team === 'A' ? teamA : teamB;
-        const opts = field === 'scorer' ? players : players.filter(p => p !== e.scorer);
+        const scorerTeam = e.is_own_goal ? (e.team === 'A' ? teamB : teamA) : (e.team === 'A' ? teamA : teamB);
+        const opts = field === 'scorer' ? scorerTeam : (e.team === 'A' ? teamA : teamB).filter(p => p !== e.scorer);
 
         let html = `<div class="picker-dropdown" onclick="event.stopPropagation()">`;
         opts.forEach(p => {
@@ -502,6 +595,24 @@
 
     function renderEventRow(e, i) {
         const scorerOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'scorer';
+
+        if (e.is_own_goal) {
+            const scorerChip = `
+                <button class="player-chip ${scorerOpen ? 'active' : ''}" onclick="event.stopPropagation();togglePicker(${i},'scorer')">
+                    <span class="truncate-text">${escHtml(e.scorer)}</span> <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
+                </button>`;
+            return `
+                <div class="event-log ${scorerOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+                    <span class="event-time" style="flex: 0 0 42px; text-align:center;">${escHtml(e.timestamp)}</span>
+                    <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
+                    <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">
+                        <span class="own-goal-badge">En propia 🔴</span>
+                    </span>
+                    <button class="delete-btn" style="flex: 0 0 35px; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
+                    ${scorerOpen ? renderPickerDropdown(i, 'scorer') : ''}
+                </div>`;
+        }
+
         const assistOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'assistant';
 
         const scorerChip = `
@@ -517,7 +628,7 @@
 
         return `
             <div class="event-log ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                <span class="event-time" style="flex: 0 0 42px; text-align:center;">${e.timestamp}</span>
+                <span class="event-time" style="flex: 0 0 42px; text-align:center;">${escHtml(e.timestamp)}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${assistChip}</span>
                 <button class="delete-btn" style="flex: 0 0 35px; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation();deleteEvent(${i})">🗑</button>
@@ -540,18 +651,25 @@
             const oppositeClass = scorerTeam === 'A' ? 'btn-b' : 'btn-a';
             return `<button class="player-btn ${oppositeClass}" onclick="registerGoal(null)">Sin asistente</button>`;
         };
-        const cancelBtn = (teamId) => `<button class="cancel-full-btn btn-${teamId.toLowerCase()}" onclick="cancelGoal()">Cancelar</button>`;
+        const cancelBtn = (scorerTeam) => {
+            const btnClass = `own-goal-btn btn-${scorerTeam.toLowerCase()}`;
+            return `
+                <div class="cancel-split-col">
+                    <button class="cancel-full-btn" style="flex:1;height:auto;" onclick="cancelGoal()">Cancelar</button>
+                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 Gol en propia puerta</button>
+                </div>`;
+        };
 
         if (currentStep === 1) {
             colAHtml = teamA.map(p => btnHtml(p, 'A')).join('');
             colBHtml = teamB.map(p => btnHtml(p, 'B')).join('');
         } else if (tempScorerTeam === 'A') {
             colAHtml = teamA.map(p => p === tempScorer ? noAssistBtn('A') : btnHtml(p, 'A')).join('');
-            colBHtml = cancelBtn('B');
+            colBHtml = cancelBtn('A');
             colBClass += ' waiting';
         } else {
             colBHtml = teamB.map(p => p === tempScorer ? noAssistBtn('B') : btnHtml(p, 'B')).join('');
-            colAHtml = cancelBtn('A');
+            colAHtml = cancelBtn('B');
             colAClass += ' waiting';
         }
 
@@ -580,8 +698,12 @@
             ? appState.events.map((e, i) => renderEventRow(e, i)).join('')
             : `<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>`;
 
+        const saveLabel = isEditMode ? '💾 GUARDAR CORRECCIÓN' : '💾 CONFIRMAR Y GUARDAR PARTIDO';
+        const saveAction = isEditMode ? 'editMatch()' : 'finishMatch()';
+
         return `
             <div>
+                ${isEditMode ? '<div class="edit-mode-banner">✏️ Modo edición — corrección de resultado</div>' : ''}
                 <div id="event-list">
                     <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
                         <span style="flex: 0 0 42px;"></span>
@@ -591,7 +713,7 @@
                     </div>
                     ${eventsHtml}
                 </div>
-                <button id="save-btn" class="save-btn" onclick="finishMatch()">💾 CONFIRMAR Y GUARDAR PARTIDO</button>
+                <button id="save-btn" class="save-btn" onclick="${saveAction}">${saveLabel}</button>
             </div>
         `;
     }
@@ -657,6 +779,42 @@
             alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
+        }
+    }
+
+    async function editMatch() {
+        if (!confirm('¿Guardar la corrección y reenviar el resumen a Telegram?')) return;
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Enviando corrección...';
+        try {
+            const response = await fetch('/api/match/' + encodeURIComponent(meetupDate) + '/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meetup_date: meetupDate,
+                    events: [...appState.events].reverse(),
+                    finalScore: { A: getGoals('A'), B: getGoals('B') }
+                })
+            });
+            if (response.ok) {
+                document.getElementById('app').innerHTML = `
+                    <div class="no-match">
+                        <div class="success-banner">✅ Corrección guardada y reenviada a Telegram</div>
+                        <div class="no-match-icon">⚽</div>
+                        <div class="no-match-title">PyBall</div>
+                        <div class="no-match-msg">Resultado corregido correctamente.</div>
+                    </div>`;
+            } else {
+                const err = await response.json();
+                alert(`❌ Error del servidor: ${err.detail || response.statusText}`);
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 GUARDAR CORRECCIÓN';
+            }
+        } catch {
+            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 GUARDAR CORRECCIÓN';
         }
     }
 

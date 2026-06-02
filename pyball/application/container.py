@@ -21,10 +21,12 @@
 
 from pyball.application.meetup import (
     AddPlayerToMeetup,
+    AssignTeamsById,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
     CreateTeamsManually,
+    EditMatchResult,
     FinishMatch,
     RemovePlayerFromMeetup,
     StartMatch,
@@ -98,6 +100,10 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new CreateTeamsManually use case."""
         return CreateTeamsManually(self.meetup_repository, self.player_repository)
 
+    def assign_teams_by_id(self) -> AssignTeamsById:
+        """Create a new AssignTeamsById use case."""
+        return AssignTeamsById(self.meetup_repository)
+
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""
         return StartMatch(
@@ -112,6 +118,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def finish_match(self) -> FinishMatch:
         """Create a new FinishMatch use case."""
         return FinishMatch(self.meetup_repository, self.player_repository)
+
+    def edit_match_result(self) -> EditMatchResult:
+        """Create a new EditMatchResult use case."""
+        return EditMatchResult(self.meetup_repository, self.player_repository)
 
     def compute_stats(self) -> ComputeStats:
         """Create a new ComputeStats use case."""

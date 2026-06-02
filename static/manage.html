@@ -34,6 +34,7 @@
   .btn-blue  { background: #2563eb; }
   .btn-green { background: #16a34a; }
   .btn-teal  { background: #0f766e; }
+  .btn-purple { background: #7c3aed; }
   .btn-sm { width: auto; padding: 8px 14px; font-size: 0.82rem; font-weight: bold; color: white; border: none; border-radius: 6px; cursor: pointer; }
   .btn-sm.gray  { background: #334155; }
   .btn-sm.green { background: #16a34a; }
@@ -101,6 +102,7 @@
   .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
   .remove-btn:hover { color: #fca5a5; }
   .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }
+  .edit-date-input { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.85rem; padding: 8px 10px; }
 </style>
 </head>
 <body>
@@ -133,22 +135,6 @@
     <button class="btn btn-green" onclick="generateTeams()">⚽ Generar equipos equilibrados</button>
   </div>
 
-  <!-- STEP 3: Teams + QR -->
-  <div id="step-teams" style="display:none">
-    <div class="step-label">3. Equipos generados</div>
-    <div id="teams-text" class="teams-box"></div>
-    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
-    <hr class="divider">
-    <div class="step-label">4. Abre el marcador en otro móvil</div>
-    <div class="qr-box">
-      <canvas id="qr-canvas"></canvas>
-      <a class="qr-hint" id="qr-hint" target="_blank" rel="noopener"></a>
-    </div>
-    <div class="regen-row">
-      <button class="btn-sm gray" onclick="backToReview()">← Cambiar jugadores</button>
-      <button class="btn-sm green" onclick="generateTeams()">↺ Regenerar equipos</button>
-    </div>
-  </div>
 
 </div>
 
@@ -161,13 +147,13 @@
 // ── STATE ────────────────────────────────────────────────────────────────────
 let allPlayers = [];        // [{id, name}, ...] from /api/players
 let parsedPlayers = [];     // [{raw, player_id, name, confidence, candidates, excluded}, ...]
-let lastTeamsPayload = null; // last successful create-with-teams response
 let expandedIdx = null;     // which chip is expanded
 let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:00"
 // state-driven page state (null = state 0; populated = state 1 or 2)
 let activeMatchData = null;
-let editPlayers = [];
-let editPanelOpen = false;
+let editTeamA = [];          // {id, name}[] — working copy of team A
+let editTeamB = [];          // {id, name}[] — working copy of team B
+let editReplacingPlayer = null; // {id, name, team: 'A'|'B'} | null
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -352,29 +338,15 @@ async function generateTeams() {
       alert('Error: ' + (err.detail || res.statusText));
       return;
     }
-    lastTeamsPayload = await res.json();
+    const data = await res.json();
+    activeMatchData = {
+      date,
+      players: confirmed.map(p => ({id: p.player_id, name: p.name})),
+      teams: _teamsFromResponse(data),
+    };
   } catch(e) { alert('Error de red: ' + e.message); return; }
-  showTeamsResult();
+  renderState2(activeMatchData);
 }
-
-function showTeamsResult() {
-  const {team_a, team_b, name_a, name_b, emoji_a, emoji_b, match_url} = lastTeamsPayload;
-  const text = `${emoji_a} *${name_a}*\n${team_a.join('\n')}\n\n${emoji_b} *${name_b}*\n${team_b.join('\n')}`;
-  document.getElementById('teams-text').textContent = text;
-  const qrHint = document.getElementById('qr-hint');
-  qrHint.textContent = 'Link del partido';
-  qrHint.href = match_url;
-
-  _renderQR(match_url, document.getElementById('qr-canvas'));
-
-  showStep('teams');
-}
-
-function copyTeams() {
-  _copyToClipboard(document.getElementById('teams-text').textContent);
-}
-
-function backToReview() { showStep('review'); renderChips(); }
 
 // ── STATE 1: match without teams ──────────────────────────────────────────
 function renderState1(data) {
@@ -408,29 +380,28 @@ async function generateFromActive() {
 
 // ── STATE 2: match with teams ─────────────────────────────────────────────
 function renderState2(data) {
-  editPanelOpen = false;
   const t = data.teams;
   const teamsText = `${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}\n\n${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`;
   document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    <button class="btn btn-teal" onclick="copyState2Teams()">📋 Copiar para WhatsApp</button>
+    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
+    <div class="regen-row">
+      <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
+      <button class="btn-sm green" onclick="regenerateCurrentTeams()">↺ Regenerar</button>
+    </div>
+    <div id="edit-panel-container"></div>
     <hr class="divider">
     <div class="step-label">Abre el marcador en otro móvil</div>
     <div class="qr-box">
       <canvas id="qr-canvas"></canvas>
       <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
     </div>
-    <div class="regen-row">
-      <button class="btn-sm gray" onclick="toggleEditPanel()">✏️ Editar jugadores</button>
-      <button class="btn-sm green" onclick="regenerateCurrentTeams()">↺ Regenerar</button>
-    </div>
-    <div id="edit-panel-container"></div>
   `;
   _renderQR(t.matchUrl, document.getElementById('qr-canvas'));
 }
 
-function copyState2Teams() {
+function copyTeams() {
   _copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
@@ -447,104 +418,115 @@ async function regenerateCurrentTeams() {
   }
 }
 
-// ── EDIT PANEL ────────────────────────────────────────────────────────────
-async function toggleEditPanel() {
-  if (editPanelOpen) {
-    editPanelOpen = false;
-    document.getElementById('edit-panel-container').innerHTML = '';
+// ── TEAMS EDIT PANEL ─────────────────────────────────────────────────────
+function toggleTeamsEditPanel() {
+  const container = document.getElementById('edit-panel-container');
+  if (container.innerHTML) {
+    editTeamA = [];
+    editTeamB = [];
+    editReplacingPlayer = null;
+    container.innerHTML = '';
     return;
   }
-  if (!allPlayers.length) {
-    try {
-      const res = await fetch('/api/players');
-      allPlayers = await res.json();
-    } catch(e) {
-      alert('Error al cargar la lista de jugadores: ' + e.message);
+  const open = () => {
+    const t = activeMatchData.teams;
+    const byName = {};
+    activeMatchData.players.forEach(p => { byName[p.name] = p; });
+    editTeamA = t.teamA.map(name => byName[name] || {id: null, name});
+    editTeamB = t.teamB.map(name => byName[name] || {id: null, name});
+    const missing = [...editTeamA, ...editTeamB].filter(p => !p.id).map(p => p.name);
+    if (missing.length) {
+      editTeamA = [];
+      editTeamB = [];
+      alert('No se encontró ID para: ' + missing.join(', ') + '. Recarga la página e inténtalo de nuevo.');
       return;
     }
+    editReplacingPlayer = null;
+    _renderTeamsEditPanel();
+  };
+  if (!allPlayers.length) {
+    fetch('/api/players').then(r => r.json()).then(data => {
+      allPlayers = data;
+      open();
+    }).catch(e => alert('Error al cargar jugadores: ' + e.message));
+    return;
   }
-  editPlayers = activeMatchData.players.map(p => ({...p}));
-  editPanelOpen = true;
-  _renderEditPanel();
+  open();
 }
 
-function renderEditSearchResults() {
-  const query = document.getElementById('edit-search').value.toLowerCase();
-  const resultsEl = document.getElementById('edit-search-results');
+function moveToOtherTeam(id, fromTeam) {
+  const fromArr = fromTeam === 'A' ? editTeamA : editTeamB;
+  const toArr   = fromTeam === 'A' ? editTeamB : editTeamA;
+  const idx = fromArr.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const [player] = fromArr.splice(idx, 1);
+  toArr.push(player);
+  _renderTeamsEditPanel();
+}
+
+function startReplacePlayer(id, team) {
+  const arr = team === 'A' ? editTeamA : editTeamB;
+  const player = arr.find(p => p.id === id);
+  if (!player) return;
+  editReplacingPlayer = {...player, team};
+  _renderTeamsEditPanel();
+}
+
+function pickReplacement(id, name) {
+  if (!editReplacingPlayer) return;
+  const arr = editReplacingPlayer.team === 'A' ? editTeamA : editTeamB;
+  const idx = arr.findIndex(p => p.id === editReplacingPlayer.id);
+  if (idx !== -1) arr[idx] = {id, name};
+  editReplacingPlayer = null;
+  _renderTeamsEditPanel();
+}
+
+function cancelReplace() {
+  editReplacingPlayer = null;
+  _renderTeamsEditPanel();
+}
+
+function renderReplaceSearchResults() {
+  const query = document.getElementById('replace-search').value.toLowerCase();
+  const resultsEl = document.getElementById('replace-results');
   if (!query) { resultsEl.innerHTML = ''; return; }
-  const editIds = new Set(editPlayers.map(p => p.id));
+  const editIds = new Set([...editTeamA, ...editTeamB].map(p => p.id));
   const matches = allPlayers
     .filter(p => p.name.toLowerCase().includes(query) && !editIds.has(p.id))
     .slice(0, 6);
   resultsEl.innerHTML = matches
-    .map(p => `<div class="cand-item" onclick="addEditPlayer('${escAttr(p.id)}','${escAttr(p.name)}')">${escHtml(p.name)}</div>`)
+    .map(p => `<div class="cand-item" data-pid="${escHtml(p.id)}" data-pname="${escHtml(p.name)}" onclick="pickReplacement(this.dataset.pid, this.dataset.pname)">${escHtml(p.name)}</div>`)
     .join('');
 }
 
-function removeEditPlayer(id) {
-  editPlayers = editPlayers.filter(p => p.id !== id);
-  _renderEditPanel();
-}
-
-function addEditPlayer(id, name) {
-  if (!editPlayers.find(p => p.id === id)) {
-    editPlayers.push({id, name});
-  }
-  _renderEditPanel();
-}
-
-function closeEditPanel() {
-  editPanelOpen = false;
-  editPlayers = activeMatchData.players.map(p => ({...p}));
-  document.getElementById('edit-panel-container').innerHTML = '';
-}
-
-async function regenerateWithEdits() {
-  if (editPlayers.length < 2) {
-    alert('Necesitas al menos 2 jugadores para generar equipos.');
-    return;
-  }
-  const btn = document.querySelector('#edit-panel-container .btn-green');
-  if (btn) { btn.disabled = true; btn.textContent = 'Regenerando...'; }
+async function saveTeams() {
+  const saveBtn = document.querySelector('#teams-edit-panel .btn-green');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando...'; }
   try {
-    const data = await _callCreateWithTeams(editPlayers.map(p => p.id));
-    activeMatchData = {
-      date: activeMatchData.date,
-      players: editPlayers.map(p => ({...p})),
-      teams: _teamsFromResponse(data),
-    };
+    const res = await fetch('/api/meetup/assign-teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date: activeMatchData.date,
+        team_a_ids: editTeamA.map(p => p.id),
+        team_b_ids: editTeamB.map(p => p.id),
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.detail || res.statusText));
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar equipos'; }
+      return;
+    }
+    activeMatchData = await res.json();
+    editTeamA = [];
+    editTeamB = [];
+    editReplacingPlayer = null;
     renderState2(activeMatchData);
   } catch(e) {
-    alert('Error: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '⚽ Regenerar equipos'; }
+    alert('Error de red: ' + e.message);
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar equipos'; }
   }
-}
-
-function _renderEditPanel() {
-  const chips = editPlayers
-    .map(p => `
-      <div class="edit-chip">
-        <span>${escHtml(p.name)}</span>
-        <button class="remove-btn" onclick="removeEditPlayer('${escAttr(p.id)}')">×</button>
-      </div>`)
-    .join('');
-  document.getElementById('edit-panel-container').innerHTML = `
-    <div class="edit-panel">
-      <div class="edit-panel-header">
-        <div class="step-label" style="margin:0;">Jugadores (${editPlayers.length})</div>
-        <button class="close-x" onclick="closeEditPanel()">✕</button>
-      </div>
-      <div id="edit-chips">${chips}</div>
-      <hr class="divider" style="margin:8px 0;">
-      <div class="step-label">Añadir jugador</div>
-      <input class="search-box" id="edit-search" type="text" placeholder="Buscar por nombre..."
-        oninput="renderEditSearchResults()">
-      <div id="edit-search-results" class="cand-list"></div>
-      <hr class="divider" style="margin:8px 0;">
-      <div class="regen-note">Los cambios se aplican al regenerar</div>
-      <button class="btn btn-green" style="margin-top:0;" onclick="regenerateWithEdits()">⚽ Regenerar equipos</button>
-    </div>
-  `;
 }
 
 // ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
@@ -565,16 +547,14 @@ async function loadResumen() {
     el.innerHTML = `
       <div class="step-label">${escHtml(date_label)}</div>
       <div class="summary-box" id="summary-msg">${escHtml(message)}</div>
-      <button class="btn btn-teal" onclick="copySummary()">📋 Copiar para WhatsApp</button>
+      <button class="btn btn-teal" onclick="copySummary()">📋 Copiar texto</button>
+      <button class="btn btn-purple" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen con texto</button>
+      <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
       <hr class="divider">
-      <div class="step-label">Imagen de estadísticas</div>
-      <div class="stats-box">
-        <div class="stats-icon">📊</div>
-        <div style="font-size:0.8rem;color:#94a3b8;text-align:center;">Generada por PyBall · ${escHtml(date_label)}</div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn-sm green" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen</button>
-          <button class="btn-sm gray" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">⬇ Descargar</button>
-        </div>
+      <div class="step-label">Corregir resultado</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input type="datetime-local" id="edit-date-input" class="edit-date-input" value="${escHtml(date)}">
+        <button class="btn-sm green" onclick="openEditMode(document.getElementById('edit-date-input').value)">✏️ Editar</button>
       </div>
     `;
   } catch(e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
@@ -614,7 +594,7 @@ async function shareStats(btn, date, summaryText) {
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function showStep(name) {
-  ['paste','review','teams'].forEach(s =>
+  ['paste', 'review'].forEach(s =>
     document.getElementById('step-' + s).style.display = s === name ? 'block' : 'none'
   );
 }
@@ -687,6 +667,86 @@ function _teamsFromResponse(data) {
   };
 }
 
+function _renderTeamsEditPanel() {
+  const unequal = editTeamA.length !== editTeamB.length;
+  const t = activeMatchData.teams;
+
+  const row = (p, team) => {
+    const hl = editReplacingPlayer && editReplacingPlayer.id === p.id
+      ? 'background:#431407;border-color:#ef4444;' : '';
+    const nameBtn = `<span style="color:#38bdf8;text-decoration:underline;cursor:pointer;flex:1;"
+      onclick="startReplacePlayer('${escAttr(p.id)}','${team}')">${escHtml(p.name)}</span>`;
+    const arrow = team === 'A'
+      ? `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
+           onclick="moveToOtherTeam('${escAttr(p.id)}','A')">➡️</button>`
+      : `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
+           onclick="moveToOtherTeam('${escAttr(p.id)}','B')">⬅️</button>`;
+    const order = team === 'A'
+      ? `${nameBtn}${arrow}` : `${arrow}${nameBtn}`;
+    return `<div class="edit-chip" style="${hl}">${order}</div>`;
+  };
+
+  const replaceSearch = editReplacingPlayer ? `
+    <div style="background:#1e293b;border:1px solid #3b82f6;border-radius:6px;padding:8px;margin-bottom:8px;">
+      <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:5px;">
+        Reemplazar a <strong style="color:#fca5a5;">${escHtml(editReplacingPlayer.name)}</strong>:</div>
+      <input class="search-box" id="replace-search" type="text" placeholder="Buscar jugador..."
+        oninput="renderReplaceSearchResults()">
+      <div id="replace-results" class="cand-list"></div>
+      <button class="skip-link" style="margin-top:4px;" onclick="cancelReplace()">✕ Cancelar</button>
+    </div>` : '';
+
+  const saveBtn = unequal
+    ? `<button class="btn btn-green" style="margin-top:4px;opacity:0.5;cursor:not-allowed;"
+         disabled>💾 Guardar equipos</button>`
+    : `<button class="btn btn-green" style="margin-top:4px;"
+         onclick="saveTeams()">💾 Guardar equipos</button>`;
+
+  document.getElementById('edit-panel-container').innerHTML = `
+    <div class="edit-panel" id="teams-edit-panel">
+      <div class="edit-panel-header">
+        <div class="step-label" style="margin:0;">✏️ Editar equipos</div>
+        <button class="close-x" onclick="toggleTeamsEditPanel()">✕</button>
+      </div>
+      ${replaceSearch}
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="flex:1;">
+          <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiA)} ${escHtml(t.nameA)} (${editTeamA.length})</div>
+          ${editTeamA.map(p => row(p, 'A')).join('')}
+        </div>
+        <div style="flex:1;">
+          <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiB)} ${escHtml(t.nameB)} (${editTeamB.length})</div>
+          ${editTeamB.map(p => row(p, 'B')).join('')}
+        </div>
+      </div>
+      ${unequal ? '<div class="load-warning">⚠ Los equipos deben tener el mismo número de jugadores</div>' : ''}
+      ${saveBtn}
+    </div>
+  `;
+}
+
+// ── API CONNECTION GATE ───────────────────────────────────────────────────────
+async function waitForApi() {
+  document.getElementById('tab-equipos').innerHTML = `
+    <div class="loading-state" style="flex-direction:column;gap:12px;">
+      <div class="spinner"></div>
+      <div style="color:#64748b;font-size:0.85rem;">Conectando con el servidor...</div>
+    </div>
+  `;
+  while (true) {
+    try {
+      const res = await fetch('/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.status === 'ok') return;
+      }
+    } catch (_) {
+      // network error — keep retrying
+    }
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+}
+
 // ── BOOTSTRAP ─────────────────────────────────────────────────────────────
 async function initManagePage() {
   document.getElementById('tab-equipos').innerHTML =
@@ -694,12 +754,12 @@ async function initManagePage() {
   try {
     const res = await fetch('/api/meetup/active');
     if (res.status === 404) {
-      _restoreStepHTML();
+      _buildFreshFlowHTML();
       showStep('paste');
       return;
     }
     if (!res.ok) {
-      _restoreStepHTML();
+      _buildFreshFlowHTML();
       showStep('paste');
       document.getElementById('step-paste').insertAdjacentHTML(
         'afterbegin',
@@ -714,12 +774,12 @@ async function initManagePage() {
       renderState1(activeMatchData);
     }
   } catch {
-    _restoreStepHTML();
+    _buildFreshFlowHTML();
     showStep('paste');
   }
 }
 
-function _restoreStepHTML() {
+function _buildFreshFlowHTML() {
   document.getElementById('tab-equipos').innerHTML = `
     <div id="step-paste">
       <div class="step-label">1. Pega la convocatoria</div>
@@ -734,21 +794,6 @@ function _restoreStepHTML() {
       </div>
       <div id="chip-container"></div>
       <button class="btn btn-green" onclick="generateTeams()">⚽ Generar equipos equilibrados</button>
-    </div>
-    <div id="step-teams" style="display:none">
-      <div class="step-label">3. Equipos generados</div>
-      <div id="teams-text" class="teams-box"></div>
-      <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
-      <hr class="divider">
-      <div class="step-label">4. Abre el marcador en otro móvil</div>
-      <div class="qr-box">
-        <canvas id="qr-canvas"></canvas>
-        <a class="qr-hint" id="qr-hint" target="_blank" rel="noopener"></a>
-      </div>
-      <div class="regen-row">
-        <button class="btn-sm gray" onclick="backToReview()">← Cambiar jugadores</button>
-        <button class="btn-sm green" onclick="generateTeams()">↺ Regenerar equipos</button>
-      </div>
     </div>
   `;
 }
@@ -773,11 +818,16 @@ function _copyToClipboard(text) {
   document.body.removeChild(ta);
 }
 
+function openEditMode(date) {
+  if (!date) { alert('Selecciona una fecha.'); return; }
+  window.location.href = '/match?edit=1&date=' + encodeURIComponent(date);
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
 }
 
-initManagePage();
+waitForApi().then(() => initManagePage());
 </script>
 </body>
 </html>
