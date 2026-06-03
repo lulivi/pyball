@@ -1,6 +1,5 @@
 """Tests for meetup use cases."""
 
-import urllib.parse
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -373,76 +372,48 @@ class TestStartMatch:
     """Tests for StartMatch use case."""
 
     def setup_method(self):
-        """Set up StartMatch use case with fake repositories."""
+        """Set up a fresh meetup repository for each test."""
         # pylint: disable=attribute-defined-outside-init
         self.meetup_repo = FakeMeetupRepository()
-        self.player_repo = FakePlayerRepository()
-        self.use_case = StartMatch(
-            self.meetup_repo,
-            self.player_repo,
-            "http://pyball:8000",
-            team_colors=("blanco", "negro"),
-            team_hex_bg=("#e4e4e7", "#27272a"),
-            team_hex_text=("#27272a", "#e4e4e7"),
-        )
 
-    def _add_players_and_teams(self, meetup):
-        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
-        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
-        self.player_repo.players.append(p1)
-        self.player_repo.players.append(p2)
-        meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
-        self.meetup_repo.save(meetup)
-        return p1, p2
-
-    def test_returns_url_with_teams_and_date(self):
-        """StartMatch returns a URL containing date and team names."""
+    def _meetup_with_teams(self):
+        """Create and save a meetup with two empty teams."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self._add_players_and_teams(meetup)
+        meetup.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(meetup)
+        return meetup
 
-        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
+    def test_returns_token_url(self):
+        """StartMatch appends the token as a query parameter when a token is set."""
+        self._meetup_with_teams()
+        url = StartMatch(self.meetup_repo, "http://pyball:8000", match_token="secret").execute(
+            datetime(2026, 4, 12, 20, 0)
+        )
+        assert url == "http://pyball:8000/match?token=secret"
 
-        assert "2026-04-12T20%3A00" in url or "2026-04-12T20:00" in url
-        assert "Dani" in url
-        assert "Rafa" in url
-        assert url.startswith("http://pyball:8000")
+    def test_returns_bare_url_without_token(self):
+        """StartMatch returns the bare /match URL when no token is configured."""
+        self._meetup_with_teams()
+        url = StartMatch(self.meetup_repo, "http://pyball:8000", match_token="").execute(
+            datetime(2026, 4, 12, 20, 0)
+        )
+        assert url == "http://pyball:8000/match"
 
     def test_raises_if_meetup_not_found(self):
-        """StartMatch raises MeetupNotFoundError if no meetup exists on that date."""
+        """StartMatch raises MeetupNotFoundError when no meetup exists for the given date."""
         with pytest.raises(MeetupNotFoundError):
-            self.use_case.execute(datetime(2026, 4, 12, 20, 0))
+            StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
+                datetime(2026, 4, 12, 20, 0)
+            )
 
     def test_raises_if_no_teams(self):
-        """StartMatch raises MeetupHasNoTeamsError if teams have not been created."""
+        """StartMatch raises MeetupHasNoTeamsError when the meetup has no teams yet."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self.meetup_repo.save(meetup)
-
         with pytest.raises(MeetupHasNoTeamsError):
-            self.use_case.execute(datetime(2026, 4, 12, 20, 0))
-
-    def test_url_contains_name_params(self):
-        """StartMatch URL contains nameA and nameB derived from capitalized color names."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self._add_players_and_teams(meetup)
-
-        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
-        decoded = urllib.parse.unquote(url)
-
-        assert "nameA=Blanco" in decoded
-        assert "nameB=Negro" in decoded
-
-    def test_url_contains_color_params(self):
-        """StartMatch URL contains colorA/colorB/colorTextA/colorTextB params."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self._add_players_and_teams(meetup)
-
-        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
-        decoded = urllib.parse.unquote(url)
-
-        assert "colorA=#e4e4e7" in decoded
-        assert "colorB=#27272a" in decoded
-        assert "colorTextA=#27272a" in decoded
-        assert "colorTextB=#e4e4e7" in decoded
+            StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
+                datetime(2026, 4, 12, 20, 0)
+            )
 
 
 class TestFinishMatch:

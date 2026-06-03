@@ -108,11 +108,8 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new StartMatch use case."""
         return StartMatch(
             self.meetup_repository,
-            self.player_repository,
             self._settings.pyball.base_url,
-            team_colors=self._settings.pyball.team_colors,
-            team_hex_bg=self._settings.pyball.team_hex_bg,
-            team_hex_text=self._settings.pyball.team_hex_text,
+            match_token=self._settings.pyball.match_token,
         )
 
     def finish_match(self) -> FinishMatch:
