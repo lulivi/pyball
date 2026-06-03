@@ -687,12 +687,11 @@ async def _resolve_meetup(
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return None
         return meetup
-    all_meetups = container.meetup_repository.find_all()
-    active = [m for m in all_meetups if m.result is None]
-    if not active:
+    try:
+        return container.get_active_meetup().execute()
+    except MeetupNotFoundError:
         await message.reply_text("No hay ningún partido activo.")
         return None
-    return max(active, key=lambda m: m.date)
 
 
 def _get_next_weekday(pyball_settings: PyballConfig) -> datetime:

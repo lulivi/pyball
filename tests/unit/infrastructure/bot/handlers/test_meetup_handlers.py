@@ -48,7 +48,7 @@ async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context
     meetup.result = None
 
     container = MagicMock()
-    container.meetup_repository.find_all.return_value = [meetup]
+    container.get_active_meetup.return_value.execute.return_value = meetup
     mock_context.bot_data["container"] = container
 
     with patch(
@@ -70,7 +70,7 @@ async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context
 async def test_lock_handler_no_active_meetup_replies_error(mock_update, mock_context):
     """lock with no active meetup sends Spanish error reply."""
     container = MagicMock()
-    container.meetup_repository.find_all.return_value = []
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
     mock_context.bot_data["container"] = container
 
     await lock_handler(mock_update, mock_context)
@@ -88,7 +88,7 @@ async def test_unlock_handler_uses_active_meetup(mock_update, mock_context):
     meetup.result = None
 
     container = MagicMock()
-    container.meetup_repository.find_all.return_value = [meetup]
+    container.get_active_meetup.return_value.execute.return_value = meetup
     mock_context.bot_data["container"] = container
 
     with patch(
