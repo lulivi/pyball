@@ -203,7 +203,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
         meetup = await _resolve_meetup(message, [], settings, container, "remove_player")
         if meetup is None:
             return
-        player_name = " ".join(args)
+        player_name = " ".join(name_args)
 
     if not player_name:
         await message.reply_text(

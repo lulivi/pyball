@@ -911,8 +911,9 @@ async def test_add_player_handler_no_args_replies_usage(mock_update, mock_contex
 
     await add_player_handler(mock_update, mock_context)
 
-    # Either a usage message or "no active meetup" — both are valid error replies
-    mock_update.message.reply_text.assert_called_once()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
 
 
 @pytest.mark.asyncio
