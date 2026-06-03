@@ -143,7 +143,7 @@ class TestActiveMatch:
         player_b.name = "David"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player_a, player_b]
         container.team_colors = ("blanco", "negro")
         container.team_hex_bg = ("#e4e4e7", "#27272a")
@@ -167,37 +167,23 @@ class TestActiveMatch:
 
     @pytest.mark.asyncio
     async def test_returns_404_when_no_active_meetup(self):
-        """404 when there are no meetups with teams that are unfinished."""
+        """404 when GetActiveMeetup raises MeetupNotFoundError."""
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = []
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
         app = create_app(container, _StubNotifier())
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/api/match/active")
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_ignores_finished_meetups(self):
-        """A meetup with result set is not considered active."""
-        finished = MagicMock()
-        finished.teams = [MagicMock(), MagicMock()]
-        finished.result = MagicMock()  # not None → finished
-
+    async def test_returns_404_when_active_match_service_raises(self):
+        """404 when GetActiveMeetup raises MeetupNotFoundError (no teams or finished)."""
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [finished]
-        app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/api/match/active")
-        assert response.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_ignores_meetups_without_teams(self):
-        """A meetup with teams=None is not considered active."""
-        no_teams = MagicMock()
-        no_teams.teams = None
-        no_teams.result = None
-
-        container = MagicMock()
-        container.meetup_repository.find_all.return_value = [no_teams]
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
         app = create_app(container, _StubNotifier())
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/api/match/active")
@@ -208,24 +194,16 @@ class TestMeetupActive:
     """Tests for GET /api/meetup/active."""
 
     @pytest.mark.asyncio
-    async def test_returns_404_when_no_meetups(self):
-        """404 when the repository is empty."""
+    async def test_returns_404_when_active_meetup_service_raises(self):
+        """404 when GetActiveMeetup raises MeetupNotFoundError."""
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = []
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
         app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/api/meetup/active")
-        assert response.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_returns_404_when_all_meetups_finished(self):
-        """404 when every meetup has a result set."""
-        finished = MagicMock()
-        finished.result = MagicMock()  # not None → finished
-        container = MagicMock()
-        container.meetup_repository.find_all.return_value = [finished]
-        app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as c:
             response = await c.get("/api/meetup/active")
         assert response.status_code == 404
 
@@ -245,7 +223,7 @@ class TestMeetupActive:
         player.name = "Juande"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player]
 
         app = create_app(container, _StubNotifier())
@@ -279,7 +257,7 @@ class TestMeetupActive:
         player_b.name = "David"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player_a, player_b]
         container.team_colors = ("blanco", "negro")
         container.team_hex_bg = ("#e4e4e7", "#27272a")
@@ -327,7 +305,7 @@ class TestMeetupActive:
         player.name = "Juande"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player]
         container.team_colors = ("blanco", "negro")
         container.team_hex_bg = ("#e4e4e7", "#27272a")

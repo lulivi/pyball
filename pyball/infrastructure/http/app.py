@@ -432,12 +432,11 @@ def _upsert_meetup_with_players(
 
 def _build_active_match_response(container: "Container") -> dict:
     """Build the response dict for GET /api/match/active, or raise 404."""
-    all_meetups = container.meetup_repository.find_all()
-    active = [m for m in all_meetups if m.teams is not None and m.result is None]
-    if not active:
+    try:
+        meetup = container.get_active_meetup().execute(require_teams=True)
+    except MeetupNotFoundError:
         raise HTTPException(404, "No active match found")
-    meetup = max(active, key=lambda m: m.date)
-    assert meetup.teams is not None  # guaranteed by the active filter above
+    assert meetup.teams is not None  # guaranteed by require_teams=True
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -467,11 +466,10 @@ def _build_meetup_active_response(container: "Container") -> dict:
     Returns the most recent unfinished meetup regardless of whether teams exist.
     players and teamA/teamB names are sorted with locale.strcoll.
     """
-    all_meetups = container.meetup_repository.find_all()
-    active = [m for m in all_meetups if m.result is None]
-    if not active:
+    try:
+        meetup = container.get_active_meetup().execute()
+    except MeetupNotFoundError:
         raise HTTPException(404, "No active meetup found")
-    meetup = max(active, key=lambda m: m.date)
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
