@@ -902,8 +902,10 @@ async def test_add_player_handler_no_date_uses_active_meetup(mock_update, mock_c
 
 
 @pytest.mark.asyncio
-async def test_add_player_handler_no_args_replies_usage(mock_update, mock_context):
-    """add_player with no args at all replies with a usage message."""
+async def test_add_player_handler_no_args_no_active_meetup_replies_error(
+    mock_update, mock_context
+):
+    """add_player with no args replies in Spanish when no active meetup exists."""
     container = MagicMock()
     container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
     mock_context.bot_data["container"] = container
@@ -935,6 +937,23 @@ async def test_remove_player_handler_no_date_uses_active_meetup(mock_update, moc
     container.remove_player_from_meetup.return_value.execute.assert_called_once_with(
         meetup.date, "Juan García"
     )
+
+
+@pytest.mark.asyncio
+async def test_remove_player_handler_no_args_no_active_meetup_replies_error(
+    mock_update, mock_context
+):
+    """remove_player with no args replies in Spanish when no active meetup exists."""
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await remove_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
 
 
 @pytest.mark.asyncio
