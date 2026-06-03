@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Meetup command handlers."""
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
@@ -125,40 +126,41 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     message = update.message
     if message is None:
         return
-
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
-    _usage = _date_usage_msg(
-        "add_player",
-        settings.pyball.display_date_format,
-        r"`<name1>`, `<name2>`, \.\.\.",
-    )
+    args = context.args or []
 
-    args = context.args
-    if args is None or len(args) < 3:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
-        return
+    meetup_date, name_args = _try_parse_date_args(args, settings.pyball.display_date_format)
 
-    date_str = f"{args[0]} {args[1]}"
-    names = [n.strip() for n in " ".join(args[2:]).split(",") if n.strip()]
+    if meetup_date is not None:
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
+    else:
+        meetup = await _resolve_meetup(message, [], settings, container, "add_player")
+        if meetup is None:
+            return
 
+    names = [n.strip() for n in " ".join(name_args).split(",") if n.strip()]
     if not names:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
+        await message.reply_text(
+            _date_usage_msg(
+                "add_player",
+                settings.pyball.display_date_format,
+                r"`<name1>`, `<name2>`, \.\.\.",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
-    failed: list[str] = []
-    meetup = None
     use_case = container.add_player_to_meetup()
-
-    try:
-        meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-    except ValueError:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
-        return
-
+    failed: list[str] = []
+    updated_meetup = None
     for name in names:
         try:
-            meetup = use_case.execute(meetup_date, name)
+            updated_meetup = use_case.execute(meetup.date, name)
+            meetup = updated_meetup
         except MeetupNotFoundError:
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return
@@ -168,8 +170,8 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             logger.exception("Unexpected error adding player '%s' to meetup", name)
             failed.append(f"{name}: error inesperado")
 
-    if meetup is not None:
-        await refresh_callup_messages(context.bot, settings, container, meetup)
+    if updated_meetup is not None:
+        await refresh_callup_messages(context.bot, settings, container, updated_meetup)
 
     if failed:
         await message.reply_text("Fallidos:\n" + "\n".join(f"  • {f}" for f in failed))
@@ -187,27 +189,46 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
-    _usage = _date_usage_msg(
-        "remove_player",
-        settings.pyball.display_date_format,
-        r"`<player_name>`",
-    )
+    args = context.args or []
 
-    args = context.args
-    if args is None or len(args) < 3:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
+    meetup_date, name_args = _try_parse_date_args(args, settings.pyball.display_date_format)
+
+    if meetup_date is not None:
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
+        player_name = " ".join(name_args)
+    else:
+        meetup = await _resolve_meetup(message, [], settings, container, "remove_player")
+        if meetup is None:
+            return
+        player_name = " ".join(args)
+
+    if not player_name:
+        await message.reply_text(
+            _date_usage_msg(
+                "remove_player",
+                settings.pyball.display_date_format,
+                r"`<player_name>`",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
-    date_str = f"{args[0]} {args[1]}"
-    player_name = " ".join(args[2:])
-
     try:
-        meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        meetup = container.remove_player_from_meetup().execute(meetup_date, player_name)
+        meetup = container.remove_player_from_meetup().execute(meetup.date, player_name)
         await refresh_callup_messages(context.bot, settings, container, meetup)
         await react_ok(context.bot, message)
     except ValueError:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
+        await message.reply_text(
+            _date_usage_msg(
+                "remove_player",
+                settings.pyball.display_date_format,
+                r"`<player_name>`",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except MeetupNotFoundError:
         await message.reply_text("No existe ningún meetup para esa fecha.")
     except PlayerNotInMeetupError:
@@ -651,6 +672,23 @@ async def _resolve_meetup(
     except MeetupNotFoundError:
         await message.reply_text("No hay ningún partido activo.")
         return None
+
+
+def _try_parse_date_args(
+    args: list[str], display_format: str
+) -> tuple[datetime | None, list[str]]:
+    """Parse the first two args as a date+time string if possible.
+
+    Returns (parsed_date, remaining_args) on success, or (None, all_args) if the
+    first two args do not form a valid date.
+    """
+    if len(args) >= 2:
+        try:
+            date = parse_display(f"{args[0]} {args[1]}", display_format)
+            return date, args[2:]
+        except ValueError:
+            pass
+    return None, list(args)
 
 
 def _get_next_weekday(pyball_settings: PyballConfig) -> datetime:

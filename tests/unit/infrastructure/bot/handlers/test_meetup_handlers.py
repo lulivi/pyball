@@ -881,6 +881,62 @@ async def test_search_handler_no_args_no_active_meetup_replies_error(mock_update
 
 
 @pytest.mark.asyncio
+async def test_add_player_handler_no_date_uses_active_meetup(mock_update, mock_context):
+    """add_player with only names (no date) uses the active meetup."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.result = None
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.add_player_to_meetup.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["Juan"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await add_player_handler(mock_update, mock_context)
+
+    container.add_player_to_meetup.return_value.execute.assert_called_once_with(
+        meetup.date, "Juan"
+    )
+
+
+@pytest.mark.asyncio
+async def test_add_player_handler_no_args_replies_usage(mock_update, mock_context):
+    """add_player with no args at all replies with a usage message."""
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await add_player_handler(mock_update, mock_context)
+
+    # Either a usage message or "no active meetup" — both are valid error replies
+    mock_update.message.reply_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_remove_player_handler_no_date_uses_active_meetup(mock_update, mock_context):
+    """remove_player with only a name (no date) uses the active meetup."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.result = None
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.remove_player_from_meetup.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["Juan", "García"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await remove_player_handler(mock_update, mock_context)
+
+    container.remove_player_from_meetup.return_value.execute.assert_called_once_with(
+        meetup.date, "Juan García"
+    )
+
+
+@pytest.mark.asyncio
 async def test_stats_handler_success_reacts(mock_update, mock_context):
     """stats reacts ✅ after sending the stats photo."""
     container = MagicMock()
