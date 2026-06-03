@@ -13,6 +13,7 @@ from pyball.settings import (
 _FULL_CORE = """\
 [pyball.core]
 location = "Test Park"
+name = "Test Park FC"
 default_week_day = "wednesday"
 default_hour = "20:00"
 base_url = "http://localhost:8000"
@@ -187,3 +188,30 @@ class TestTokenSettings:
         settings = load_app_settings(f)
         assert settings.pyball.match_token == "env-match"
         assert settings.pyball.manage_token == "env-manage"
+
+
+class TestNameSettings:
+    """Tests for the required pyball.core.name field."""
+
+    def test_name_loaded_from_config(self, tmp_path):
+        """name is read from config and stored on PyballConfig."""
+        settings = load_app_settings(_write(tmp_path, _FULL_CORE))
+        assert settings.pyball.name == "Test Park FC"
+
+    def test_missing_name_raises(self, tmp_path):
+        """Absent name raises SettingsValidationError."""
+        config = _FULL_CORE.replace('name = "Test Park FC"\n', "")
+        with pytest.raises(SettingsValidationError, match="core.name"):
+            load_app_settings(_write(tmp_path, config))
+
+    def test_empty_name_raises(self, tmp_path):
+        """Empty name raises SettingsValidationError."""
+        config = _FULL_CORE.replace('name = "Test Park FC"', 'name = ""')
+        with pytest.raises(SettingsValidationError, match=r"core\.name \(está vacío\)"):
+            load_app_settings(_write(tmp_path, config))
+
+    def test_env_var_overrides_name(self, tmp_path, monkeypatch):
+        """PYBALL_CORE_NAME env var overrides config value."""
+        monkeypatch.setenv("PYBALL_CORE_NAME", "Los Tensores")
+        settings = load_app_settings(_write(tmp_path, _FULL_CORE))
+        assert settings.pyball.name == "Los Tensores"

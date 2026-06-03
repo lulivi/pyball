@@ -42,6 +42,7 @@ def _write_config(tmp_path: Path, content: str) -> Path:
 
 _MINIMAL_CONFIG = """
 [pyball.core]
+name = "TestApp"
 location = "Test Park"
 default_week_day = "wednesday"
 default_hour = "20:00"
