@@ -313,7 +313,7 @@ class TestMeetupActive:
 
     @pytest.mark.asyncio
     async def test_uses_match_token_url_when_configured(self):
-        """matchUrl uses base_url + token path when match_token is set."""
+        """matchUrl is built by StartMatch.execute(), which now returns the token URL."""
         meetup = MagicMock()
         meetup.result = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
@@ -333,7 +333,9 @@ class TestMeetupActive:
         container.team_hex_bg = ("#e4e4e7", "#27272a")
         container.team_hex_text = ("#27272a", "#e4e4e7")
         container.team_emojis = ("⚪", "⚫")
-        container.base_url = "https://pyball.example.com"
+        container.start_match.return_value.execute.return_value = (
+            "https://pyball.example.com/match?token=my-match-tok"
+        )
 
         app = create_app(
             container,

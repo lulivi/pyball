@@ -121,7 +121,7 @@ def create_app(
     _register_static(app, static_dir, container.name)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
-    _register_meetup_routes(app, container, match_token=match_token)
+    _register_meetup_routes(app, container)
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
@@ -318,13 +318,13 @@ def _register_player_routes(app: FastAPI, container: "Container") -> None:
         return [{"id": str(p.id.value), "name": p.name} for p in players]
 
 
-def _register_meetup_routes(app: FastAPI, container: "Container", match_token: str = "") -> None:
+def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
     """Register meetup-related routes."""
 
     @app.get("/api/meetup/active")
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
-        return _build_meetup_active_response(container, match_token=match_token)
+        return _build_meetup_active_response(container)
 
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
@@ -360,10 +360,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
         except Exception as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        if match_token:
-            match_url = f"{container.base_url}/match?token={match_token}"
-        else:
-            match_url = container.start_match().execute(meetup_date)
+        match_url = container.start_match().execute(meetup_date)
 
         saved_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if saved_meetup is None or saved_meetup.teams is None:
@@ -407,7 +404,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        return _build_meetup_active_response(container, match_token=match_token)
+        return _build_meetup_active_response(container)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
@@ -464,7 +461,7 @@ def _build_active_match_response(container: "Container") -> dict:
     }
 
 
-def _build_meetup_active_response(container: "Container", match_token: str = "") -> dict:
+def _build_meetup_active_response(container: "Container") -> dict:
     """Build the response for GET /api/meetup/active, or raise 404.
 
     Returns the most recent unfinished meetup regardless of whether teams exist.
@@ -500,10 +497,7 @@ def _build_meetup_active_response(container: "Container", match_token: str = "")
     team_a = _sorted_names(meetup.teams[0].players, player_names)
     team_b = _sorted_names(meetup.teams[1].players, player_names)
 
-    if match_token:
-        match_url = f"{container.base_url}/match?token={match_token}"
-    else:
-        match_url = container.start_match().execute(meetup.date)
+    match_url = container.start_match().execute(meetup.date)
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
