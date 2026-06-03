@@ -1,6 +1,5 @@
 """Tests for meetup use cases."""
 
-import urllib.parse
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -14,6 +13,7 @@ from pyball.application.meetup import (
 )
 from pyball.application.meetup.create_teams_algorithms import RandomAlgorithm
 from pyball.application.meetup.finish_match import FinishMatch
+from pyball.application.meetup.get_active_meetup import GetActiveMeetup
 from pyball.application.meetup.start_match import StartMatch
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
@@ -373,76 +373,48 @@ class TestStartMatch:
     """Tests for StartMatch use case."""
 
     def setup_method(self):
-        """Set up StartMatch use case with fake repositories."""
+        """Set up a fresh meetup repository for each test."""
         # pylint: disable=attribute-defined-outside-init
         self.meetup_repo = FakeMeetupRepository()
-        self.player_repo = FakePlayerRepository()
-        self.use_case = StartMatch(
-            self.meetup_repo,
-            self.player_repo,
-            "http://pyball:8000",
-            team_colors=("blanco", "negro"),
-            team_hex_bg=("#e4e4e7", "#27272a"),
-            team_hex_text=("#27272a", "#e4e4e7"),
+
+    def test_returns_token_url(self):
+        """StartMatch appends the token as a query parameter when a token is set."""
+        self._meetup_with_teams()
+        url = StartMatch(self.meetup_repo, "http://pyball:8000", match_token="secret").execute(
+            datetime(2026, 4, 12, 20, 0)
         )
+        assert url == "http://pyball:8000/match?token=secret"
 
-    def _add_players_and_teams(self, meetup):
-        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
-        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
-        self.player_repo.players.append(p1)
-        self.player_repo.players.append(p2)
-        meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
-        self.meetup_repo.save(meetup)
-        return p1, p2
-
-    def test_returns_url_with_teams_and_date(self):
-        """StartMatch returns a URL containing date and team names."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self._add_players_and_teams(meetup)
-
-        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
-
-        assert "2026-04-12T20%3A00" in url or "2026-04-12T20:00" in url
-        assert "Dani" in url
-        assert "Rafa" in url
-        assert url.startswith("http://pyball:8000")
+    def test_returns_bare_url_without_token(self):
+        """StartMatch returns the bare /match URL when no token is configured."""
+        self._meetup_with_teams()
+        url = StartMatch(self.meetup_repo, "http://pyball:8000", match_token="").execute(
+            datetime(2026, 4, 12, 20, 0)
+        )
+        assert url == "http://pyball:8000/match"
 
     def test_raises_if_meetup_not_found(self):
-        """StartMatch raises MeetupNotFoundError if no meetup exists on that date."""
+        """StartMatch raises MeetupNotFoundError when no meetup exists for the given date."""
         with pytest.raises(MeetupNotFoundError):
-            self.use_case.execute(datetime(2026, 4, 12, 20, 0))
+            StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
+                datetime(2026, 4, 12, 20, 0)
+            )
 
     def test_raises_if_no_teams(self):
-        """StartMatch raises MeetupHasNoTeamsError if teams have not been created."""
+        """StartMatch raises MeetupHasNoTeamsError when the meetup has no teams yet."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self.meetup_repo.save(meetup)
-
         with pytest.raises(MeetupHasNoTeamsError):
-            self.use_case.execute(datetime(2026, 4, 12, 20, 0))
+            StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
+                datetime(2026, 4, 12, 20, 0)
+            )
 
-    def test_url_contains_name_params(self):
-        """StartMatch URL contains nameA and nameB derived from capitalized color names."""
+    def _meetup_with_teams(self):
+        """Create and save a meetup with two empty teams."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self._add_players_and_teams(meetup)
-
-        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
-        decoded = urllib.parse.unquote(url)
-
-        assert "nameA=Blanco" in decoded
-        assert "nameB=Negro" in decoded
-
-    def test_url_contains_color_params(self):
-        """StartMatch URL contains colorA/colorB/colorTextA/colorTextB params."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self._add_players_and_teams(meetup)
-
-        url = self.use_case.execute(datetime(2026, 4, 12, 20, 0))
-        decoded = urllib.parse.unquote(url)
-
-        assert "colorA=#e4e4e7" in decoded
-        assert "colorB=#27272a" in decoded
-        assert "colorTextA=#27272a" in decoded
-        assert "colorTextB=#e4e4e7" in decoded
+        meetup.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(meetup)
+        return meetup
 
 
 class TestFinishMatch:
@@ -533,3 +505,51 @@ class TestFinishMatch:
         ]
         with pytest.raises(ValueError, match="Player not found"):
             self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
+
+
+class TestGetActiveMeetup:
+    """Tests for GetActiveMeetup use case."""
+
+    def setup_method(self):
+        """Set up a fresh meetup repository for each test."""
+        # pylint: disable=attribute-defined-outside-init
+        self.meetup_repo = FakeMeetupRepository()
+
+    def test_returns_most_recent_active_meetup(self):
+        """Returns the meetup with the latest date when multiple active ones exist."""
+        older = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+        newer = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo")
+        self.meetup_repo.save(older)
+        self.meetup_repo.save(newer)
+        assert GetActiveMeetup(self.meetup_repo).execute() == newer
+
+    def test_ignores_closed_meetups(self):
+        """A meetup with a result set is not returned."""
+        closed = Meetup.create(datetime(2026, 6, 5, 20, 0), "Campo")
+        closed.result = MatchResult(score_a=1, score_b=0, events=())
+        self.meetup_repo.save(closed)
+        active = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+        self.meetup_repo.save(active)
+        assert GetActiveMeetup(self.meetup_repo).execute() == active
+
+    def test_raises_if_no_active_meetup(self):
+        """Raises MeetupNotFoundError when no meetup with result=None exists."""
+        with pytest.raises(MeetupNotFoundError):
+            GetActiveMeetup(self.meetup_repo).execute()
+
+    def test_require_teams_excludes_meetups_without_teams(self):
+        """require_teams=True skips meetups that have no teams yet."""
+        with_teams = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+        with_teams.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(with_teams)
+        without_teams = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo")
+        self.meetup_repo.save(without_teams)
+        # without_teams is newer but has no teams; require_teams must return with_teams
+        assert GetActiveMeetup(self.meetup_repo).execute(require_teams=True) == with_teams
+
+    def test_require_teams_raises_if_no_active_meetup_with_teams(self):
+        """require_teams=True raises when active meetups exist but none have teams."""
+        meetup = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo")
+        self.meetup_repo.save(meetup)
+        with pytest.raises(MeetupNotFoundError):
+            GetActiveMeetup(self.meetup_repo).execute(require_teams=True)

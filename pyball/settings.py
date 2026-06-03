@@ -51,6 +51,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
 
     core_keys = (
         "location",
+        "name",
         "default_week_day",
         "default_hour",
         "base_url",
@@ -69,6 +70,8 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     missing = [f"core.{k}" for k, v in raw.items() if v is None]
     if raw.get("location") is not None and not raw["location"]:
         missing.append("core.location (está vacío)")
+    if raw.get("name") is not None and not raw["name"]:
+        missing.append("core.name (está vacío)")
     if missing:
         raise SettingsValidationError(
             f"Faltan parámetros requeridos: {', '.join(missing)}. "
@@ -77,6 +80,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
 
     pyball = PyballConfig(
         location=raw["location"],
+        name=raw["name"],
         default_week_day=raw["default_week_day"],
         default_hour=raw["default_hour"],
         base_url=raw["base_url"],
@@ -118,6 +122,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     """PyBall-specific configuration."""
 
     location: str = ""
+    name: str = ""
     default_week_day: str = "wednesday"
     default_hour: str = "20:00"
     base_url: str = "http://localhost:8000"
@@ -134,10 +139,10 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
 
     def __post_init__(self) -> None:
         """Resolve team_colors into derived emoji and hex fields."""
-        for name in self.team_colors:
-            if name not in COLOR_PALETTE:
+        for color_name in self.team_colors:
+            if color_name not in COLOR_PALETTE:
                 valid = ", ".join(COLOR_PALETTE)
-                raise ValueError(f"Color de equipo desconocido: '{name}'. Opciones: {valid}")
+                raise ValueError(f"Color de equipo desconocido: '{color_name}'. Opciones: {valid}")
         self.team_emojis = (
             COLOR_PALETTE[self.team_colors[0]]["emoji"],
             COLOR_PALETTE[self.team_colors[1]]["emoji"],

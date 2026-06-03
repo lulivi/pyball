@@ -118,10 +118,10 @@ def create_app(
     if match_token or manage_token:
         app.add_middleware(TokenAuthMiddleware, match_token=match_token, manage_token=manage_token)
 
-    _register_static(app, static_dir)
+    _register_static(app, static_dir, container.name)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
-    _register_meetup_routes(app, container, match_token=match_token)
+    _register_meetup_routes(app, container)
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
@@ -139,8 +139,8 @@ class _Server(uvicorn.Server):
 # ── Route registrars ──────────────────────────────────────────────────────────
 
 
-def _register_static(app: FastAPI, static_dir: Path) -> None:
-    """Register the health-check and static-page routes."""
+def _register_static(app: FastAPI, static_dir: Path, name: str) -> None:
+    """Register the health-check, static-page, and manifest routes."""
 
     @app.get("/")
     async def health():
@@ -156,6 +156,40 @@ def _register_static(app: FastAPI, static_dir: Path) -> None:
     async def manage_page():
         """Serve the manage tracker SPA."""
         return FileResponse(static_dir / "manage.html")
+
+    _icons = [
+        {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    ]
+    _slug = name.lower().replace(" ", "-")
+
+    @app.get("/manifest-match.json")
+    async def manifest_match():
+        """Return the dynamic PWA manifest for the match page."""
+        return {
+            "name": f"PyBall – Partido {name}",
+            "short_name": f"Partido {name}",
+            "id": f"/match-{_slug}",
+            "start_url": "/match",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#0f172a",
+            "icons": _icons,
+        }
+
+    @app.get("/manifest-manage.json")
+    async def manifest_manage():
+        """Return the dynamic PWA manifest for the manage page."""
+        return {
+            "name": f"PyBall – Gestión {name}",
+            "short_name": f"Gestión {name}",
+            "id": f"/manage-{_slug}",
+            "start_url": "/manage",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#0f172a",
+            "icons": _icons,
+        }
 
 
 def _register_match_routes(
@@ -284,13 +318,13 @@ def _register_player_routes(app: FastAPI, container: "Container") -> None:
         return [{"id": str(p.id.value), "name": p.name} for p in players]
 
 
-def _register_meetup_routes(app: FastAPI, container: "Container", match_token: str = "") -> None:
+def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
     """Register meetup-related routes."""
 
     @app.get("/api/meetup/active")
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
-        return _build_meetup_active_response(container, match_token=match_token)
+        return _build_meetup_active_response(container)
 
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
@@ -326,10 +360,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
         except Exception as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        if match_token:
-            match_url = f"{container.base_url}/match?token={match_token}"
-        else:
-            match_url = container.start_match().execute(meetup_date)
+        match_url = container.start_match().execute(meetup_date)
 
         saved_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if saved_meetup is None or saved_meetup.teams is None:
@@ -373,7 +404,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", match_token: s
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        return _build_meetup_active_response(container, match_token=match_token)
+        return _build_meetup_active_response(container)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
@@ -401,12 +432,11 @@ def _upsert_meetup_with_players(
 
 def _build_active_match_response(container: "Container") -> dict:
     """Build the response dict for GET /api/match/active, or raise 404."""
-    all_meetups = container.meetup_repository.find_all()
-    active = [m for m in all_meetups if m.teams is not None and m.result is None]
-    if not active:
-        raise HTTPException(404, "No active match found")
-    meetup = max(active, key=lambda m: m.date)
-    assert meetup.teams is not None  # guaranteed by the active filter above
+    try:
+        meetup = container.get_active_meetup().execute(require_teams=True)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No active match found") from exc
+    assert meetup.teams is not None  # guaranteed by require_teams=True
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -430,17 +460,16 @@ def _build_active_match_response(container: "Container") -> dict:
     }
 
 
-def _build_meetup_active_response(container: "Container", match_token: str = "") -> dict:
+def _build_meetup_active_response(container: "Container") -> dict:
     """Build the response for GET /api/meetup/active, or raise 404.
 
     Returns the most recent unfinished meetup regardless of whether teams exist.
     players and teamA/teamB names are sorted with locale.strcoll.
     """
-    all_meetups = container.meetup_repository.find_all()
-    active = [m for m in all_meetups if m.result is None]
-    if not active:
-        raise HTTPException(404, "No active meetup found")
-    meetup = max(active, key=lambda m: m.date)
+    try:
+        meetup = container.get_active_meetup().execute()
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No active meetup found") from exc
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -466,10 +495,7 @@ def _build_meetup_active_response(container: "Container", match_token: str = "")
     team_a = _sorted_names(meetup.teams[0].players, player_names)
     team_b = _sorted_names(meetup.teams[1].players, player_names)
 
-    if match_token:
-        match_url = f"{container.base_url}/match?token={match_token}"
-    else:
-        match_url = container.start_match().execute(meetup.date)
+    match_url = container.start_match().execute(meetup.date)
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),

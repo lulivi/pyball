@@ -143,7 +143,7 @@ class TestActiveMatch:
         player_b.name = "David"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player_a, player_b]
         container.team_colors = ("blanco", "negro")
         container.team_hex_bg = ("#e4e4e7", "#27272a")
@@ -167,37 +167,11 @@ class TestActiveMatch:
 
     @pytest.mark.asyncio
     async def test_returns_404_when_no_active_meetup(self):
-        """404 when there are no meetups with teams that are unfinished."""
+        """404 when GetActiveMeetup raises MeetupNotFoundError."""
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = []
-        app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/api/match/active")
-        assert response.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_ignores_finished_meetups(self):
-        """A meetup with result set is not considered active."""
-        finished = MagicMock()
-        finished.teams = [MagicMock(), MagicMock()]
-        finished.result = MagicMock()  # not None → finished
-
-        container = MagicMock()
-        container.meetup_repository.find_all.return_value = [finished]
-        app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/api/match/active")
-        assert response.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_ignores_meetups_without_teams(self):
-        """A meetup with teams=None is not considered active."""
-        no_teams = MagicMock()
-        no_teams.teams = None
-        no_teams.result = None
-
-        container = MagicMock()
-        container.meetup_repository.find_all.return_value = [no_teams]
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
         app = create_app(container, _StubNotifier())
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/api/match/active")
@@ -208,22 +182,12 @@ class TestMeetupActive:
     """Tests for GET /api/meetup/active."""
 
     @pytest.mark.asyncio
-    async def test_returns_404_when_no_meetups(self):
-        """404 when the repository is empty."""
+    async def test_returns_404_when_active_meetup_service_raises(self):
+        """404 when GetActiveMeetup raises MeetupNotFoundError."""
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = []
-        app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/api/meetup/active")
-        assert response.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_returns_404_when_all_meetups_finished(self):
-        """404 when every meetup has a result set."""
-        finished = MagicMock()
-        finished.result = MagicMock()  # not None → finished
-        container = MagicMock()
-        container.meetup_repository.find_all.return_value = [finished]
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
         app = create_app(container, _StubNotifier())
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/api/meetup/active")
@@ -245,7 +209,7 @@ class TestMeetupActive:
         player.name = "Juande"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player]
 
         app = create_app(container, _StubNotifier())
@@ -279,7 +243,7 @@ class TestMeetupActive:
         player_b.name = "David"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player_a, player_b]
         container.team_colors = ("blanco", "negro")
         container.team_hex_bg = ("#e4e4e7", "#27272a")
@@ -313,7 +277,7 @@ class TestMeetupActive:
 
     @pytest.mark.asyncio
     async def test_uses_match_token_url_when_configured(self):
-        """matchUrl uses base_url + token path when match_token is set."""
+        """matchUrl is built by StartMatch.execute(), which now returns the token URL."""
         meetup = MagicMock()
         meetup.result = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
@@ -327,13 +291,15 @@ class TestMeetupActive:
         player.name = "Juande"
 
         container = MagicMock()
-        container.meetup_repository.find_all.return_value = [meetup]
+        container.get_active_meetup.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = [player]
         container.team_colors = ("blanco", "negro")
         container.team_hex_bg = ("#e4e4e7", "#27272a")
         container.team_hex_text = ("#27272a", "#e4e4e7")
         container.team_emojis = ("⚪", "⚫")
-        container.base_url = "https://pyball.example.com"
+        container.start_match.return_value.execute.return_value = (
+            "https://pyball.example.com/match?token=my-match-tok"
+        )
 
         app = create_app(
             container,
@@ -560,3 +526,92 @@ class TestEditMatchResult:
             )
 
         assert response.status_code == 422
+
+
+class TestManifests:
+    """Tests for GET /manifest-match.json and GET /manifest-manage.json."""
+
+    def _make_named_app(self, name: str = "Tensores"):
+        container = MagicMock()
+        container.name = name
+        return create_app(container, _StubNotifier())
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_name(self):
+        """Match manifest name includes 'Partido' and the instance name."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "PyBall – Partido Tensores"
+        assert data["short_name"] == "Partido Tensores"
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_id(self):
+        """Match manifest id is /match-{slug}."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        assert response.json()["id"] == "/match-tensores"
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_id_spaces_become_hyphens(self):
+        """Spaces in instance name become hyphens in the manifest id."""
+        app = self._make_named_app("Los Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        assert response.json()["id"] == "/match-los-tensores"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_name(self):
+        """Manage manifest name includes 'Gestión' and the instance name."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "PyBall – Gestión Tensores"
+        assert data["short_name"] == "Gestión Tensores"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_id(self):
+        """Manage manifest id is /manage-{slug}."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        assert response.json()["id"] == "/manage-tensores"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_id_spaces_become_hyphens(self):
+        """Spaces in instance name become hyphens in the manage manifest id."""
+        app = self._make_named_app("Los Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        assert response.json()["id"] == "/manage-los-tensores"
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_static_fields(self):
+        """Match manifest contains the expected static fields."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        data = response.json()
+        assert data["start_url"] == "/match"
+        assert data["display"] == "standalone"
+        assert data["background_color"] == "#0f172a"
+        assert data["theme_color"] == "#0f172a"
+        assert len(data["icons"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_static_fields(self):
+        """Manage manifest contains the expected static fields."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        data = response.json()
+        assert data["start_url"] == "/manage"
+        assert data["display"] == "standalone"
+        assert data["background_color"] == "#0f172a"
+        assert data["theme_color"] == "#0f172a"
+        assert len(data["icons"]) == 2

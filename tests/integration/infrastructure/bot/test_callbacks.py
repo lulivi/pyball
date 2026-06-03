@@ -11,6 +11,7 @@ from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.telegram.bot.callbacks import callback_handler
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
+from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 
 # pylint: disable=redefined-outer-name
 
@@ -245,8 +246,13 @@ def meetup_with_players(bot_context):
 
 @pytest.fixture
 def meetup_with_teams(bot_context):
-    """Create and persist a meetup that already has teams with real players."""
+    """Create and persist a meetup that already has teams with real players.
+
+    Also seeds a tracked regular-group message so refresh_callup_messages can
+    call edit_message_text during the lock callback test.
+    """
     container = bot_context.bot_data["container"]
+    settings = bot_context.bot_data["settings"]
     meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
     p1 = Player.create("Alice", "regular")
     p2 = Player.create("Bob", "regular")
@@ -254,6 +260,8 @@ def meetup_with_teams(bot_context):
     container.player_repository.save(p2)
     meetup.set_teams([Team.create("A", [p1.id]), Team.create("B", [p2.id])])
     container.meetup_repository.save(meetup)
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    store.save_message(meetup.date, "regular", MessageTracking(chat_id=-100111, message_id=1001))
     return meetup
 
 
@@ -290,31 +298,27 @@ async def test_create_teams_callback_unauthorized_answers_admin_alert(
 
 
 @pytest.mark.asyncio
-async def test_start_match_callback_authorized_sends_qr_and_removes_buttons(
+async def test_lock_callback_authorized_removes_buttons(
     callback_update, bot_context, meetup_with_teams  # pylint: disable=unused-argument
 ):
-    """Admin pressing start_match sends a QR photo to admins and removes all buttons."""
+    """Admin pressing lock removes keyboards from all tracked messages."""
     bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    bot_context.bot_data["settings"].telegram.admins_ids = [99999]
-    callback_update.callback_query.data = "start_match:2026-04-25T20:00"
-    callback_update.callback_query.edit_message_reply_markup = AsyncMock()
+    callback_update.callback_query.data = "lock:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
 
-    bot_context.bot.send_photo.assert_called()
-    callback_update.callback_query.edit_message_reply_markup.assert_called_once_with(
-        reply_markup=None
-    )
+    bot_context.bot.edit_message_text.assert_called()
     callback_update.callback_query.answer.assert_called_once()
+    bot_context.bot.send_photo.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_start_match_callback_unauthorized_answers_admin_alert(
+async def test_lock_callback_unauthorized_answers_admin_alert(
     callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
 ):
-    """Non-admin pressing start_match receives an admin-only alert."""
+    """Non-admin pressing lock receives an admin-only alert."""
     bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
-    callback_update.callback_query.data = "start_match:2026-04-25T20:00"
+    callback_update.callback_query.data = "lock:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
 
@@ -322,19 +326,3 @@ async def test_start_match_callback_unauthorized_answers_admin_alert(
     assert call_kwargs[1].get("show_alert") is True
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
     assert "administrador" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_start_match_callback_no_teams_answers_alert(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Admin pressing start_match on a meetup with no teams gets an informative alert."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "start_match:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "equipo" in text.lower()

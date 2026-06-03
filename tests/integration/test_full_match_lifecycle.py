@@ -12,10 +12,10 @@ from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
+    match_qr_handler,
     new_meetup_handler,
     remove_player_handler,
     search_handler,
-    start_match_handler,
     stats_handler,
 )
 from pyball.infrastructure.telegram.bot.handlers.player import new_player_handler
@@ -119,12 +119,12 @@ class TestFullMatchLifecycle:
         bot_update.message.reply_text.reset_mock()
         bot_context.bot.send_photo.reset_mock()
         bot_context.args = _DATE_ARGS
-        await start_match_handler(bot_update, bot_context)
+        await match_qr_handler(bot_update, bot_context)
 
         bot_context.bot.send_photo.assert_called_once()
         call_kwargs = bot_context.bot.send_photo.call_args.kwargs
         assert call_kwargs.get("chat_id") == 99999
-        assert "2026-06-15" in call_kwargs.get("caption", "")
+        assert "/match" in call_kwargs.get("caption", "")
 
     async def _finish_match(self, real_container):
         events = [
@@ -279,8 +279,8 @@ class TestFullMatchLifecycle:
         assert "Ya existe" in text
 
     @pytest.mark.asyncio
-    async def test_start_match_without_teams(self, bot_update, bot_context):
-        """start_match_handler without teams replies with a no-teams error."""
+    async def test_match_qr_without_teams(self, bot_update, bot_context):
+        """match_qr_handler without teams replies with a no-teams error."""
         bot_context.args = ["Regular_01", "regular"]
         await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
@@ -291,12 +291,12 @@ class TestFullMatchLifecycle:
         bot_update.message.reply_text.reset_mock()
         bot_context.bot.send_photo.reset_mock()
         bot_context.args = _DATE_ARGS
-        await start_match_handler(bot_update, bot_context)
+        await match_qr_handler(bot_update, bot_context)
 
         bot_context.bot.send_photo.assert_not_called()
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "no teams" in text.lower() or "create_teams" in text.lower()
+        assert "equipos" in text.lower()
 
     @pytest.mark.asyncio
     async def test_finish_already_closed_match(self, bot_update, bot_context, real_container):
