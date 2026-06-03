@@ -116,7 +116,7 @@ async def test_match_qr_handler_sends_qr_to_admins(mock_update, mock_context):
     admin_id = 99999
 
     container = MagicMock()
-    container.meetup_repository.find_all.return_value = [meetup]
+    container.get_active_meetup.return_value.execute.return_value = meetup
     container.start_match.return_value.execute.return_value = url
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
@@ -162,7 +162,7 @@ async def test_match_qr_handler_no_teams_replies_error(mock_update, mock_context
     meetup.result = None
 
     container = MagicMock()
-    container.meetup_repository.find_all.return_value = [meetup]
+    container.get_active_meetup.return_value.execute.return_value = meetup
     container.start_match.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
@@ -234,8 +234,6 @@ async def test_show_meetup_handler_no_args_no_active_meetup_replies_error(
     mock_update, mock_context
 ):
     """show_meetup with no args replies in Spanish when no active meetup exists."""
-    from pyball.domain.meetup.errors import MeetupNotFoundError
-
     container = MagicMock()
     container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
     mock_context.bot_data["container"] = container
@@ -869,8 +867,6 @@ async def test_search_handler_no_args_uses_active_meetup(mock_update, mock_conte
 @pytest.mark.asyncio
 async def test_search_handler_no_args_no_active_meetup_replies_error(mock_update, mock_context):
     """search with no args replies in Spanish when no active meetup exists."""
-    from pyball.domain.meetup.errors import MeetupNotFoundError
-
     container = MagicMock()
     container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
     mock_context.bot_data["container"] = container
