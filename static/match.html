@@ -204,8 +204,8 @@
         }
         .own-goal-btn {
             flex: 1; width: 100%; border: none; border-radius: 6px;
-            font-size: 0.9rem; font-weight: bold;
-            cursor: pointer; padding: 0; min-height: 44px; opacity: 0.85;
+            font-size: 1.1rem; font-weight: bold; line-height: 1.2;
+            cursor: pointer; padding: 4px 0; min-height: 44px; opacity: 0.85;
         }
         .own-goal-btn:hover { opacity: 1; }
         .own-goal-badge {
@@ -694,7 +694,7 @@
             return `
                 <div class="cancel-split-col">
                     <button class="cancel-full-btn" style="flex:1;height:auto;" onclick="cancelGoal()">Cancelar</button>
-                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 Gol en propia puerta</button>
+                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 P.P<br><span style="font-size:0.75em;font-weight:normal;">(Propia puerta)</span></button>
                 </div>`;
         };
 
