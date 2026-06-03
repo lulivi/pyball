@@ -376,13 +376,6 @@ class TestStartMatch:
         # pylint: disable=attribute-defined-outside-init
         self.meetup_repo = FakeMeetupRepository()
 
-    def _meetup_with_teams(self):
-        """Create and save a meetup with two empty teams."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        meetup.teams = [Team.create("A", []), Team.create("B", [])]
-        self.meetup_repo.save(meetup)
-        return meetup
-
     def test_returns_token_url(self):
         """StartMatch appends the token as a query parameter when a token is set."""
         self._meetup_with_teams()
@@ -414,6 +407,13 @@ class TestStartMatch:
             StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
                 datetime(2026, 4, 12, 20, 0)
             )
+
+    def _meetup_with_teams(self):
+        """Create and save a meetup with two empty teams."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        meetup.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(meetup)
+        return meetup
 
 
 class TestFinishMatch:
