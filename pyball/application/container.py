@@ -28,6 +28,7 @@ from pyball.application.meetup import (
     CreateTeamsManually,
     EditMatchResult,
     FinishMatch,
+    GetActiveMeetup,
     RemovePlayerFromMeetup,
     StartMatch,
 )
@@ -111,6 +112,10 @@ class Container:  # pylint: disable=too-many-public-methods
             self._settings.pyball.base_url,
             match_token=self._settings.pyball.match_token,
         )
+
+    def get_active_meetup(self) -> GetActiveMeetup:
+        """Create a new GetActiveMeetup use case."""
+        return GetActiveMeetup(self.meetup_repository)
 
     def finish_match(self) -> FinishMatch:
         """Create a new FinishMatch use case."""

@@ -13,6 +13,7 @@ from pyball.application.meetup import (
 )
 from pyball.application.meetup.create_teams_algorithms import RandomAlgorithm
 from pyball.application.meetup.finish_match import FinishMatch
+from pyball.application.meetup.get_active_meetup import GetActiveMeetup
 from pyball.application.meetup.start_match import StartMatch
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
@@ -504,3 +505,51 @@ class TestFinishMatch:
         ]
         with pytest.raises(ValueError, match="Player not found"):
             self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
+
+
+class TestGetActiveMeetup:
+    """Tests for GetActiveMeetup use case."""
+
+    def setup_method(self):
+        """Set up a fresh meetup repository for each test."""
+        # pylint: disable=attribute-defined-outside-init
+        self.meetup_repo = FakeMeetupRepository()
+
+    def test_returns_most_recent_active_meetup(self):
+        """Returns the meetup with the latest date when multiple active ones exist."""
+        older = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+        newer = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo")
+        self.meetup_repo.save(older)
+        self.meetup_repo.save(newer)
+        assert GetActiveMeetup(self.meetup_repo).execute() == newer
+
+    def test_ignores_closed_meetups(self):
+        """A meetup with a result set is not returned."""
+        closed = Meetup.create(datetime(2026, 6, 5, 20, 0), "Campo")
+        closed.result = MatchResult(score_a=1, score_b=0, events=())
+        self.meetup_repo.save(closed)
+        active = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+        self.meetup_repo.save(active)
+        assert GetActiveMeetup(self.meetup_repo).execute() == active
+
+    def test_raises_if_no_active_meetup(self):
+        """Raises MeetupNotFoundError when no meetup with result=None exists."""
+        with pytest.raises(MeetupNotFoundError):
+            GetActiveMeetup(self.meetup_repo).execute()
+
+    def test_require_teams_excludes_meetups_without_teams(self):
+        """require_teams=True skips meetups that have no teams yet."""
+        with_teams = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+        with_teams.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(with_teams)
+        without_teams = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo")
+        self.meetup_repo.save(without_teams)
+        # without_teams is newer but has no teams; require_teams must return with_teams
+        assert GetActiveMeetup(self.meetup_repo).execute(require_teams=True) == with_teams
+
+    def test_require_teams_raises_if_no_active_meetup_with_teams(self):
+        """require_teams=True raises when active meetups exist but none have teams."""
+        meetup = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo")
+        self.meetup_repo.save(meetup)
+        with pytest.raises(MeetupNotFoundError):
+            GetActiveMeetup(self.meetup_repo).execute(require_teams=True)

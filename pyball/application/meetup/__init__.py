@@ -34,6 +34,7 @@ from pyball.application.meetup.create_teams_manually import CreateTeamsManually
 from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
+from pyball.application.meetup.get_active_meetup import GetActiveMeetup
 from pyball.application.meetup.parse_callup_text import (
     MatchedPlayer,
     ParseCallupText,
@@ -62,6 +63,7 @@ __all__ = [
     "EditMatchResult",
     "FinishMatch",
     "FormatMatchSummary",
+    "GetActiveMeetup",
     "MeetupAlreadyClosedError",
     "UnknownAlgorithmError",
     "ComputeStats",
