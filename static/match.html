@@ -690,7 +690,7 @@
             return `<button class="player-btn ${oppositeClass}" onclick="registerGoal(null)">Sin asistente</button>`;
         };
         const cancelBtn = (scorerTeam) => {
-            const btnClass = `own-goal-btn btn-${scorerTeam.toLowerCase()}`;
+            const btnClass = `own-goal-btn ${scorerTeam === 'A' ? 'btn-b' : 'btn-a'}`;
             return `
                 <div class="cancel-split-col">
                     <button class="cancel-full-btn" style="flex:1;height:auto;" onclick="cancelGoal()">Cancelar</button>
