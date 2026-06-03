@@ -118,7 +118,7 @@ def create_app(
     if match_token or manage_token:
         app.add_middleware(TokenAuthMiddleware, match_token=match_token, manage_token=manage_token)
 
-    _register_static(app, static_dir)
+    _register_static(app, static_dir, container.name)
     _register_match_routes(app, container, notifier)
     _register_player_routes(app, container)
     _register_meetup_routes(app, container, match_token=match_token)
@@ -139,8 +139,8 @@ class _Server(uvicorn.Server):
 # ── Route registrars ──────────────────────────────────────────────────────────
 
 
-def _register_static(app: FastAPI, static_dir: Path) -> None:
-    """Register the health-check and static-page routes."""
+def _register_static(app: FastAPI, static_dir: Path, name: str) -> None:
+    """Register the health-check, static-page, and manifest routes."""
 
     @app.get("/")
     async def health():
@@ -156,6 +156,40 @@ def _register_static(app: FastAPI, static_dir: Path) -> None:
     async def manage_page():
         """Serve the manage tracker SPA."""
         return FileResponse(static_dir / "manage.html")
+
+    _icons = [
+        {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    ]
+    _slug = name.lower().replace(" ", "-")
+
+    @app.get("/manifest-match.json")
+    async def manifest_match():
+        """Return the dynamic PWA manifest for the match page."""
+        return {
+            "name": f"PyBall – Partido {name}",
+            "short_name": f"Partido {name}",
+            "id": f"/match-{_slug}",
+            "start_url": "/match",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#0f172a",
+            "icons": _icons,
+        }
+
+    @app.get("/manifest-manage.json")
+    async def manifest_manage():
+        """Return the dynamic PWA manifest for the manage page."""
+        return {
+            "name": f"PyBall – Gestión {name}",
+            "short_name": f"Gestión {name}",
+            "id": f"/manage-{_slug}",
+            "start_url": "/manage",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#0f172a",
+            "icons": _icons,
+        }
 
 
 def _register_match_routes(

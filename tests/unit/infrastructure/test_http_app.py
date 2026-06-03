@@ -560,3 +560,92 @@ class TestEditMatchResult:
             )
 
         assert response.status_code == 422
+
+
+class TestManifests:
+    """Tests for GET /manifest-match.json and GET /manifest-manage.json."""
+
+    def _make_named_app(self, name: str = "Tensores"):
+        container = MagicMock()
+        container.name = name
+        return create_app(container, _StubNotifier())
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_name(self):
+        """Match manifest name includes 'Partido' and the instance name."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "PyBall – Partido Tensores"
+        assert data["short_name"] == "Partido Tensores"
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_id(self):
+        """Match manifest id is /match-{slug}."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        assert response.json()["id"] == "/match-tensores"
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_id_spaces_become_hyphens(self):
+        """Spaces in instance name become hyphens in the manifest id."""
+        app = self._make_named_app("Los Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        assert response.json()["id"] == "/match-los-tensores"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_name(self):
+        """Manage manifest name includes 'Gestión' and the instance name."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "PyBall – Gestión Tensores"
+        assert data["short_name"] == "Gestión Tensores"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_id(self):
+        """Manage manifest id is /manage-{slug}."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        assert response.json()["id"] == "/manage-tensores"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_id_spaces_become_hyphens(self):
+        """Spaces in instance name become hyphens in the manage manifest id."""
+        app = self._make_named_app("Los Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        assert response.json()["id"] == "/manage-los-tensores"
+
+    @pytest.mark.asyncio
+    async def test_match_manifest_static_fields(self):
+        """Match manifest contains the expected static fields."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        data = response.json()
+        assert data["start_url"] == "/match"
+        assert data["display"] == "standalone"
+        assert data["background_color"] == "#0f172a"
+        assert data["theme_color"] == "#0f172a"
+        assert len(data["icons"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_static_fields(self):
+        """Manage manifest contains the expected static fields."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-manage.json")
+        data = response.json()
+        assert data["start_url"] == "/manage"
+        assert data["display"] == "standalone"
+        assert data["background_color"] == "#0f172a"
+        assert data["theme_color"] == "#0f172a"
+        assert len(data["icons"]) == 2
