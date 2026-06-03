@@ -158,6 +158,11 @@ class Container:  # pylint: disable=too-many-public-methods
         return self._settings.pyball.default_hour
 
     @property
+    def name(self) -> str:
+        """Return the configured instance name."""
+        return self._settings.pyball.name
+
+    @property
     def player_repository(self) -> PlayerRepository:
         """Get the player repository, creating it if necessary."""
         if self._player_repository is None:

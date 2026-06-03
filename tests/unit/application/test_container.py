@@ -34,6 +34,13 @@ class TestContainerInit:
         with pytest.raises(TypeError):
             Container()  # type: ignore[call-arg]  # pylint: disable=no-value-for-parameter
 
+    def test_name_property_returns_settings_value(self):
+        """container.name delegates to settings.pyball.name."""
+        settings = MagicMock()
+        settings.pyball.name = "Tensores"
+        container = Container(settings)
+        assert container.name == "Tensores"
+
 
 class TestNullMatchNotifier:
     """NullMatchNotifier satisfies the MatchNotifier interface with no side effects."""
