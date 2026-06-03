@@ -328,30 +328,11 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     message = update.message
     if message is None:
         return
-
     container: Container = context.bot_data["container"]
     settings: TelegramAppSettings = context.bot_data["settings"]
 
-    args = context.args
-    if not args or len(args) < 2:
-        await message.reply_text(
-            _date_usage_msg("show_meetup", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    try:
-        meetup_date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
-    except ValueError:
-        await message.reply_text(
-            _date_usage_msg("show_meetup", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    meetup = container.meetup_repository.find_by_datetime(meetup_date)
-    if not meetup:
-        await message.reply_text("No se ha encontrado el meetup para esa fecha.")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "show_meetup")
+    if meetup is None:
         return
 
     player_names = _get_player_names(container.player_repository)
@@ -372,35 +353,15 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message = update.message
     if message is None:
         return
-
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
 
-    args = context.args
-    if not args or len(args) < 2:
-        await message.reply_text(
-            _date_usage_msg("search", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    try:
-        meetup_date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
-    except ValueError:
-        await message.reply_text(
-            _date_usage_msg("search", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    meetup = container.meetup_repository.find_by_datetime(meetup_date)
-
-    if not meetup:
-        await message.reply_text("No se ha encontrado el meetup para esa fecha.")
-        return
-
     if not settings.telegram.substitutes.chat_id:
         await message.reply_text("El chat de suplentes no está configurado.")
+        return
+
+    meetup = await _resolve_meetup(message, context.args, settings, container, "search")
+    if meetup is None:
         return
 
     player_repo = container.player_repository
@@ -423,7 +384,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=keyboard,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
-
         store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
         store.save_message(
             meetup.date,
@@ -433,7 +393,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 message_id=msg.message_id,
             ),
         )
-
         await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
         logger.error("Telegram error sending substitutes message: %s", error)

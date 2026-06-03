@@ -205,18 +205,47 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_show_meetup_handler_no_args(mock_update, mock_context):
+async def test_show_meetup_handler_no_args_uses_active_meetup(mock_update, mock_context):
+    """show_meetup with no args displays the active meetup."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.result = None
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
     mock_context.args = []
-    mock_context.bot_data["container"] = MagicMock()
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ) as mock_fmt:
+        await show_meetup_handler(mock_update, mock_context)
+
+    mock_fmt.assert_called_once()
+    mock_update.message.reply_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_no_args_no_active_meetup_replies_error(
+    mock_update, mock_context
+):
+    """show_meetup with no args replies in Spanish when no active meetup exists."""
+    from pyball.domain.meetup.errors import MeetupNotFoundError
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
 
     await show_meetup_handler(mock_update, mock_context)
 
     call = mock_update.message.reply_text.call_args
     text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert r"Formato de fecha no válido\." in text
-    assert "Formato: `%Y-%m-%d %H:%M`" in text
-    assert "Ejemplo: `/show_meetup`" in text
-    assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
+    assert "activo" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -243,9 +272,7 @@ async def test_show_meetup_handler_not_found(mock_update, mock_context):
 
     await show_meetup_handler(mock_update, mock_context)
 
-    mock_update.message.reply_text.assert_called_with(
-        "No se ha encontrado el meetup para esa fecha."
-    )
+    mock_update.message.reply_text.assert_called_with("No existe ningún meetup para esa fecha.")
 
 
 @pytest.mark.asyncio
@@ -804,6 +831,57 @@ async def test_search_handler_success_reacts(mock_update, mock_context):
         reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_search_handler_no_args_uses_active_meetup(mock_update, mock_context):
+    """search with no args uses the active meetup."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.result = None
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.bot = AsyncMock()
+    mock_context.args = []
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_subs_message",
+            return_value="msg",
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.build_subs_keyboard",
+            return_value=MagicMock(),
+        ),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        await search_handler(mock_update, mock_context)
+
+    mock_context.bot.send_message.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_search_handler_no_args_no_active_meetup_replies_error(mock_update, mock_context):
+    """search with no args replies in Spanish when no active meetup exists."""
+    from pyball.domain.meetup.errors import MeetupNotFoundError
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.args = []
+
+    await search_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
 
 
 @pytest.mark.asyncio
