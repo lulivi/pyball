@@ -204,10 +204,9 @@
         }
         .own-goal-btn {
             flex: 1; width: 100%; border: none; border-radius: 6px;
-            color: white; font-size: 0.9rem; font-weight: bold;
-            cursor: pointer; padding: 0; min-height: 44px; opacity: 0.85;
+            font-size: 1.1rem; font-weight: bold; line-height: 1.2;
+            cursor: pointer; padding: 4px 0; min-height: 44px;
         }
-        .own-goal-btn:hover { opacity: 1; }
         .own-goal-badge {
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid #ef4444;
@@ -297,6 +296,14 @@
             text-align: center;
             color: #fef3c7;
         }
+
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid #334155; border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -376,7 +383,7 @@
                     document.documentElement.style.setProperty('--color-dark-text', teams.colorTextB);
                 }
                 renderApp();
-                loadActiveMatch(); // validate against server; clears stale cache on 404
+                loadActiveMatch(true); // silent: on network error keep match running offline
                 return;
             }
             const oldDate = formatMatchDate(teams.meetupDate);
@@ -402,7 +409,7 @@
         const teamAParam = params.get('teamA');
         const teamBParam = params.get('teamB');
         if (!teamAParam || !teamBParam) {
-            loadActiveMatch();
+            waitForMatch();
             return;
         }
 
@@ -422,32 +429,62 @@
         renderApp();
     }
 
-    async function loadActiveMatch() {
+    async function waitForMatch() {
+        let attempts = 0;
+
+        const showConnecting = () => {
+            const msg = attempts >= 3
+                ? 'Está tardando más de lo esperado...'
+                : 'Conectando con el servidor...';
+            document.getElementById('app').innerHTML = `
+                <div class="no-match">
+                    <div class="no-match-icon">⚽</div>
+                    <div class="no-match-title">PyBall</div>
+                    <div class="no-match-msg">${msg}</div>
+                    <div class="spinner"></div>
+                </div>`;
+        };
+
+        showConnecting();
+
+        while (true) {
+            try {
+                const res = await fetch('/api/match/active');
+                if (res.status === 404) {
+                    renderNoMatch();
+                    return;
+                }
+                if (res.ok) {
+                    _applyMatchData(await res.json());
+                    return;
+                }
+                // non-ok, non-404 — fall through to retry
+            } catch {
+                // network error — fall through to retry
+            }
+            attempts++;
+            showConnecting();
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+
+    async function loadActiveMatch(silent = false) {
         try {
             const res = await fetch('/api/match/active');
-            if (!res.ok) {
+            if (res.status === 404) {
                 localStorage.removeItem('pyball_current_match');
                 localStorage.removeItem('pyball_teams');
                 renderNoMatch();
                 return;
             }
-            const data = await res.json();
-            meetupDate = data.date;
-            nameA = data.nameA;
-            nameB = data.nameB;
-            teamA = data.teamA;
-            teamB = data.teamB;
-            document.documentElement.style.setProperty('--color-light', data.colorA);
-            document.documentElement.style.setProperty('--color-light-text', data.colorTextA);
-            document.documentElement.style.setProperty('--color-dark', data.colorB);
-            document.documentElement.style.setProperty('--color-dark-text', data.colorTextB);
-            localStorage.setItem('pyball_teams', JSON.stringify({
-                teamA, teamB, nameA, nameB, meetupDate,
-                colorA: data.colorA, colorB: data.colorB,
-                colorTextA: data.colorTextA, colorTextB: data.colorTextB,
-            }));
-            renderApp();
+            if (!res.ok) {
+                if (silent) return;
+                renderNoMatch();
+                return;
+            }
+            _applyMatchData(await res.json());
         } catch {
+            if (silent) return;
             renderNoMatch();
         }
     }
@@ -652,11 +689,11 @@
             return `<button class="player-btn ${oppositeClass}" onclick="registerGoal(null)">Sin asistente</button>`;
         };
         const cancelBtn = (scorerTeam) => {
-            const btnClass = `own-goal-btn btn-${scorerTeam.toLowerCase()}`;
+            const btnClass = `own-goal-btn ${scorerTeam === 'A' ? 'btn-b' : 'btn-a'}`;
             return `
                 <div class="cancel-split-col">
                     <button class="cancel-full-btn" style="flex:1;height:auto;" onclick="cancelGoal()">Cancelar</button>
-                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 Gol en propia puerta</button>
+                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 P.P<br><span style="font-size:0.75em;font-weight:normal;">(Propia puerta)</span></button>
                 </div>`;
         };
 
@@ -724,7 +761,7 @@
                 <div class="no-match-icon">⚽</div>
                 <div class="no-match-title">PyBall</div>
                 <div class="no-match-msg">No hay partido activo.<br>Espera a que se generen los equipos.</div>
-                <button class="save-btn" style="max-width:200px;margin-top:8px;" onclick="loadActiveMatch()">🔄 Reintentar</button>
+                <button class="save-btn" style="max-width:200px;margin-top:8px;" onclick="waitForMatch()">🔄 Reintentar</button>
             </div>`;
     }
 
@@ -816,6 +853,25 @@
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 GUARDAR CORRECCIÓN';
         }
+    }
+
+    // ── PRIVATE HELPERS ───────────────────────────────────
+    function _applyMatchData(data) {
+        meetupDate = data.date;
+        nameA = data.nameA;
+        nameB = data.nameB;
+        teamA = data.teamA;
+        teamB = data.teamB;
+        document.documentElement.style.setProperty('--color-light', data.colorA);
+        document.documentElement.style.setProperty('--color-light-text', data.colorTextA);
+        document.documentElement.style.setProperty('--color-dark', data.colorB);
+        document.documentElement.style.setProperty('--color-dark-text', data.colorTextB);
+        localStorage.setItem('pyball_teams', JSON.stringify({
+            teamA, teamB, nameA, nameB, meetupDate,
+            colorA: data.colorA, colorB: data.colorB,
+            colorTextA: data.colorTextA, colorTextB: data.colorTextB,
+        }));
+        renderApp();
     }
 
     // ── EVENT LISTENERS AND BOOTSTRAP ─────────────────────

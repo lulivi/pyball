@@ -84,8 +84,15 @@
   .divider { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
   .empty-state { text-align: center; padding: 40px 16px; color: #64748b; font-size: 0.9rem; line-height: 1.6; }
 
-  /* ── Loading state ───────────────────────────── */
-  .loading-state { display: flex; justify-content: center; align-items: center; padding: 60px 0; }
+  /* ── Status placeholder states ──────────────── */
+  .no-match {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center;
+    padding: 60px 32px; gap: 12px;
+  }
+  .no-match-icon { font-size: 3rem; }
+  .no-match-title { font-size: 1.4rem; font-weight: bold; }
+  .no-match-msg { font-size: 1rem; color: #64748b; line-height: 1.6; }
   .spinner {
     width: 32px; height: 32px;
     border: 3px solid #334155; border-top-color: #38bdf8;
@@ -725,40 +732,43 @@ function _renderTeamsEditPanel() {
   `;
 }
 
-// ── API CONNECTION GATE ───────────────────────────────────────────────────────
-async function waitForApi() {
-  document.getElementById('tab-equipos').innerHTML = `
-    <div class="loading-state" style="flex-direction:column;gap:12px;">
-      <div class="spinner"></div>
-      <div style="color:#64748b;font-size:0.85rem;">Conectando con el servidor...</div>
-    </div>
-  `;
+// ── BOOTSTRAP ─────────────────────────────────────────────────────────────
+async function bootstrap() {
+  let attempts = 0;
+
+  const showConnecting = () => {
+    const msg = attempts >= 3
+      ? 'Está tardando más de lo esperado...'
+      : 'Conectando con el servidor...';
+    document.getElementById('tab-equipos').innerHTML = `
+      <div class="no-match">
+        <div class="no-match-icon">⚽</div>
+        <div class="no-match-title">PyBall</div>
+        <div class="no-match-msg">${msg}</div>
+        <div class="spinner"></div>
+      </div>
+    `;
+  };
+
+  showConnecting();
+
   while (true) {
     try {
-      const res = await fetch('/');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.status === 'ok') return;
+      const res = await fetch('/api/meetup/active');
+      if (res.status === 404) {
+        _buildFreshFlowHTML();
+        showStep('paste');
+        return;
       }
-    } catch (_) {
-      // network error — keep retrying
-    }
-    await new Promise(resolve => setTimeout(resolve, 5000));
-  }
-}
-
-// ── BOOTSTRAP ─────────────────────────────────────────────────────────────
-async function initManagePage() {
-  document.getElementById('tab-equipos').innerHTML =
-    '<div class="loading-state"><div class="spinner"></div></div>';
-  try {
-    const res = await fetch('/api/meetup/active');
-    if (res.status === 404) {
-      _buildFreshFlowHTML();
-      showStep('paste');
-      return;
-    }
-    if (!res.ok) {
+      if (res.ok) {
+        activeMatchData = await res.json();
+        if (activeMatchData.teams) {
+          renderState2(activeMatchData);
+        } else {
+          renderState1(activeMatchData);
+        }
+        return;
+      }
       _buildFreshFlowHTML();
       showStep('paste');
       document.getElementById('step-paste').insertAdjacentHTML(
@@ -766,16 +776,12 @@ async function initManagePage() {
         '<div class="load-warning">⚠ Error al cargar el partido activo. Puedes crear uno nuevo.</div>'
       );
       return;
+    } catch {
+      // network error — fall through to retry
     }
-    activeMatchData = await res.json();
-    if (activeMatchData.teams) {
-      renderState2(activeMatchData);
-    } else {
-      renderState1(activeMatchData);
-    }
-  } catch {
-    _buildFreshFlowHTML();
-    showStep('paste');
+    attempts++;
+    showConnecting();
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
 }
 
@@ -827,7 +833,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
 }
 
-waitForApi().then(() => initManagePage());
+bootstrap();
 </script>
 </body>
 </html>
