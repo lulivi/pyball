@@ -177,18 +177,6 @@ class TestActiveMatch:
             response = await c.get("/api/match/active")
         assert response.status_code == 404
 
-    @pytest.mark.asyncio
-    async def test_returns_404_when_active_match_service_raises(self):
-        """404 when GetActiveMeetup raises MeetupNotFoundError (no teams or finished)."""
-        container = MagicMock()
-        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
-            "active"
-        )
-        app = create_app(container, _StubNotifier())
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/api/match/active")
-        assert response.status_code == 404
-
 
 class TestMeetupActive:
     """Tests for GET /api/meetup/active."""
@@ -201,9 +189,7 @@ class TestMeetupActive:
             "active"
         )
         app = create_app(container, _StubNotifier())
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/api/meetup/active")
         assert response.status_code == 404
 

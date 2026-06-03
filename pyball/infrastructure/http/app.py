@@ -434,8 +434,8 @@ def _build_active_match_response(container: "Container") -> dict:
     """Build the response dict for GET /api/match/active, or raise 404."""
     try:
         meetup = container.get_active_meetup().execute(require_teams=True)
-    except MeetupNotFoundError:
-        raise HTTPException(404, "No active match found")
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No active match found") from exc
     assert meetup.teams is not None  # guaranteed by require_teams=True
 
     all_players = container.player_repository.find_all()
@@ -468,8 +468,8 @@ def _build_meetup_active_response(container: "Container") -> dict:
     """
     try:
         meetup = container.get_active_meetup().execute()
-    except MeetupNotFoundError:
-        raise HTTPException(404, "No active meetup found")
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No active meetup found") from exc
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
