@@ -21,13 +21,15 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
     generate_qr_bytes,
+    lock_handler,
+    match_qr_handler,
     new_meetup_handler,
     next_meetup_handler,
     remove_player_handler,
     search_handler,
     show_meetup_handler,
-    start_match_handler,
     stats_handler,
+    unlock_handler,
 )
 
 
@@ -36,6 +38,142 @@ def test_generate_qr_bytes_returns_png_buffer():
     assert isinstance(buf, BytesIO)
     header = buf.read(4)
     assert header == b"\x89PNG"
+
+
+@pytest.mark.asyncio
+async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context):
+    """lock with no args calls refresh with include_keyboard=False on the active meetup."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.result = None
+
+    container = MagicMock()
+    container.meetup_repository.find_all.return_value = [meetup]
+    mock_context.bot_data["container"] = container
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+    ) as mock_refresh:
+        mock_refresh.return_value = None
+        await lock_handler(mock_update, mock_context)
+
+    mock_refresh.assert_awaited_once_with(
+        mock_context.bot,
+        mock_context.bot_data["settings"],
+        container,
+        meetup,
+        include_keyboard=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_lock_handler_no_active_meetup_replies_error(mock_update, mock_context):
+    """lock with no active meetup sends Spanish error reply."""
+    container = MagicMock()
+    container.meetup_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+
+    await lock_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_unlock_handler_uses_active_meetup(mock_update, mock_context):
+    """unlock calls refresh with include_keyboard=True on the active meetup."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.result = None
+
+    container = MagicMock()
+    container.meetup_repository.find_all.return_value = [meetup]
+    mock_context.bot_data["container"] = container
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+    ) as mock_refresh:
+        mock_refresh.return_value = None
+        await unlock_handler(mock_update, mock_context)
+
+    mock_refresh.assert_awaited_once_with(
+        mock_context.bot,
+        mock_context.bot_data["settings"],
+        container,
+        meetup,
+    )
+
+
+@pytest.mark.asyncio
+async def test_match_qr_handler_sends_qr_to_admins(mock_update, mock_context):
+    """match_qr sends a QR photo to each configured admin."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.result = None
+
+    url = "http://pyball:8000/match?token=secret"
+    admin_id = 99999
+
+    container = MagicMock()
+    container.meetup_repository.find_all.return_value = [meetup]
+    container.start_match.return_value.execute.return_value = url
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
+    mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
+    mock_context.bot = AsyncMock()
+    mock_context.args = []
+
+    fake_buf = BytesIO(b"fakepng")
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
+        return_value=fake_buf,
+    ) as mock_qr:
+        await match_qr_handler(mock_update, mock_context)
+
+    mock_qr.assert_called_once_with(url)
+    mock_context.bot.send_photo.assert_called_once_with(
+        chat_id=admin_id,
+        photo=fake_buf,
+        caption=f"🔗 Enlace del partido:\n{url}",
+    )
+
+
+@pytest.mark.asyncio
+async def test_match_qr_handler_no_base_url_replies_error(mock_update, mock_context):
+    """match_qr replies error when base_url is not configured."""
+    mock_context.bot_data["settings"].pyball.base_url = ""
+    mock_context.bot_data["container"] = MagicMock()
+    mock_context.args = []
+
+    await match_qr_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "url" in text.lower() or "base" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_match_qr_handler_no_teams_replies_error(mock_update, mock_context):
+    """match_qr replies in Spanish when meetup has no teams."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.result = None
+
+    container = MagicMock()
+    container.meetup_repository.find_all.return_value = [meetup]
+    container.start_match.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
+    mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"
+    mock_context.args = []
+
+    await match_qr_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "equipos" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -111,70 +249,6 @@ async def test_show_meetup_handler_not_found(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_start_match_handler_sends_qr_photo(mock_update, mock_context):
-    url = "https://pyball.example.com/?date=2026-04-19T20%3A00&teamA=Ana&teamB=Bob"
-    admin_id = 99999
-
-    container = MagicMock()
-    container.start_match.return_value.execute.return_value = url
-    mock_context.bot_data["container"] = container
-    mock_context.args = ["2026-04-19", "20:00"]
-    mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
-    mock_context.bot = AsyncMock()
-
-    fake_buf = BytesIO(b"fakepng")
-
-    with patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
-        return_value=fake_buf,
-    ) as mock_qr:
-        await start_match_handler(mock_update, mock_context)
-
-    mock_qr.assert_called_once_with(url)
-    mock_context.bot.send_photo.assert_called_once_with(
-        chat_id=admin_id,
-        photo=fake_buf,
-        caption=f"🔗 Enlace del partido:\n{url}",
-    )
-    mock_context.bot.set_message_reaction.assert_called_once_with(
-        chat_id=mock_update.message.chat_id,
-        message_id=mock_update.message.message_id,
-        reaction=ReactionEmoji.OK_HAND_SIGN,
-    )
-
-
-@pytest.mark.asyncio
-async def test_start_match_handler_sends_qr_to_each_admin(mock_update, mock_context):
-    url = "https://pyball.example.com/?date=2026-04-19T20%3A00&teamA=Ana&teamB=Bob"
-    admin_ids = [11111, 22222]
-
-    container = MagicMock()
-    container.start_match.return_value.execute.return_value = url
-    mock_context.bot_data["container"] = container
-    mock_context.args = ["2026-04-19", "20:00"]
-    mock_context.bot_data["settings"].telegram.admins_ids = admin_ids
-    mock_context.bot = AsyncMock()
-
-    fake_buf = BytesIO(b"fakepng")
-
-    with patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
-        return_value=fake_buf,
-    ):
-        await start_match_handler(mock_update, mock_context)
-
-    assert mock_context.bot.send_photo.call_count == 2
-    calls = mock_context.bot.send_photo.call_args_list
-    assert calls[0].kwargs["chat_id"] == 11111
-    assert calls[1].kwargs["chat_id"] == 22222
-    mock_context.bot.set_message_reaction.assert_called_once_with(
-        chat_id=mock_update.message.chat_id,
-        message_id=mock_update.message.message_id,
-        reaction=ReactionEmoji.OK_HAND_SIGN,
-    )
-
-
-@pytest.mark.asyncio
 async def test_create_teams_handler_no_teams(mock_update, mock_context):
     mock_context.args = ["2026-04-25", "20:00"]
 
@@ -218,60 +292,6 @@ def test_date_usage_msg_with_suffix():
         "\n"
         r"Ejemplo: `/add_player` `2026-05-01 14:30` `<name1>`, `<name2>`, \.\.\."
     )
-
-
-@pytest.mark.asyncio
-async def test_start_match_handler_meetup_not_found(mock_update, mock_context):
-    """start_match replies in Spanish when no meetup exists for that date."""
-    container = MagicMock()
-    container.start_match.return_value.execute.side_effect = MeetupNotFoundError(
-        "2026-04-19T20:00"
-    )
-    mock_context.bot_data["container"] = container
-    mock_context.args = ["2026-04-19", "20:00"]
-
-    await start_match_handler(mock_update, mock_context)
-
-    mock_update.message.reply_text.assert_called_once_with(
-        "No existe ningún meetup para esa fecha."
-    )
-
-
-@pytest.mark.asyncio
-async def test_start_match_handler_no_teams(mock_update, mock_context):
-    """start_match replies in Spanish with /create_teams command when meetup has no teams."""
-    container = MagicMock()
-    container.start_match.return_value.execute.side_effect = MeetupHasNoTeamsError(
-        "Meetup has no teams"
-    )
-    mock_context.bot_data["container"] = container
-    mock_context.args = ["2026-04-19", "20:00"]
-    mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"
-
-    await start_match_handler(mock_update, mock_context)
-
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "no tiene equipos asignados" in text
-    assert "/create_teams" in text
-    assert "2026-04-19 20:00" in text
-
-
-@pytest.mark.asyncio
-async def test_start_match_handler_unexpected_error(mock_update, mock_context):
-    """start_match replies with generic Spanish message and logs on unexpected errors."""
-    container = MagicMock()
-    container.start_match.return_value.execute.side_effect = RuntimeError("boom")
-    mock_context.bot_data["container"] = container
-    mock_context.args = ["2026-04-19", "20:00"]
-
-    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.logger") as mock_logger:
-        await start_match_handler(mock_update, mock_context)
-
-    mock_logger.exception.assert_called_once()
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "error inesperado" in text.lower()
 
 
 @pytest.mark.asyncio
