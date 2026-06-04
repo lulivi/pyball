@@ -16,10 +16,10 @@ def test_build_main_keyboard_without_teams_has_create_teams_button():
     assert any("create_teams" in (d or "") for d in all_data)
 
 
-def test_build_main_keyboard_without_teams_no_start_match_button():
+def test_build_main_keyboard_without_teams_no_lock_button():
     kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=False)
     all_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
-    assert not any("start_match" in (d or "") for d in all_data)
+    assert not any("lock" in (d or "") for d in all_data)
 
 
 def test_build_main_keyboard_with_teams_has_three_rows():
@@ -27,10 +27,10 @@ def test_build_main_keyboard_with_teams_has_three_rows():
     assert len(kb.inline_keyboard) == 3
 
 
-def test_build_main_keyboard_with_teams_has_start_match_button():
+def test_build_main_keyboard_with_teams_has_lock_button():
     kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=True)
     all_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
-    assert any("start_match" in (d or "") for d in all_data)
+    assert any("lock" in (d or "") for d in all_data)
 
 
 def test_build_main_keyboard_default_no_teams():
@@ -45,11 +45,12 @@ def test_parse_callback_data_create_teams():
     )
 
 
-def test_parse_callback_data_start_match():
-    assert parse_callback_data("start_match:2026-05-15T20:00") == (
-        "start_match",
-        "2026-05-15T20:00",
-    )
+def test_parse_callback_data_lock():
+    assert parse_callback_data("lock:2026-05-15T20:00") == ("lock", "2026-05-15T20:00")
+
+
+def test_parse_callback_data_start_match_is_rejected():
+    assert parse_callback_data("start_match:2026-05-15T20:00") is None
 
 
 def test_parse_callback_data_rejects_unknown_action():

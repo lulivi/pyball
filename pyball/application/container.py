@@ -28,6 +28,7 @@ from pyball.application.meetup import (
     CreateTeamsManually,
     EditMatchResult,
     FinishMatch,
+    GetActiveMeetup,
     RemovePlayerFromMeetup,
     StartMatch,
 )
@@ -108,12 +109,13 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new StartMatch use case."""
         return StartMatch(
             self.meetup_repository,
-            self.player_repository,
             self._settings.pyball.base_url,
-            team_colors=self._settings.pyball.team_colors,
-            team_hex_bg=self._settings.pyball.team_hex_bg,
-            team_hex_text=self._settings.pyball.team_hex_text,
+            match_token=self._settings.pyball.match_token,
         )
+
+    def get_active_meetup(self) -> GetActiveMeetup:
+        """Create a new GetActiveMeetup use case."""
+        return GetActiveMeetup(self.meetup_repository)
 
     def finish_match(self) -> FinishMatch:
         """Create a new FinishMatch use case."""
@@ -156,6 +158,11 @@ class Container:  # pylint: disable=too-many-public-methods
     def default_hour(self) -> str:
         """Return the configured default match hour as 'HH:MM'."""
         return self._settings.pyball.default_hour
+
+    @property
+    def name(self) -> str:
+        """Return the configured instance name."""
+        return self._settings.pyball.name
 
     @property
     def player_repository(self) -> PlayerRepository:

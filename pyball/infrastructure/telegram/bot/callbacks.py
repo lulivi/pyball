@@ -28,11 +28,11 @@ from telegram import CallbackQuery, Update
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
-from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
-from pyball.infrastructure.telegram.bot.handlers.meetup import _do_create_teams, _do_start_match
+from pyball.infrastructure.telegram.bot.handlers.meetup import _do_create_teams
 from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.infrastructure.telegram.notifications import refresh_callup_messages
@@ -91,10 +91,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_create_teams_callback(
             meetup_date, query, container, context.bot, settings, from_user.id
         )
-    elif action == "start_match":
-        await _handle_start_match_callback(
-            meetup_date, query, container, context.bot, settings, from_user.id
-        )
+    elif action == "lock":
+        await _handle_lock_callback(meetup, query, container, context.bot, settings, from_user.id)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -184,30 +182,25 @@ async def _handle_create_teams_callback(
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-async def _handle_start_match_callback(
-    meetup_date: datetime,
+async def _handle_lock_callback(
+    meetup: Meetup,
     query: CallbackQuery,
     container: Container,
     bot: telegram.Bot,
     settings: "TelegramAppSettings",
     user_id: int,
 ) -> None:
-    """Handle start_match admin button callback."""
+    """Handle lock button callback — remove keyboards from all tracked messages."""
     if not settings.telegram.is_authorized(user_id):
         await query.answer(
             "Solo los administradores pueden realizar esta acción.", show_alert=True
         )
         return
     try:
-        await _do_start_match(meetup_date, container, bot, settings)
-        await query.edit_message_reply_markup(reply_markup=None)
+        await refresh_callup_messages(bot, settings, container, meetup, include_keyboard=False)
         await query.answer()
-    except MeetupNotFoundError:
-        await query.answer("No se ha encontrado el meetup.", show_alert=True)
-    except MeetupHasNoTeamsError:
-        await query.answer("Crea los equipos primero.", show_alert=True)
     except Exception:  # pylint: disable=broad-except
-        logger.exception("Unexpected error in start_match callback")
+        logger.exception("Unexpected error in lock callback")
         await query.answer("Ha ocurrido un error inesperado.", show_alert=True)
 
 

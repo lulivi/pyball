@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Meetup command handlers."""
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
@@ -70,53 +71,10 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("list_meetups", list_meetups_handler))
     application.add_handler(CommandHandler("show_meetup", show_meetup_handler))
     application.add_handler(CommandHandler("search", search_handler))
-    application.add_handler(CommandHandler("start_match", start_match_handler))
+    application.add_handler(CommandHandler("lock", lock_handler))
+    application.add_handler(CommandHandler("unlock", unlock_handler))
+    application.add_handler(CommandHandler("match_qr", match_qr_handler))
     application.add_handler(CommandHandler("stats", stats_handler))
-
-
-@log_func
-@authorized
-async def start_match_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start_match command — generate match URL and reply to admins only."""
-    message = update.message
-    if message is None:
-        return
-
-    args = context.args
-    settings: TelegramAppSettings = context.bot_data["settings"]
-    if not args or len(args) < 2:
-        await message.reply_text(
-            _date_usage_msg("start_match", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    date_str = f"{args[0]} {args[1]}"
-    container: Container = context.bot_data["container"]
-
-    try:
-        meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        await _do_start_match(meetup_date, container, context.bot, settings)
-        await react_ok(context.bot, message)
-    except ValueError:
-        await message.reply_text(
-            _date_usage_msg("start_match", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-    except MeetupNotFoundError:
-        await message.reply_text("No existe ningún meetup para esa fecha.")
-    except MeetupHasNoTeamsError:
-        display_date = f"{args[0]} {args[1]}"
-        await message.reply_text(
-            text=(
-                rf"El meetup del `{display_date}` no tiene equipos asignados\."
-                rf" Ejecuta `/create_teams {display_date}` primero\."
-            ),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-    except Exception:
-        logger.exception("Unexpected error starting match")
-        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 @log_func
@@ -168,40 +126,41 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     message = update.message
     if message is None:
         return
-
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
-    _usage = _date_usage_msg(
-        "add_player",
-        settings.pyball.display_date_format,
-        r"`<name1>`, `<name2>`, \.\.\.",
-    )
+    args = context.args or []
 
-    args = context.args
-    if args is None or len(args) < 3:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
-        return
+    meetup_date, name_args = _try_parse_date_args(args, settings.pyball.display_date_format)
 
-    date_str = f"{args[0]} {args[1]}"
-    names = [n.strip() for n in " ".join(args[2:]).split(",") if n.strip()]
+    if meetup_date is not None:
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
+    else:
+        meetup = await _resolve_meetup(message, [], settings, container, "add_player")
+        if meetup is None:
+            return
 
+    names = [n.strip() for n in " ".join(name_args).split(",") if n.strip()]
     if not names:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
+        await message.reply_text(
+            _date_usage_msg(
+                "add_player",
+                settings.pyball.display_date_format,
+                r"`<name1>`, `<name2>`, \.\.\.",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
-    failed: list[str] = []
-    meetup = None
     use_case = container.add_player_to_meetup()
-
-    try:
-        meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-    except ValueError:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
-        return
-
+    failed: list[str] = []
+    updated_meetup = None
     for name in names:
         try:
-            meetup = use_case.execute(meetup_date, name)
+            updated_meetup = use_case.execute(meetup.date, name)
+            meetup = updated_meetup
         except MeetupNotFoundError:
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return
@@ -211,8 +170,8 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             logger.exception("Unexpected error adding player '%s' to meetup", name)
             failed.append(f"{name}: error inesperado")
 
-    if meetup is not None:
-        await refresh_callup_messages(context.bot, settings, container, meetup)
+    if updated_meetup is not None:
+        await refresh_callup_messages(context.bot, settings, container, updated_meetup)
 
     if failed:
         await message.reply_text("Fallidos:\n" + "\n".join(f"  • {f}" for f in failed))
@@ -230,27 +189,46 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
-    _usage = _date_usage_msg(
-        "remove_player",
-        settings.pyball.display_date_format,
-        r"`<player_name>`",
-    )
+    args = context.args or []
 
-    args = context.args
-    if args is None or len(args) < 3:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
+    meetup_date, name_args = _try_parse_date_args(args, settings.pyball.display_date_format)
+
+    if meetup_date is not None:
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
+        player_name = " ".join(name_args)
+    else:
+        meetup = await _resolve_meetup(message, [], settings, container, "remove_player")
+        if meetup is None:
+            return
+        player_name = " ".join(name_args)
+
+    if not player_name:
+        await message.reply_text(
+            _date_usage_msg(
+                "remove_player",
+                settings.pyball.display_date_format,
+                r"`<player_name>`",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
         return
 
-    date_str = f"{args[0]} {args[1]}"
-    player_name = " ".join(args[2:])
-
     try:
-        meetup_date = parse_display(date_str, settings.pyball.display_date_format)
-        meetup = container.remove_player_from_meetup().execute(meetup_date, player_name)
+        meetup = container.remove_player_from_meetup().execute(meetup.date, player_name)
         await refresh_callup_messages(context.bot, settings, container, meetup)
         await react_ok(context.bot, message)
     except ValueError:
-        await message.reply_text(_usage, parse_mode=ParseMode.MARKDOWN_V2)
+        await message.reply_text(
+            _date_usage_msg(
+                "remove_player",
+                settings.pyball.display_date_format,
+                r"`<player_name>`",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
     except MeetupNotFoundError:
         await message.reply_text("No existe ningún meetup para esa fecha.")
     except PlayerNotInMeetupError:
@@ -371,30 +349,11 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     message = update.message
     if message is None:
         return
-
     container: Container = context.bot_data["container"]
     settings: TelegramAppSettings = context.bot_data["settings"]
 
-    args = context.args
-    if not args or len(args) < 2:
-        await message.reply_text(
-            _date_usage_msg("show_meetup", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    try:
-        meetup_date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
-    except ValueError:
-        await message.reply_text(
-            _date_usage_msg("show_meetup", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    meetup = container.meetup_repository.find_by_datetime(meetup_date)
-    if not meetup:
-        await message.reply_text("No se ha encontrado el meetup para esa fecha.")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "show_meetup")
+    if meetup is None:
         return
 
     player_names = _get_player_names(container.player_repository)
@@ -415,35 +374,15 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message = update.message
     if message is None:
         return
-
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
 
-    args = context.args
-    if not args or len(args) < 2:
-        await message.reply_text(
-            _date_usage_msg("search", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    try:
-        meetup_date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
-    except ValueError:
-        await message.reply_text(
-            _date_usage_msg("search", settings.pyball.display_date_format),
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    meetup = container.meetup_repository.find_by_datetime(meetup_date)
-
-    if not meetup:
-        await message.reply_text("No se ha encontrado el meetup para esa fecha.")
-        return
-
     if not settings.telegram.substitutes.chat_id:
         await message.reply_text("El chat de suplentes no está configurado.")
+        return
+
+    meetup = await _resolve_meetup(message, context.args, settings, container, "search")
+    if meetup is None:
         return
 
     player_repo = container.player_repository
@@ -466,7 +405,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=keyboard,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
-
         store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
         store.save_message(
             meetup.date,
@@ -476,7 +414,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 message_id=msg.message_id,
             ),
         )
-
         await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
         logger.error("Telegram error sending substitutes message: %s", error)
@@ -531,6 +468,76 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await message.reply_text("Error al generar las estadísticas.")
 
 
+@log_func
+@authorized
+async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /lock command — remove inline keyboards from callup messages."""
+    message = update.message
+    if message is None:
+        return
+    settings: TelegramAppSettings = context.bot_data["settings"]
+    container: Container = context.bot_data["container"]
+    meetup = await _resolve_meetup(message, context.args, settings, container, "lock")
+    if meetup is None:
+        return
+    await refresh_callup_messages(context.bot, settings, container, meetup, include_keyboard=False)
+    await react_ok(context.bot, message)
+
+
+@log_func
+@authorized
+async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /unlock command — restore inline keyboards on callup messages."""
+    message = update.message
+    if message is None:
+        return
+    settings: TelegramAppSettings = context.bot_data["settings"]
+    container: Container = context.bot_data["container"]
+    meetup = await _resolve_meetup(message, context.args, settings, container, "unlock")
+    if meetup is None:
+        return
+    await refresh_callup_messages(context.bot, settings, container, meetup)
+    await react_ok(context.bot, message)
+
+
+@log_func
+@authorized
+async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /match_qr command — send QR code of the match URL to each admin by DM."""
+    message = update.message
+    if message is None:
+        return
+    settings: TelegramAppSettings = context.bot_data["settings"]
+    container: Container = context.bot_data["container"]
+    if not settings.pyball.base_url:
+        await message.reply_text("La URL base no está configurada.")
+        return
+    meetup = await _resolve_meetup(message, context.args, settings, container, "match_qr")
+    if meetup is None:
+        return
+    try:
+        url = container.start_match().execute(meetup.date)
+    except MeetupHasNoTeamsError:
+        display_date = format_display(meetup.date, settings.pyball.display_date_format)
+        await message.reply_text(
+            text=rf"El meetup del `{display_date}` no tiene equipos asignados\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return
+    qr = generate_qr_bytes(url)
+    for admin in settings.telegram.admins_ids:
+        try:
+            qr.seek(0)
+            await context.bot.send_photo(
+                chat_id=admin,
+                photo=qr,
+                caption=f"🔗 Enlace del partido:\n{url}",
+            )
+        except telegram.error.Forbidden:
+            logger.error("Could not send message to '%s' admin", admin)
+    await react_ok(context.bot, message)
+
+
 def generate_qr_bytes(url: str) -> BytesIO:
     """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
     img = qrcode.make(url)
@@ -551,28 +558,6 @@ async def _do_create_teams(
     meetup = container.create_teams(algo_name).execute(meetup_date)
     await refresh_callup_messages(bot, settings, container, meetup)
     return meetup
-
-
-async def _do_start_match(
-    meetup_date: datetime,
-    container: Container,
-    bot: telegram.Bot,
-    settings: TelegramAppSettings,
-) -> str:
-    """Execute start_match, send QR to each admin by DM, and return the URL."""
-    url = container.start_match().execute(meetup_date)
-    qr = generate_qr_bytes(url)
-    for admin in settings.telegram.admins_ids:
-        try:
-            qr.seek(0)
-            await bot.send_photo(
-                chat_id=admin,
-                photo=qr,
-                caption=f"🔗 Enlace del partido:\n{url}",
-            )
-        except telegram.error.Forbidden:
-            logger.error("Could not send message to '%s' admin", admin)
-    return url
 
 
 async def _create_meetup_and_send(
@@ -657,6 +642,53 @@ async def _parse_manual_teams(
         await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
         return None
     return team_a_names, team_b_names
+
+
+async def _resolve_meetup(
+    message: Message,
+    args: list[str] | None,
+    settings: TelegramAppSettings,
+    container: Container,
+    command: str = "",
+) -> Meetup | None:
+    """Return meetup for given date args, or the most recent active meetup."""
+    if args and len(args) >= 2:
+        date_str = f"{args[0]} {args[1]}"
+        try:
+            meetup_date = parse_display(date_str, settings.pyball.display_date_format)
+        except ValueError:
+            await message.reply_text(
+                _date_usage_msg(command, settings.pyball.display_date_format),
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+            return None
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return None
+        return meetup
+    try:
+        return container.get_active_meetup().execute()
+    except MeetupNotFoundError:
+        await message.reply_text("No hay ningún partido activo.")
+        return None
+
+
+def _try_parse_date_args(
+    args: list[str], display_format: str
+) -> tuple[datetime | None, list[str]]:
+    """Parse the first two args as a date+time string if possible.
+
+    Returns (parsed_date, remaining_args) on success, or (None, all_args) if the
+    first two args do not form a valid date.
+    """
+    if len(args) >= 2:
+        try:
+            date = parse_display(f"{args[0]} {args[1]}", display_format)
+            return date, args[2:]
+        except ValueError:
+            pass
+    return None, list(args)
 
 
 def _get_next_weekday(pyball_settings: PyballConfig) -> datetime:

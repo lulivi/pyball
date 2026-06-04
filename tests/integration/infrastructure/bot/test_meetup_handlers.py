@@ -16,12 +16,12 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
     list_meetups_handler,
+    match_qr_handler,
     new_meetup_handler,
     next_meetup_handler,
     remove_player_handler,
     search_handler,
     show_meetup_handler,
-    start_match_handler,
     stats_handler,
 )
 
@@ -142,8 +142,8 @@ async def test_show_meetup_includes_player_name(bot_update, bot_context):
 
 
 @pytest.mark.asyncio
-async def test_start_match_forbidden_admin_does_not_raise(bot_update, bot_context):
-    """Catch Forbidden per admin in start_match without re-raising."""
+async def test_match_qr_forbidden_admin_does_not_raise(bot_update, bot_context):
+    """Catch Forbidden per admin in match_qr without re-raising."""
     container = bot_context.bot_data["container"]
     players = [Player.create(f"P{i}", "regular") for i in range(4)]
     for player in players:
@@ -164,7 +164,7 @@ async def test_start_match_forbidden_admin_does_not_raise(bot_update, bot_contex
     )
     bot_context.args = ["2026-04-25", "20:00"]
 
-    await start_match_handler(bot_update, bot_context)
+    await match_qr_handler(bot_update, bot_context)
 
     bot_context.bot.send_photo.assert_called_once()
     bot_update.message.reply_text.assert_not_called()
