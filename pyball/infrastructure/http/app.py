@@ -161,7 +161,6 @@ def _register_static(app: FastAPI, static_dir: Path, name: str) -> None:
         {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
         {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
     ]
-    _slug = name.lower().replace(" ", "-")
 
     @app.get("/manifest-match.json")
     async def manifest_match():
@@ -169,7 +168,8 @@ def _register_static(app: FastAPI, static_dir: Path, name: str) -> None:
         return {
             "name": f"PyBall – Partido {name}",
             "short_name": f"Partido {name}",
-            "id": f"/match-{_slug}",
+            "id": "/match",
+            "scope": "/match",
             "start_url": "/match",
             "display": "standalone",
             "background_color": "#0f172a",
@@ -183,7 +183,8 @@ def _register_static(app: FastAPI, static_dir: Path, name: str) -> None:
         return {
             "name": f"PyBall – Gestión {name}",
             "short_name": f"Gestión {name}",
-            "id": f"/manage-{_slug}",
+            "id": "/manage",
+            "scope": "/manage",
             "start_url": "/manage",
             "display": "standalone",
             "background_color": "#0f172a",
