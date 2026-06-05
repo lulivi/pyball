@@ -62,10 +62,12 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "api_port",
         "match_token",
         "manage_token",
+        "path_prefix",
     )
     raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
     raw["match_token"] = raw["match_token"] or ""
     raw["manage_token"] = raw["manage_token"] or ""
+    raw["path_prefix"] = (raw["path_prefix"] or "").strip("/")
 
     missing = [f"core.{k}" for k, v in raw.items() if v is None]
     if raw.get("location") is not None and not raw["location"]:
@@ -91,6 +93,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         api_port=_parse_api_port(raw["api_port"]),
         match_token=raw["match_token"],
         manage_token=raw["manage_token"],
+        path_prefix=raw["path_prefix"],
     )
 
     return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
@@ -136,6 +139,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     data_dir: str = "data"
     match_token: str = ""
     manage_token: str = ""
+    path_prefix: str = ""
 
     def __post_init__(self) -> None:
         """Resolve team_colors into derived emoji and hex fields."""
