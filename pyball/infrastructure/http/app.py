@@ -117,7 +117,12 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     app = FastAPI(title="PyBall API")
 
     if match_token or manage_token:
-        app.add_middleware(TokenAuthMiddleware, match_token=match_token, manage_token=manage_token)
+        app.add_middleware(
+            TokenAuthMiddleware,
+            match_token=match_token,
+            manage_token=manage_token,
+            path_prefix=path_prefix,
+        )
 
     _register_static(app, static_dir, container.name, path_prefix)
     _register_match_routes(app, container, notifier, path_prefix)
