@@ -548,22 +548,6 @@ class TestManifests:
         assert data["short_name"] == "Partido Tensores"
 
     @pytest.mark.asyncio
-    async def test_match_manifest_id(self):
-        """Match manifest id is /match-{slug}."""
-        app = self._make_named_app("Tensores")
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/manifest-match.json")
-        assert response.json()["id"] == "/match-tensores"
-
-    @pytest.mark.asyncio
-    async def test_match_manifest_id_spaces_become_hyphens(self):
-        """Spaces in instance name become hyphens in the manifest id."""
-        app = self._make_named_app("Los Tensores")
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/manifest-match.json")
-        assert response.json()["id"] == "/match-los-tensores"
-
-    @pytest.mark.asyncio
     async def test_manage_manifest_name(self):
         """Manage manifest name includes 'Gestión' and the instance name."""
         app = self._make_named_app("Tensores")
@@ -575,20 +559,24 @@ class TestManifests:
         assert data["short_name"] == "Gestión Tensores"
 
     @pytest.mark.asyncio
-    async def test_manage_manifest_id(self):
-        """Manage manifest id is /manage-{slug}."""
+    async def test_match_manifest_scope(self):
+        """Match manifest has scope /match and id /match."""
+        app = self._make_named_app("Tensores")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/manifest-match.json")
+        data = response.json()
+        assert data["scope"] == "/match"
+        assert data["id"] == "/match"
+
+    @pytest.mark.asyncio
+    async def test_manage_manifest_scope(self):
+        """Manage manifest has scope /manage and id /manage."""
         app = self._make_named_app("Tensores")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/manifest-manage.json")
-        assert response.json()["id"] == "/manage-tensores"
-
-    @pytest.mark.asyncio
-    async def test_manage_manifest_id_spaces_become_hyphens(self):
-        """Spaces in instance name become hyphens in the manage manifest id."""
-        app = self._make_named_app("Los Tensores")
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            response = await c.get("/manifest-manage.json")
-        assert response.json()["id"] == "/manage-los-tensores"
+        data = response.json()
+        assert data["scope"] == "/manage"
+        assert data["id"] == "/manage"
 
     @pytest.mark.asyncio
     async def test_match_manifest_static_fields(self):
@@ -602,6 +590,7 @@ class TestManifests:
         assert data["background_color"] == "#0f172a"
         assert data["theme_color"] == "#0f172a"
         assert len(data["icons"]) == 2
+        assert data["scope"] == "/match"
 
     @pytest.mark.asyncio
     async def test_manage_manifest_static_fields(self):
@@ -615,3 +604,4 @@ class TestManifests:
         assert data["background_color"] == "#0f172a"
         assert data["theme_color"] == "#0f172a"
         assert len(data["icons"]) == 2
+        assert data["scope"] == "/manage"
