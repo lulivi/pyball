@@ -64,8 +64,6 @@ def main() -> None:
 async def _main_async(config_path: Path) -> None:
     """Boot the Telegram+FastAPI topology."""
     app_settings, container = bootstrap_core(config_path)
-    path_prefix = app_settings.pyball.name.lower().replace(" ", "-")
-    app_settings.pyball.base_url = f"{app_settings.pyball.base_url}/{path_prefix}"
     tg_settings = load_telegram_app_settings(app_settings, config_path)
     config_telegram_logging(tg_settings.telegram)
 
@@ -83,7 +81,7 @@ async def _main_async(config_path: Path) -> None:
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
-        path_prefix=path_prefix,
+        path_prefix=app_settings.pyball.name_slug,
     )
     server_config = uvicorn.Config(
         fastapi_app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
