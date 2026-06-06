@@ -53,13 +53,15 @@ def main() -> None:
 async def _main_async(config_path: Path) -> None:
     """Boot the web-only topology."""
     app_settings, container = bootstrap_core(config_path)
+    path_prefix = app_settings.pyball.name.lower().replace(" ", "-")
+    app_settings.pyball.base_url = f"{app_settings.pyball.base_url}/{path_prefix}"
     notifier = NullMatchNotifier()
     app = create_app(
         container,
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
-        path_prefix=app_settings.pyball.name.lower().replace(" ", "-"),
+        path_prefix=path_prefix,
     )
 
     server_config = uvicorn.Config(

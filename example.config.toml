@@ -25,6 +25,7 @@ display_date_format = "%Y-%m-%d %H:%M"
 #            verde 🟢  azul 🔵  morado 🟣  marron 🟤
 team_colors = ["blanco", "negro"]
 
+# The path prefix (derived from name) is appended automatically: base_url/name-slug/match
 # Override with PYBALL_CORE_BASE_URL
 base_url = "http://pyball:8000"
 
