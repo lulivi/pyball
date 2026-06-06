@@ -215,32 +215,3 @@ class TestNameSettings:
         monkeypatch.setenv("PYBALL_CORE_NAME", "Los Tensores")
         settings = load_app_settings(_write(tmp_path, _FULL_CORE))
         assert settings.pyball.name == "Los Tensores"
-
-
-class TestPathPrefix:
-    """Tests for optional path_prefix setting."""
-
-    def test_default_path_prefix_is_empty(self):
-        """PyballConfig defaults path_prefix to empty string."""
-        assert PyballConfig().path_prefix == ""
-
-    def test_custom_path_prefix(self):
-        """A custom path_prefix value is stored as-is."""
-        assert PyballConfig(path_prefix="tensores").path_prefix == "tensores"
-
-    def test_path_prefix_loads_from_config(self, tmp_path):
-        """path_prefix is read from config file."""
-        config = _FULL_CORE + 'path_prefix = "tensores"\n'
-        settings = load_app_settings(_write(tmp_path, config))
-        assert settings.pyball.path_prefix == "tensores"
-
-    def test_path_prefix_absent_defaults_to_empty(self, tmp_path):
-        """path_prefix absent from config file defaults to empty string."""
-        settings = load_app_settings(_write(tmp_path, _FULL_CORE))
-        assert settings.pyball.path_prefix == ""
-
-    def test_path_prefix_leading_trailing_slashes_stripped(self, tmp_path):
-        """Leading and trailing slashes are stripped from path_prefix."""
-        config = _FULL_CORE + 'path_prefix = "/tensores/"\n'
-        settings = load_app_settings(_write(tmp_path, config))
-        assert settings.pyball.path_prefix == "tensores"

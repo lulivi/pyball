@@ -59,7 +59,7 @@ async def _main_async(config_path: Path) -> None:
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
-        path_prefix=app_settings.pyball.path_prefix,
+        path_prefix=app_settings.pyball.name.lower().replace(" ", "-"),
     )
 
     server_config = uvicorn.Config(

@@ -44,10 +44,6 @@ data_dir = "data"
 # Override with PYBALL_CORE_MANAGE_TOKEN
 # manage_token = ""
 
-# Path prefix for this deployment instance (e.g. "tensores"). Leave empty to serve from root.
-# Use different prefixes per deployment so each has its own PWA identity on the same hostname.
-# Override with PYBALL_CORE_PATH_PREFIX
-# path_prefix = ""
 
 [pyball.telegram]
 # Override with PYBALL_TELEGRAM_BOT_TOKEN
