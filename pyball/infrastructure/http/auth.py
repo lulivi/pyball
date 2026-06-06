@@ -13,18 +13,13 @@ from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Re
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
 
-_PUBLIC_PATHS = frozenset(
-    ["/", "/favicon.ico", "/sw.js", "/qrcode.js", "/manifest-match.json", "/manifest-manage.json"]
-)
-_MATCH_API_ROUTES = frozenset([("GET", "/api/match/active"), ("POST", "/api/match/finish")])
-_MANAGE_PAGE = "/manage"
 
-
-class TokenAuthMiddleware(BaseHTTPMiddleware):
+class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-instance-attributes
     """Middleware that enforces static-token access control.
 
     Two tokens are supported:
-    - match_token: grants access to /match, GET /api/match/active, POST /api/match/finish
+    - match_token: grants access to /{prefix}/match, GET /{prefix}/api/match/active,
+      POST /{prefix}/api/match/finish
     - manage_token: grants access to everything (superset of match_token)
 
     Token delivery:
@@ -34,11 +29,38 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
     When both tokens are empty the middleware is disabled (no-op).
     """
 
-    def __init__(self, app: "ASGIApp", match_token: str, manage_token: str) -> None:
-        """Initialise with the two static tokens."""
+    def __init__(
+        self,
+        app: "ASGIApp",
+        match_token: str,
+        manage_token: str,
+        path_prefix: str = "",
+    ) -> None:
+        """Initialise with the two static tokens and optional path prefix."""
         super().__init__(app)
         self._match_token = match_token
         self._manage_token = manage_token
+        base = f"/{path_prefix}" if path_prefix else ""
+        self._cookie_path = f"/{path_prefix}/" if path_prefix else "/"
+        self._public_paths = frozenset(
+            [
+                f"{base}/",
+                f"{base}/favicon.ico",
+                f"{base}/sw.js",
+                f"{base}/qrcode.js",
+                f"{base}/manifest-match.json",
+                f"{base}/manifest-manage.json",
+            ]
+        )
+        self._manage_page = f"{base}/manage"
+        self._match_api_routes = frozenset(
+            [
+                ("GET", f"{base}/api/match/active"),
+                ("POST", f"{base}/api/match/finish"),
+            ]
+        )
+        self._api_prefix = f"{base}/api/"
+        self._icons_prefix = f"{base}/icons/"
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check token on every request."""
@@ -47,7 +69,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
 
-        if _is_public(path):
+        if self._is_public(path):
             return await call_next(request)
 
         token_param = request.query_params.get("token")
@@ -60,9 +82,9 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
 
         match_cookie = request.cookies.get("pyball_match_token")
         if not match_cookie or self._classify(match_cookie) != "match":
-            return _unauthorized(path)
+            return _unauthorized(path, self._api_prefix)
 
-        if _requires_manage(request.method, path):
+        if self._requires_manage(request.method, path):
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
         return await call_next(request)
@@ -72,7 +94,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         token_type = self._classify(token)
         if token_type is None:
             return JSONResponse({"detail": "Invalid token"}, status_code=401)
-        if _requires_manage(request.method, path) and token_type != "manage":
+        if self._requires_manage(request.method, path) and token_type != "manage":
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
         remaining = {k: v for k, v in request.query_params.items() if k != "token"}
@@ -86,7 +108,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
             secure=request.url.scheme == "https",
             samesite="lax",
             max_age=31536000,
-            path="/",
+            path=self._cookie_path,
         )
         return response
 
@@ -98,23 +120,23 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
             return "match"
         return None
 
+    def _is_public(self, path: str) -> bool:
+        """Return True if the path requires no authentication."""
+        return path in self._public_paths or path.startswith(self._icons_prefix)
+
+    def _requires_manage(self, method: str, path: str) -> bool:
+        """Return True if the request requires manage-level access."""
+        if path == self._manage_page:
+            return True
+        if (method, path) in self._match_api_routes:
+            return False
+        return path.startswith(self._api_prefix)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
 
-def _is_public(path: str) -> bool:
-    return path in _PUBLIC_PATHS or path.startswith("/icons/")
-
-
-def _requires_manage(method: str, path: str) -> bool:
-    if path == _MANAGE_PAGE:
-        return True
-    if (method, path) in _MATCH_API_ROUTES:
-        return False
-    return path.startswith("/api/")
-
-
-def _unauthorized(path: str) -> Response:
-    if path.startswith("/api/"):
+def _unauthorized(path: str, api_prefix: str = "/api/") -> Response:
+    if path.startswith(api_prefix):
         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
     return HTMLResponse("<h1>Acceso no autorizado</h1>", status_code=401)

@@ -45,14 +45,31 @@ def bootstrap_core(config_path: Path = Path("config.toml")) -> tuple[AppSettings
         Tuple of (AppSettings, Container).
     """
     settings = load_app_settings(config_path)
+    container = Container(settings)
     config_logging()
-    _log_startup_info()
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)
-    return settings, Container(settings)
+    _log_startup_info(settings, container)
+    return settings, container
 
 
-def _log_startup_info() -> None:
+def _log_startup_info(settings: AppSettings, container: Container) -> None:
     """Log version banner at startup."""
+    startup_message_lines = [
+        "Starting PyBall",
+        f"Version: v{__version__}",
+        f"URL: {container.instance_url}",
+    ]
+    if settings.pyball.match_token:
+        startup_message_lines.append(
+            f"    Match url: {container.instance_url}"
+            f"/match?token={settings.pyball.match_token}"
+        )
+    if settings.pyball.manage_token:
+        startup_message_lines.append(
+            f"    Manage url: {container.instance_url}"
+            f"/manage?token={settings.pyball.manage_token}"
+        )
+
     logger.info("*" * 40)
-    logger.info("PyBall v%s", __version__)
+    logger.info("\n* ".join(startup_message_lines))
     logger.info("*" * 40)
