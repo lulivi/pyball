@@ -109,7 +109,7 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new StartMatch use case."""
         return StartMatch(
             self.meetup_repository,
-            self._settings.pyball.base_url,
+            self.instance_url,
             match_token=self._settings.pyball.match_token,
         )
 
@@ -150,8 +150,13 @@ class Container:  # pylint: disable=too-many-public-methods
         return self._settings.pyball.team_hex_text
 
     @property
+    def instance_url(self) -> str:
+        """Return the full instance URL including path prefix derived from name."""
+        return f"{self._settings.pyball.base_url}/{self._settings.pyball.name_slug}"
+
+    @property
     def base_url(self) -> str:
-        """Return the configured base URL."""
+        """Return the configured origin URL (host only, without path prefix)."""
         return self._settings.pyball.base_url
 
     @property

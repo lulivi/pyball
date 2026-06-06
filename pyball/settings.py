@@ -131,6 +131,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     team_emojis: tuple[str, str] = field(init=False)
     team_hex_bg: tuple[str, str] = field(init=False)
     team_hex_text: tuple[str, str] = field(init=False)
+    name_slug: str = field(init=False)
     locale: str = "en_US.UTF-8"
     display_date_format: str = "%Y-%m-%d %H:%M"
     data_dir: str = "data"
@@ -138,7 +139,8 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     manage_token: str = ""
 
     def __post_init__(self) -> None:
-        """Resolve team_colors into derived emoji and hex fields."""
+        """Resolve team_colors into derived emoji and hex fields, and compute name_slug."""
+        self.name_slug = self.name.lower().replace(" ", "-")
         for color_name in self.team_colors:
             if color_name not in COLOR_PALETTE:
                 valid = ", ".join(COLOR_PALETTE)

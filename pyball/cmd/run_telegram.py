@@ -81,6 +81,7 @@ async def _main_async(config_path: Path) -> None:
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
+        path_prefix=app_settings.pyball.name_slug,
     )
     server_config = uvicorn.Config(
         fastapi_app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
