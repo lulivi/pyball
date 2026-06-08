@@ -79,6 +79,16 @@ class Meetup(Entity["MeetupId"]):
         """Clear any assigned teams."""
         self.teams = None
 
+    def set_location(self, location: str) -> None:
+        """Set the meetup location."""
+        if not location or not location.strip():
+            raise ValueError("Location cannot be empty")
+        self.location = location.strip()
+
+    def set_date(self, date: datetime) -> None:
+        """Set the meetup date."""
+        self.date = date
+
 
 @dataclass(frozen=True)
 class GoalEvent(ValueObject):
