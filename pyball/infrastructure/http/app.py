@@ -102,6 +102,13 @@ class AssignTeamsInput(BaseModel):
     team_b_ids: list[str]
 
 
+class CreateMeetupInput(BaseModel):
+    """Request body for POST /api/meetup/create."""
+
+    date: str
+    player_ids: list[str]
+
+
 # ── App factory ───────────────────────────────────────────────────────────────
 
 
@@ -428,8 +435,39 @@ def _register_meetup_routes(app: FastAPI, container: "Container", prefix: str) -
 
         return _build_meetup_active_response(container)
 
+    @app.post(f"{base}/api/meetup/create")
+    async def create_meetup_endpoint(body: CreateMeetupInput):
+        """Create (or reset) a meetup with the given player list."""
+        return _handle_create_meetup(container, body)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> dict:
+    """Validate, upsert, and serialise the response for POST /api/meetup/create."""
+    try:
+        meetup_date = datetime.fromisoformat(body.date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    existing = container.meetup_repository.find_by_datetime(meetup_date)
+    if existing and existing.is_closed():
+        raise HTTPException(409, "Match already finished, cannot reset")
+
+    meetup = _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    _sort = functools.cmp_to_key(locale.strcoll)
+    players = sorted(
+        [
+            {"id": str(pid.value), "name": player_names.get(str(pid.value), "(desconocido)")}
+            for pid in meetup.players
+        ],
+        key=lambda p: _sort(p["name"]),
+    )
+    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
 
 
 def _upsert_meetup_with_players(
@@ -437,7 +475,7 @@ def _upsert_meetup_with_players(
     meetup_date: datetime,
     player_ids: list[str],
     existing: "Meetup | None",
-) -> None:
+) -> "Meetup":
     """Create or reset a meetup and assign the given player IDs to it."""
     if existing:
         existing.players.clear()
@@ -445,11 +483,12 @@ def _upsert_meetup_with_players(
         for pid_str in player_ids:
             existing.add_player(PlayerId.from_string(pid_str))
         container.meetup_repository.save(existing)
-    else:
-        meetup = container.create_meetup().execute(meetup_date)
-        for pid_str in player_ids:
-            meetup.add_player(PlayerId.from_string(pid_str))
-        container.meetup_repository.save(meetup)
+        return existing
+    meetup = container.create_meetup().execute(meetup_date)
+    for pid_str in player_ids:
+        meetup.add_player(PlayerId.from_string(pid_str))
+    container.meetup_repository.save(meetup)
+    return meetup
 
 
 def _build_active_match_response(container: "Container") -> dict:
