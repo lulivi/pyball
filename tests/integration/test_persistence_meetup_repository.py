@@ -66,6 +66,23 @@ class TestJsonMeetupRepository:
         assert len(all_meetups) == 2
         assert all_meetups[0].date < all_meetups[1].date
 
+    def test_file_is_named_after_meetup_datetime(self):
+        """The on-disk file is named after the meetup datetime, not its UUID."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Test Field")
+        self.repo.save(meetup)
+
+        expected_path = self.directory / "2024-03-20T20:00.json"
+        assert expected_path.exists()
+
+    def test_delete_by_datetime(self):
+        """delete_by_datetime removes the file for that meetup."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Test Field")
+        self.repo.save(meetup)
+
+        self.repo.delete_by_datetime(datetime(2024, 3, 20, 20, 0))
+
+        assert self.repo.find_by_datetime(datetime(2024, 3, 20, 20, 0)) is None
+
     def test_save_with_teams(self):
         """Saving a meetup with teams persists the team data."""
         meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
@@ -181,7 +198,7 @@ class TestJsonMeetupRepositoryResult:
         self.repo.save(meetup)
 
         # Manually strip is_own_goal from the saved file
-        file_path = self.directory / f"{meetup.id.value}.json"
+        file_path = self.directory / f"{meetup.date.isoformat(timespec='minutes')}.json"
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
         for ev in data["result"]["events"]:
