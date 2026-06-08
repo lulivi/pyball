@@ -854,6 +854,26 @@ class TestGenerateTeams:
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
+    async def test_generate_teams_422_when_create_teams_raises(self):
+        """POST /api/meetup/generate-teams returns 422 when create_teams raises ValueError."""
+        container = MagicMock()
+        meetup = MagicMock()
+        meetup.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = meetup
+        container.create_teams.return_value.execute.side_effect = ValueError(
+            "Need at least 2 players"
+        )
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_generate_teams_calls_create_teams_and_returns_200(self):
         """POST /api/meetup/generate-teams calls create_teams and returns the active meetup."""
         from unittest.mock import patch

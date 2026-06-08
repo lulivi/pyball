@@ -32,7 +32,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from pyball.application.meetup import FormatMatchSummary, ParseCallupText
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
+from pyball.domain.meetup.errors import (
+    MeetupAlreadyClosedError,
+    MeetupNotFoundError,
+    UnknownAlgorithmError,
+)
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.http.auth import TokenAuthMiddleware
@@ -448,7 +452,7 @@ def _handle_generate_teams(container: "Container", body: GenerateTeamsInput) -> 
 
     try:
         container.create_teams(body.algorithm).execute(meetup_date)
-    except Exception as exc:
+    except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
     return _build_meetup_active_response(container)
