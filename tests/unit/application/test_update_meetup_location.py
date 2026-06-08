@@ -57,6 +57,10 @@ class FakeMeetupRepository:
         """Delete a meetup by ID."""
         self.meetups = [m for m in self.meetups if m.id != meetup_id]
 
+    def delete_by_datetime(self, date: datetime) -> None:
+        """Remove the meetup at the given datetime."""
+        self.meetups = [m for m in self.meetups if m.date != date]
+
 
 class TestUpdateMeetupLocation:
     """Tests for UpdateMeetupLocation use case."""

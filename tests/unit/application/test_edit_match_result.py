@@ -30,6 +30,10 @@ class _FakeMeetupRepo:
         """Return all meetups."""
         return list(self.meetups)
 
+    def delete_by_datetime(self, date) -> None:
+        """Remove the meetup at the given datetime."""
+        self.meetups = [m for m in self.meetups if m.date != date]
+
 
 class _FakePlayerRepo:
     def __init__(self):
