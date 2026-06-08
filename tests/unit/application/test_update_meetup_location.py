@@ -25,7 +25,7 @@ import pytest
 
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId, Team
 
 
 class FakeMeetupRepository:
@@ -92,3 +92,19 @@ class TestUpdateMeetupLocation:
         use_case = UpdateMeetupLocation(repo)
         with pytest.raises(ValueError):
             use_case.execute(date, "")
+
+    def test_raises_when_meetup_is_closed(self):
+        """execute raises ValueError when the meetup is already closed."""
+        repo = FakeMeetupRepository()
+        date = datetime(2026, 6, 8, 20, 0)
+        meetup = Meetup.create(date=date, location="Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.add_player(p1)
+        meetup.add_player(p2)
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        meetup.set_result(MatchResult(score_a=2, score_b=1, events=()))
+        repo.meetups.append(meetup)
+
+        use_case = UpdateMeetupLocation(repo)
+        with pytest.raises(ValueError, match="finished"):
+            use_case.execute(date, "Parque Sur")

@@ -45,11 +45,14 @@ class UpdateMeetupLocation:
 
         Raises:
             MeetupNotFoundError: If no meetup exists at the given date.
-            ValueError: If the new location is empty or blank.
+            ValueError: If the meetup already has a result (is closed) or if the
+                new location is empty or blank.
         """
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if meetup is None:
             raise MeetupNotFoundError(str(meetup_date))
+        if meetup.is_closed():
+            raise ValueError("Cannot change location of a finished match")
         meetup.set_location(new_location)
         self.meetup_repository.save(meetup)
         return meetup
