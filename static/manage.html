@@ -364,6 +364,11 @@ async function generateFromActive() {
   if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
   try {
     activeMatchData = await _callGenerateTeams();
+    if (!activeMatchData.teams) {
+      alert('Error: el servidor no devolvió equipos.');
+      if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
+      return;
+    }
     renderState2(activeMatchData);
   } catch(e) {
     alert('Error: ' + e.message);
@@ -403,6 +408,11 @@ async function regenerateCurrentTeams() {
   if (btn) { btn.textContent = 'Regenerando...'; btn.disabled = true; }
   try {
     activeMatchData = await _callGenerateTeams();
+    if (!activeMatchData.teams) {
+      alert('Error: el servidor no devolvió equipos.');
+      if (btn) { btn.disabled = false; btn.textContent = '↺ Regenerar'; }
+      return;
+    }
     renderState2(activeMatchData);
   } catch(e) {
     alert('Error: ' + e.message);
