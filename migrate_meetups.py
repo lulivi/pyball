@@ -22,15 +22,17 @@ def migrate(data_dir: Path) -> None:
         print("No meetup files found.")
         return
 
+    seen_targets: set[str] = set()
     renames: list[tuple[Path, Path]] = []
     for file in files:
         data = json.loads(file.read_text(encoding="utf-8"))
         dt = datetime.fromisoformat(data["date"])
         new_name = dt.strftime("%Y-%m-%dT%H:%M") + ".json"
         new_path = file.parent / new_name
-        if new_path.exists() and new_path != file:
+        if new_name in seen_targets or (new_path.exists() and new_path != file):
             print(f"ERROR: conflict — {new_name} already exists")
             sys.exit(1)
+        seen_targets.add(new_name)
         renames.append((file, new_path))
 
     for old, new in renames:
