@@ -75,6 +75,7 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("unlock", unlock_handler))
     application.add_handler(CommandHandler("match_qr", match_qr_handler))
     application.add_handler(CommandHandler("stats", stats_handler))
+    application.add_handler(CommandHandler("change_location", change_location_handler))
 
 
 @log_func
@@ -536,6 +537,55 @@ async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except telegram.error.Forbidden:
             logger.error("Could not send message to '%s' admin", admin)
     await react_ok(context.bot, message)
+
+
+@log_func
+@authorized
+async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /change_location [fecha hora] <nueva_localización> command."""
+    message = update.message
+    if message is None:
+        return
+
+    container: Container = context.bot_data["container"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
+    args = context.args or []
+
+    meetup_date, location_args = _try_parse_date_args(args, settings.pyball.display_date_format)
+    new_location = " ".join(location_args).strip()
+
+    if not new_location:
+        await message.reply_text(
+            _date_usage_msg(
+                "change_location",
+                settings.pyball.display_date_format,
+                r"`<nueva_localización>`",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return
+
+    if meetup_date is not None:
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
+    else:
+        meetup = await _resolve_meetup(message, [], settings, container, "change_location")
+        if meetup is None:
+            return
+
+    try:
+        updated = container.update_meetup_location().execute(meetup.date, new_location)
+        await refresh_callup_messages(context.bot, settings, container, updated)
+        await react_ok(context.bot, message)
+    except ValueError as error:
+        await message.reply_text(str(error))
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+    except Exception:
+        logger.exception("Unexpected error changing meetup location")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
 def generate_qr_bytes(url: str) -> BytesIO:
