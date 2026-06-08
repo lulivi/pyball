@@ -804,3 +804,76 @@ class TestCreateMeetup:
             )
 
         assert resp.status_code == 422
+
+
+class TestGenerateTeams:
+    """Tests for POST /api/meetup/generate-teams."""
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_404_when_no_meetup(self):
+        """POST /api/meetup/generate-teams returns 404 when no meetup exists at the given date."""
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = None
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_409_when_match_finished(self):
+        """POST /api/meetup/generate-teams returns 409 when the meetup is already closed."""
+        container = MagicMock()
+        meetup = MagicMock()
+        meetup.is_closed.return_value = True
+        container.meetup_repository.find_by_datetime.return_value = meetup
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_422_on_bad_date(self):
+        """POST /api/meetup/generate-teams returns 422 for unparseable date strings."""
+        app, _ = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "not-a-date", "algorithm": "balanceado"},
+            )
+
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_calls_create_teams_and_returns_200(self):
+        """POST /api/meetup/generate-teams calls create_teams and returns the active meetup."""
+        from unittest.mock import patch
+
+        container = MagicMock()
+        meetup = MagicMock()
+        meetup.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = meetup
+
+        expected = {"date": "2026-06-08T20:00", "players": [], "teams": {"teamA": [], "teamB": []}}
+
+        app, _ = _make_app(container=container)
+        with patch("pyball.infrastructure.http.app._build_meetup_active_response") as mock_build:
+            mock_build.return_value = expected
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(
+                    "/api/meetup/generate-teams",
+                    json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+                )
+
+        assert resp.status_code == 200
+        container.create_teams.assert_called_once_with("balanceado")
+        mock_build.assert_called_once_with(container)

@@ -86,14 +86,6 @@ class ParseCallupInput(BaseModel):
     text: str
 
 
-class CreateWithTeamsInput(BaseModel):
-    """Request body for POST /api/meetup/create-with-teams."""
-
-    date: str
-    player_ids: list[str]
-    algorithm: str = "balanceado"
-
-
 class AssignTeamsInput(BaseModel):
     """Request body for POST /api/meetup/assign-teams."""
 
@@ -107,6 +99,13 @@ class CreateMeetupInput(BaseModel):
 
     date: str
     player_ids: list[str]
+
+
+class GenerateTeamsInput(BaseModel):
+    """Request body for POST /api/meetup/generate-teams."""
+
+    date: str
+    algorithm: str = "balanceado"
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -368,49 +367,10 @@ def _register_meetup_routes(app: FastAPI, container: "Container", prefix: str) -
             "date": date_str,
         }
 
-    @app.post(f"{base}/api/meetup/create-with-teams")
-    async def create_with_teams(body: CreateWithTeamsInput):
-        """Create (or reset) a meetup, generate balanced teams, return match URL."""
-        try:
-            meetup_date = datetime.fromisoformat(body.date)
-        except ValueError as exc:
-            raise HTTPException(
-                422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM"
-            ) from exc
-
-        existing = container.meetup_repository.find_by_datetime(meetup_date)
-        if existing and existing.is_closed():
-            raise HTTPException(409, "Match already finished, cannot regenerate teams")
-
-        _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
-
-        try:
-            container.create_teams(body.algorithm).execute(meetup_date)
-        except Exception as exc:
-            raise HTTPException(422, str(exc)) from exc
-
-        match_url = container.start_match().execute(meetup_date)
-
-        saved_meetup = container.meetup_repository.find_by_datetime(meetup_date)
-        if saved_meetup is None or saved_meetup.teams is None:
-            raise HTTPException(500, "Failed to retrieve meetup after team creation")
-
-        all_players = container.player_repository.find_all()
-        player_names = {str(p.id.value): p.name for p in all_players}
-        colors = container.team_colors
-        emojis = container.team_emojis
-        team_a = [player_names[str(pid.value)] for pid in saved_meetup.teams[0].players]
-        team_b = [player_names[str(pid.value)] for pid in saved_meetup.teams[1].players]
-
-        return {
-            "team_a": team_a,
-            "team_b": team_b,
-            "name_a": colors[0].capitalize(),
-            "name_b": colors[1].capitalize(),
-            "emoji_a": emojis[0],
-            "emoji_b": emojis[1],
-            "match_url": match_url,
-        }
+    @app.post(f"{base}/api/meetup/generate-teams")
+    async def generate_teams_endpoint(body: GenerateTeamsInput):
+        """Generate balanced teams for an existing meetup and return the full meetup state."""
+        return _handle_generate_teams(container, body)
 
     @app.post(f"{base}/api/meetup/assign-teams")
     async def assign_teams(body: AssignTeamsInput):
@@ -471,6 +431,27 @@ def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> di
         key=lambda p: _sort(p["name"]),
     )
     return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
+
+
+def _handle_generate_teams(container: "Container", body: GenerateTeamsInput) -> dict:
+    """Validate, generate teams, and serialise the response for POST /api/meetup/generate-teams."""
+    try:
+        meetup_date = datetime.fromisoformat(body.date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    existing = container.meetup_repository.find_by_datetime(meetup_date)
+    if existing is None:
+        raise HTTPException(404, "No meetup found at the given date")
+    if existing.is_closed():
+        raise HTTPException(409, "Match already finished, cannot regenerate teams")
+
+    try:
+        container.create_teams(body.algorithm).execute(meetup_date)
+    except Exception as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    return _build_meetup_active_response(container)
 
 
 def _upsert_meetup_with_players(
