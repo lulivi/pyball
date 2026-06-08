@@ -31,6 +31,7 @@ from pyball.application.meetup import (
     GetActiveMeetup,
     RemovePlayerFromMeetup,
     StartMatch,
+    UpdateMeetupLocation,
 )
 from pyball.application.meetup.create_teams_algorithms import (
     DEFAULT_ALGORITHM,
@@ -128,6 +129,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def compute_stats(self) -> ComputeStats:
         """Create a new ComputeStats use case."""
         return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
+
+    def update_meetup_location(self) -> UpdateMeetupLocation:
+        """Create a new UpdateMeetupLocation use case."""
+        return UpdateMeetupLocation(self.meetup_repository)
 
     @property
     def team_colors(self) -> tuple[str, str]:

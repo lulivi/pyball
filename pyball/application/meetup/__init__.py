@@ -43,6 +43,7 @@ from pyball.application.meetup.parse_callup_text import (
 )
 from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
 from pyball.application.meetup.start_match import StartMatch
+from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
@@ -75,4 +76,5 @@ __all__ = [
     "ParseResult",
     "MatchedPlayer",
     "PlayerCandidate",
+    "UpdateMeetupLocation",
 ]
