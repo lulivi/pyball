@@ -84,6 +84,15 @@ class TelegramMessageStore:
                 del data[key]
             self._write(data)
 
+    def rename_date(self, old_date: datetime, new_date: datetime) -> None:
+        """Re-key the messages entry from old_date to new_date."""
+        old_key = old_date.isoformat(timespec="minutes")
+        new_key = new_date.isoformat(timespec="minutes")
+        data = self._read()
+        if old_key in data:
+            data[new_key] = data.pop(old_key)
+            self._write(data)
+
     def _ensure_file_exists(self) -> None:
         """Ensure the storage file exists."""
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
