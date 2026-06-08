@@ -455,7 +455,10 @@ def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> di
     if existing and existing.is_closed():
         raise HTTPException(409, "Match already finished, cannot reset")
 
-    meetup = _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
+    try:
+        meetup = _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
+    except InvalidPlayerIdError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
