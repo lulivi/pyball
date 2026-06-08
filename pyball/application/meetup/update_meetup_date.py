@@ -55,6 +55,7 @@ class UpdateMeetupDate:
             raise ValueError("Cannot change date of a finished match")
         if self.meetup_repository.find_by_datetime(new_date) is not None:
             raise DuplicateMeetupError(f"A meetup already exists at {new_date}")
+        self.meetup_repository.delete_by_datetime(old_date)
         meetup.set_date(new_date)
         self.meetup_repository.save(meetup)
         return meetup
