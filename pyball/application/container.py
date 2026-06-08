@@ -31,6 +31,7 @@ from pyball.application.meetup import (
     GetActiveMeetup,
     RemovePlayerFromMeetup,
     StartMatch,
+    UpdateMeetupDate,
     UpdateMeetupLocation,
 )
 from pyball.application.meetup.create_teams_algorithms import (
@@ -129,6 +130,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def compute_stats(self) -> ComputeStats:
         """Create a new ComputeStats use case."""
         return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
+
+    def update_meetup_date(self) -> UpdateMeetupDate:
+        """Create a new UpdateMeetupDate use case."""
+        return UpdateMeetupDate(self.meetup_repository)
 
     def update_meetup_location(self) -> UpdateMeetupLocation:
         """Create a new UpdateMeetupLocation use case."""
