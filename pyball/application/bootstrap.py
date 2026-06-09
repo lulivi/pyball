@@ -57,17 +57,15 @@ def _log_startup_info(settings: AppSettings, container: Container) -> None:
     startup_message_lines = [
         "Starting PyBall",
         f"Version: v{__version__}",
-        f"URL: {container.instance_url}",
+        f"URL: {container.base_url}",
     ]
     if settings.pyball.match_token:
         startup_message_lines.append(
-            f"    Match url: {container.instance_url}"
-            f"/match?token={settings.pyball.match_token}"
+            f"    Match url: {container.base_url}" f"/match?token={settings.pyball.match_token}"
         )
     if settings.pyball.manage_token:
         startup_message_lines.append(
-            f"    Manage url: {container.instance_url}"
-            f"/manage?token={settings.pyball.manage_token}"
+            f"    Manage url: {container.base_url}" f"/manage?token={settings.pyball.manage_token}"
         )
 
     logger.info("*" * 40)
