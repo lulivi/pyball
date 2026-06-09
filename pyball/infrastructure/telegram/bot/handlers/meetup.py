@@ -75,6 +75,8 @@ def setup_meetup_handlers(application):
     application.add_handler(CommandHandler("unlock", unlock_handler))
     application.add_handler(CommandHandler("match_qr", match_qr_handler))
     application.add_handler(CommandHandler("stats", stats_handler))
+    application.add_handler(CommandHandler("change_location", change_location_handler))
+    application.add_handler(CommandHandler("change_date", change_date_handler))
 
 
 @log_func
@@ -538,6 +540,99 @@ async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await react_ok(context.bot, message)
 
 
+@log_func
+@authorized
+async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /change_location [fecha hora] <nueva_localización> command."""
+    message = update.message
+    if message is None:
+        return
+
+    container: Container = context.bot_data["container"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
+    args = context.args or []
+
+    meetup_date, location_args = _try_parse_date_args(args, settings.pyball.display_date_format)
+    new_location = " ".join(location_args).strip()
+
+    if not new_location:
+        await message.reply_text(
+            _date_usage_msg(
+                "change_location",
+                settings.pyball.display_date_format,
+                r"`<nueva_localización>`",
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return
+
+    if meetup_date is not None:
+        meetup = container.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            await message.reply_text("No existe ningún meetup para esa fecha.")
+            return
+    else:
+        meetup = await _resolve_meetup(message, [], settings, container, "change_location")
+        if meetup is None:
+            return
+
+    try:
+        updated = container.update_meetup_location().execute(meetup.date, new_location)
+        await refresh_callup_messages(context.bot, settings, container, updated)
+        await react_ok(context.bot, message)
+    except ValueError as error:
+        await message.reply_text(str(error))
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+    except Exception:
+        logger.exception("Unexpected error changing meetup location")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
+
+
+@log_func
+@authorized
+async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /change_date [vieja_fecha vieja_hora] <nueva_fecha> <nueva_hora> command."""
+    message = update.message
+    if message is None:
+        return
+
+    settings: TelegramAppSettings = context.bot_data["settings"]
+    args = context.args or []
+    fmt = settings.pyball.display_date_format
+    usage = _date_usage_msg(
+        "change_date",
+        fmt,
+        r"`<nueva_fecha>` `<nueva_hora>`",
+    )
+
+    if len(args) not in (2, 4):
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return
+
+    container: Container = context.bot_data["container"]
+    dates = await _parse_change_date_args(args, message, settings, container)
+    if dates is None:
+        return
+    old_date, new_date = dates
+
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    try:
+        updated = container.update_meetup_date().execute(old_date, new_date)
+        store.rename_date(old_date, new_date)
+        await refresh_callup_messages(context.bot, settings, container, updated)
+        await react_ok(context.bot, message)
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+    except ValueError as error:
+        await message.reply_text(str(error))
+    except DuplicateMeetupError:
+        await message.reply_text("Ya existe un meetup en esa fecha.")
+    except Exception:
+        logger.exception("Unexpected error changing meetup date")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
+
+
 def generate_qr_bytes(url: str) -> BytesIO:
     """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
     img = qrcode.make(url)
@@ -672,6 +767,45 @@ async def _resolve_meetup(
     except MeetupNotFoundError:
         await message.reply_text("No hay ningún partido activo.")
         return None
+
+
+async def _parse_change_date_args(
+    args: list[str],
+    message: Message,
+    settings: TelegramAppSettings,
+    container: Container,
+) -> tuple[datetime, datetime] | None:
+    """Parse old and new dates from change_date args.
+
+    Returns (old_date, new_date) or None if parsing failed or the meetup could not be resolved.
+    """
+    fmt = settings.pyball.display_date_format
+    usage = _date_usage_msg("change_date", fmt, r"`<nueva_fecha>` `<nueva_hora>`")
+    if len(args) == 2:
+        old_meetup = await _resolve_meetup(message, [], settings, container, "change_date")
+        if old_meetup is None:
+            return None
+        old_date = old_meetup.date
+        try:
+            new_date = parse_display(f"{args[0]} {args[1]}", fmt)
+        except ValueError:
+            await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+            return None
+        return old_date, new_date
+    if len(args) == 4:
+        try:
+            old_date = parse_display(f"{args[0]} {args[1]}", fmt)
+        except ValueError:
+            await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+            return None
+        try:
+            new_date = parse_display(f"{args[2]} {args[3]}", fmt)
+        except ValueError:
+            await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+            return None
+        return old_date, new_date
+    await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+    return None
 
 
 def _try_parse_date_args(

@@ -42,3 +42,6 @@ class MeetupRepository(Protocol):
 
     def delete(self, meetup_id: MeetupId) -> None:
         """Delete a meetup by its ID."""
+
+    def delete_by_datetime(self, meetup_date: datetime) -> None:
+        """Delete the meetup at the given datetime, if it exists."""

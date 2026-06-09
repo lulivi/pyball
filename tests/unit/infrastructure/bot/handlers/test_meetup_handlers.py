@@ -979,3 +979,166 @@ async def test_stats_handler_success_reacts(mock_update, mock_context):
         message_id=mock_update.message.message_id,
         reaction=ReactionEmoji.OK_HAND_SIGN,
     )
+
+
+@pytest.mark.asyncio
+async def test_change_location_updates_location_and_refreshes(mock_update, mock_context):
+    """change_location updates location and refreshes callup messages."""
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_location_handler
+
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    meetup.result = None
+
+    updated = MagicMock()
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.update_meetup_location.return_value.execute.return_value = updated
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["Parque", "Sur"]
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+    ) as mock_refresh:
+        mock_refresh.return_value = None
+        await change_location_handler(mock_update, mock_context)
+
+    container.update_meetup_location.return_value.execute.assert_called_once_with(
+        meetup.date, "Parque Sur"
+    )
+    mock_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_change_location_no_args_replies_usage(mock_update, mock_context):
+    """change_location with no location arg replies with usage message."""
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_location_handler
+
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    meetup.result = None
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await change_location_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_change_location_not_found_replies_error(mock_update, mock_context):
+    """change_location replies error message when meetup is not found."""
+    from pyball.domain.meetup.errors import MeetupNotFoundError
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_location_handler
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("x")
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["Parque", "Sur"]
+
+    await change_location_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower() or "meetup" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_change_date_2args_changes_active_meetup_date(mock_update, mock_context):
+    """change_date with 2 args moves the active meetup to the given date."""
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_date_handler
+    from pyball.infrastructure.telegram.message_store import TelegramMessageStore
+
+    old_date = datetime(2026, 6, 8, 20, 0)
+    new_date = datetime(2026, 6, 15, 20, 0)
+
+    meetup = MagicMock()
+    meetup.date = old_date
+    meetup.result = None
+
+    updated = MagicMock()
+    updated.date = new_date
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.update_meetup_date.return_value.execute.return_value = updated
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-06-15", "20:00"]
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+    ) as mock_refresh, patch.object(TelegramMessageStore, "rename_date") as mock_rename:
+        mock_refresh.return_value = None
+        await change_date_handler(mock_update, mock_context)
+
+    container.update_meetup_date.return_value.execute.assert_called_once_with(old_date, new_date)
+    mock_rename.assert_called_once_with(old_date, new_date)
+    mock_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_change_date_4args_changes_specific_meetup(mock_update, mock_context):
+    """change_date with 4 args selects meetup by first pair, moves to second pair."""
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_date_handler
+    from pyball.infrastructure.telegram.message_store import TelegramMessageStore
+
+    old_date = datetime(2026, 6, 8, 20, 0)
+    new_date = datetime(2026, 6, 15, 20, 0)
+
+    updated = MagicMock()
+    updated.date = new_date
+
+    container = MagicMock()
+    container.update_meetup_date.return_value.execute.return_value = updated
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-06-08", "20:00", "2026-06-15", "20:00"]
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+    ) as mock_refresh, patch.object(TelegramMessageStore, "rename_date") as mock_rename:
+        mock_refresh.return_value = None
+        await change_date_handler(mock_update, mock_context)
+
+    container.update_meetup_date.return_value.execute.assert_called_once_with(old_date, new_date)
+    mock_rename.assert_called_once_with(old_date, new_date)
+
+
+@pytest.mark.asyncio
+async def test_change_date_wrong_arg_count_replies_usage(mock_update, mock_context):
+    """change_date with 1 or 3 args replies with a usage message."""
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_date_handler
+
+    mock_context.args = ["2026-06-08"]
+
+    await change_date_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_change_date_conflict_replies_error(mock_update, mock_context):
+    """change_date replies an error message when new date is already taken."""
+    from pyball.domain.meetup.errors import DuplicateMeetupError
+    from pyball.infrastructure.telegram.bot.handlers.meetup import change_date_handler
+    from pyball.infrastructure.telegram.message_store import TelegramMessageStore
+
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    meetup.result = None
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.update_meetup_date.return_value.execute.side_effect = DuplicateMeetupError(
+        "conflict"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-06-15", "20:00"]
+
+    with patch.object(TelegramMessageStore, "rename_date"):
+        await change_date_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "fecha" in text.lower() or "meetup" in text.lower()
