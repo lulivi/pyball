@@ -258,6 +258,7 @@ class TestTokenQueryParam:
         assert "token" not in location
         assert "date=" in location
 
+
 class TestMiddlewareDisabled:
     """When both tokens are empty the middleware is a no-op."""
 

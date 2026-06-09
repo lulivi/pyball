@@ -607,6 +607,7 @@ class TestManifests:
         assert len(data["icons"]) == 2
         assert data["scope"] == "/manage"
 
+
 class TestCreateMeetup:
     """Tests for POST /api/meetup/create."""
 
