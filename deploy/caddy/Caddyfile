@@ -1,14 +1,14 @@
-*.tuapp.duckdns.org {
+*.pyball.duckdns.org {
     tls {
         dns duckdns {env.DUCKDNS_TOKEN}
     }
 
-    @cucarachas host cucarachas.tuapp.duckdns.org
+    @cucarachas host cucarachas.pyball.duckdns.org
     handle @cucarachas {
         reverse_proxy localhost:8001
     }
 
-    @tensores host tensores.tuapp.duckdns.org
+    @tensores host tensores.pyball.duckdns.org
     handle @tensores {
         reverse_proxy localhost:8000
     }
