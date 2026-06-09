@@ -331,28 +331,19 @@ async function generateTeams() {
     `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}T20:00`;
 
   try {
-    const res = await fetch('__PYBALL_BASE__/api/meetup/create-with-teams', {
+    const res = await fetch('__PYBALL_BASE__/api/meetup/create', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        date,
-        player_ids: confirmed.map(p => p.player_id),
-        algorithm: 'balanceado'
-      })
+      body: JSON.stringify({date, player_ids: confirmed.map(p => p.player_id)})
     });
     if (!res.ok) {
       const err = await res.json();
       alert('Error: ' + (err.detail || res.statusText));
       return;
     }
-    const data = await res.json();
-    activeMatchData = {
-      date,
-      players: confirmed.map(p => ({id: p.player_id, name: p.name})),
-      teams: _teamsFromResponse(data),
-    };
+    activeMatchData = await res.json();
   } catch(e) { alert('Error de red: ' + e.message); return; }
-  renderState2(activeMatchData);
+  renderState1(activeMatchData);
 }
 
 // ── STATE 1: match without teams ──────────────────────────────────────────
@@ -372,12 +363,12 @@ async function generateFromActive() {
   const btn = document.querySelector('#tab-equipos .btn-green');
   if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
   try {
-    const data = await _callCreateWithTeams(activeMatchData.players.map(p => p.id));
-    activeMatchData = {
-      date: activeMatchData.date,
-      players: activeMatchData.players,
-      teams: _teamsFromResponse(data),
-    };
+    activeMatchData = await _callGenerateTeams();
+    if (!activeMatchData.teams) {
+      alert('Error: el servidor no devolvió equipos.');
+      if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
+      return;
+    }
     renderState2(activeMatchData);
   } catch(e) {
     alert('Error: ' + e.message);
@@ -416,8 +407,12 @@ async function regenerateCurrentTeams() {
   const btn = document.querySelector('.regen-row .btn-sm.green');
   if (btn) { btn.textContent = 'Regenerando...'; btn.disabled = true; }
   try {
-    const data = await _callCreateWithTeams(activeMatchData.players.map(p => p.id));
-    activeMatchData = { ...activeMatchData, teams: _teamsFromResponse(data) };
+    activeMatchData = await _callGenerateTeams();
+    if (!activeMatchData.teams) {
+      alert('Error: el servidor no devolvió equipos.');
+      if (btn) { btn.disabled = false; btn.textContent = '↺ Regenerar'; }
+      return;
+    }
     renderState2(activeMatchData);
   } catch(e) {
     alert('Error: ' + e.message);
@@ -648,30 +643,17 @@ function _renderQR(url, canvas) {
   }
 }
 
-async function _callCreateWithTeams(playerIds) {
-  const res = await fetch('__PYBALL_BASE__/api/meetup/create-with-teams', {
+async function _callGenerateTeams() {
+  const res = await fetch('__PYBALL_BASE__/api/meetup/generate-teams', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      date: activeMatchData.date,
-      player_ids: playerIds,
-      algorithm: 'balanceado'
-    })
+    body: JSON.stringify({date: activeMatchData.date, algorithm: 'balanceado'})
   });
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.detail || res.statusText);
   }
   return res.json();
-}
-
-function _teamsFromResponse(data) {
-  return {
-    teamA: data.team_a, teamB: data.team_b,
-    nameA: data.name_a, nameB: data.name_b,
-    emojiA: data.emoji_a, emojiB: data.emoji_b,
-    matchUrl: data.match_url,
-  };
 }
 
 function _renderTeamsEditPanel() {

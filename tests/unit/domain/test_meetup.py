@@ -37,6 +37,32 @@ class TestMeetup:
         with pytest.raises(ValueError):
             Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="")
 
+    def test_set_location_changes_location(self):
+        """set_location replaces the meetup location."""
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        meetup.set_location("Parque Sur")
+        assert meetup.location == "Parque Sur"
+
+    def test_set_location_strips_whitespace(self):
+        """set_location strips surrounding whitespace."""
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        meetup.set_location("  Parque Sur  ")
+        assert meetup.location == "Parque Sur"
+
+    def test_set_location_raises_on_empty_string(self):
+        """set_location raises ValueError for empty or blank location."""
+        meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
+        with pytest.raises(ValueError):
+            meetup.set_location("")
+
+    def test_set_date_changes_date(self):
+        """set_date replaces the meetup date."""
+        original = datetime(2024, 3, 20, 20, 0)
+        new_date = datetime(2024, 3, 27, 20, 0)
+        meetup = Meetup.create(date=original, location="Parque Central")
+        meetup.set_date(new_date)
+        assert meetup.date == new_date
+
 
 class TestGoalEvent:
     """Tests for GoalEvent value object."""

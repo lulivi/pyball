@@ -33,7 +33,7 @@ class JsonMeetupRepository(MeetupRepository):
     """JSON file-based meetup repository."""
 
     def _get_file_path(self, meetup: Meetup) -> Path:
-        return self.directory / f"{meetup.id.value}.json"
+        return self.directory / f"{meetup.date.isoformat(timespec='minutes')}.json"
 
     def _read_file(self, file_path: Path) -> dict | None:
         if not file_path.exists():
@@ -123,20 +123,17 @@ class JsonMeetupRepository(MeetupRepository):
 
     def find_by_id(self, meetup_id: MeetupId) -> Meetup | None:
         """Find a meetup by its ID."""
-        file_path = self.directory / f"{meetup_id.value}.json"
-        data = self._read_file(file_path)
-        if data is None:
-            return None
-        return self._dict_to_meetup(data)
+        for file_path in self.directory.glob("*.json"):
+            data = self._read_file(file_path)
+            if data and data["id"] == str(meetup_id.value):
+                return self._dict_to_meetup(data)
+        return None
 
     def find_by_datetime(self, meetup_date: datetime) -> Meetup | None:
         """Find a meetup by its datetime."""
-        for file_path in self.directory.glob("*.json"):
-            data = self._read_file(file_path)
-            if data:
-                if datetime.fromisoformat(data["date"]) == meetup_date:
-                    return self._dict_to_meetup(data)
-        return None
+        file_path = self.directory / f"{meetup_date.isoformat(timespec='minutes')}.json"
+        data = self._read_file(file_path)
+        return self._dict_to_meetup(data) if data else None
 
     def find_all(self) -> list[Meetup]:
         """Return all meetups sorted by date."""
@@ -154,3 +151,8 @@ class JsonMeetupRepository(MeetupRepository):
             if data and data["id"] == str(meetup_id.value):
                 file_path.unlink()
                 return
+
+    def delete_by_datetime(self, meetup_date: datetime) -> None:
+        """Delete the meetup file for the given datetime, if it exists."""
+        file_path = self.directory / f"{meetup_date.isoformat(timespec='minutes')}.json"
+        file_path.unlink(missing_ok=True)
