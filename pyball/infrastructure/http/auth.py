@@ -18,8 +18,8 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
     """Middleware that enforces static-token access control.
 
     Two tokens are supported:
-    - match_token: grants access to /{prefix}/match, GET /{prefix}/api/match/active,
-      POST /{prefix}/api/match/finish
+    - match_token: grants access to /match, GET /api/match/active,
+      POST /api/match/finish
     - manage_token: grants access to everything (superset of match_token)
 
     Token delivery:
@@ -34,33 +34,31 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
         app: "ASGIApp",
         match_token: str,
         manage_token: str,
-        path_prefix: str = "",
     ) -> None:
-        """Initialise with the two static tokens and optional path prefix."""
+        """Initialise with the two static tokens."""
         super().__init__(app)
         self._match_token = match_token
         self._manage_token = manage_token
-        base = f"/{path_prefix}" if path_prefix else ""
-        self._cookie_path = f"/{path_prefix}/" if path_prefix else "/"
+        self._cookie_path = "/"
         self._public_paths = frozenset(
             [
-                f"{base}/",
-                f"{base}/favicon.ico",
-                f"{base}/sw.js",
-                f"{base}/qrcode.js",
-                f"{base}/manifest-match.json",
-                f"{base}/manifest-manage.json",
+                "/",
+                "/favicon.ico",
+                "/sw.js",
+                "/qrcode.js",
+                "/manifest-match.json",
+                "/manifest-manage.json",
             ]
         )
-        self._manage_page = f"{base}/manage"
+        self._manage_page = "/manage"
         self._match_api_routes = frozenset(
             [
-                ("GET", f"{base}/api/match/active"),
-                ("POST", f"{base}/api/match/finish"),
+                ("GET", "/api/match/active"),
+                ("POST", "/api/match/finish"),
             ]
         )
-        self._api_prefix = f"{base}/api/"
-        self._icons_prefix = f"{base}/icons/"
+        self._api_prefix = "/api/"
+        self._icons_prefix = "/icons/"
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check token on every request."""
