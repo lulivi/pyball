@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="__PYBALL_BASE__/manifest-match.json">
+    <link rel="manifest" href="/manifest-match.json">
     <title>PyBall - Muro de Partido</title>
     <style>
         :root { --color-light: #e4e4e7; --color-light-text: #27272a; --color-dark: #27272a; --color-dark-text: #e4e4e7; --bg: #0f172a; --text: #f8fafc; }
@@ -449,7 +449,7 @@
 
         while (true) {
             try {
-                const res = await fetch('__PYBALL_BASE__/api/match/active');
+                const res = await fetch('/api/match/active');
                 if (res.status === 404) {
                     renderNoMatch();
                     return;
@@ -470,7 +470,7 @@
 
     async function loadActiveMatch(silent = false) {
         try {
-            const res = await fetch('__PYBALL_BASE__/api/match/active');
+            const res = await fetch('/api/match/active');
             if (res.status === 404) {
                 localStorage.removeItem('pyball_current_match');
                 localStorage.removeItem('pyball_teams');
@@ -491,7 +491,7 @@
 
     async function loadEditMode(date) {
         try {
-            const res = await fetch('__PYBALL_BASE__/api/match/' + encodeURIComponent(date) + '/events');
+            const res = await fetch('/api/match/' + encodeURIComponent(date) + '/events');
             if (!res.ok) { renderNoMatch(); return; }
             const data = await res.json();
             meetupDate = data.date;
@@ -787,7 +787,7 @@
         saveBtn.disabled = true;
         saveBtn.textContent = 'Enviando datos...';
         try {
-            const response = await fetch('__PYBALL_BASE__/api/match/finish', {
+            const response = await fetch('/api/match/finish', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -825,7 +825,7 @@
         saveBtn.disabled = true;
         saveBtn.textContent = 'Enviando corrección...';
         try {
-            const response = await fetch('__PYBALL_BASE__/api/match/' + encodeURIComponent(meetupDate) + '/edit', {
+            const response = await fetch('/api/match/' + encodeURIComponent(meetupDate) + '/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -883,7 +883,7 @@
     });
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('__PYBALL_BASE__/sw.js', { scope: '__PYBALL_BASE__/match' }).catch(err => console.warn('SW registration failed:', err));
+        navigator.serviceWorker.register('/sw.js', { scope: '/match' }).catch(err => console.warn('SW registration failed:', err));
     }
 
     initializeApp();

@@ -115,13 +115,12 @@ class GenerateTeamsInput(BaseModel):
 # ── App factory ───────────────────────────────────────────────────────────────
 
 
-def create_app(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def create_app(
     container: "Container",
     notifier: "MatchNotifier",
     static_dir: Path = Path("static"),
     match_token: str = "",
     manage_token: str = "",
-    path_prefix: str = "",
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="PyBall API")
@@ -131,17 +130,15 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
             TokenAuthMiddleware,
             match_token=match_token,
             manage_token=manage_token,
-            path_prefix=path_prefix,
         )
 
-    _register_static(app, static_dir, container.name, path_prefix)
-    _register_match_routes(app, container, notifier, path_prefix)
-    _register_player_routes(app, container, path_prefix)
-    _register_meetup_routes(app, container, path_prefix)
+    _register_static(app, static_dir, container.name)
+    _register_match_routes(app, container, notifier)
+    _register_player_routes(app, container)
+    _register_meetup_routes(app, container)
 
     if static_dir.exists():
-        mount_path = f"/{path_prefix}" if path_prefix else "/"
-        app.mount(mount_path, StaticFiles(directory=static_dir, html=True), name="static")
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     return app
 
@@ -156,64 +153,61 @@ class _Server(uvicorn.Server):
 # ── Route registrars ──────────────────────────────────────────────────────────
 
 
-def _register_static(app: FastAPI, static_dir: Path, name: str, prefix: str) -> None:
+def _register_static(app: FastAPI, static_dir: Path, name: str) -> None:
     """Register the health-check, static-page, manifest, and SW routes."""
-    base = f"/{prefix}" if prefix else ""
 
-    @app.get(f"{base}/")
+    @app.get("/")
     async def health():
         """Return a simple status response."""
         return {"status": "ok"}
 
-    @app.get(f"{base}/match")
+    @app.get("/match")
     async def match_page():
-        """Serve the match tracker SPA with prefix injected."""
+        """Serve the match tracker SPA."""
         content = (static_dir / "match.html").read_text()
-        return HTMLResponse(content.replace("__PYBALL_BASE__", base))
+        return HTMLResponse(content)
 
-    @app.get(f"{base}/manage")
+    @app.get("/manage")
     async def manage_page():
-        """Serve the manage tracker SPA with prefix injected."""
+        """Serve the manage tracker SPA."""
         content = (static_dir / "manage.html").read_text()
-        return HTMLResponse(content.replace("__PYBALL_BASE__", base))
+        return HTMLResponse(content)
 
-    @app.get(f"{base}/sw.js")
+    @app.get("/sw.js")
     async def service_worker():
-        """Serve the service worker with prefix and slug injected."""
+        """Serve the service worker."""
         content = (static_dir / "sw.js").read_text()
-        slug = prefix if prefix else "default"
-        content = content.replace("__PYBALL_BASE__", base).replace("__PYBALL_SLUG__", slug)
         return Response(content, media_type="application/javascript")
 
     _icons = [
-        {"src": f"{base}/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-        {"src": f"{base}/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
     ]
 
-    @app.get(f"{base}/manifest-match.json")
+    @app.get("/manifest-match.json")
     async def manifest_match():
         """Return the dynamic PWA manifest for the match page."""
         return {
             "name": f"PyBall – Partido {name}",
             "short_name": f"Partido {name}",
-            "id": f"{base}/match",
-            "scope": f"{base}/match",
-            "start_url": f"{base}/match",
+            "id": "/match",
+            "scope": "/match",
+            "start_url": "/match",
             "display": "standalone",
             "background_color": "#0f172a",
             "theme_color": "#0f172a",
             "icons": _icons,
         }
 
-    @app.get(f"{base}/manifest-manage.json")
+    @app.get("/manifest-manage.json")
     async def manifest_manage():
         """Return the dynamic PWA manifest for the manage page."""
         return {
             "name": f"PyBall – Gestión {name}",
             "short_name": f"Gestión {name}",
-            "id": f"{base}/manage",
-            "scope": f"{base}/manage",
-            "start_url": f"{base}/manage",
+            "id": "/manage",
+            "scope": "/manage",
+            "start_url": "/manage",
             "display": "standalone",
             "background_color": "#0f172a",
             "theme_color": "#0f172a",
@@ -222,12 +216,11 @@ def _register_static(app: FastAPI, static_dir: Path, name: str, prefix: str) -> 
 
 
 def _register_match_routes(
-    app: FastAPI, container: "Container", notifier: "MatchNotifier", prefix: str
+    app: FastAPI, container: "Container", notifier: "MatchNotifier"
 ) -> None:
     """Register match-related routes."""
-    base = f"/{prefix}" if prefix else ""
 
-    @app.post(f"{base}/api/match/finish")
+    @app.post("/api/match/finish")
     async def finish_match(body: FinishMatchInput):
         """Record match result and notify via the configured notifier."""
         logger.info(
@@ -257,7 +250,7 @@ def _register_match_routes(
             "score_b": meetup.result.score_b,
         }
 
-    @app.get(f"{base}/api/match/latest")
+    @app.get("/api/match/latest")
     async def latest_match():
         """Return the date of the most recent finished meetup."""
         all_meetups = container.meetup_repository.find_all()
@@ -267,12 +260,12 @@ def _register_match_routes(
         latest = max(finished, key=lambda m: m.date)
         return {"date": latest.date.strftime("%Y-%m-%dT%H:%M")}
 
-    @app.get(f"{base}/api/match/active")
+    @app.get("/api/match/active")
     async def active_match():
         """Return the current unfinished meetup with teams, or 404."""
         return _build_active_match_response(container)
 
-    @app.get(f"{base}/api/match/{{date}}/summary")
+    @app.get("/api/match/{date}/summary")
     async def match_summary(date: str):
         """Return the WhatsApp-format summary for a finished match."""
         try:
@@ -299,7 +292,7 @@ def _register_match_routes(
         date_label = meetup.date.strftime("%-d %B").title()
         return {"date_label": date_label, "message": message}
 
-    @app.get(f"{base}/api/match/{{date}}/stats.png")
+    @app.get("/api/match/{date}/stats.png")
     async def match_stats_image(date: str):
         """Generate and return the stats PNG for the given date."""
         if not _STATS_AVAILABLE:
@@ -326,39 +319,37 @@ def _register_match_routes(
             headers={"Content-Disposition": f'attachment; filename="stats-{date}.png"'},
         )
 
-    @app.get(f"{base}/api/match/{{date}}/events")
+    @app.get("/api/match/{date}/events")
     async def match_events(date: str):
         """Return events of a closed match with player IDs resolved to names."""
         return _handle_match_events(container, date)
 
-    @app.post(f"{base}/api/match/{{date}}/edit")
+    @app.post("/api/match/{date}/edit")
     async def edit_match(date: str, body: FinishMatchInput):
         """Replace the result of a closed match and re-fire the Telegram notification."""
         logger.info("edit_match called: date=%s", date)
         return await _handle_edit_match(container, notifier, date, body)
 
 
-def _register_player_routes(app: FastAPI, container: "Container", prefix: str) -> None:
+def _register_player_routes(app: FastAPI, container: "Container") -> None:
     """Register player-related routes."""
-    base = f"/{prefix}" if prefix else ""
 
-    @app.get(f"{base}/api/players")
+    @app.get("/api/players")
     async def list_players():
         """Return all registered players."""
         players = container.player_repository.find_all()
         return [{"id": str(p.id.value), "name": p.name} for p in players]
 
 
-def _register_meetup_routes(app: FastAPI, container: "Container", prefix: str) -> None:
+def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
     """Register meetup-related routes."""
-    base = f"/{prefix}" if prefix else ""
 
-    @app.get(f"{base}/api/meetup/active")
+    @app.get("/api/meetup/active")
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
         return _build_meetup_active_response(container)
 
-    @app.post(f"{base}/api/meetup/parse-callup")
+    @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
         """Parse a WhatsApp callup text and fuzzy-match player names."""
         players = container.player_repository.find_all()
@@ -371,12 +362,12 @@ def _register_meetup_routes(app: FastAPI, container: "Container", prefix: str) -
             "date": date_str,
         }
 
-    @app.post(f"{base}/api/meetup/generate-teams")
+    @app.post("/api/meetup/generate-teams")
     async def generate_teams_endpoint(body: GenerateTeamsInput):
         """Generate balanced teams for an existing meetup and return the full meetup state."""
         return _handle_generate_teams(container, body)
 
-    @app.post(f"{base}/api/meetup/assign-teams")
+    @app.post("/api/meetup/assign-teams")
     async def assign_teams(body: AssignTeamsInput):
         """Manually assign players to specific teams by player ID."""
         try:
@@ -399,7 +390,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container", prefix: str) -
 
         return _build_meetup_active_response(container)
 
-    @app.post(f"{base}/api/meetup/create")
+    @app.post("/api/meetup/create")
     async def create_meetup_endpoint(body: CreateMeetupInput):
         """Create (or reset) a meetup with the given player list."""
         return _handle_create_meetup(container, body)

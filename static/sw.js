@@ -1,5 +1,5 @@
-const CACHE_NAME = 'pyball-__PYBALL_SLUG__-v3';
-const STATIC_ASSETS = ['__PYBALL_BASE__/match', '__PYBALL_BASE__/manage', '__PYBALL_BASE__/manifest-match.json', '__PYBALL_BASE__/manifest-manage.json', '__PYBALL_BASE__/icons/icon-192.png', '__PYBALL_BASE__/icons/icon-512.png'];
+const CACHE_NAME = 'pyball-v3';
+const STATIC_ASSETS = ['/match', '/manage', '/manifest-match.json', '/manifest-manage.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', event => {
     event.waitUntil(
@@ -19,7 +19,7 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') return;
-    if (new URL(event.request.url).pathname.startsWith('__PYBALL_BASE__/api/')) return;
+    if (new URL(event.request.url).pathname.startsWith('/api/')) return;
 
     event.respondWith(
         caches.open(CACHE_NAME).then(cache =>

@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="__PYBALL_BASE__/manifest-manage.json">
+<link rel="manifest" href="/manifest-manage.json">
 <title>PyBall Gestión</title>
-<script src="__PYBALL_BASE__/qrcode.js"></script>
+<script src="/qrcode.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100%; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
@@ -177,8 +177,8 @@ async function parseCallup() {
   if (!text) { alert('Pega la convocatoria primero.'); return; }
   try {
     const [playersRes, parseRes] = await Promise.all([
-      fetch('__PYBALL_BASE__/api/players').then(r => r.json()),
-      fetch('__PYBALL_BASE__/api/meetup/parse-callup', {
+      fetch('/api/players').then(r => r.json()),
+      fetch('/api/meetup/parse-callup', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({text})
@@ -331,7 +331,7 @@ async function generateTeams() {
     `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}T20:00`;
 
   try {
-    const res = await fetch('__PYBALL_BASE__/api/meetup/create', {
+    const res = await fetch('/api/meetup/create', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({date, player_ids: confirmed.map(p => p.player_id)})
@@ -447,7 +447,7 @@ function toggleTeamsEditPanel() {
     _renderTeamsEditPanel();
   };
   if (!allPlayers.length) {
-    fetch('__PYBALL_BASE__/api/players').then(r => r.json()).then(data => {
+    fetch('/api/players').then(r => r.json()).then(data => {
       allPlayers = data;
       open();
     }).catch(e => alert('Error al cargar jugadores: ' + e.message));
@@ -505,7 +505,7 @@ async function saveTeams() {
   const saveBtn = document.querySelector('#teams-edit-panel .btn-green');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando...'; }
   try {
-    const res = await fetch('__PYBALL_BASE__/api/meetup/assign-teams', {
+    const res = await fetch('/api/meetup/assign-teams', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -536,13 +536,13 @@ async function loadResumen() {
   const el = document.getElementById('resumen-content');
   el.innerHTML = '<div class="empty-state">Cargando...</div>';
   try {
-    const latestRes = await fetch('__PYBALL_BASE__/api/match/latest');
+    const latestRes = await fetch('/api/match/latest');
     if (latestRes.status === 404) {
       el.innerHTML = '<div class="empty-state">Aún no hay partidos terminados.</div>';
       return;
     }
     const {date} = await latestRes.json();
-    const summaryRes = await fetch(`__PYBALL_BASE__/api/match/${encodeURIComponent(date)}/summary`);
+    const summaryRes = await fetch(`/api/match/${encodeURIComponent(date)}/summary`);
     if (!summaryRes.ok) { el.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>'; return; }
     const {date_label, message} = await summaryRes.json();
 
@@ -567,7 +567,7 @@ function copySummary() {
 }
 
 async function downloadStats(date) {
-  const url = `__PYBALL_BASE__/api/match/${encodeURIComponent(date)}/stats.png`;
+  const url = `/api/match/${encodeURIComponent(date)}/stats.png`;
   const a = document.createElement('a');
   a.href = url;
   a.download = `stats-${date}.png`;
@@ -577,7 +577,7 @@ async function downloadStats(date) {
 async function shareStats(btn, date, summaryText) {
   if (btn) { btn.disabled = true; btn.textContent = 'Preparando…'; }
   try {
-    const url = `__PYBALL_BASE__/api/match/${encodeURIComponent(date)}/stats.png`;
+    const url = `/api/match/${encodeURIComponent(date)}/stats.png`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Error al descargar la imagen');
     const blob = await res.blob();
@@ -644,7 +644,7 @@ function _renderQR(url, canvas) {
 }
 
 async function _callGenerateTeams() {
-  const res = await fetch('__PYBALL_BASE__/api/meetup/generate-teams', {
+  const res = await fetch('/api/meetup/generate-teams', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({date: activeMatchData.date, algorithm: 'balanceado'})
@@ -736,7 +736,7 @@ async function bootstrap() {
 
   while (true) {
     try {
-      const res = await fetch('__PYBALL_BASE__/api/meetup/active');
+      const res = await fetch('/api/meetup/active');
       if (res.status === 404) {
         _buildFreshFlowHTML();
         showStep('paste');
@@ -808,11 +808,11 @@ function _copyToClipboard(text) {
 
 function openEditMode(date) {
   if (!date) { alert('Selecciona una fecha.'); return; }
-  window.location.href = '__PYBALL_BASE__/match?edit=1&date=' + encodeURIComponent(date);
+  window.location.href = '/match?edit=1&date=' + encodeURIComponent(date);
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('__PYBALL_BASE__/sw.js', { scope: '__PYBALL_BASE__/manage' }).catch(err => console.warn('SW registration failed:', err));
+  navigator.serviceWorker.register('/sw.js', { scope: '/manage' }).catch(err => console.warn('SW registration failed:', err));
 }
 
 bootstrap();
