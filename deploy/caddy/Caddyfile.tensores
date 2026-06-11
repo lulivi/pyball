@@ -1,0 +1,10 @@
+*.pyball.duckdns.org {
+    tls {
+        dns duckdns {env.DUCKDNS_TOKEN}
+    }
+
+    @tensores host tensores.pyball.duckdns.org
+    handle @tensores {
+        reverse_proxy localhost:8000
+    }
+}

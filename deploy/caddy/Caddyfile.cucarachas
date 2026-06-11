@@ -1,0 +1,10 @@
+*.pyball.duckdns.org {
+    tls {
+        dns duckdns {env.DUCKDNS_TOKEN}
+    }
+
+    @cucarachas host cucarachas.pyball.duckdns.org
+    handle @cucarachas {
+        reverse_proxy localhost:8001
+    }
+}
