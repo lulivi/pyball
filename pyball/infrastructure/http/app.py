@@ -21,7 +21,7 @@
 import functools
 import locale
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -31,14 +31,12 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from pyball.application.meetup import FormatMatchSummary, ParseCallupText
 from pyball.domain.meetup.errors import (
     MeetupAlreadyClosedError,
     MeetupNotFoundError,
     UnknownAlgorithmError,
 )
 from pyball.domain.player.errors import InvalidPlayerIdError
-from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.http.auth import TokenAuthMiddleware
 
 try:
@@ -282,7 +280,7 @@ def _register_match_routes(
         all_players = container.player_repository.find_all()
         player_names = {str(p.id.value): p.name for p in all_players}
 
-        message = FormatMatchSummary().execute(
+        message = container.format_match_summary().execute(
             meetup,
             player_names,
             team_colors=container.team_colors,
@@ -352,14 +350,11 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
         """Parse a WhatsApp callup text and fuzzy-match player names."""
-        players = container.player_repository.find_all()
-        result = ParseCallupText().execute(body.text, players)
-        date_str = _parse_callup_date(body.text, container.default_hour)
-
+        outcome = container.parse_callup().execute(body.text)
         return {
-            "titulars": [_serialise_match(m) for m in result.titulars],
-            "reserves": [_serialise_match(m) for m in result.reserves],
-            "date": date_str,
+            "titulars": [_serialise_match(m) for m in outcome.titulars],
+            "reserves": [_serialise_match(m) for m in outcome.reserves],
+            "date": outcome.date.strftime("%Y-%m-%dT%H:%M"),
         }
 
     @app.post("/api/meetup/generate-teams")
@@ -400,18 +395,16 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
 
 
 def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> dict:
-    """Validate, upsert, and serialise the response for POST /api/meetup/create."""
+    """Validate, upsert via SetMeetupPlayers, and serialise the response."""
     try:
         meetup_date = datetime.fromisoformat(body.date)
     except ValueError as exc:
         raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
 
-    existing = container.meetup_repository.find_by_datetime(meetup_date)
-    if existing and existing.is_closed():
-        raise HTTPException(409, "Match already finished, cannot reset")
-
     try:
-        meetup = _upsert_meetup_with_players(container, meetup_date, body.player_ids, existing)
+        meetup = container.set_meetup_players().execute(meetup_date, body.player_ids)
+    except MeetupAlreadyClosedError as exc:
+        raise HTTPException(409, "Match already finished, cannot reset") from exc
     except InvalidPlayerIdError as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -447,27 +440,6 @@ def _handle_generate_teams(container: "Container", body: GenerateTeamsInput) -> 
         raise HTTPException(422, str(exc)) from exc
 
     return _build_meetup_active_response(container)
-
-
-def _upsert_meetup_with_players(
-    container: "Container",
-    meetup_date: datetime,
-    player_ids: list[str],
-    existing: "Meetup | None",
-) -> "Meetup":
-    """Create or reset a meetup and assign the given player IDs to it."""
-    if existing:
-        existing.players.clear()
-        existing.clear_teams()
-        for pid_str in player_ids:
-            existing.add_player(PlayerId.from_string(pid_str))
-        container.meetup_repository.save(existing)
-        return existing
-    meetup = container.create_meetup().execute(meetup_date)
-    for pid_str in player_ids:
-        meetup.add_player(PlayerId.from_string(pid_str))
-    container.meetup_repository.save(meetup)
-    return meetup
 
 
 def _build_active_match_response(container: "Container") -> dict:
@@ -675,32 +647,3 @@ def _serialise_match(match) -> dict:
             for c in match.candidates
         ],
     }
-
-
-def _parse_callup_date(text: str, default_hour: str) -> str:
-    """Extract the meetup date from a callup header line using locale-aware strptime.
-
-    Tries each line as '%A %d %B' (e.g. 'lunes 18 mayo'). Falls back to today
-    when no line matches. If the parsed date is more than 7 days in the past,
-    bumps to the next year.
-
-    Returns an ISO 8601 string 'YYYY-MM-DDTHH:MM'.
-    """
-    try:
-        hour, minute = (int(p) for p in default_hour.split(":", 1))
-    except ValueError:
-        hour, minute = 20, 0
-    today = datetime.now()
-    for line in text.splitlines():
-        parts = line.strip().split()
-        if len(parts) < 3:
-            continue
-        try:
-            parsed = datetime.strptime(" ".join(parts[:3]).lower(), "%A %d %B")
-        except ValueError:
-            continue
-        candidate = datetime(today.year, parsed.month, parsed.day, hour, minute)
-        if candidate < today - timedelta(days=7):
-            candidate = candidate.replace(year=today.year + 1)
-        return candidate.strftime("%Y-%m-%dT%H:%M")
-    return datetime(today.year, today.month, today.day, hour, minute).strftime("%Y-%m-%dT%H:%M")

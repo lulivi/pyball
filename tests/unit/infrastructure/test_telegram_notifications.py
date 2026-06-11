@@ -109,9 +109,6 @@ async def test_on_match_edited_sends_new_message_and_reposts_stats(monkeypatch):
         stats_calls.append((bot, container, settings))
 
     monkeypatch.setattr(notifications, "_post_match_stats", _fake_stats)
-    monkeypatch.setattr(
-        notifications.FormatMatchSummary, "execute", MagicMock(return_value="resumen")
-    )
 
     bot = AsyncMock()
     settings = MagicMock()
@@ -121,6 +118,7 @@ async def test_on_match_edited_sends_new_message_and_reposts_stats(monkeypatch):
     settings.telegram.regulars.meetups_thread_id = ""
     container = MagicMock()
     container.player_repository.find_all.return_value = []
+    container.format_match_summary.return_value.execute.return_value = "resumen"
 
     notifier = notifications.TelegramMatchNotifier(bot, settings, container)
     await notifier.on_match_edited(MagicMock())

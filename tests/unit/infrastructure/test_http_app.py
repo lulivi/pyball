@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
+from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.infrastructure.http.app import create_app
 
 
@@ -647,8 +648,7 @@ class TestCreateMeetup:
         meetup.add_player(p_id)
 
         container = MagicMock()
-        container.meetup_repository.find_by_datetime.return_value = None
-        container.create_meetup.return_value.execute.return_value = meetup
+        container.set_meetup_players.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = []
 
         app, _ = _make_app(container=container)
@@ -666,17 +666,14 @@ class TestCreateMeetup:
 
     @pytest.mark.asyncio
     async def test_create_meetup_resets_existing_meetup(self):
-        """POST /api/meetup/create clears players/teams on an existing open meetup."""
-        from pyball.domain.meetup.models import Meetup, PlayerId, Team
+        """POST /api/meetup/create clears players/teams on an existing open meetup via use case."""
+        from pyball.domain.meetup.models import Meetup
 
         date = datetime(2026, 6, 8, 20, 0)
-        existing = Meetup.create(date=date, location="Parque Central")
-        old_player = PlayerId.generate()
-        existing.add_player(old_player)
-        existing.set_teams([Team.create("A", [old_player]), Team.create("B", [])])
+        reset_meetup = Meetup.create(date=date, location="Parque Central")
 
         container = MagicMock()
-        container.meetup_repository.find_by_datetime.return_value = existing
+        container.set_meetup_players.return_value.execute.return_value = reset_meetup
         container.player_repository.find_all.return_value = []
 
         app, _ = _make_app(container=container)
@@ -688,17 +685,14 @@ class TestCreateMeetup:
 
         assert resp.status_code == 200
         assert resp.json()["teams"] is None
-        assert existing.teams is None
-        assert existing.players == []
 
     @pytest.mark.asyncio
     async def test_create_meetup_409_when_match_already_finished(self):
         """POST /api/meetup/create returns 409 if the existing meetup is closed."""
-        meetup = MagicMock()
-        meetup.is_closed.return_value = True
-
         container = MagicMock()
-        container.meetup_repository.find_by_datetime.return_value = meetup
+        container.set_meetup_players.return_value.execute.side_effect = MeetupAlreadyClosedError(
+            "closed"
+        )
 
         app, _ = _make_app(container=container)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -717,6 +711,23 @@ class TestCreateMeetup:
             resp = await c.post(
                 "/api/meetup/create",
                 json={"date": "not-a-date", "player_ids": []},
+            )
+
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_422_on_invalid_player_id(self):
+        """POST /api/meetup/create returns 422 when a player ID is malformed."""
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.side_effect = InvalidPlayerIdError(
+            "bad-id"
+        )
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": ["bad-id"]},
             )
 
         assert resp.status_code == 422
@@ -813,3 +824,20 @@ class TestGenerateTeams:
         assert resp.status_code == 200
         container.create_teams.assert_called_once_with("balanceado")
         mock_build.assert_called_once_with(container)
+
+
+@pytest.mark.asyncio
+async def test_create_meetup_409_when_closed():
+    """/api/meetup/create maps MeetupAlreadyClosedError to 409."""
+    container = MagicMock()
+    container.set_meetup_players.return_value.execute.side_effect = MeetupAlreadyClosedError(
+        "closed"
+    )
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/meetup/create", json={"date": "2026-06-17T20:00", "player_ids": []}
+        )
+
+    assert response.status_code == 409

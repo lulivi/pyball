@@ -27,7 +27,6 @@ import telegram
 from telegram.constants import ParseMode
 
 from pyball.application.meetup.compute_stats import ComputeStats
-from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.models import Meetup
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
@@ -85,7 +84,7 @@ class TelegramMatchNotifier(MatchNotifier):
         player_names = {
             str(p.id.value): p.name for p in self._container.player_repository.find_all()
         }
-        summary = FormatMatchSummary().execute(
+        summary = self._container.format_match_summary().execute(
             meetup,
             player_names,
             team_colors=self._settings.pyball.team_colors,
