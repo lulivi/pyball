@@ -42,6 +42,7 @@ from pyball.application.meetup.parse_callup_text import (
     PlayerCandidate,
 )
 from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
+from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
 from pyball.application.meetup.start_match import StartMatch
 from pyball.application.meetup.update_meetup_date import UpdateMeetupDate
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
@@ -77,6 +78,7 @@ __all__ = [
     "ParseResult",
     "MatchedPlayer",
     "PlayerCandidate",
+    "SetMeetupPlayers",
     "UpdateMeetupDate",
     "UpdateMeetupLocation",
 ]

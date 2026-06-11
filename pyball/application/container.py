@@ -30,6 +30,7 @@ from pyball.application.meetup import (
     FinishMatch,
     GetActiveMeetup,
     RemovePlayerFromMeetup,
+    SetMeetupPlayers,
     StartMatch,
     UpdateMeetupDate,
     UpdateMeetupLocation,
@@ -138,6 +139,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def update_meetup_location(self) -> UpdateMeetupLocation:
         """Create a new UpdateMeetupLocation use case."""
         return UpdateMeetupLocation(self.meetup_repository)
+
+    def set_meetup_players(self) -> SetMeetupPlayers:
+        """Create a new SetMeetupPlayers use case."""
+        return SetMeetupPlayers(self.meetup_repository, self._settings.pyball.location)
 
     @property
     def team_colors(self) -> tuple[str, str]:
