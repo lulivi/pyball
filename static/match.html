@@ -166,6 +166,15 @@
 
         .event-log:last-child { border-bottom: none; }
 
+        .event-log.team-a {
+            border-left: 4px solid var(--color-light);
+            background: color-mix(in srgb, var(--color-light) 14%, transparent);
+        }
+        .event-log.team-b {
+            border-left: 4px solid var(--color-dark);
+            background: color-mix(in srgb, var(--color-dark) 14%, transparent);
+        }
+
         .event-time {
             font-size: 0.75rem;
             color: #64748b;
@@ -631,6 +640,7 @@
     }
 
     function renderEventRow(e, i) {
+        const teamClass = e.team === 'A' ? 'team-a' : 'team-b';
         const scorerOpen = appState.editingEvent?.eventIndex === i && appState.editingEvent?.field === 'scorer';
 
         if (e.is_own_goal) {
@@ -639,7 +649,7 @@
                     <span class="truncate-text">${escHtml(e.scorer)}</span> <span class="chevron">${scorerOpen ? '▲' : '▼'}</span>
                 </button>`;
             return `
-                <div class="event-log ${scorerOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+                <div class="event-log ${teamClass} ${scorerOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
                     <span class="event-time" style="flex: 0 0 42px; text-align:center;">${escHtml(e.timestamp)}</span>
                     <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
                     <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">
@@ -664,7 +674,7 @@
             </button>`;
 
         return `
-            <div class="event-log ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+            <div class="event-log ${teamClass} ${scorerOpen || assistOpen ? 'editing' : ''}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
                 <span class="event-time" style="flex: 0 0 42px; text-align:center;">${escHtml(e.timestamp)}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${scorerChip}</span>
                 <span style="flex: 1; min-width: 0; display: flex; justify-content: center;">${assistChip}</span>
