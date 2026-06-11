@@ -534,6 +534,26 @@ class TestEditMatchResult:
 
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_edit_match_calls_on_match_edited_not_closed(self):
+        """POST /api/match/{date}/edit fires on_match_edited with the updated meetup."""
+        container = MagicMock()
+        closed = MagicMock()
+        closed.is_closed.return_value = True
+        container.meetup_repository.find_by_datetime.return_value = closed
+        updated = MagicMock()
+        updated.result.score_a = 3
+        updated.result.score_b = 2
+        container.edit_match_result.return_value.execute.return_value = updated
+        app, notifier = _make_app(container)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post("/api/match/2026-04-30T20:00/edit", json=_VALID_BODY)
+
+        assert response.status_code == 200
+        assert notifier.edited == [updated]
+        assert notifier.closed == []
+
 
 class TestManifests:
     """Tests for GET /manifest-match.json and GET /manifest-manage.json."""

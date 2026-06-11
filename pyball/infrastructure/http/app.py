@@ -615,7 +615,7 @@ async def _handle_edit_match(
     date: str,
     body: FinishMatchInput,
 ) -> dict:
-    """Replace result of a closed match and re-fire the notification."""
+    """Replace result of a closed match and announce the correction."""
     try:
         meetup_date = datetime.fromisoformat(date)
     except ValueError as exc:
