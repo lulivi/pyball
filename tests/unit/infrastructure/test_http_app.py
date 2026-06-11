@@ -16,12 +16,18 @@ class _StubNotifier(MatchNotifier):
 
     def __init__(self):
         self.closed = []
+        self.edited = []
 
     async def on_match_closed(self, meetup):
+        """Record the closed meetup."""
         self.closed.append(meetup)
 
     async def on_meetup_updated(self, meetup):
-        pass
+        """Do nothing."""
+
+    async def on_match_edited(self, meetup):
+        """Record the edited meetup."""
+        self.edited.append(meetup)
 
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
@@ -453,7 +459,7 @@ class TestEditMatchResult:
         data = response.json()
         assert data["score_a"] == 0
         assert data["score_b"] == 0
-        assert len(notifier.closed) == 1
+        assert len(notifier.edited) == 1
 
     @pytest.mark.asyncio
     async def test_returns_404_when_meetup_not_found(self):
@@ -513,7 +519,7 @@ class TestEditMatchResult:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             await c.post("/api/match/2026-05-28T20:00/edit", json=self._EDIT_BODY)
 
-        assert len(notifier.closed) == 0
+        assert len(notifier.edited) == 0
 
     @pytest.mark.asyncio
     async def test_returns_422_on_invalid_date(self):

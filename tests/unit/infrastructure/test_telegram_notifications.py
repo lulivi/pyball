@@ -1,11 +1,13 @@
 """Tests for TelegramMatchNotifier."""
 
+import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pyball.domain.meetup.models import Meetup
+from pyball.infrastructure.telegram import notifications
 from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 
@@ -96,3 +98,37 @@ async def test_on_match_closed_deletes_tracking_entries(tmp_path):
 
     assert store.get_message(datetime(2026, 4, 30, 20, 0), "regular") is None
     assert store.get_message(datetime(2026, 4, 30, 20, 0), "substitute") is None
+
+
+@pytest.mark.asyncio
+async def test_on_match_edited_sends_new_message_and_reposts_stats(monkeypatch):
+    """on_match_edited sends a fresh corrected-result message and refreshes stats."""
+    stats_calls = []
+
+    async def _fake_stats(bot, container, settings):
+        stats_calls.append((bot, container, settings))
+
+    monkeypatch.setattr(notifications, "_post_match_stats", _fake_stats)
+    monkeypatch.setattr(
+        notifications.FormatMatchSummary, "execute", MagicMock(return_value="resumen")
+    )
+
+    bot = AsyncMock()
+    settings = MagicMock()
+    settings.pyball.team_colors = ("blanco", "negro")
+    settings.pyball.team_emojis = ("⚪", "⚫")
+    settings.telegram.regulars.chat_id = -100123
+    settings.telegram.regulars.meetups_thread_id = ""
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+
+    notifier = notifications.TelegramMatchNotifier(bot, settings, container)
+    await notifier.on_match_edited(MagicMock())
+    await asyncio.sleep(0)  # let the fire-and-forget stats task run
+
+    bot.send_message.assert_awaited_once()
+    kwargs = bot.send_message.await_args.kwargs
+    assert kwargs["chat_id"] == -100123
+    assert "Resultado corregido" in kwargs["text"]
+    assert "resumen" in kwargs["text"]
+    assert len(stats_calls) == 1

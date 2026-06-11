@@ -637,7 +637,7 @@ async def _handle_edit_match(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    await notifier.on_match_closed(updated)
+    await notifier.on_match_edited(updated)
 
     return {
         "meetup_date": date,

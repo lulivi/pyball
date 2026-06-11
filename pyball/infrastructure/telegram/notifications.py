@@ -27,6 +27,7 @@ import telegram
 from telegram.constants import ParseMode
 
 from pyball.application.meetup.compute_stats import ComputeStats
+from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.models import Meetup
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
@@ -74,6 +75,33 @@ class TelegramMatchNotifier(MatchNotifier):
         message_store.delete_message(meetup.date, "regular")
         message_store.delete_message(meetup.date, "substitute")
         asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
+
+    async def on_match_edited(self, meetup: Meetup) -> None:
+        """Announce a corrected result with a new message and refresh the stats image.
+
+        The original callup messages were untracked when the match closed, so
+        editing them is impossible — a fresh message is sent instead.
+        """
+        player_names = {
+            str(p.id.value): p.name for p in self._container.player_repository.find_all()
+        }
+        summary = FormatMatchSummary().execute(
+            meetup,
+            player_names,
+            team_colors=self._settings.pyball.team_colors,
+            team_emojis=self._settings.pyball.team_emojis,
+            legacy_stats=self._container.legacy_stats,
+        )
+        thread_id = self._settings.telegram.regulars.meetups_thread_id or None
+        try:
+            await self._bot.send_message(
+                chat_id=self._settings.telegram.regulars.chat_id,
+                text=f"✏️ Resultado corregido\n\n{summary}",
+                message_thread_id=int(thread_id) if thread_id else None,
+            )
+            asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
+        except Exception as error:  # pylint: disable=broad-except
+            logger.error("Error sending corrected result message: %s", error)
 
 
 async def refresh_callup_messages(
