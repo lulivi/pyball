@@ -47,6 +47,7 @@ from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
+from pyball.infrastructure.http.links import MatchLinkBuilder
 from pyball.infrastructure.persistence import (
     JsonMeetupRepository,
     JsonPlayerRepository,
@@ -111,11 +112,11 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""
-        return StartMatch(
-            self.meetup_repository,
-            self.base_url,
-            match_token=self._settings.pyball.match_token,
-        )
+        return StartMatch(self.meetup_repository)
+
+    def match_link_builder(self) -> MatchLinkBuilder:
+        """Create the web match-link builder for this instance."""
+        return MatchLinkBuilder(self.base_url, self._settings.pyball.match_token)
 
     def get_active_meetup(self) -> GetActiveMeetup:
         """Create a new GetActiveMeetup use case."""

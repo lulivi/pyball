@@ -256,7 +256,7 @@ class TestMeetupActive:
         container.team_hex_bg = ("#e4e4e7", "#27272a")
         container.team_hex_text = ("#27272a", "#e4e4e7")
         container.team_emojis = ("⚪", "⚫")
-        container.start_match.return_value.execute.return_value = "http://test/match"
+        container.match_link_builder.return_value.build.return_value = "http://test/match"
 
         app = create_app(container, _StubNotifier())
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -304,7 +304,7 @@ class TestMeetupActive:
         container.team_hex_bg = ("#e4e4e7", "#27272a")
         container.team_hex_text = ("#27272a", "#e4e4e7")
         container.team_emojis = ("⚪", "⚫")
-        container.start_match.return_value.execute.return_value = (
+        container.match_link_builder.return_value.build.return_value = (
             "https://pyball.example.com/match?token=my-match-tok"
         )
 

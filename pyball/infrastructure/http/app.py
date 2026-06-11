@@ -535,7 +535,7 @@ def _build_meetup_active_response(container: "Container") -> dict:
     team_a = _sorted_names(meetup.teams[0].players, player_names)
     team_b = _sorted_names(meetup.teams[1].players, player_names)
 
-    match_url = container.start_match().execute(meetup.date)
+    match_url = container.match_link_builder().build()
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
