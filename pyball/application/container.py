@@ -191,6 +191,16 @@ class Container:  # pylint: disable=too-many-public-methods
         return self._settings.pyball.name
 
     @property
+    def theme_color(self) -> str:
+        """Return the configured PWA theme color for this instance."""
+        return self._settings.pyball.theme_color
+
+    @property
+    def icons_dir(self) -> str:
+        """Return the per-instance icons directory override ('' = packaged icons)."""
+        return self._settings.pyball.icons_dir
+
+    @property
     def player_repository(self) -> PlayerRepository:
         """Get the player repository, creating it if necessary."""
         if self._player_repository is None:

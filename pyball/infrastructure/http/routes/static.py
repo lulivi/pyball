@@ -22,12 +22,16 @@ from __future__ import annotations
 
 from importlib.metadata import version as _package_version
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
 
+if TYPE_CHECKING:
+    from pyball.application.container import Container
 
-def register_static_routes(app: FastAPI, static_dir: Path, name: str) -> None:
+
+def register_static_routes(app: FastAPI, static_dir: Path, container: "Container") -> None:
     """Register the health-check, static-page, manifest, and SW routes."""
 
     @app.get("/")
@@ -62,29 +66,31 @@ def register_static_routes(app: FastAPI, static_dir: Path, name: str) -> None:
     @app.get("/manifest-match.json")
     async def manifest_match():
         """Return the dynamic PWA manifest for the match page."""
+        color = container.theme_color
         return {
-            "name": f"PyBall – Partido {name}",
-            "short_name": f"Partido {name}",
+            "name": f"PyBall – Partido {container.name}",
+            "short_name": f"Partido {container.name}",
             "id": "/match",
             "scope": "/match",
             "start_url": "/match",
             "display": "standalone",
-            "background_color": "#0f172a",
-            "theme_color": "#0f172a",
+            "background_color": color,
+            "theme_color": color,
             "icons": _icons,
         }
 
     @app.get("/manifest-manage.json")
     async def manifest_manage():
         """Return the dynamic PWA manifest for the manage page."""
+        color = container.theme_color
         return {
-            "name": f"PyBall – Gestión {name}",
-            "short_name": f"Gestión {name}",
+            "name": f"PyBall – Gestión {container.name}",
+            "short_name": f"Gestión {container.name}",
             "id": "/manage",
             "scope": "/manage",
             "start_url": "/manage",
             "display": "standalone",
-            "background_color": "#0f172a",
-            "theme_color": "#0f172a",
+            "background_color": color,
+            "theme_color": color,
             "icons": _icons,
         }

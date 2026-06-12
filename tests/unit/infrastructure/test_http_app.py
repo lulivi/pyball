@@ -36,6 +36,8 @@ class _StubNotifier(MatchNotifier):
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
     if container is None:
         container = MagicMock()
+        container.theme_color = "#0f172a"
+        container.icons_dir = ""
     notifier = _StubNotifier()
     if finish_side_effect:
         container.finish_match.return_value.execute.side_effect = finish_side_effect
@@ -564,6 +566,8 @@ class TestManifests:
     def _make_named_app(self, name: str = "Tensores"):
         container = MagicMock()
         container.name = name
+        container.theme_color = "#0f172a"
+        container.icons_dir = ""
         return create_app(container, _StubNotifier())
 
     @pytest.mark.asyncio
@@ -965,3 +969,17 @@ async def test_sw_js_embeds_package_version():
     assert response.status_code == 200
     assert "__VERSION__" not in response.text
     assert "pyball-" in response.text
+
+
+@pytest.mark.asyncio
+async def test_manifest_uses_instance_theme_color():
+    """manifest-match.json uses the container's theme_color."""
+    container = _container_for_responses()
+    container.theme_color = "#112233"
+    app, _ = _make_app(container)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/manifest-match.json")
+    body = response.json()
+    assert body["theme_color"] == "#112233"
+    assert body["background_color"] == "#112233"
+    assert body["name"] == "PyBall – Partido tensores"

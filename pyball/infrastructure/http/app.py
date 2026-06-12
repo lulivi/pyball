@@ -57,10 +57,14 @@ def create_app(
             manage_token=manage_token,
         )
 
-    register_static_routes(app, static_dir, container.name)
+    register_static_routes(app, static_dir, container)
     register_match_routes(app, container, notifier)
     register_player_routes(app, container)
     register_meetup_routes(app, container)
+
+    icons_dir = Path(container.icons_dir) if container.icons_dir else None
+    if icons_dir and icons_dir.exists():
+        app.mount("/icons", StaticFiles(directory=icons_dir), name="icons")
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
