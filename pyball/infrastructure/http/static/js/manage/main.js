@@ -17,6 +17,8 @@ let editTeamB = [];          // {id, name}[] — working copy of team B
 let editReplacingPlayer = null; // {id, name, team: 'A'|'B'} | null
 let rosterAddVisible = false;   // State 1: add-player search panel open?
 let rosterSearchQuery = '';     // State 1: current add-player search text
+let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | null — which column's add widget is open
+let editAddQuery = '';          // State 2 edit panel: current add search text
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -275,6 +277,8 @@ async function toggleTeamsEditPanel() {
         editTeamA = [];
         editTeamB = [];
         editReplacingPlayer = null;
+        editAddOpenTeam = null;
+        editAddQuery = '';
         container.innerHTML = '';
         return;
     }
@@ -336,6 +340,55 @@ function cancelReplace() {
     _renderTeamsEditPanel();
 }
 
+function removeFromEditTeam(id, team) {
+    const arr = team === 'A' ? editTeamA : editTeamB;
+    const idx = arr.findIndex(p => p.id === id);
+    if (idx !== -1) arr.splice(idx, 1);
+    _renderTeamsEditPanel();
+}
+
+function toggleEditAdd(team) {
+    editAddOpenTeam = (editAddOpenTeam === team ? null : team);
+    editAddQuery = '';
+    _renderTeamsEditPanel();
+}
+
+function searchEditAdd() {
+    const input = document.getElementById('edit-add-search');
+    editAddQuery = input ? input.value.trim() : '';
+    const resultsEl = document.getElementById('edit-add-results');
+    if (!resultsEl) return;
+    if (!editAddQuery) { resultsEl.innerHTML = ''; return; }
+    const usedIds = new Set([...editTeamA, ...editTeamB].map(p => p.id));
+    const q = editAddQuery.toLowerCase();
+    const matches = allPlayers
+        .filter(p => p.name.toLowerCase().includes(q) && !usedIds.has(p.id))
+        .slice(0, 6);
+    resultsEl.innerHTML = buildAddResults(editAddQuery, matches, matches.length === 0, {
+        pickFn: 'pickEditAdd', createFn: 'createAndAddToTeam', team: editAddOpenTeam,
+    });
+}
+
+function pickEditAdd(id, name, team) {
+    const arr = team === 'A' ? editTeamA : editTeamB;
+    arr.push({ id, name });
+    editAddOpenTeam = null;
+    editAddQuery = '';
+    _renderTeamsEditPanel();
+}
+
+async function createAndAddToTeam(name, team) {
+    let created;
+    try {
+        created = await post('/api/players', { name });
+    } catch (err) {
+        alert('Error al crear jugador: ' + (err.detail || err.message));
+        return;
+    }
+    allPlayers.push({ id: created.id, name: created.name });
+    pickEditAdd(created.id, created.name, team);
+}
+
 function renderReplaceSearchResults() {
     const query = document.getElementById('replace-search').value.toLowerCase();
     const resultsEl = document.getElementById('replace-results');
@@ -368,6 +421,8 @@ async function saveTeams() {
     editTeamA = [];
     editTeamB = [];
     editReplacingPlayer = null;
+    editAddOpenTeam = null;
+    editAddQuery = '';
     renderState2(activeMatchData);
 }
 
@@ -563,7 +618,7 @@ async function _saveRoster(playerIds) {
 }
 
 function _renderTeamsEditPanel() {
-    const unequal = editTeamA.length !== editTeamB.length;
+    const tooUneven = Math.abs(editTeamA.length - editTeamB.length) > 1;
     const t = activeMatchData.teams;
 
     const row = (p, team) => {
@@ -576,10 +631,23 @@ function _renderTeamsEditPanel() {
            onclick="moveToOtherTeam('${escAttr(p.id)}','A')">➡️</button>`
             : `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
            onclick="moveToOtherTeam('${escAttr(p.id)}','B')">⬅️</button>`;
+        const removeBtn = `<button class="remove-btn"
+      onclick="removeFromEditTeam('${escAttr(p.id)}','${team}')">✕</button>`;
         const order = team === 'A'
-            ? `${nameBtn}${arrow}` : `${arrow}${nameBtn}`;
+            ? `${nameBtn}${arrow}${removeBtn}` : `${removeBtn}${arrow}${nameBtn}`;
         return `<div class="edit-chip" style="${hl}">${order}</div>`;
     };
+
+    const addBtn = (team) => `<button class="btn-sm gray"
+    style="width:100%;margin-top:4px;padding:4px;font-size:0.78rem;"
+    onclick="toggleEditAdd('${team}')">${editAddOpenTeam === team ? '✕ Cerrar' : '＋ Añadir'}</button>`;
+
+    const addPanel = editAddOpenTeam ? `
+    <div style="margin-bottom:8px;">
+      <div class="step-label" style="font-size:0.65rem;">
+        ＋ Añadir a ${editAddOpenTeam === 'A' ? escHtml(t.nameA) : escHtml(t.nameB)}</div>
+      ${buildAddPlayerPanel('edit-add', 'searchEditAdd()')}
+    </div>` : '';
 
     const replaceSearch = editReplacingPlayer ? `
     <div style="background:#1e293b;border:1px solid #3b82f6;border-radius:6px;padding:8px;margin-bottom:8px;">
@@ -591,7 +659,7 @@ function _renderTeamsEditPanel() {
       <button class="skip-link" style="margin-top:4px;" onclick="cancelReplace()">✕ Cancelar</button>
     </div>` : '';
 
-    const saveBtn = unequal
+    const saveBtn = tooUneven
         ? `<button class="btn btn-green" style="margin-top:4px;opacity:0.5;cursor:not-allowed;"
          disabled>💾 Guardar equipos</button>`
         : `<button class="btn btn-green" style="margin-top:4px;"
@@ -608,16 +676,25 @@ function _renderTeamsEditPanel() {
         <div style="flex:1;">
           <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiA)} ${escHtml(t.nameA)} (${editTeamA.length})</div>
           ${editTeamA.map(p => row(p, 'A')).join('')}
+          ${addBtn('A')}
         </div>
         <div style="flex:1;">
           <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiB)} ${escHtml(t.nameB)} (${editTeamB.length})</div>
           ${editTeamB.map(p => row(p, 'B')).join('')}
+          ${addBtn('B')}
         </div>
       </div>
-      ${unequal ? '<div class="load-warning">⚠ Los equipos deben tener el mismo número de jugadores</div>' : ''}
+      ${addPanel}
+      ${tooUneven ? '<div class="load-warning">⚠ Los equipos no pueden diferir en más de 1 jugador</div>' : ''}
       ${saveBtn}
     </div>
   `;
+    if (editAddOpenTeam) {
+        const input = document.getElementById('edit-add-search');
+        input.value = editAddQuery;
+        input.focus();
+        searchEditAdd();
+    }
 }
 
 function _copyToClipboard(text) {
@@ -653,6 +730,11 @@ Object.assign(window, {
     startReplacePlayer,
     pickReplacement,
     cancelReplace,
+    removeFromEditTeam,
+    toggleEditAdd,
+    searchEditAdd,
+    pickEditAdd,
+    createAndAddToTeam,
     saveTeams,
     copySummary,
     downloadStats,
