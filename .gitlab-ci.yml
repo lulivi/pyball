@@ -1,6 +1,7 @@
 stages:
   - prepare
   - ci
+  - release
   - publish
   - deploy
 
@@ -64,6 +65,26 @@ caddyfiles:
     - sh deploy/caddy/generate_caddyfiles.sh /tmp/caddy-gen
     - for f in Caddyfile Caddyfile.both Caddyfile.tensores Caddyfile.cucarachas Caddyfile.none; do diff "/tmp/caddy-gen/$f" "deploy/caddy/$f"; done
     - for f in deploy/caddy/Caddyfile*; do caddy validate --adapter caddyfile --config "$f"; done
+
+release:
+  stage: release
+  image: $CI_REGISTRY_IMAGE/ci:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  needs:
+    - lint
+    - test
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 0
+    UV_LINK_MODE: copy
+  script:
+    - test -n "$GL_TOKEN" || { echo "GL_TOKEN CI/CD variable is not set"; exit 1; }
+    - export GITLAB_TOKEN="$GL_TOKEN"
+    - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"
+    - uv run --only-group dev semantic-release version
 
 .publish_base:
   stage: publish
