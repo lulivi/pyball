@@ -1,6 +1,7 @@
 import { get, post, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
+    buildRosterList, buildAddPlayerPanel, buildAddResults,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -14,6 +15,8 @@ let activeMatchData = null;
 let editTeamA = [];          // {id, name}[] — working copy of team A
 let editTeamB = [];          // {id, name}[] — working copy of team B
 let editReplacingPlayer = null; // {id, name, team: 'A'|'B'} | null
+let rosterAddVisible = false;   // State 1: add-player search panel open?
+let rosterSearchQuery = '';     // State 1: current add-player search text
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -135,15 +138,24 @@ async function generateTeams() {
 
 // ── STATE 1: match without teams ──────────────────────────────────────────
 function renderState1(data) {
-    const chips = data.players
-        .map(p => `<div class="chip ok"><span class="chip-num">✓</span><span class="chip-label">${escHtml(p.name)}</span></div>`)
-        .join('');
+    const addBtnLabel = rosterAddVisible ? '✕ Cerrar búsqueda' : '+ Añadir jugador';
+    const addPanel = rosterAddVisible
+        ? buildAddPlayerPanel('roster-add', 'searchRosterAdd()')
+        : '';
     document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
-    <div id="chip-container">${chips}</div>
-    <button class="btn btn-green" onclick="generateFromActive()">⚽ Generar equipos</button>
+    <div id="roster-list">${buildRosterList(data.players)}</div>
+    <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
+    ${addPanel}
+    <button class="btn btn-green" onclick="generateFromActive()">⚽ Generar equipos equilibrados</button>
   `;
+    if (rosterAddVisible) {
+        const input = document.getElementById('roster-add-search');
+        input.value = rosterSearchQuery;
+        input.focus();
+        searchRosterAdd();
+    }
 }
 
 async function generateFromActive() {
@@ -153,14 +165,63 @@ async function generateFromActive() {
         activeMatchData = await _callGenerateTeams();
         if (!activeMatchData.teams) {
             alert('Error: el servidor no devolvió equipos.');
-            if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
+            if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos equilibrados'; }
             return;
         }
         renderState2(activeMatchData);
     } catch (e) {
         alert('Error: ' + e.message);
-        if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos'; }
+        if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos equilibrados'; }
     }
+}
+
+async function removeFromRoster(id) {
+    const remaining = activeMatchData.players.filter(p => p.id !== id);
+    await _saveRoster(remaining.map(p => p.id));
+}
+
+function toggleRosterAdd() {
+    rosterAddVisible = !rosterAddVisible;
+    rosterSearchQuery = '';
+    renderState1(activeMatchData);
+}
+
+async function searchRosterAdd() {
+    const input = document.getElementById('roster-add-search');
+    rosterSearchQuery = input ? input.value.trim() : '';
+    if (!allPlayers.length) {
+        try { allPlayers = await get('/api/players'); }
+        catch (e) { alert('Error al cargar jugadores: ' + e.message); return; }
+    }
+    const resultsEl = document.getElementById('roster-add-results');
+    if (!resultsEl) return;
+    if (!rosterSearchQuery) { resultsEl.innerHTML = ''; return; }
+    const rosterIds = new Set(activeMatchData.players.map(p => p.id));
+    const q = rosterSearchQuery.toLowerCase();
+    const matches = allPlayers
+        .filter(p => p.name.toLowerCase().includes(q) && !rosterIds.has(p.id))
+        .slice(0, 6);
+    resultsEl.innerHTML = buildAddResults(rosterSearchQuery, matches, matches.length === 0, {
+        pickFn: 'pickRosterAdd', createFn: 'createAndAddPlayer',
+    });
+}
+
+async function pickRosterAdd(id) {
+    const ids = activeMatchData.players.map(p => p.id);
+    ids.push(id);
+    await _saveRoster(ids);
+}
+
+async function createAndAddPlayer(name) {
+    let created;
+    try {
+        created = await post('/api/players', { name });
+    } catch (err) {
+        alert('Error al crear jugador: ' + (err.detail || err.message));
+        return;
+    }
+    allPlayers.push({ id: created.id, name: created.name });
+    await pickRosterAdd(created.id);
 }
 
 // ── STATE 2: match with teams ─────────────────────────────────────────────
@@ -485,6 +546,22 @@ async function _callGenerateTeams() {
     }
 }
 
+// Persist the full roster (SetMeetupPlayers upsert: resets players, clears teams).
+async function _saveRoster(playerIds) {
+    let data;
+    try {
+        data = await post('/api/meetup/create', { date: activeMatchData.date, player_ids: playerIds });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        if (err instanceof ApiError && err.status === 409) bootstrap();
+        return;
+    }
+    activeMatchData = data;
+    rosterAddVisible = false;
+    rosterSearchQuery = '';
+    renderState1(activeMatchData);
+}
+
 function _renderTeamsEditPanel() {
     const unequal = editTeamA.length !== editTeamB.length;
     const t = activeMatchData.teams;
@@ -590,6 +667,11 @@ Object.assign(window, {
     renderSearchResults,
     toggleChipPanel,
     includeChip,
+    removeFromRoster,
+    toggleRosterAdd,
+    searchRosterAdd,
+    pickRosterAdd,
+    createAndAddPlayer,
 });
 
 if ('serviceWorker' in navigator) {

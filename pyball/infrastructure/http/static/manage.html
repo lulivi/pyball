@@ -109,6 +109,14 @@
   .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
   .remove-btn:hover { color: #fca5a5; }
   .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }
+
+  /* ── Roster editing / collapsed actions (GL-39) ── */
+  .collapsible-trigger { width: 100%; text-align: left; padding: 8px 0; background: transparent; border: none; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.82rem; cursor: pointer; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .cancel-match-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid #ef4444; color: #ef4444; border-radius: 8px; font-size: 0.85rem; font-weight: bold; cursor: pointer; margin-top: 6px; }
+  .cancel-match-btn:hover { background: #7f1d1d; color: #fca5a5; }
+  .create-player-item { padding: 7px 10px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; color: #34d399; border: 1px solid #065f46; background: transparent; margin-top: 4px; }
+  .create-player-item:hover { background: #064e3b; }
+  .add-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 </style>
 </head>
 <body>
@@ -120,29 +128,8 @@
   <button class="tab-btn" onclick="switchTab('resumen', this)">Resumen</button>
 </div>
 
-<!-- ── TAB: EQUIPOS ────────────────────────────────────────────────────── -->
-<div id="tab-equipos" class="tab-view active">
-
-  <!-- STEP 1: Paste callup -->
-  <div id="step-paste">
-    <div class="step-label">1. Pega la convocatoria</div>
-    <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
-    <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>
-  </div>
-
-  <!-- STEP 2: Review players -->
-  <div id="step-review" style="display:none">
-    <div class="step-label">2. Revisa los jugadores</div>
-    <div id="parsed-date-display" class="date-badge" style="display:none">📅 <span id="parsed-date-text"></span></div>
-    <div id="review-legend" style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">
-      ✓ Reconocido &nbsp; ⚠ Dudoso (toca para elegir) &nbsp; ✗ No encontrado (toca para buscar) &nbsp; Tachado = Reserva excluida
-    </div>
-    <div id="chip-container"></div>
-    <button class="btn btn-green" onclick="generateTeams()">⚽ Generar equipos equilibrados</button>
-  </div>
-
-
-</div>
+<!-- ── TAB: EQUIPOS — content fully rendered by js/manage/main.js ─────── -->
+<div id="tab-equipos" class="tab-view active"></div>
 
 <!-- ── TAB: RESUMEN ────────────────────────────────────────────────────── -->
 <div id="tab-resumen" class="tab-view">

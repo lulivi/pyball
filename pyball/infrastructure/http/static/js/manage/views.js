@@ -101,7 +101,47 @@ function _buildFreshFlowHTML() {
   `;
 }
 
+function buildRosterRow(p) {
+    return `<div class="edit-chip">
+      <span style="flex:1;">${escHtml(p.name)}</span>
+      <button class="remove-btn" data-pid="${escHtml(p.id)}"
+        onclick="removeFromRoster(this.dataset.pid)">✕</button>
+    </div>`;
+}
+
+function buildRosterList(players) {
+    return players.map(buildRosterRow).join('');
+}
+
+// Search input + results container for the add-player widget.
+// idPrefix yields #<idPrefix>-search and #<idPrefix>-results; searchFn is the
+// oninput handler call as a string, e.g. 'searchRosterAdd()'.
+function buildAddPlayerPanel(idPrefix, searchFn) {
+    return `
+    <div style="margin-top:6px;">
+      <input class="search-box" id="${idPrefix}-search" type="text" autocomplete="off"
+        placeholder="Buscar jugador..." oninput="${searchFn}">
+      <div id="${idPrefix}-results" class="cand-list"></div>
+    </div>`;
+}
+
+// Result rows for the add-player widget. opts: { pickFn, createFn, team? }.
+// pickFn is called as pickFn(id, name[, team]); createFn as createFn(name[, team]).
+function buildAddResults(query, results, showCreate, opts) {
+    const teamArg = opts.team ? `, '${opts.team}'` : '';
+    const items = results.map(p =>
+        `<div class="cand-item" data-pid="${escHtml(p.id)}" data-pname="${escHtml(p.name)}"
+       onclick="${opts.pickFn}(this.dataset.pid, this.dataset.pname${teamArg})">${escHtml(p.name)}</div>`
+    ).join('');
+    const create = showCreate
+        ? `<div class="create-player-item" data-pname="${escHtml(query)}"
+       onclick="${opts.createFn}(this.dataset.pname${teamArg})">➕ Crear "${escHtml(query)}" como nuevo jugador</div>`
+        : '';
+    return items + create;
+}
+
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
+    buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };
