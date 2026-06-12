@@ -51,7 +51,7 @@ async def test_rename_player_persists(bot_update, bot_context):
     player = Player.create("Luis", "regular")
     container.player_repository.save(player)
 
-    bot_context.args = [str(player.id.value), "Carlos"]
+    bot_context.args = ["Luis", "Carlos"]
 
     await rename_player_handler(bot_update, bot_context)
 
