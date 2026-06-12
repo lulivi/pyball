@@ -116,20 +116,24 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     args = context.args
     if args is None or len(args) < 2:
         await message.reply_text(
-            text=r"Usage: `/rename_player` `<player_id>` `<new_name>`",
+            text=r"Usage: `/rename_player` `<old_name>` `<new_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
-    player_id = args[0]
+    player_name = args[0]
     new_name = " ".join(args[1:])
+
+    player_repo = container.player_repository
     try:
-        container.rename_player().execute(player_id, new_name)
+        match = fuzzy_match_player(player_name, player_repo.find_all())
+    except ValueError:
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
+        return
+
+    try:
+        container.rename_player().execute(str(match.player_id.value), new_name)
         await react_ok(context.bot, message)
-    except InvalidPlayerIdError:
-        await message.reply_text("Formato de ID de jugador no válido.")
-    except PlayerNotFoundError:
-        await message.reply_text("Jugador no encontrado.")
     except NameAlreadyTakenError as error:
         await message.reply_text(
             text=rf"El nombre \`{error.name}\` ya está en uso por otro jugador\.",

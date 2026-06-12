@@ -60,16 +60,23 @@ async def test_new_player_handler_duplicate_raises(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_rename_player_handler_success(mock_update, mock_context):
-    mock_context.args = ["pid1", "New Name"]
+    from pyball.domain.player.models import PlayerId
+
+    player_id = PlayerId.generate()
+    mock_player = MagicMock()
+    mock_player.name = "Luis"
+    mock_player.id = player_id
+
+    mock_context.args = ["Luis", "New", "Name"]
 
     container = MagicMock()
-    mock_player = MagicMock()
-    mock_player.name = "New Name"
-    container.rename_player().execute.return_value = mock_player
+    container.player_repository.find_all.return_value = [mock_player]
+    container.rename_player().execute.return_value = None
     mock_context.bot_data["container"] = container
 
     await rename_player_handler(mock_update, mock_context)
 
+    container.rename_player().execute.assert_called_once_with(str(player_id.value), "New Name")
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,
@@ -215,36 +222,18 @@ async def test_new_player_handler_invalid_group(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_rename_player_handler_invalid_id(mock_update, mock_context):
-    mock_context.args = ["bad-id", "New Name"]
-
-    container = MagicMock()
-    container.rename_player.return_value.execute.side_effect = InvalidPlayerIdError("bad id")
-    mock_context.bot_data["container"] = container
-
-    await rename_player_handler(mock_update, mock_context)
-
-    mock_update.message.reply_text.assert_called_with("Formato de ID de jugador no válido.")
-
-
-@pytest.mark.asyncio
-async def test_rename_player_handler_not_found(mock_update, mock_context):
-    mock_context.args = ["pid1", "New Name"]
-
-    container = MagicMock()
-    container.rename_player.return_value.execute.side_effect = PlayerNotFoundError("not found")
-    mock_context.bot_data["container"] = container
-
-    await rename_player_handler(mock_update, mock_context)
-
-    mock_update.message.reply_text.assert_called_with("Jugador no encontrado.")
-
-
-@pytest.mark.asyncio
 async def test_rename_player_handler_name_taken(mock_update, mock_context):
-    mock_context.args = ["pid1", "Existing Name"]
+    from pyball.domain.player.models import PlayerId
+
+    player_id = PlayerId.generate()
+    mock_player = MagicMock()
+    mock_player.name = "Luis"
+    mock_player.id = player_id
+
+    mock_context.args = ["Luis", "Existing", "Name"]
 
     container = MagicMock()
+    container.player_repository.find_all.return_value = [mock_player]
     container.rename_player.return_value.execute.side_effect = NameAlreadyTakenError("name taken")
     mock_context.bot_data["container"] = container
 
@@ -253,6 +242,47 @@ async def test_rename_player_handler_name_taken(mock_update, mock_context):
     call = mock_update.message.reply_text.call_args
     text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "ya está en uso" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_rename_player_handler_name_not_found(mock_update, mock_context):
+    mock_context.args = ["NoExiste", "New Name"]
+
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+
+    await rename_player_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_with(
+        "No se encontró ningún jugador con ese nombre."
+    )
+
+
+@pytest.mark.asyncio
+async def test_rename_player_handler_fuzzy_match(mock_update, mock_context):
+    from pyball.domain.player.models import PlayerId
+
+    player_id = PlayerId.generate()
+    mock_player = MagicMock()
+    mock_player.name = "Luis"
+    mock_player.id = player_id
+
+    mock_context.args = ["lui", "Carlos"]
+
+    container = MagicMock()
+    container.player_repository.find_all.return_value = [mock_player]
+    container.rename_player().execute.return_value = None
+    mock_context.bot_data["container"] = container
+
+    await rename_player_handler(mock_update, mock_context)
+
+    container.rename_player().execute.assert_called_once_with(str(player_id.value), "Carlos")
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
 
 
 @pytest.mark.asyncio
