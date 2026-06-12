@@ -20,6 +20,7 @@
 """Static page and manifest route registrar."""
 from __future__ import annotations
 
+from importlib.metadata import version as _package_version
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -48,8 +49,9 @@ def register_static_routes(app: FastAPI, static_dir: Path, name: str) -> None:
 
     @app.get("/sw.js")
     async def service_worker():
-        """Serve the service worker."""
+        """Serve the service worker with the package version baked into the cache name."""
         content = (static_dir / "sw.js").read_text()
+        content = content.replace("__VERSION__", _package_version("pyball"))
         return Response(content, media_type="application/javascript")
 
     _icons = [

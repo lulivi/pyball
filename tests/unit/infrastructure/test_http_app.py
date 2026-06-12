@@ -954,3 +954,14 @@ async def test_match_token_gets_403_on_manage_and_200_on_public():
         sw = await client.get("/sw.js")
     assert manage.status_code == 403
     assert sw.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_sw_js_embeds_package_version():
+    """/sw.js substitutes __VERSION__ so each release invalidates the PWA cache."""
+    app, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/sw.js")
+    assert response.status_code == 200
+    assert "__VERSION__" not in response.text
+    assert "pyball-" in response.text
