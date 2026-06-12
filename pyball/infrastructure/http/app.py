@@ -29,7 +29,6 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
 from pyball.domain.meetup.errors import (
     MeetupAlreadyClosedError,
@@ -38,6 +37,19 @@ from pyball.domain.meetup.errors import (
 )
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.infrastructure.http.auth import TokenAuthMiddleware
+from pyball.infrastructure.http.presenters import (
+    build_active_match_response,
+    build_match_events_response,
+    build_meetup_active_response,
+    serialise_callup_match,
+)
+from pyball.infrastructure.http.schemas import (
+    AssignTeamsInput,
+    CreateMeetupInput,
+    FinishMatchInput,
+    GenerateTeamsInput,
+    ParseCallupInput,
+)
 
 try:
     from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer as _StatsRenderer
@@ -49,65 +61,8 @@ except ImportError:
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.application.notifier import MatchNotifier
-    from pyball.domain.meetup.models import Meetup
 
 logger = logging.getLogger(__name__)
-
-
-# ── Pydantic request/response models ──────────────────────────────────────────
-
-
-class GoalEventInput(BaseModel):
-    """Pydantic model for a single goal event from the frontend."""
-
-    scorer: str
-    assistant: str | None
-    team: str
-    timestamp: str
-    is_own_goal: bool = False
-
-
-class FinalScore(BaseModel):
-    """Pydantic model for the final score."""
-
-    A: int
-    B: int
-
-
-class FinishMatchInput(BaseModel):
-    """Pydantic model for the POST /api/match/finish request body."""
-
-    meetup_date: str
-    events: list[GoalEventInput]
-    finalScore: FinalScore
-
-
-class ParseCallupInput(BaseModel):
-    """Request body for POST /api/meetup/parse-callup."""
-
-    text: str
-
-
-class AssignTeamsInput(BaseModel):
-    """Request body for POST /api/meetup/assign-teams."""
-
-    date: str
-    team_a_ids: list[str]
-    team_b_ids: list[str]
-
-
-class CreateMeetupInput(BaseModel):
-    """Request body for POST /api/meetup/create."""
-
-    date: str
-    player_ids: list[str]
-
-
-class GenerateTeamsInput(BaseModel):
-    """Request body for POST /api/meetup/generate-teams."""
-
-    date: str
-    algorithm: str = "balanceado"
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -221,32 +176,7 @@ def _register_match_routes(
     @app.post("/api/match/finish")
     async def finish_match(body: FinishMatchInput):
         """Record match result and notify via the configured notifier."""
-        logger.info(
-            "finish_match called: meetup_date=%s, finalScore=%s",
-            body.meetup_date,
-            body.finalScore,
-        )
-        use_case = container.finish_match()
-        events = [e.model_dump() for e in body.events]
-        try:
-            meetup = use_case.execute(
-                body.meetup_date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
-            )
-            logger.info("finish_match: meetup result set: %s", meetup.result)
-        except MeetupNotFoundError as exc:
-            raise HTTPException(status_code=404, detail="Meetup not found") from exc
-        except MeetupAlreadyClosedError as exc:
-            raise HTTPException(status_code=409, detail="Match already closed") from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-        await notifier.on_match_closed(meetup)
-
-        return {
-            "meetup_date": body.meetup_date,
-            "score_a": meetup.result.score_a,
-            "score_b": meetup.result.score_b,
-        }
+        return await _handle_finish_match(container, notifier, body)
 
     @app.get("/api/match/latest")
     async def latest_match():
@@ -261,61 +191,17 @@ def _register_match_routes(
     @app.get("/api/match/active")
     async def active_match():
         """Return the current unfinished meetup with teams, or 404."""
-        return _build_active_match_response(container)
+        return build_active_match_response(container)
 
     @app.get("/api/match/{date}/summary")
     async def match_summary(date: str):
         """Return the WhatsApp-format summary for a finished match."""
-        try:
-            meetup_date = datetime.fromisoformat(date)
-        except ValueError as exc:
-            raise HTTPException(422, "Invalid date format") from exc
-
-        meetup = container.meetup_repository.find_by_datetime(meetup_date)
-        if meetup is None:
-            raise HTTPException(404, "Meetup not found")
-        if not meetup.is_closed():
-            raise HTTPException(409, "Match not finished yet")
-
-        all_players = container.player_repository.find_all()
-        player_names = {str(p.id.value): p.name for p in all_players}
-
-        message = container.format_match_summary().execute(
-            meetup,
-            player_names,
-            team_colors=container.team_colors,
-            team_emojis=container.team_emojis,
-            legacy_stats=container.legacy_stats,
-        )
-        date_label = meetup.date.strftime("%-d %B").title()
-        return {"date_label": date_label, "message": message}
+        return _handle_match_summary(container, date)
 
     @app.get("/api/match/{date}/stats.png")
     async def match_stats_image(date: str):
         """Generate and return the stats PNG for the given date."""
-        if not _STATS_AVAILABLE:
-            raise HTTPException(503, "Stats image generation not available")
-
-        try:
-            meetup_date = datetime.fromisoformat(date)
-        except ValueError as exc:
-            raise HTTPException(422, "Invalid date format") from exc
-
-        meetup = container.meetup_repository.find_by_datetime(meetup_date)
-        if meetup is None:
-            raise HTTPException(404, "Meetup not found")
-        if not meetup.is_closed():
-            raise HTTPException(409, "Match not finished yet")
-
-        report = container.compute_stats().execute()
-        renderer = _StatsRenderer()
-        png_bytes = await renderer.render(report, scope="season")
-
-        return Response(
-            content=png_bytes,
-            media_type="image/png",
-            headers={"Content-Disposition": f'attachment; filename="stats-{date}.png"'},
-        )
+        return await _handle_match_stats_image(container, date)
 
     @app.get("/api/match/{date}/events")
     async def match_events(date: str):
@@ -345,15 +231,15 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
     @app.get("/api/meetup/active")
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
-        return _build_meetup_active_response(container)
+        return build_meetup_active_response(container)
 
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
         """Parse a WhatsApp callup text and fuzzy-match player names."""
         outcome = container.parse_callup().execute(body.text)
         return {
-            "titulars": [_serialise_match(m) for m in outcome.titulars],
-            "reserves": [_serialise_match(m) for m in outcome.reserves],
+            "titulars": [serialise_callup_match(m) for m in outcome.titulars],
+            "reserves": [serialise_callup_match(m) for m in outcome.reserves],
             "date": outcome.date.strftime("%Y-%m-%dT%H:%M"),
         }
 
@@ -383,7 +269,7 @@ def _register_meetup_routes(app: FastAPI, container: "Container") -> None:
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        return _build_meetup_active_response(container)
+        return build_meetup_active_response(container)
 
     @app.post("/api/meetup/create")
     async def create_meetup_endpoint(body: CreateMeetupInput):
@@ -439,97 +325,99 @@ def _handle_generate_teams(container: "Container", body: GenerateTeamsInput) -> 
     except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    return _build_meetup_active_response(container)
+    return build_meetup_active_response(container)
 
 
-def _build_active_match_response(container: "Container") -> dict:
-    """Build the response dict for GET /api/match/active, or raise 404."""
-    try:
-        meetup = container.get_active_meetup().execute(require_teams=True)
-    except MeetupNotFoundError as exc:
-        raise HTTPException(404, "No active match found") from exc
-    assert meetup.teams is not None  # guaranteed by require_teams=True
-
-    all_players = container.player_repository.find_all()
-    player_names = {str(p.id.value): p.name for p in all_players}
-    colors = container.team_colors
-    hex_bg = container.team_hex_bg
-    hex_text = container.team_hex_text
-
-    team_a = _sorted_names(meetup.teams[0].players, player_names)
-    team_b = _sorted_names(meetup.teams[1].players, player_names)
-
-    return {
-        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
-        "teamA": team_a,
-        "teamB": team_b,
-        "nameA": colors[0].capitalize(),
-        "nameB": colors[1].capitalize(),
-        "colorA": hex_bg[0],
-        "colorB": hex_bg[1],
-        "colorTextA": hex_text[0],
-        "colorTextB": hex_text[1],
-    }
-
-
-def _build_meetup_active_response(container: "Container") -> dict:
-    """Build the response for GET /api/meetup/active, or raise 404.
-
-    Returns the most recent unfinished meetup regardless of whether teams exist.
-    players and teamA/teamB names are sorted with locale.strcoll.
-    """
-    try:
-        meetup = container.get_active_meetup().execute()
-    except MeetupNotFoundError as exc:
-        raise HTTPException(404, "No active meetup found") from exc
-
-    all_players = container.player_repository.find_all()
-    player_names = {str(p.id.value): p.name for p in all_players}
-
-    _sort = functools.cmp_to_key(locale.strcoll)
-
-    players = sorted(
-        [
-            {"id": str(pid.value), "name": player_names.get(str(pid.value), "(desconocido)")}
-            for pid in meetup.players
-        ],
-        key=lambda p: _sort(p["name"]),
+async def _handle_finish_match(
+    container: "Container",
+    notifier: "MatchNotifier",
+    body: FinishMatchInput,
+) -> dict:
+    """Execute the finish-match use case, notify, and return the result."""
+    logger.info(
+        "finish_match called: meetup_date=%s, finalScore=%s",
+        body.meetup_date,
+        body.finalScore,
     )
+    use_case = container.finish_match()
+    events = [e.model_dump() for e in body.events]
+    try:
+        meetup = use_case.execute(
+            body.meetup_date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
+        )
+        logger.info("finish_match: meetup result set: %s", meetup.result)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Meetup not found") from exc
+    except MeetupAlreadyClosedError as exc:
+        raise HTTPException(status_code=409, detail="Match already closed") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    if meetup.teams is None:
-        return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
-
-    colors = container.team_colors
-    hex_bg = container.team_hex_bg
-    hex_text = container.team_hex_text
-    emojis = container.team_emojis
-
-    team_a = _sorted_names(meetup.teams[0].players, player_names)
-    team_b = _sorted_names(meetup.teams[1].players, player_names)
-
-    match_url = container.match_link_builder().build()
+    await notifier.on_match_closed(meetup)
 
     return {
-        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
-        "players": players,
-        "teams": {
-            "teamA": team_a,
-            "teamB": team_b,
-            "nameA": colors[0].capitalize(),
-            "nameB": colors[1].capitalize(),
-            "emojiA": emojis[0],
-            "emojiB": emojis[1],
-            "colorA": hex_bg[0],
-            "colorB": hex_bg[1],
-            "colorTextA": hex_text[0],
-            "colorTextB": hex_text[1],
-            "matchUrl": match_url,
-        },
+        "meetup_date": body.meetup_date,
+        "score_a": meetup.result.score_a,
+        "score_b": meetup.result.score_b,
     }
+
+
+def _handle_match_summary(container: "Container", date: str) -> dict:
+    """Fetch, validate, and serialise the WhatsApp-format summary for a finished match."""
+    try:
+        meetup_date = datetime.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format") from exc
+
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
+    if meetup is None:
+        raise HTTPException(404, "Meetup not found")
+    if not meetup.is_closed():
+        raise HTTPException(409, "Match not finished yet")
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+
+    message = container.format_match_summary().execute(
+        meetup,
+        player_names,
+        team_colors=container.team_colors,
+        team_emojis=container.team_emojis,
+        legacy_stats=container.legacy_stats,
+    )
+    date_label = meetup.date.strftime("%-d %B").title()
+    return {"date_label": date_label, "message": message}
+
+
+async def _handle_match_stats_image(container: "Container", date: str) -> Response:
+    """Generate and return the stats PNG for the given date."""
+    if not _STATS_AVAILABLE:
+        raise HTTPException(503, "Stats image generation not available")
+
+    try:
+        meetup_date = datetime.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format") from exc
+
+    meetup = container.meetup_repository.find_by_datetime(meetup_date)
+    if meetup is None:
+        raise HTTPException(404, "Meetup not found")
+    if not meetup.is_closed():
+        raise HTTPException(409, "Match not finished yet")
+
+    report = container.compute_stats().execute()
+    renderer = _StatsRenderer()
+    png_bytes = await renderer.render(report, scope="season")
+
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="stats-{date}.png"'},
+    )
 
 
 def _handle_match_events(container: "Container", date: str) -> dict:
-    """Load events of a closed match with player IDs resolved to names."""
+    """Validate, look up, and serialise events for a closed match."""
     try:
         meetup_date = datetime.fromisoformat(date)
     except ValueError as exc:
@@ -545,40 +433,7 @@ def _handle_match_events(container: "Container", date: str) -> dict:
     if meetup.result is None:  # pragma: no cover — implied by is_closed()
         raise HTTPException(409, "Match has no result")
 
-    all_players = container.player_repository.find_all()
-    player_names = {str(p.id.value): p.name for p in all_players}
-    colors = container.team_colors
-    hex_bg = container.team_hex_bg
-    hex_text = container.team_hex_text
-
-    team_a = _sorted_names(meetup.teams[0].players, player_names)
-    team_b = _sorted_names(meetup.teams[1].players, player_names)
-
-    events = [
-        {
-            "scorer": player_names.get(str(ev.scorer_id.value), "(desconocido)"),
-            "assistant": player_names.get(str(ev.assistant_id.value), "(desconocido)")
-            if ev.assistant_id
-            else None,
-            "team": ev.team,
-            "timestamp": ev.timestamp.strftime("%H:%M"),
-            "is_own_goal": ev.is_own_goal,
-        }
-        for ev in reversed(meetup.result.events)
-    ]
-
-    return {
-        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
-        "nameA": colors[0].capitalize(),
-        "nameB": colors[1].capitalize(),
-        "teamA": team_a,
-        "teamB": team_b,
-        "colorA": hex_bg[0],
-        "colorB": hex_bg[1],
-        "colorTextA": hex_text[0],
-        "colorTextB": hex_text[1],
-        "events": events,
-    }
+    return build_match_events_response(container, meetup)
 
 
 async def _handle_edit_match(
@@ -615,35 +470,4 @@ async def _handle_edit_match(
         "meetup_date": date,
         "score_a": updated.result.score_a,
         "score_b": updated.result.score_b,
-    }
-
-
-def _sorted_names(player_ids, player_names: dict[str, str]) -> list[str]:
-    """Return locale-sorted display names for a list of player IDs."""
-    _sort = functools.cmp_to_key(locale.strcoll)
-    return sorted(
-        [player_names.get(str(pid.value), "(desconocido)") for pid in player_ids],
-        key=_sort,
-    )
-
-
-def _serialise_match(match) -> dict:
-    """Serialise a single callup match result to a JSON-compatible dict."""
-    if match.player_id:
-        return {
-            "raw": match.raw,
-            "player_id": match.player_id,
-            "name": match.name,
-            "confidence": match.confidence,
-            "candidates": [],
-        }
-    return {
-        "raw": match.raw,
-        "player_id": None,
-        "name": None,
-        "confidence": match.confidence,
-        "candidates": [
-            {"player_id": c.player_id, "name": c.name, "confidence": c.confidence}
-            for c in match.candidates
-        ],
     }
