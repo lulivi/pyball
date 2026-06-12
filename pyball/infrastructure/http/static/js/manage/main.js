@@ -342,11 +342,8 @@ async function loadResumen() {
       <button class="btn btn-purple" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen con texto</button>
       <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
       <hr class="divider">
-      <div class="step-label">Corregir resultado</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-        <input type="datetime-local" id="edit-date-input" class="edit-date-input" value="${escHtml(date)}">
-        <button class="btn-sm green" onclick="openEditMode(document.getElementById('edit-date-input').value)">✏️ Editar</button>
-      </div>
+      <button class="btn-sm green" data-date="${escHtml(date)}"
+        onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>
     `;
     } catch (e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
 }
@@ -380,7 +377,7 @@ async function shareStats(btn, date, summaryText) {
     } catch (e) {
         if (e.name !== 'AbortError') alert('Error al compartir: ' + e.message);
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '📤 Compartir imagen'; }
+        if (btn) { btn.disabled = false; btn.textContent = '📤 Compartir imagen con texto'; }
     }
 }
 
