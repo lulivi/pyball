@@ -815,7 +815,9 @@ class TestGenerateTeams:
         expected = {"date": "2026-06-08T20:00", "players": [], "teams": {"teamA": [], "teamB": []}}
 
         app, _ = _make_app(container=container)
-        with patch("pyball.infrastructure.http.app.build_meetup_active_response") as mock_build:
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response"
+        ) as mock_build:
             mock_build.return_value = expected
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post(
