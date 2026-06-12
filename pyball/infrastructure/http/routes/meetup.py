@@ -27,7 +27,11 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError, UnknownAlgorithmError
+from pyball.domain.meetup.errors import (
+    MeetupAlreadyClosedError,
+    MeetupNotFoundError,
+    UnknownAlgorithmError,
+)
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.infrastructure.http.presenters import (
     build_meetup_active_response,
@@ -51,6 +55,15 @@ def register_meetup_routes(app: FastAPI, container: "Container") -> None:
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
         return build_meetup_active_response(container)
+
+    @app.delete("/api/meetup/active")
+    async def cancel_meetup_endpoint():
+        """Delete the active meetup, or 404 if none exists."""
+        try:
+            meetup = container.cancel_meetup().execute()
+        except MeetupNotFoundError as exc:
+            raise HTTPException(404, "No active meetup to cancel") from exc
+        return {"status": "cancelled", "date": meetup.date.strftime("%Y-%m-%dT%H:%M")}
 
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):

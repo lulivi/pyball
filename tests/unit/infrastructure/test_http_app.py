@@ -9,7 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
-from pyball.domain.player.errors import InvalidPlayerIdError
+from pyball.domain.player.errors import InvalidPlayerIdError, PlayerAlreadyExistsError
 from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
 
@@ -983,3 +983,82 @@ async def test_manifest_uses_instance_theme_color():
     assert body["theme_color"] == "#112233"
     assert body["background_color"] == "#112233"
     assert body["name"] == "PyBall – Partido tensores"
+
+
+class TestCreatePlayerEndpoint:
+    """Tests for POST /api/players."""
+
+    @pytest.mark.asyncio
+    async def test_create_player_returns_201_with_id_and_name(self):
+        """POST /api/players creates a substitute player and returns id + name."""
+        container = MagicMock()
+        player = Player.create("Nuevo Fichaje", group="substitute")
+        container.create_player.return_value.execute.return_value = player
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "Nuevo Fichaje"})
+
+        assert resp.status_code == 201
+        assert resp.json() == {"id": str(player.id.value), "name": "Nuevo Fichaje"}
+        container.create_player.return_value.execute.assert_called_once_with(
+            name="Nuevo Fichaje", group="substitute"
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_player_409_on_duplicate_name(self):
+        """POST /api/players returns 409 when the name already exists."""
+        container = MagicMock()
+        container.create_player.return_value.execute.side_effect = PlayerAlreadyExistsError(
+            "Nuevo Fichaje"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "Nuevo Fichaje"})
+
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_create_player_422_on_blank_name(self):
+        """POST /api/players returns 422 for an empty or whitespace-only name."""
+        container = MagicMock()
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "   "})
+
+        assert resp.status_code == 422
+        container.create_player.assert_not_called()
+
+
+class TestCancelMeetupEndpoint:
+    """Tests for DELETE /api/meetup/active."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_returns_200_with_status_and_date(self):
+        """DELETE /api/meetup/active deletes the active meetup and reports its date."""
+        meetup = MagicMock()
+        meetup.date = datetime(2026, 6, 17, 20, 0)
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.return_value = meetup
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/meetup/active")
+
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "cancelled", "date": "2026-06-17T20:00"}
+        container.cancel_meetup.return_value.execute.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_cancel_404_when_no_active_meetup(self):
+        """DELETE /api/meetup/active returns 404 when there is no active meetup."""
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/meetup/active")
+
+        assert resp.status_code == 404

@@ -72,3 +72,9 @@ class GenerateTeamsInput(BaseModel):
 
     date: str
     algorithm: str = "balanceado"
+
+
+class CreatePlayerInput(BaseModel):
+    """Request body for POST /api/players."""
+
+    name: str
