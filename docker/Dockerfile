@@ -69,7 +69,6 @@ RUN WHEEL=$(ls /builder/*.whl) && \
     && rm -rf /builder
 
 WORKDIR /pyball
-COPY static/ static/
 RUN chown -R pyballuser:pyballgroup /pyball
 
 USER pyballuser
@@ -83,7 +82,6 @@ RUN $VIRTUAL_ENV/bin/pip install --no-cache /builder/*.whl \
     && rm -rf /builder
 
 WORKDIR /pyball
-COPY static/ static/
 RUN chown -R pyballuser:pyballgroup /pyball
 
 USER pyballuser

@@ -37,11 +37,13 @@ if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.application.notifier import MatchNotifier
 
+_DEFAULT_STATIC_DIR = Path(__file__).parent / "static"
+
 
 def create_app(
     container: "Container",
     notifier: "MatchNotifier",
-    static_dir: Path = Path("static"),
+    static_dir: Path = _DEFAULT_STATIC_DIR,
     match_token: str = "",
     manage_token: str = "",
 ) -> FastAPI:
