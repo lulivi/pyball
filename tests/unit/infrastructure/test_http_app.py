@@ -8,6 +8,9 @@ from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
+from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.player.errors import InvalidPlayerIdError, PlayerAlreadyExistsError
+from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
 
 
@@ -16,17 +19,25 @@ class _StubNotifier(MatchNotifier):
 
     def __init__(self):
         self.closed = []
+        self.edited = []
 
     async def on_match_closed(self, meetup):
+        """Record the closed meetup."""
         self.closed.append(meetup)
 
     async def on_meetup_updated(self, meetup):
-        pass
+        """Do nothing."""
+
+    async def on_match_edited(self, meetup):
+        """Record the edited meetup."""
+        self.edited.append(meetup)
 
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
     if container is None:
         container = MagicMock()
+        container.theme_color = "#0f172a"
+        container.icons_dir = ""
     notifier = _StubNotifier()
     if finish_side_effect:
         container.finish_match.return_value.execute.side_effect = finish_side_effect
@@ -250,7 +261,7 @@ class TestMeetupActive:
         container.team_hex_bg = ("#e4e4e7", "#27272a")
         container.team_hex_text = ("#27272a", "#e4e4e7")
         container.team_emojis = ("⚪", "⚫")
-        container.start_match.return_value.execute.return_value = "http://test/match"
+        container.match_link_builder.return_value.build.return_value = "http://test/match"
 
         app = create_app(container, _StubNotifier())
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -298,7 +309,7 @@ class TestMeetupActive:
         container.team_hex_bg = ("#e4e4e7", "#27272a")
         container.team_hex_text = ("#27272a", "#e4e4e7")
         container.team_emojis = ("⚪", "⚫")
-        container.start_match.return_value.execute.return_value = (
+        container.match_link_builder.return_value.build.return_value = (
             "https://pyball.example.com/match?token=my-match-tok"
         )
 
@@ -453,7 +464,7 @@ class TestEditMatchResult:
         data = response.json()
         assert data["score_a"] == 0
         assert data["score_b"] == 0
-        assert len(notifier.closed) == 1
+        assert len(notifier.edited) == 1
 
     @pytest.mark.asyncio
     async def test_returns_404_when_meetup_not_found(self):
@@ -513,7 +524,7 @@ class TestEditMatchResult:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             await c.post("/api/match/2026-05-28T20:00/edit", json=self._EDIT_BODY)
 
-        assert len(notifier.closed) == 0
+        assert len(notifier.edited) == 0
 
     @pytest.mark.asyncio
     async def test_returns_422_on_invalid_date(self):
@@ -528,6 +539,26 @@ class TestEditMatchResult:
 
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_edit_match_calls_on_match_edited_not_closed(self):
+        """POST /api/match/{date}/edit fires on_match_edited with the updated meetup."""
+        container = MagicMock()
+        closed = MagicMock()
+        closed.is_closed.return_value = True
+        container.meetup_repository.find_by_datetime.return_value = closed
+        updated = MagicMock()
+        updated.result.score_a = 3
+        updated.result.score_b = 2
+        container.edit_match_result.return_value.execute.return_value = updated
+        app, notifier = _make_app(container)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post("/api/match/2026-04-30T20:00/edit", json=_VALID_BODY)
+
+        assert response.status_code == 200
+        assert notifier.edited == [updated]
+        assert notifier.closed == []
+
 
 class TestManifests:
     """Tests for GET /manifest-match.json and GET /manifest-manage.json."""
@@ -535,6 +566,8 @@ class TestManifests:
     def _make_named_app(self, name: str = "Tensores"):
         container = MagicMock()
         container.name = name
+        container.theme_color = "#0f172a"
+        container.icons_dir = ""
         return create_app(container, _StubNotifier())
 
     @pytest.mark.asyncio
@@ -621,8 +654,7 @@ class TestCreateMeetup:
         meetup.add_player(p_id)
 
         container = MagicMock()
-        container.meetup_repository.find_by_datetime.return_value = None
-        container.create_meetup.return_value.execute.return_value = meetup
+        container.set_meetup_players.return_value.execute.return_value = meetup
         container.player_repository.find_all.return_value = []
 
         app, _ = _make_app(container=container)
@@ -640,17 +672,14 @@ class TestCreateMeetup:
 
     @pytest.mark.asyncio
     async def test_create_meetup_resets_existing_meetup(self):
-        """POST /api/meetup/create clears players/teams on an existing open meetup."""
-        from pyball.domain.meetup.models import Meetup, PlayerId, Team
+        """POST /api/meetup/create clears players/teams on an existing open meetup via use case."""
+        from pyball.domain.meetup.models import Meetup
 
         date = datetime(2026, 6, 8, 20, 0)
-        existing = Meetup.create(date=date, location="Parque Central")
-        old_player = PlayerId.generate()
-        existing.add_player(old_player)
-        existing.set_teams([Team.create("A", [old_player]), Team.create("B", [])])
+        reset_meetup = Meetup.create(date=date, location="Parque Central")
 
         container = MagicMock()
-        container.meetup_repository.find_by_datetime.return_value = existing
+        container.set_meetup_players.return_value.execute.return_value = reset_meetup
         container.player_repository.find_all.return_value = []
 
         app, _ = _make_app(container=container)
@@ -662,17 +691,14 @@ class TestCreateMeetup:
 
         assert resp.status_code == 200
         assert resp.json()["teams"] is None
-        assert existing.teams is None
-        assert existing.players == []
 
     @pytest.mark.asyncio
     async def test_create_meetup_409_when_match_already_finished(self):
         """POST /api/meetup/create returns 409 if the existing meetup is closed."""
-        meetup = MagicMock()
-        meetup.is_closed.return_value = True
-
         container = MagicMock()
-        container.meetup_repository.find_by_datetime.return_value = meetup
+        container.set_meetup_players.return_value.execute.side_effect = MeetupAlreadyClosedError(
+            "closed"
+        )
 
         app, _ = _make_app(container=container)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -691,6 +717,23 @@ class TestCreateMeetup:
             resp = await c.post(
                 "/api/meetup/create",
                 json={"date": "not-a-date", "player_ids": []},
+            )
+
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_422_on_invalid_player_id(self):
+        """POST /api/meetup/create returns 422 when a player ID is malformed."""
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.side_effect = InvalidPlayerIdError(
+            "bad-id"
+        )
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": ["bad-id"]},
             )
 
         assert resp.status_code == 422
@@ -776,7 +819,9 @@ class TestGenerateTeams:
         expected = {"date": "2026-06-08T20:00", "players": [], "teams": {"teamA": [], "teamB": []}}
 
         app, _ = _make_app(container=container)
-        with patch("pyball.infrastructure.http.app._build_meetup_active_response") as mock_build:
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response"
+        ) as mock_build:
             mock_build.return_value = expected
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post(
@@ -787,3 +832,233 @@ class TestGenerateTeams:
         assert resp.status_code == 200
         container.create_teams.assert_called_once_with("balanceado")
         mock_build.assert_called_once_with(container)
+
+
+@pytest.mark.asyncio
+async def test_create_meetup_409_when_closed():
+    """/api/meetup/create maps MeetupAlreadyClosedError to 409."""
+    container = MagicMock()
+    container.set_meetup_players.return_value.execute.side_effect = MeetupAlreadyClosedError(
+        "closed"
+    )
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/meetup/create", json={"date": "2026-06-17T20:00", "player_ids": []}
+        )
+
+    assert response.status_code == 409
+
+
+# ── Golden-master route contract tests ────────────────────────────────────────
+
+
+def _container_for_responses():
+    """MagicMock container with realistic color/name attributes."""
+    container = MagicMock()
+    container.team_colors = ("blanco", "negro")
+    container.team_emojis = ("⚪", "⚫")
+    container.team_hex_bg = ("#e4e4e7", "#27272a")
+    container.team_hex_text = ("#27272a", "#e4e4e7")
+    container.name = "tensores"
+    container.match_link_builder.return_value.build.return_value = "http://x/match?token=t"
+    return container
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint():
+    """GET / returns status: ok."""
+    app, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_match_active_404_when_no_meetup():
+    """GET /api/match/active returns 404 when no active meetup."""
+    container = _container_for_responses()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("none")
+    app, _ = _make_app(container)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/match/active")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_match_latest_404_when_nothing_finished():
+    """GET /api/match/latest returns 404 when no finished meetups."""
+    container = _container_for_responses()
+    container.meetup_repository.find_all.return_value = []
+    app, _ = _make_app(container)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/match/latest")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_players_endpoint_serialises_players():
+    """GET /api/players returns a list of player objects."""
+    container = _container_for_responses()
+    player = Player.create("Luis")
+    container.player_repository.find_all.return_value = [player]
+    app, _ = _make_app(container)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/players")
+    assert response.json() == [{"id": str(player.id.value), "name": "Luis"}]
+
+
+@pytest.mark.asyncio
+async def test_meetup_active_with_teams_response_shape():
+    """GET /api/meetup/active returns the expected shape with team data."""
+    container = _container_for_responses()
+    ana, bea = Player.create("Ana"), Player.create("Bea")
+    container.player_repository.find_all.return_value = [ana, bea]
+    meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="X")
+    meetup.add_player(ana.id)
+    meetup.add_player(bea.id)
+    meetup.set_teams([Team.create("A", [ana.id]), Team.create("B", [bea.id])])
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/meetup/active")
+
+    body = response.json()
+    assert body["date"] == "2026-06-17T20:00"
+    assert [p["name"] for p in body["players"]] == ["Ana", "Bea"]
+    assert body["teams"]["teamA"] == ["Ana"]
+    assert body["teams"]["teamB"] == ["Bea"]
+    assert body["teams"]["nameA"] == "Blanco"
+    assert body["teams"]["matchUrl"] == "http://x/match?token=t"
+
+
+@pytest.mark.asyncio
+async def test_meetup_create_422_on_bad_date():
+    """POST /api/meetup/create with invalid date returns 422."""
+    app, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/meetup/create", json={"date": "not-a-date", "player_ids": []}
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_match_token_gets_403_on_manage_and_200_on_public():
+    """A match-token holder cannot open /manage but can read /sw.js."""
+    app = create_app(
+        MagicMock(), _StubNotifier(), match_token="match-tok", manage_token="manage-tok"
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.cookies.set("pyball_match_token", "match-tok")
+        manage = await client.get("/manage")
+        sw = await client.get("/sw.js")
+    assert manage.status_code == 403
+    assert sw.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_sw_js_embeds_package_version():
+    """/sw.js substitutes __VERSION__ so each release invalidates the PWA cache."""
+    app, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/sw.js")
+    assert response.status_code == 200
+    assert "__VERSION__" not in response.text
+    assert "pyball-" in response.text
+
+
+@pytest.mark.asyncio
+async def test_manifest_uses_instance_theme_color():
+    """manifest-match.json uses the container's theme_color."""
+    container = _container_for_responses()
+    container.theme_color = "#112233"
+    app, _ = _make_app(container)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/manifest-match.json")
+    body = response.json()
+    assert body["theme_color"] == "#112233"
+    assert body["background_color"] == "#112233"
+    assert body["name"] == "PyBall – Partido tensores"
+
+
+class TestCreatePlayerEndpoint:
+    """Tests for POST /api/players."""
+
+    @pytest.mark.asyncio
+    async def test_create_player_returns_201_with_id_and_name(self):
+        """POST /api/players creates a substitute player and returns id + name."""
+        container = MagicMock()
+        player = Player.create("Nuevo Fichaje", group="substitute")
+        container.create_player.return_value.execute.return_value = player
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "Nuevo Fichaje"})
+
+        assert resp.status_code == 201
+        assert resp.json() == {"id": str(player.id.value), "name": "Nuevo Fichaje"}
+        container.create_player.return_value.execute.assert_called_once_with(
+            name="Nuevo Fichaje", group="substitute"
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_player_409_on_duplicate_name(self):
+        """POST /api/players returns 409 when the name already exists."""
+        container = MagicMock()
+        container.create_player.return_value.execute.side_effect = PlayerAlreadyExistsError(
+            "Nuevo Fichaje"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "Nuevo Fichaje"})
+
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_create_player_422_on_blank_name(self):
+        """POST /api/players returns 422 for an empty or whitespace-only name."""
+        container = MagicMock()
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "   "})
+
+        assert resp.status_code == 422
+        container.create_player.assert_not_called()
+
+
+class TestCancelMeetupEndpoint:
+    """Tests for DELETE /api/meetup/active."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_returns_200_with_status_and_date(self):
+        """DELETE /api/meetup/active deletes the active meetup and reports its date."""
+        meetup = MagicMock()
+        meetup.date = datetime(2026, 6, 17, 20, 0)
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.return_value = meetup
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/meetup/active")
+
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "cancelled", "date": "2026-06-17T20:00"}
+        container.cancel_meetup.return_value.execute.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_cancel_404_when_no_active_meetup(self):
+        """DELETE /api/meetup/active returns 404 when there is no active meetup."""
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/meetup/active")
+
+        assert resp.status_code == 404

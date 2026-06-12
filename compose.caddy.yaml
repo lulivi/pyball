@@ -1,3 +1,5 @@
+name: caddy
+
 services:
   caddy:
     image: lulivi/pyball-caddy:${TAG:-latest}
@@ -6,6 +8,18 @@ services:
       - "./Caddyfile:/etc/caddy/Caddyfile"
       - "caddy_data:/data"
       - "caddy_config:/config"
+    env_file: .env
+    restart: unless-stopped
+
+  funnelbot:
+    image: lulivi/pyball-funnelbot:${TAG:-latest}
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - ".:/caddy"
+      - "${APPS_DIR:?APPS_DIR must be set in .env}:/apps"
+    environment:
+      FUNNEL_CADDY_DIR: /caddy
+      FUNNEL_APPS_DIR: /apps
     env_file: .env
     restart: unless-stopped
 

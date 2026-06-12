@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest-manage.json">
+<title>PyBall Gestión</title>
+<script src="/qrcode.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+  body { padding: 8px 12px 24px; max-width: 480px; margin: 0 auto; }
+
+  .page-title { text-align: center; padding: 8px 0 12px; font-size: 1.1rem; font-weight: bold; color: #64748b; }
+
+  /* Tab bar — identical to match page */
+  .tab-bar { display: flex; justify-content: space-around; background: #1e293b; border-radius: 8px; margin-bottom: 12px; padding: 4px; }
+  .tab-btn { flex: 1; padding: 8px 12px; font-size: 0.9rem; font-weight: bold; color: #94a3b8; background: transparent; border: none; border-radius: 6px; cursor: pointer; }
+  .tab-btn.active { background: #334155; color: #f8fafc; }
+
+  .tab-view { display: none; }
+  .tab-view.active { display: block; }
+
+  /* Section labels */
+  .step-label { font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+
+  /* Textarea */
+  .paste-area { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; font-size: 0.82rem; padding: 10px; resize: vertical; font-family: monospace; line-height: 1.5; min-height: 140px; }
+
+  /* Buttons */
+  .btn { width: 100%; padding: 12px; font-size: 0.95rem; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+  .btn-blue  { background: #2563eb; }
+  .btn-green { background: #16a34a; }
+  .btn-teal  { background: #0f766e; }
+  .btn-purple { background: #7c3aed; }
+  .btn-sm { width: auto; padding: 8px 14px; font-size: 0.82rem; font-weight: bold; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  .btn-sm.gray  { background: #334155; }
+  .btn-sm.green { background: #16a34a; }
+
+  /* Player list rows */
+  #chip-container { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .chip { display: flex; align-items: center; gap: 8px; border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; user-select: none; width: 100%; }
+  .chip.ok   { background: #1e293b; border-color: #22c55e; color: #f8fafc; }
+  .chip.warn { background: #1e293b; border-color: #f59e0b; color: #fbbf24; }
+  .chip.err  { background: #1e293b; border-color: #ef4444; color: #fca5a5; }
+  .chip.excl { background: #1e293b; border-color: #334155; color: #475569; text-decoration: line-through; }
+  .chip-num  { font-size: 0.72rem; color: #64748b; min-width: 22px; flex-shrink: 0; }
+  .chip-label { flex: 1; }
+  .chip .chev { font-size: 0.6rem; color: #94a3b8; margin-left: auto; }
+
+  /* Parsed date badge */
+  .date-badge { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #38bdf8; background: #0c1f33; border: 1px solid #1e4a73; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
+
+  /* Expanded chip panel */
+  .chip-panel { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 10px; margin-bottom: 8px; width: 100%; }
+  .chip-panel.warn-panel { border-color: #f59e0b; }
+  .chip-panel.err-panel  { border-color: #ef4444; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .panel-raw  { font-size: 0.72rem; color: #94a3b8; }
+  .panel-raw span { color: #f8fafc; font-weight: bold; }
+  .close-x { font-size: 0.7rem; color: #64748b; cursor: pointer; padding: 2px 6px; border: 1px solid #334155; border-radius: 4px; background: transparent; }
+  .cand-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .cand-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; border: 1px solid transparent; }
+  .cand-item:hover { background: #334155; }
+  .cand-item.picked { background: #1d4ed8; border-color: #3b82f6; }
+  .cand-score { font-size: 0.7rem; color: #64748b; }
+  .cand-item.picked .cand-score { color: #93c5fd; }
+  .search-box { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.82rem; padding: 7px 10px; margin-bottom: 6px; }
+  .search-box::placeholder { color: #475569; }
+  .skip-link { width: 100%; padding: 6px; font-size: 0.78rem; font-weight: bold; color: #94a3b8; background: transparent; border: 1px solid #334155; border-radius: 6px; cursor: pointer; }
+
+  /* Teams result */
+  .teams-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.8; white-space: pre-wrap; }
+  .qr-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; gap: 8px; margin-bottom: 10px; }
+  .qr-hint { font-size: 0.75rem; color: #38bdf8; text-align: center; text-decoration: underline; }
+  .regen-row { display: flex; gap: 8px; margin-top: 6px; }
+
+  /* Summary tab */
+  .summary-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; }
+  .stats-box { background: #1e293b; border: 1px dashed #475569; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .stats-icon { font-size: 2rem; }
+  .divider { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
+  .empty-state { text-align: center; padding: 40px 16px; color: #64748b; font-size: 0.9rem; line-height: 1.6; }
+
+  /* ── Status placeholder states ──────────────── */
+  .no-match {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center;
+    padding: 60px 32px; gap: 12px;
+  }
+  .no-match-icon { font-size: 3rem; }
+  .no-match-title { font-size: 1.4rem; font-weight: bold; }
+  .no-match-msg { font-size: 1rem; color: #64748b; line-height: 1.6; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #334155; border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .load-warning { background: #431407; border: 1px solid #7c2d12; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem; color: #fca5a5; margin-bottom: 10px; }
+
+  /* ── Edit panel ──────────────────────────────── */
+  .edit-panel { background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; padding: 10px; margin-top: 8px; }
+  .edit-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .edit-chip { display: flex; align-items: center; justify-content: space-between; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; margin-bottom: 3px; font-size: 0.85rem; }
+  .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
+  .remove-btn:hover { color: #fca5a5; }
+  .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }
+
+  /* ── Roster editing / collapsed actions (GL-39) ── */
+  .collapsible-trigger { width: 100%; text-align: left; padding: 8px 0; background: transparent; border: none; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.82rem; cursor: pointer; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .cancel-match-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid #ef4444; color: #ef4444; border-radius: 8px; font-size: 0.85rem; font-weight: bold; cursor: pointer; margin-top: 6px; }
+  .cancel-match-btn:hover { background: #7f1d1d; color: #fca5a5; }
+  .create-player-item { padding: 7px 10px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; color: #34d399; border: 1px solid #065f46; background: transparent; margin-top: 4px; }
+  .create-player-item:hover { background: #064e3b; }
+  .add-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="page-title">⚽ PyBall Gestión</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('equipos', this)">Equipos</button>
+  <button class="tab-btn" onclick="switchTab('resumen', this)">Resumen</button>
+</div>
+
+<!-- ── TAB: EQUIPOS — content fully rendered by js/manage/main.js ─────── -->
+<div id="tab-equipos" class="tab-view active"></div>
+
+<!-- ── TAB: RESUMEN ────────────────────────────────────────────────────── -->
+<div id="tab-resumen" class="tab-view">
+  <div id="resumen-content"></div>
+</div>
+
+<script type="module" src="/js/manage/main.js"></script>
+</body>
+</html>
