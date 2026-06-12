@@ -1,7 +1,8 @@
-import { get, post, ApiError } from '../api.js';
+import { get, post, del, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
+    buildRepasteTrigger, buildCancelTrigger,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -19,6 +20,7 @@ let rosterAddVisible = false;   // State 1: add-player search panel open?
 let rosterSearchQuery = '';     // State 1: current add-player search text
 let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
+let repastePanelOpen = false;   // collapsed re-paste section open?
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -151,6 +153,8 @@ function renderState1(data) {
     <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
     ${addPanel}
     <button class="btn btn-green" onclick="generateFromActive()">⚽ Generar equipos equilibrados</button>
+    ${buildRepasteTrigger(repastePanelOpen)}
+    ${buildCancelTrigger()}
   `;
     if (rosterAddVisible) {
         const input = document.getElementById('roster-add-search');
@@ -245,6 +249,8 @@ function renderState2(data) {
       <canvas id="qr-canvas"></canvas>
       <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
     </div>
+    ${buildRepasteTrigger(repastePanelOpen)}
+    ${buildCancelTrigger()}
   `;
     _renderQR(t.matchUrl, document.getElementById('qr-canvas'));
 }
@@ -424,6 +430,86 @@ async function saveTeams() {
     editAddOpenTeam = null;
     editAddQuery = '';
     renderState2(activeMatchData);
+}
+
+function toggleRepaste() {
+    repastePanelOpen = !repastePanelOpen;
+    _rerenderActiveState();
+}
+
+async function parseRepaste() {
+    const text = document.getElementById('repaste-input').value.trim();
+    if (!text) { alert('Pega la convocatoria primero.'); return; }
+    try {
+        const [playersRes, parseRes] = await Promise.all([
+            get('/api/players'),
+            post('/api/meetup/parse-callup', { text }),
+        ]);
+        allPlayers = playersRes;
+        lastParsedDate = parseRes.date || null;
+        parsedPlayers = [
+            ...parseRes.titulars.map(p => ({ ...p, excluded: false })),
+            ...parseRes.reserves.map(p => ({ ...p, excluded: true })),
+        ];
+        expandedIdx = null;
+        const dateBadge = lastParsedDate
+            ? `<div class="date-badge">📅 <span>${_formatDate(lastParsedDate)}</span></div>` : '';
+        document.getElementById('repaste-review').innerHTML = `
+      ${dateBadge}
+      <div id="chip-container"></div>
+      <button class="btn btn-green" onclick="confirmRepaste()">✔ Confirmar convocatoria</button>`;
+        renderChips();
+    } catch (e) { alert('Error al reconocer jugadores: ' + e.message); }
+}
+
+async function confirmRepaste() {
+    const confirmed = parsedPlayers.filter(p => !p.excluded && p.player_id);
+    if (confirmed.length < 2) {
+        alert('Necesitas al menos 2 jugadores reconocidos.');
+        return;
+    }
+    const unresolved = parsedPlayers.filter(p => !p.excluded && !p.player_id);
+    if (unresolved.length > 0) {
+        const names = unresolved.map(p => p.raw).join(', ');
+        if (!confirm(`Hay ${unresolved.length} jugador(es) sin resolver: ${names}.\n¿Continuar igualmente?`)) return;
+    }
+    const newDate = lastParsedDate || activeMatchData.date;
+    const dateChanged = newDate !== activeMatchData.date;
+    let data;
+    try {
+        if (dateChanged) {
+            await del('/api/meetup/active');
+        }
+        data = await post('/api/meetup/create', { date: newDate, player_ids: confirmed.map(p => p.player_id) });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        if (dateChanged || (err instanceof ApiError && err.status === 409)) {
+            activeMatchData = null;
+            repastePanelOpen = false;
+            rosterAddVisible = false;
+            _buildFreshFlowHTML();
+            showStep('paste');
+        }
+        return;
+    }
+    activeMatchData = data;
+    repastePanelOpen = false;
+    renderState1(activeMatchData);
+}
+
+async function cancelMeetup() {
+    if (!confirm('¿Seguro que quieres cancelar el partido? Esta acción no se puede deshacer.')) return;
+    try {
+        await del('/api/meetup/active');
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = null;
+    repastePanelOpen = false;
+    rosterAddVisible = false;
+    _buildFreshFlowHTML();
+    showStep('paste');
 }
 
 // ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
@@ -617,6 +703,13 @@ async function _saveRoster(playerIds) {
     renderState1(activeMatchData);
 }
 
+// Re-render whichever state matches the current activeMatchData.
+function _rerenderActiveState() {
+    if (!activeMatchData) return;
+    if (activeMatchData.teams) renderState2(activeMatchData);
+    else renderState1(activeMatchData);
+}
+
 function _renderTeamsEditPanel() {
     const tooUneven = Math.abs(editTeamA.length - editTeamB.length) > 1;
     const t = activeMatchData.teams;
@@ -736,6 +829,10 @@ Object.assign(window, {
     pickEditAdd,
     createAndAddToTeam,
     saveTeams,
+    toggleRepaste,
+    parseRepaste,
+    confirmRepaste,
+    cancelMeetup,
     copySummary,
     downloadStats,
     shareStats,

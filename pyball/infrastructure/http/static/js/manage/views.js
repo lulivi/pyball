@@ -140,8 +140,26 @@ function buildAddResults(query, results, showCreate, opts) {
     return items + create;
 }
 
+function buildRepasteTrigger(open) {
+    const body = open ? `
+      <textarea id="repaste-input" class="paste-area"
+        placeholder="Pega aquí la nueva convocatoria..."></textarea>
+      <button class="btn btn-blue" onclick="parseRepaste()">🔍 Reconocer jugadores</button>
+      <div id="repaste-review"></div>` : '';
+    return `
+    <button class="collapsible-trigger" onclick="toggleRepaste()">
+      <span>📋 Re-pegar convocatoria</span><span>${open ? '▾' : '▸'}</span>
+    </button>
+    <div id="repaste-container">${body}</div>`;
+}
+
+function buildCancelTrigger() {
+    return `<button class="cancel-match-btn" onclick="cancelMeetup()">🗑 Cancelar partido</button>`;
+}
+
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
+    buildRepasteTrigger, buildCancelTrigger,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

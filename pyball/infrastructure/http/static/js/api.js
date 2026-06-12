@@ -35,6 +35,7 @@ export async function request(method, path, body = undefined) {
 
 export const get = (path) => request('GET', path);
 export const post = (path, body) => request('POST', path, body);
+export const del = (path) => request('DELETE', path);
 
 function renderUnauthorized() {
     document.body.innerHTML = '<h1 style="font-family:system-ui;color:#f8fafc;background:#0f172a;height:100vh;display:flex;align-items:center;justify-content:center;margin:0;">Acceso no autorizado</h1>';
