@@ -21,8 +21,27 @@ the branch as-is** — never merge, push, or discard automatically.
 
 ### Commit Messages
 
-Every commit must start with the GitLab issue reference: `GL-XX <description>`. Use
-the issue number for the current branch (e.g. `feature/13-...` → `GL-13`).
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+with the GitLab issue reference as the scope. Use the issue number for the current
+branch (e.g. `feature/13-...` → `GL-13`):
+
+```
+type(GL-XX): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+Types and release impact (the `release` CI job tags `main` based on these):
+
+- `feat` → minor release
+- `fix`, `perf` → patch release
+- `BREAKING CHANGE:` footer or `!` after type/scope (e.g. `feat(GL-13)!:`) → major release
+- `build`, `chore`, `ci`, `docs`, `refactor`, `style`, `test` → no release
+
+Squash merges: the MR title becomes the commit on `main`, so it must follow this
+format too.
 
 ## Commands
 
