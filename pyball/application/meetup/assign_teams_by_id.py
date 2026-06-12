@@ -52,7 +52,7 @@ class AssignTeamsById:
 
         Raises:
             MeetupNotFoundError: No meetup at meetup_date.
-            ValueError: Any player ID appears in both teams, or team sizes differ.
+            ValueError: Any player ID appears in both teams, or team sizes differ by more than 1.
         """
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if meetup is None:
@@ -68,9 +68,9 @@ class AssignTeamsById:
                 f"{', '.join(str(p.value) for p in overlap)}"
             )
 
-        if len(a_ids) != len(b_ids):
+        if abs(len(a_ids) - len(b_ids)) > 1:
             raise ValueError(
-                f"Los equipos deben tener el mismo número de jugadores "
+                f"Los equipos deben tener un tamaño similar, máximo 1 de diferencia "
                 f"({len(a_ids)} vs {len(b_ids)})"
             )
 
