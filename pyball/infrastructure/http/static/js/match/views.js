@@ -90,7 +90,7 @@ function renderPlayersTab() {
         return `
                 <div class="cancel-split-col">
                     <button class="cancel-full-btn" style="flex:1;height:auto;" onclick="cancelGoal()">Cancelar</button>
-                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 P.P<br><span style="font-size:0.75em;font-weight:normal;">(Propia puerta)</span></button>
+                    <button class="${btnClass}" onclick="registerOwnGoal()">🥅 Propia puerta</button>
                 </div>`;
     };
 
