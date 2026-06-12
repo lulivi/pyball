@@ -21,6 +21,7 @@
 
 from pyball.application.meetup.add_player import AddPlayerToMeetup
 from pyball.application.meetup.assign_teams_by_id import AssignTeamsById
+from pyball.application.meetup.cancel_meetup import CancelMeetup
 from pyball.application.meetup.compute_stats import (
     ChemistryPair,
     ComputeStats,
@@ -62,6 +63,7 @@ __all__ = [
     "RemovePlayerFromMeetup",
     "CreateTeams",
     "AssignTeamsById",
+    "CancelMeetup",
     "CreateTeamsManually",
     "StartMatch",
     "MeetupHasNoTeamsError",
