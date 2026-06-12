@@ -5,7 +5,7 @@ import {
     applyTeamColors, STATE_KEY, TEAMS_KEY,
 } from './state.js';
 import * as actions from './actions.js';
-import { renderApp, renderNoMatch, formatMatchDate } from './views.js';
+import { renderApp, renderNoMatch, renderOffline, formatMatchDate } from './views.js';
 
 function initializeApp() {
     const params = new URLSearchParams(window.location.search);
@@ -29,7 +29,7 @@ function initializeApp() {
     if (savedState && savedTeams) {
         if (!urlDate || savedTeams.meetupDate === urlDate) {
             adoptSaved(savedState, savedTeams);
-            loadActiveMatch(true); // silent: on network error keep running offline
+            if (navigator.onLine) loadActiveMatch(true);
             return;
         }
         const oldDate = formatMatchDate(savedTeams.meetupDate);
@@ -73,6 +73,12 @@ function adoptSaved(savedState, savedTeams) {
 }
 
 async function waitForMatch() {
+    if (!navigator.onLine) {
+        renderOffline();
+        window.addEventListener('online', () => waitForMatch(), { once: true });
+        return;
+    }
+
     let attempts = 0;
 
     const showConnecting = () => {
@@ -91,6 +97,11 @@ async function waitForMatch() {
     showConnecting();
 
     while (true) {
+        if (!navigator.onLine) {
+            renderOffline();
+            window.addEventListener('online', () => waitForMatch(), { once: true });
+            return;
+        }
         try {
             applyMatchData(await get('/api/match/active'));
             return;
@@ -99,7 +110,6 @@ async function waitForMatch() {
                 renderNoMatch();
                 return;
             }
-            // network error or 5xx — retry
         }
         attempts++;
         showConnecting();

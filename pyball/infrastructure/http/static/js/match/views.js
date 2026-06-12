@@ -163,6 +163,15 @@ function renderNoMatch() {
             </div>`;
 }
 
+function renderOffline() {
+    document.getElementById('app').innerHTML = `
+        <div class="no-match">
+            <div class="no-match-icon">📡</div>
+            <div class="no-match-title">PyBall</div>
+            <div class="no-match-msg">Sin conexión.<br>Se reintentará al recuperar internet.</div>
+        </div>`;
+}
+
 function renderApp() {
     const state = store.get();
     document.getElementById('app').innerHTML = `
@@ -187,4 +196,4 @@ function formatMatchDate(dateStr) {
     return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
 
-export { renderApp, renderNoMatch, formatMatchDate };
+export { renderApp, renderNoMatch, renderOffline, formatMatchDate };
