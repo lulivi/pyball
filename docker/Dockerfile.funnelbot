@@ -1,0 +1,8 @@
+FROM docker:28-cli
+
+RUN apk add --no-cache python3 py3-pip \
+    && pip3 install --no-cache-dir --break-system-packages "python-telegram-bot>=22,<23"
+
+COPY scripts/funnelbot.py /app/funnelbot.py
+
+ENTRYPOINT ["python3", "/app/funnelbot.py"]

@@ -381,37 +381,23 @@ class TestStartMatch:
         # pylint: disable=attribute-defined-outside-init
         self.meetup_repo = FakeMeetupRepository()
 
-    def test_returns_token_url(self):
-        """StartMatch appends the token as a query parameter when a token is set."""
-        self._meetup_with_teams()
-        url = StartMatch(self.meetup_repo, "http://pyball:8000", match_token="secret").execute(
-            datetime(2026, 4, 12, 20, 0)
-        )
-        assert url == "http://pyball:8000/match?token=secret"
+    def test_start_match_returns_meetup_with_teams(self):
+        """StartMatch returns the meetup when it has teams."""
+        meetup = self._meetup_with_teams()
+        result = StartMatch(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+        assert result is meetup
 
-    def test_returns_bare_url_without_token(self):
-        """StartMatch returns the bare /match URL when no token is configured."""
-        self._meetup_with_teams()
-        url = StartMatch(self.meetup_repo, "http://pyball:8000", match_token="").execute(
-            datetime(2026, 4, 12, 20, 0)
-        )
-        assert url == "http://pyball:8000/match"
-
-    def test_raises_if_meetup_not_found(self):
+    def test_start_match_raises_when_meetup_missing(self):
         """StartMatch raises MeetupNotFoundError when no meetup exists for the given date."""
         with pytest.raises(MeetupNotFoundError):
-            StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
-                datetime(2026, 4, 12, 20, 0)
-            )
+            StartMatch(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
 
-    def test_raises_if_no_teams(self):
+    def test_start_match_raises_when_no_teams(self):
         """StartMatch raises MeetupHasNoTeamsError when the meetup has no teams yet."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self.meetup_repo.save(meetup)
         with pytest.raises(MeetupHasNoTeamsError):
-            StartMatch(self.meetup_repo, "http://pyball:8000", match_token="s").execute(
-                datetime(2026, 4, 12, 20, 0)
-            )
+            StartMatch(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
 
     def _meetup_with_teams(self):
         """Create and save a meetup with two empty teams."""

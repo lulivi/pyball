@@ -4,7 +4,7 @@ tag=""
 if ! tag=$(git describe --tags --abbrev=0 2>/dev/null); then
     echo "Warning: no git tags found, using 0.0.1.dev0" >&2
     echo "0.0.1.dev0"
-    return
+    exit 0
 fi
 tag_clean="${tag#v}"
 commits=$(git rev-list "${tag}..HEAD" --count)

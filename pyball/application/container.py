@@ -22,14 +22,18 @@
 from pyball.application.meetup import (
     AddPlayerToMeetup,
     AssignTeamsById,
+    CancelMeetup,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
     CreateTeamsManually,
     EditMatchResult,
     FinishMatch,
+    FormatMatchSummary,
     GetActiveMeetup,
+    ParseCallup,
     RemovePlayerFromMeetup,
+    SetMeetupPlayers,
     StartMatch,
     UpdateMeetupDate,
     UpdateMeetupLocation,
@@ -45,6 +49,7 @@ from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
+from pyball.infrastructure.http.links import MatchLinkBuilder
 from pyball.infrastructure.persistence import (
     JsonMeetupRepository,
     JsonPlayerRepository,
@@ -109,11 +114,11 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def start_match(self) -> StartMatch:
         """Create a new StartMatch use case."""
-        return StartMatch(
-            self.meetup_repository,
-            self.base_url,
-            match_token=self._settings.pyball.match_token,
-        )
+        return StartMatch(self.meetup_repository)
+
+    def match_link_builder(self) -> MatchLinkBuilder:
+        """Create the web match-link builder for this instance."""
+        return MatchLinkBuilder(self.base_url, self._settings.pyball.match_token)
 
     def get_active_meetup(self) -> GetActiveMeetup:
         """Create a new GetActiveMeetup use case."""
@@ -131,6 +136,10 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new ComputeStats use case."""
         return ComputeStats(self.meetup_repository, self.player_repository, self.legacy_stats)
 
+    def format_match_summary(self) -> FormatMatchSummary:
+        """Create a new FormatMatchSummary use case."""
+        return FormatMatchSummary()
+
     def update_meetup_date(self) -> UpdateMeetupDate:
         """Create a new UpdateMeetupDate use case."""
         return UpdateMeetupDate(self.meetup_repository)
@@ -138,6 +147,18 @@ class Container:  # pylint: disable=too-many-public-methods
     def update_meetup_location(self) -> UpdateMeetupLocation:
         """Create a new UpdateMeetupLocation use case."""
         return UpdateMeetupLocation(self.meetup_repository)
+
+    def set_meetup_players(self) -> SetMeetupPlayers:
+        """Create a new SetMeetupPlayers use case."""
+        return SetMeetupPlayers(self.meetup_repository, self._settings.pyball.location)
+
+    def cancel_meetup(self) -> CancelMeetup:
+        """Create a new CancelMeetup use case."""
+        return CancelMeetup(self.meetup_repository)
+
+    def parse_callup(self) -> ParseCallup:
+        """Create a new ParseCallup use case."""
+        return ParseCallup(self.player_repository, self.default_hour)
 
     @property
     def team_colors(self) -> tuple[str, str]:
@@ -173,6 +194,16 @@ class Container:  # pylint: disable=too-many-public-methods
     def name(self) -> str:
         """Return the configured instance name."""
         return self._settings.pyball.name
+
+    @property
+    def theme_color(self) -> str:
+        """Return the configured PWA theme color for this instance."""
+        return self._settings.pyball.theme_color
+
+    @property
+    def icons_dir(self) -> str:
+        """Return the per-instance icons directory override ('' = packaged icons)."""
+        return self._settings.pyball.icons_dir
 
     @property
     def player_repository(self) -> PlayerRepository:

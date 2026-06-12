@@ -21,6 +21,7 @@
 
 from pyball.application.meetup.add_player import AddPlayerToMeetup
 from pyball.application.meetup.assign_teams_by_id import AssignTeamsById
+from pyball.application.meetup.cancel_meetup import CancelMeetup
 from pyball.application.meetup.compute_stats import (
     ChemistryPair,
     ComputeStats,
@@ -35,6 +36,7 @@ from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.meetup.get_active_meetup import GetActiveMeetup
+from pyball.application.meetup.parse_callup import CallupParseOutcome, ParseCallup
 from pyball.application.meetup.parse_callup_text import (
     MatchedPlayer,
     ParseCallupText,
@@ -42,6 +44,7 @@ from pyball.application.meetup.parse_callup_text import (
     PlayerCandidate,
 )
 from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
+from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
 from pyball.application.meetup.start_match import StartMatch
 from pyball.application.meetup.update_meetup_date import UpdateMeetupDate
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
@@ -53,12 +56,14 @@ from pyball.domain.meetup.errors import (
 )
 
 __all__ = [
+    "CallupParseOutcome",
     "CreateMeetup",
     "DuplicateMeetupError",
     "AddPlayerToMeetup",
     "RemovePlayerFromMeetup",
     "CreateTeams",
     "AssignTeamsById",
+    "CancelMeetup",
     "CreateTeamsManually",
     "StartMatch",
     "MeetupHasNoTeamsError",
@@ -73,10 +78,12 @@ __all__ = [
     "StatsScopedReport",
     "PlayerStats",
     "ChemistryPair",
+    "ParseCallup",
     "ParseCallupText",
     "ParseResult",
     "MatchedPlayer",
     "PlayerCandidate",
+    "SetMeetupPlayers",
     "UpdateMeetupDate",
     "UpdateMeetupLocation",
 ]

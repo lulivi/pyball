@@ -215,3 +215,19 @@ class TestNameSettings:
         monkeypatch.setenv("PYBALL_CORE_NAME", "Los Tensores")
         settings = load_app_settings(_write(tmp_path, _FULL_CORE))
         assert settings.pyball.name == "Los Tensores"
+
+
+class TestInstanceIdentitySettings:
+    """Tests for the per-instance theme_color and icons_dir settings."""
+
+    def test_theme_color_and_icons_dir_defaults(self, tmp_path):
+        """theme_color defaults to #0f172a and icons_dir to empty."""
+        settings = load_app_settings(_write(tmp_path, _FULL_CORE))
+        assert settings.pyball.theme_color == "#0f172a"
+        assert settings.pyball.icons_dir == ""
+
+    def test_theme_color_env_override(self, tmp_path, monkeypatch):
+        """PYBALL_CORE_THEME_COLOR overrides the config value."""
+        monkeypatch.setenv("PYBALL_CORE_THEME_COLOR", "#112233")
+        settings = load_app_settings(_write(tmp_path, _FULL_CORE))
+        assert settings.pyball.theme_color == "#112233"

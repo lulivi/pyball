@@ -67,16 +67,46 @@ class TestAssignTeamsById:
             uc.execute(datetime(2026, 5, 6, 20, 0), [pid], [pid])
 
     def test_raises_on_unequal_sizes(self):
-        """ValueError mentioning both counts when team sizes differ."""
-        p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")
-        meetup = _meetup(p1, p2, p3)
+        """ValueError mentioning the limit when team sizes differ by more than 1."""
+        p1, p2, p3, p4 = _player("Juan"), _player("Pedro"), _player("Carlos"), _player("Luis")
+        meetup = _meetup(p1, p2, p3, p4)
         uc, _ = _use_case(meetup)
 
-        with pytest.raises(ValueError, match=r"1 vs 2"):
+        with pytest.raises(ValueError, match="máximo 1"):
             uc.execute(
                 datetime(2026, 5, 6, 20, 0),
                 [str(p1.id.value)],
-                [str(p2.id.value), str(p3.id.value)],
+                [str(p2.id.value), str(p3.id.value), str(p4.id.value)],
+            )
+
+    def test_accepts_one_player_size_difference(self):
+        """Teams of 6 and 5 players (±1 difference) are accepted."""
+        players = [_player(f"Player{i}") for i in range(11)]
+        meetup = _meetup(*players)
+        uc, repo = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p.id.value) for p in players[:6]],
+            [str(p.id.value) for p in players[6:]],
+        )
+
+        assert result.teams is not None
+        assert len(result.teams[0].players) == 6
+        assert len(result.teams[1].players) == 5
+        repo.save.assert_called_once_with(meetup)
+
+    def test_rejects_two_player_size_difference(self):
+        """ValueError when team sizes differ by 2 (7 vs 5)."""
+        players = [_player(f"Player{i}") for i in range(12)]
+        meetup = _meetup(*players)
+        uc, _ = _use_case(meetup)
+
+        with pytest.raises(ValueError, match="máximo 1"):
+            uc.execute(
+                datetime(2026, 5, 6, 20, 0),
+                [str(p.id.value) for p in players[:7]],
+                [str(p.id.value) for p in players[7:]],
             )
 
     def test_roster_updated_to_submitted_players(self):
