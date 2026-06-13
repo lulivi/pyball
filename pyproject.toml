@@ -67,7 +67,7 @@ testpaths = ["tests"]
 [tool.semantic_release]
 tag_format = "v{version}"
 commit_parser = "conventional"
-commit_message = "chore(release): v{version} [skip ci]"
+commit_message = "chore(release): v{version}"
 allow_zero_version = false
 
 [tool.semantic_release.branches.main]

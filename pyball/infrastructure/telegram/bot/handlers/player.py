@@ -113,16 +113,16 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or len(args) < 2:
+    # Names may contain spaces, so old and new name are separated by a comma.
+    player_name, _, new_name = " ".join(context.args or []).partition(",")
+    player_name = player_name.strip()
+    new_name = new_name.strip()
+    if not player_name or not new_name:
         await message.reply_text(
-            text=r"Usage: `/rename_player` `<old_name>` `<new_name>`",
+            text=r"Usage: `/rename_player` `<old_name>, <new_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    player_name = args[0]
-    new_name = " ".join(args[1:])
 
     player_repo = container.player_repository
     try:
