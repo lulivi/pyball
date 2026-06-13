@@ -122,9 +122,26 @@ publish-web:
   script:
     - ./deploy/docker_build.sh --push --release --topology web
 
+# rules:changes always evaluates to true on tag pipelines, so caddy-related
+# changes are detected by diffing against the previous tag instead. The result
+# is forwarded to deploy-caddy through the dotenv report.
 publish-caddy:
   extends: .publish_base
+  variables:
+    GIT_DEPTH: 0
+    CADDY_PATHS: docker/Dockerfile.caddy docker/Dockerfile.funnelbot scripts/funnelbot.py deploy/caddy compose.caddy.yaml
+  artifacts:
+    reports:
+      dotenv: caddy.env
   script:
+    - PREV_TAG=$(git describe --tags --abbrev=0 "${CI_COMMIT_SHA}^" 2>/dev/null || echo "")
+    - |
+      if [ -n "$PREV_TAG" ] && git diff --quiet "$PREV_TAG" "$CI_COMMIT_SHA" -- $CADDY_PATHS; then
+        echo "No caddy changes since ${PREV_TAG}; skipping publish."
+        echo "CADDY_CHANGED=false" > caddy.env
+        exit 0
+      fi
+    - echo "CADDY_CHANGED=true" > caddy.env
     - VERSION="${CI_COMMIT_TAG#v}"
     - docker build -f docker/Dockerfile.caddy -t lulivi/pyball-caddy:${VERSION} -t lulivi/pyball-caddy:latest .
     - docker push lulivi/pyball-caddy:${VERSION}
@@ -168,6 +185,11 @@ deploy-caddy:
   needs:
     - publish-caddy
   script:
+    - |
+      if [ "$CADDY_CHANGED" != "true" ]; then
+        echo "No caddy changes in this release; skipping deploy."
+        exit 0
+      fi
     - VERSION="${CI_COMMIT_TAG#v}"
     - scp compose.caddy.yaml "$SERVER_USER@$SERVER_IP:$SERVER_CADDY_DIR/compose.yaml"
     - scp deploy/caddy/Caddyfile* "$SERVER_USER@$SERVER_IP:$SERVER_CADDY_DIR/"
