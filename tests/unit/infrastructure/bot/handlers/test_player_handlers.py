@@ -64,10 +64,10 @@ async def test_rename_player_handler_success(mock_update, mock_context):
 
     player_id = PlayerId.generate()
     mock_player = MagicMock()
-    mock_player.name = "Luis"
+    mock_player.name = "Luis Pérez"
     mock_player.id = player_id
 
-    mock_context.args = ["Luis", "New", "Name"]
+    mock_context.args = ["Luis", "Pérez,", "New", "Name"]
 
     container = MagicMock()
     container.player_repository.find_all.return_value = [mock_player]
@@ -83,6 +83,21 @@ async def test_rename_player_handler_success(mock_update, mock_context):
         reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_rename_player_handler_missing_comma_shows_usage(mock_update, mock_context):
+    mock_context.args = ["Luis", "New", "Name"]
+
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+
+    await rename_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "Usage" in text
+    container.rename_player.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -230,7 +245,7 @@ async def test_rename_player_handler_name_taken(mock_update, mock_context):
     mock_player.name = "Luis"
     mock_player.id = player_id
 
-    mock_context.args = ["Luis", "Existing", "Name"]
+    mock_context.args = ["Luis,", "Existing", "Name"]
 
     container = MagicMock()
     container.player_repository.find_all.return_value = [mock_player]
@@ -246,7 +261,7 @@ async def test_rename_player_handler_name_taken(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_rename_player_handler_name_not_found(mock_update, mock_context):
-    mock_context.args = ["NoExiste", "New Name"]
+    mock_context.args = ["NoExiste,", "New", "Name"]
 
     container = MagicMock()
     container.player_repository.find_all.return_value = []
@@ -268,7 +283,7 @@ async def test_rename_player_handler_fuzzy_match(mock_update, mock_context):
     mock_player.name = "Luis"
     mock_player.id = player_id
 
-    mock_context.args = ["lui", "Carlos"]
+    mock_context.args = ["lui,", "Carlos"]
 
     container = MagicMock()
     container.player_repository.find_all.return_value = [mock_player]
