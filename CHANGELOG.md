@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.11.1 (2026-06-13)
+
+### Bug Fixes
+
+- **GL-42**: Run tag pipelines and skip caddy deploys when unchanged
+  ([`077b00f`](https://gitlab.com/lulivi/pyball/-/commit/077b00f1c077af1572011b94c36019bb1d55d42b))
+
+
 ## v4.11.0 (2026-06-12)
 
 ### Continuous Integration
