@@ -48,15 +48,15 @@ async def test_new_player_duplicate_replies_spanish_error(bot_update, bot_contex
 async def test_rename_player_persists(bot_update, bot_context):
     """Rename a player and verify the updated name is in the real repo."""
     container = bot_context.bot_data["container"]
-    player = Player.create("Luis", "regular")
+    player = Player.create("Luis Pérez", "regular")
     container.player_repository.save(player)
 
-    bot_context.args = ["Luis", "Carlos"]
+    bot_context.args = ["Luis", "Pérez,", "Carlos", "II"]
 
     await rename_player_handler(bot_update, bot_context)
 
     found = container.player_repository.find_by_id(player.id)
-    assert found.name == "Carlos"
+    assert found.name == "Carlos II"
 
 
 @pytest.mark.asyncio
