@@ -15,7 +15,7 @@ except KeyError:
     print("Both FUNNEL_BOT_TOKEN and FUNNEL_ADMIN_IDS must be in the environment")
     sys.exit(1)
 
-APPS_DIR = Path(os.environ.get("FUNNEL_APPS_DIR", str(Path.home() / "apps")))
+APPS_DIR = Path(os.environ.get("FUNNEL_APPS_DIR", str(Path.home() / "pyball")))
 CADDY_DIR = Path(os.environ.get("FUNNEL_CADDY_DIR", str(Path.home() / "caddy")))
 TENSORES_WD = APPS_DIR / "tensores"
 CUCARACHAS_WD = APPS_DIR / "cucarachas"
