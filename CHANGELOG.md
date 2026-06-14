@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.11.2 (2026-06-14)
+
+### Bug Fixes
+
+- **GL-43**: Adapt funnelbot and deploy to the new VPS layout
+  ([`182b05f`](https://gitlab.com/lulivi/pyball/-/commit/182b05fdd5826c971100f8aecd00a01aac990cfa))
+
+
 ## v4.11.1 (2026-06-13)
 
 ### Bug Fixes
