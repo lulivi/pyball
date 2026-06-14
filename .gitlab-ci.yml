@@ -129,7 +129,7 @@ publish-caddy:
   extends: .publish_base
   variables:
     GIT_DEPTH: 0
-    CADDY_PATHS: docker/Dockerfile.caddy docker/Dockerfile.funnelbot scripts/funnelbot.py deploy/caddy compose.caddy.yaml
+    CADDY_PATHS: docker/Dockerfile.caddy docker/Dockerfile.funnelbot deploy/caddy compose.caddy.yaml
   artifacts:
     reports:
       dotenv: caddy.env
