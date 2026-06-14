@@ -7,7 +7,7 @@ HEALTH_MODE="${HEALTH_MODE:-http}"
 APP_NAME="$(basename "$APP_DIR")"
 SCAPED_VERSION_STR=" \[\`${APP_NAME}:v${VERSION}\`\] "
 
-ENV_FILE="$HOME/envs/tg_notify.env"
+ENV_FILE="$HOME/pyball/cfg/notify/tg_notify.env"
 [ -f "$ENV_FILE" ] && . "$ENV_FILE"
 
 notify() {

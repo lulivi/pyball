@@ -17,8 +17,8 @@ except KeyError:
 
 APPS_DIR = Path(os.environ.get("FUNNEL_APPS_DIR", str(Path.home() / "apps")))
 CADDY_DIR = Path(os.environ.get("FUNNEL_CADDY_DIR", str(Path.home() / "caddy")))
-TENSORES_WD = APPS_DIR / "pyball-tensores"
-CUCARACHAS_WD = APPS_DIR / "pyball-cucarachas"
+TENSORES_WD = APPS_DIR / "tensores"
+CUCARACHAS_WD = APPS_DIR / "cucarachas"
 
 # Pre-built Caddyfile variants (copied from the repo on each deploy)
 _CADDYFILES = {
