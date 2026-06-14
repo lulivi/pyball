@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.11.3 (2026-06-14)
+
+### Bug Fixes
+
+- **GL-43**: Default funnelbot APPS_DIR to the new pyball layout
+  ([`3cd2850`](https://gitlab.com/lulivi/pyball/-/commit/3cd2850594064753c6ada369b805a5b12873307c))
+
+
 ## v4.11.2 (2026-06-14)
 
 ### Bug Fixes
