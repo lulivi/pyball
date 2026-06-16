@@ -25,29 +25,29 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.logger import log_func
 
-COMMAND_DESCRIPTIONS: dict[str, tuple[str, str]] = {
-    "help": ("Show this message", "General"),
-    "new_player": ("Create a new player", "Player"),
-    "rename_player": ("Rename a player", "Player"),
-    "delete_player": ("Delete a player", "Player"),
-    "list_players": ("List all players", "Player"),
-    "change_group": ("Change player group", "Player"),
-    "link_player": ("Link Telegram ID to player", "Player"),
-    "unlink_player": ("Unlink a player's Telegram ID", "Player"),
-    "new_meetup": ("Create a new meetup", "Meetup"),
-    "next_meetup": ("Create meetup for next default day", "Meetup"),
-    "list_meetups": ("List all meetups", "Meetup"),
-    "show_meetup": ("Show meetup details", "Meetup"),
-    "add_player": ("Add player to meetup", "Meetup"),
-    "remove_player": ("Remove player from meetup", "Meetup"),
-    "search": ("Send substitutes message", "Meetup"),
-    "create_teams": ("Create random teams", "Meetup"),
-    "lock": ("Remove inline buttons from callup messages", "Meetup"),
-    "unlock": ("Restore inline buttons on callup messages", "Meetup"),
-    "match_qr": ("Send QR code with match URL", "Meetup"),
-    "stats": ("Show statistics", "Meetup"),
-    "change_location": ("Change meetup location", "Meetup"),
-    "change_date": ("Change meetup date", "Meetup"),
+COMMAND_DESCRIPTIONS: dict[str, str] = {
+    "help": "Show this message",
+    "player_new": "Create a new player",
+    "player_rename": "Rename a player",
+    "player_delete": "Delete a player",
+    "player_list": "List all players",
+    "player_change_group": "Change player group",
+    "player_link": "Link Telegram ID to player",
+    "player_unlink": "Unlink a player's Telegram ID",
+    "meetup_new": "Create a new meetup",
+    "meetup_next": "Create meetup for next default day",
+    "meetup_list": "List all meetups",
+    "meetup_show": "Show meetup details",
+    "meetup_add_player": "Add player to meetup",
+    "meetup_remove_player": "Remove player from meetup",
+    "meetup_search": "Send substitutes message",
+    "meetup_create_teams": "Create random teams",
+    "meetup_lock": "Remove inline buttons from callup messages",
+    "meetup_unlock": "Restore inline buttons on callup messages",
+    "meetup_match_qr": "Send QR code with match URL",
+    "meetup_stats": "Show statistics",
+    "meetup_change_location": "Change meetup location",
+    "meetup_change_date": "Change meetup date",
 }
 
 _MD_V2_SPECIAL = r"_*[]()~`>#+-=|{}.!"
@@ -55,7 +55,22 @@ _MD_V2_SPECIAL = r"_*[]()~`>#+-=|{}.!"
 
 def setup_general_handlers(application):
     """Register general handlers."""
-    application.add_handler(CommandHandler("help", help_handler))
+    add_command(application, "help", help_handler)
+
+
+def add_command(application, name, handler) -> None:
+    """Register a handler under its canonical name and its short alias."""
+    alias = short_alias(name)
+    names = [name] if alias is None else [name, alias]
+    application.add_handler(CommandHandler(names, handler))
+
+
+def short_alias(name: str) -> str | None:
+    """Return the abbreviated alias for a grouped command, or None."""
+    for prefix, short in (("player_", "p_"), ("meetup_", "m_")):
+        if name.startswith(prefix):
+            return short + name[len(prefix) :]
+    return None
 
 
 async def register_bot_commands(bot) -> None:
@@ -64,8 +79,8 @@ async def register_bot_commands(bot) -> None:
 
 
 def build_bot_commands() -> list[BotCommand]:
-    """Build the BotCommand list from COMMAND_DESCRIPTIONS."""
-    return [BotCommand(name, desc) for name, (desc, _category) in COMMAND_DESCRIPTIONS.items()]
+    """Build the BotCommand list from COMMAND_DESCRIPTIONS (canonical names only)."""
+    return [BotCommand(name, desc) for name, desc in COMMAND_DESCRIPTIONS.items()]
 
 
 def registered_commands(application) -> set[str]:
@@ -87,11 +102,21 @@ async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await message.reply_text(_render_help(), parse_mode=ParseMode.MARKDOWN_V2)
 
 
+def _category(name: str) -> str:
+    """Derive the help category from the command's group prefix."""
+    if name.startswith("player_"):
+        return "Player"
+    if name.startswith("meetup_"):
+        return "Meetup"
+    return "General"
+
+
 def _render_help() -> str:
     """Render the MarkdownV2 help text from COMMAND_DESCRIPTIONS."""
     lines = [r"*Available Commands:*"]
     current_category: str | None = None
-    for name, (desc, category) in COMMAND_DESCRIPTIONS.items():
+    for name, desc in COMMAND_DESCRIPTIONS.items():
+        category = _category(name)
         if category != current_category:
             lines.append("")
             lines.append(rf"*{category}:*")

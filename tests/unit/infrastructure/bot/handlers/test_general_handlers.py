@@ -18,6 +18,7 @@ from pyball.infrastructure.telegram.bot.handlers.general import (
     help_handler,
     register_bot_commands,
     registered_commands,
+    short_alias,
 )
 
 
@@ -31,14 +32,14 @@ def _build_app() -> Application:
 
 def test_registered_commands_match_descriptions():
     app = _build_app()
-    assert registered_commands(app) == set(COMMAND_DESCRIPTIONS)
+    expected = set(COMMAND_DESCRIPTIONS)
+    expected |= {short_alias(n) for n in COMMAND_DESCRIPTIONS if short_alias(n)}
+    assert registered_commands(app) == expected
 
 
 def test_build_bot_commands_one_per_description_in_order():
     commands = build_bot_commands()
-    assert commands == [
-        BotCommand(name, desc) for name, (desc, _cat) in COMMAND_DESCRIPTIONS.items()
-    ]
+    assert commands == [BotCommand(name, desc) for name, desc in COMMAND_DESCRIPTIONS.items()]
     assert all(isinstance(c, BotCommand) for c in commands)
 
 
@@ -58,6 +59,12 @@ async def test_help_handler_renders_categories():
 
     text = update.message.reply_text.call_args.args[0]
     assert "*Player:*" in text
-    assert r"`/new_player`" in text
-    assert r"`/change_location`" in text
+    assert r"`/player_new`" in text
+    assert r"`/meetup_change_location`" in text
     assert update.message.reply_text.call_args.kwargs["parse_mode"] == ParseMode.MARKDOWN_V2
+
+
+def test_short_alias_derivation():
+    assert short_alias("player_change_group") == "p_change_group"
+    assert short_alias("meetup_change_date") == "m_change_date"
+    assert short_alias("help") is None
