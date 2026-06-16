@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.12.0 (2026-06-16)
+
+### Features
+
+- **GL-44,GL-45**: Rename bot commands and fix old Chrome match wall
+  ([`f33d1c6`](https://gitlab.com/lulivi/pyball/-/commit/f33d1c6eafe8e2a2b5dd3c072887642d0efca2ed))
+
+
 ## v4.11.3 (2026-06-14)
 
 ### Bug Fixes
