@@ -22,7 +22,7 @@ from pyball.infrastructure.telegram.bot.handlers.player import (
 
 @pytest.mark.asyncio
 async def test_new_player_handler_success(mock_update, mock_context):
-    mock_context.args = ["Luis", "regular"]
+    mock_context.args = ["Luis,", "regular"]
 
     container = MagicMock()
     mock_player = MagicMock()
@@ -42,7 +42,7 @@ async def test_new_player_handler_success(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_new_player_handler_duplicate_raises(mock_update, mock_context):
-    mock_context.args = ["Luis", "regular"]
+    mock_context.args = ["Luis,", "regular"]
 
     container = MagicMock()
     container.create_player().execute.side_effect = PlayerAlreadyExistsError(
@@ -145,7 +145,7 @@ async def test_list_players_handler_success(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_change_group_handler_success(mock_update, mock_context):
-    mock_context.args = ["Luis", "substitute"]
+    mock_context.args = ["Luis,", "substitute"]
 
     container = MagicMock()
     mock_player = MagicMock()
@@ -170,7 +170,7 @@ async def test_change_group_handler_success(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_link_player_handler_success(mock_update, mock_context):
-    mock_context.args = ["Luis", "12345"]
+    mock_context.args = ["Luis,", "12345"]
 
     container = MagicMock()
     mock_player = MagicMock()
@@ -226,7 +226,7 @@ async def test_unlink_player_handler_success(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_new_player_handler_invalid_group(mock_update, mock_context):
-    mock_context.args = ["Luis", "vip"]
+    mock_context.args = ["Luis,", "vip"]
     mock_context.bot_data["container"] = MagicMock()
 
     await new_player_handler(mock_update, mock_context)
@@ -302,7 +302,7 @@ async def test_rename_player_handler_fuzzy_match(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_link_player_handler_non_numeric_id(mock_update, mock_context):
-    mock_context.args = ["Luis", "abc"]
+    mock_context.args = ["Luis,", "abc"]
     mock_context.bot_data["container"] = MagicMock()
 
     with pytest.MonkeyPatch.context() as m:
@@ -320,7 +320,7 @@ async def test_link_player_handler_non_numeric_id(mock_update, mock_context):
 async def test_link_player_handler_already_linked_same(mock_update, mock_context):
     from pyball.domain.player.models import PlayerId
 
-    mock_context.args = ["Luis", "12345"]
+    mock_context.args = ["Luis,", "12345"]
 
     player_id = PlayerId.generate()
     mock_player = MagicMock()
@@ -350,7 +350,7 @@ async def test_link_player_handler_already_linked_same(mock_update, mock_context
 async def test_link_player_handler_already_linked_other(mock_update, mock_context):
     from pyball.domain.player.models import PlayerId
 
-    mock_context.args = ["Luis", "12345"]
+    mock_context.args = ["Luis,", "12345"]
 
     player_id = PlayerId.generate()
     mock_player = MagicMock()
@@ -407,3 +407,28 @@ async def test_unlink_player_handler_not_linked(mock_update, mock_context):
     mock_update.message.reply_text.assert_called_with(
         "Este ID de Telegram no está vinculado a ningún jugador."
     )
+
+
+@pytest.mark.asyncio
+async def test_new_player_handler_multiword_name(mock_update, mock_context):
+    mock_context.args = ["David", "Quesada,", "regular"]
+
+    container = MagicMock()
+    container.create_player().execute.return_value = MagicMock()
+    mock_context.bot_data["container"] = container
+
+    await new_player_handler(mock_update, mock_context)
+
+    container.create_player().execute.assert_called_with("David Quesada", "regular")
+
+
+@pytest.mark.asyncio
+async def test_new_player_handler_missing_comma_shows_usage(mock_update, mock_context):
+    mock_context.args = ["David", "regular"]
+    mock_context.bot_data["container"] = MagicMock()
+
+    await new_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "Usage" in text

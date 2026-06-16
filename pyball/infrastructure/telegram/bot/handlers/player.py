@@ -66,16 +66,15 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or len(args) < 2:
+    name, _, group = " ".join(context.args or []).partition(",")
+    name = name.strip()
+    group = group.strip()
+    if not name or not group:
         await message.reply_text(
-            text=r"Usage: `/new_player` `<name>` `<regular|substitute>`",
+            text=r"Usage: `/new_player` `<name>, <regular|substitute>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    name = args[0]
-    group = args[1]
 
     if group not in ("regular", "substitute"):
         await message.reply_text(
@@ -239,16 +238,15 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or len(args) < 2:
+    player_name, _, new_group = " ".join(context.args or []).partition(",")
+    player_name = player_name.strip()
+    new_group = new_group.strip()
+    if not player_name or not new_group:
         await message.reply_text(
-            text=r"Usage: `/change_group` `<player_name>` `<regular|substitute>`",
+            text=r"Usage: `/change_group` `<player_name>, <regular|substitute>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    player_name = args[0]
-    new_group = args[1]
 
     if new_group not in ("regular", "substitute"):
         await message.reply_text("El grupo debe ser 'regular' o 'substitute'.")
@@ -291,17 +289,17 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
 
-    args = context.args
-    if args is None or len(args) < 2:
+    player_name, _, telegram_id_str = " ".join(context.args or []).partition(",")
+    player_name = player_name.strip()
+    telegram_id_str = telegram_id_str.strip()
+    if not player_name or not telegram_id_str:
         await message.reply_text(
-            text=r"Usage: `/link_player` `<player_name>` `<telegram_id>`",
+            text=r"Usage: `/link_player` `<player_name>, <telegram_id>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    player_name = args[0]
     try:
-        telegram_id = int(args[1])
+        telegram_id = int(telegram_id_str)
     except ValueError:
         await message.reply_text("ID de Telegram no válido. Debe ser un número.")
         return
