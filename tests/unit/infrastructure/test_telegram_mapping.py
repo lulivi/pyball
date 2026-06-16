@@ -28,3 +28,12 @@ def test_delete_player_id(mapping_store):
 def test_delete_nonexistent_player_id(mapping_store):
     mapping_store.delete_player_id(99999)  # Should not raise
     assert mapping_store.get_player_id(99999) is None
+
+
+def test_get_telegram_id_returns_linked_id(mapping_store):
+    mapping_store.set_player_id(12345, "player1")
+    assert mapping_store.get_telegram_id("player1") == 12345
+
+
+def test_get_telegram_id_unlinked_returns_none(mapping_store):
+    assert mapping_store.get_telegram_id("ghost") is None

@@ -187,7 +187,7 @@ async def test_new_meetup_handler_no_args(mock_update, mock_context):
     text = call.args[0] if call.args else call.kwargs.get("text", "")
     assert r"Formato de fecha no válido\." in text
     assert "Formato: `%Y-%m-%d %H:%M`" in text
-    assert "Ejemplo: `/new_meetup`" in text
+    assert "Ejemplo: `/meetup_new`" in text
     assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
@@ -201,7 +201,7 @@ async def test_new_meetup_handler_invalid_date(mock_update, mock_context):
     text = call.args[0] if call.args else call.kwargs.get("text", "")
     assert r"Formato de fecha no válido\." in text
     assert "Formato: `%Y-%m-%d %H:%M`" in text
-    assert "Ejemplo: `/new_meetup`" in text
+    assert "Ejemplo: `/meetup_new`" in text
     assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
@@ -257,7 +257,7 @@ async def test_show_meetup_handler_invalid_date(mock_update, mock_context):
     call = mock_update.message.reply_text.call_args
     text = call.args[0] if call.args else call.kwargs.get("text", "")
     assert r"Formato de fecha no válido\." in text
-    assert "Ejemplo: `/show_meetup`" in text
+    assert "Ejemplo: `/meetup_show`" in text
     assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
@@ -295,13 +295,13 @@ def test_date_usage_msg_no_suffix():
     fixed = datetime(2026, 5, 1, 14, 30)
     with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_dt:
         mock_dt.now.return_value = fixed
-        msg = _date_usage_msg("new_meetup", fmt)
+        msg = _date_usage_msg("meetup_new", fmt)
     assert msg == (
         r"Formato de fecha no válido\."
         "\n"
         "Formato: `%Y-%m-%d %H:%M`"
         "\n"
-        r"Ejemplo: `/new_meetup` `2026-05-01 14:30`"
+        r"Ejemplo: `/meetup_new` `2026-05-01 14:30`"
     )
 
 
@@ -310,13 +310,13 @@ def test_date_usage_msg_with_suffix():
     fixed = datetime(2026, 5, 1, 14, 30)
     with patch("pyball.infrastructure.telegram.bot.handlers.meetup.datetime") as mock_dt:
         mock_dt.now.return_value = fixed
-        msg = _date_usage_msg("add_player", fmt, r"`<name1>`, `<name2>`, \.\.\.")
+        msg = _date_usage_msg("meetup_add_player", fmt, r"`<name1>`, `<name2>`, \.\.\.")
     assert msg == (
         r"Formato de fecha no válido\."
         "\n"
         "Formato: `%Y-%m-%d %H:%M`"
         "\n"
-        r"Ejemplo: `/add_player` `2026-05-01 14:30` `<name1>`, `<name2>`, \.\.\."
+        r"Ejemplo: `/meetup_add_player` `2026-05-01 14:30` `<name1>`, `<name2>`, \.\.\."
     )
 
 

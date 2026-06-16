@@ -19,8 +19,16 @@
 # SOFTWARE.
 """Bot handlers."""
 
-from pyball.infrastructure.telegram.bot.handlers.general import setup_general_handlers
+from pyball.infrastructure.telegram.bot.handlers.general import (
+    register_bot_commands,
+    setup_general_handlers,
+)
 from pyball.infrastructure.telegram.bot.handlers.meetup import setup_meetup_handlers
 from pyball.infrastructure.telegram.bot.handlers.player import setup_player_handlers
 
-__all__ = ["setup_player_handlers", "setup_meetup_handlers", "setup_general_handlers"]
+__all__ = [
+    "setup_player_handlers",
+    "setup_meetup_handlers",
+    "setup_general_handlers",
+    "register_bot_commands",
+]
