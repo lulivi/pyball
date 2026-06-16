@@ -30,12 +30,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from pyball.application.container import Container
 from pyball.application.fuzzy_match import fuzzy_match_player
-from pyball.domain.player.errors import (
-    InvalidPlayerIdError,
-    NameAlreadyTakenError,
-    PlayerAlreadyExistsError,
-    PlayerNotFoundError,
-)
+from pyball.domain.player.errors import NameAlreadyTakenError, PlayerAlreadyExistsError
 from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.bot.auth import authorized
 from pyball.infrastructure.telegram.bot.reactions import react_ok
@@ -159,22 +154,24 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or not args:
+    player_name = " ".join(context.args or []).strip()
+    if not player_name:
         await message.reply_text(
-            text=r"Usage: `/delete_player` `<player_id>`",
+            text=r"Usage: `/delete_player` `<player_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
-    player_id = args[0]
+    player_repo = container.player_repository
     try:
-        container.delete_player().execute(player_id)
+        match = fuzzy_match_player(player_name, player_repo.find_all())
+    except ValueError:
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
+        return
+
+    try:
+        container.delete_player().execute(str(match.player_id.value))
         await react_ok(context.bot, message)
-    except InvalidPlayerIdError:
-        await message.reply_text("Formato de ID de jugador no válido.")
-    except PlayerNotFoundError:
-        await message.reply_text("Jugador no encontrado.")
     except PlayerError as error:
         logger.error("Player error deleting player: %s", error)
         await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
@@ -322,7 +319,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await message.reply_text(
                 "Este ID de Telegram ya está vinculado a otro jugador. "
-                "Elimina el enlace primero con /unlink_player <telegram_id>"
+                "Elimina el enlace primero con /unlink_player <player_name>"
             )
         return
 
@@ -339,26 +336,28 @@ async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if message is None:
         return
 
+    container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
 
-    args = context.args
-    if args is None or not args:
+    player_name = " ".join(context.args or []).strip()
+    if not player_name:
         await message.reply_text(
-            text=r"Usage: `/unlink_player `<telegram_id>`",
+            text=r"Usage: `/unlink_player` `<player_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
+    player_repo = container.player_repository
     try:
-        telegram_id = int(args[0])
+        match = fuzzy_match_player(player_name, player_repo.find_all())
     except ValueError:
-        await message.reply_text("ID de Telegram no válido. Debe ser un número.")
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
         return
 
-    player_id = mapping_store.get_player_id(telegram_id)
-    if not player_id:
-        await message.reply_text("Este ID de Telegram no está vinculado a ningún jugador.")
+    telegram_id = mapping_store.get_telegram_id(str(match.player_id.value))
+    if telegram_id is None:
+        await message.reply_text("Este jugador no está vinculado a ningún ID de Telegram.")
         return
 
     mapping_store.delete_player_id(telegram_id)

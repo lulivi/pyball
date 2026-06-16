@@ -66,7 +66,7 @@ async def test_delete_player_removes_from_repo(bot_update, bot_context):
     player = Player.create("ToDelete", "regular")
     container.player_repository.save(player)
 
-    bot_context.args = [str(player.id.value)]
+    bot_context.args = ["ToDelete"]
 
     await delete_player_handler(bot_update, bot_context)
 
@@ -131,7 +131,7 @@ async def test_unlink_player_removes_mapping(bot_update, bot_context):
     store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
     store.set_player_id(55555, str(player.id.value))
 
-    bot_context.args = ["55555"]
+    bot_context.args = ["Luis"]
 
     await unlink_player_handler(bot_update, bot_context)
 
