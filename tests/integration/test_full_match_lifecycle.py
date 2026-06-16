@@ -56,10 +56,10 @@ class TestFullMatchLifecycle:
 
     async def _create_players(self, bot_update, bot_context, real_container):
         for name in _REGULARS:
-            bot_context.args = [name, "regular"]
+            bot_context.args = [f"{name},", "regular"]
             await new_player_handler(bot_update, bot_context)
         for name in _SUBS:
-            bot_context.args = [name, "substitute"]
+            bot_context.args = [f"{name},", "substitute"]
             await new_player_handler(bot_update, bot_context)
 
         all_players = real_container.player_repository.find_all()
@@ -180,11 +180,11 @@ class TestFullMatchLifecycle:
     @pytest.mark.asyncio
     async def test_create_duplicate_player(self, bot_update, bot_context):
         """Creating a player with an existing name replies with a MarkdownV2 error."""
-        bot_context.args = ["Regular_01", "regular"]
+        bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
 
         bot_update.message.reply_text.reset_mock()
-        bot_context.args = ["Regular_01", "regular"]
+        bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
 
         call = bot_update.message.reply_text.call_args
@@ -195,7 +195,7 @@ class TestFullMatchLifecycle:
     @pytest.mark.asyncio
     async def test_add_player_already_enrolled(self, bot_update, bot_context, real_container):
         """Adding an already-enrolled player is a no-op — count stays the same."""
-        bot_context.args = ["Regular_01", "regular"]
+        bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)
@@ -212,7 +212,7 @@ class TestFullMatchLifecycle:
     @pytest.mark.asyncio
     async def test_remove_player_not_enrolled(self, bot_update, bot_context):
         """Removing a player not in the meetup replies with a meetup error."""
-        bot_context.args = ["Regular_01", "regular"]
+        bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)
@@ -232,7 +232,7 @@ class TestFullMatchLifecycle:
     @pytest.mark.asyncio
     async def test_add_player_fuzzy_name(self, bot_update, bot_context, real_container):
         """A one-character typo in the name is resolved by fuzzy matching."""
-        bot_context.args = ["Regular_03", "regular"]
+        bot_context.args = ["Regular_03,", "regular"]
         await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)
@@ -281,7 +281,7 @@ class TestFullMatchLifecycle:
     @pytest.mark.asyncio
     async def test_match_qr_without_teams(self, bot_update, bot_context):
         """match_qr_handler without teams replies with a no-teams error."""
-        bot_context.args = ["Regular_01", "regular"]
+        bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)
@@ -302,7 +302,7 @@ class TestFullMatchLifecycle:
     async def test_finish_already_closed_match(self, bot_update, bot_context, real_container):
         """Calling finish_match twice on the same meetup raises MeetupAlreadyClosedError."""
         for i in range(1, 5):
-            bot_context.args = [f"Player_{i:02d}", "regular"]
+            bot_context.args = [f"Player_{i:02d},", "regular"]
             await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)
@@ -324,7 +324,7 @@ class TestFullMatchLifecycle:
     @pytest.mark.asyncio
     async def test_stats_no_closed_matches(self, bot_update, bot_context, monkeypatch):
         """stats_handler with no closed matches still sends a photo (empty report)."""
-        bot_context.args = ["Regular_01", "regular"]
+        bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await new_meetup_handler(bot_update, bot_context)

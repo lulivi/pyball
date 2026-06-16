@@ -28,7 +28,7 @@ import qrcode
 import telegram
 from telegram import Message, Update
 from telegram.constants import ParseMode
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
 from pyball.application.meetup import DuplicateMeetupError
@@ -43,6 +43,7 @@ from pyball.domain.meetup.models import Meetup
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.bot.auth import authorized
+from pyball.infrastructure.telegram.bot.handlers.general import add_command
 from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
@@ -63,26 +64,26 @@ logger = logging.getLogger(__name__)
 
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
-    application.add_handler(CommandHandler("new_meetup", new_meetup_handler))
-    application.add_handler(CommandHandler("next_meetup", next_meetup_handler))
-    application.add_handler(CommandHandler("add_player", add_player_handler))
-    application.add_handler(CommandHandler("remove_player", remove_player_handler))
-    application.add_handler(CommandHandler("create_teams", create_teams_handler))
-    application.add_handler(CommandHandler("list_meetups", list_meetups_handler))
-    application.add_handler(CommandHandler("show_meetup", show_meetup_handler))
-    application.add_handler(CommandHandler("search", search_handler))
-    application.add_handler(CommandHandler("lock", lock_handler))
-    application.add_handler(CommandHandler("unlock", unlock_handler))
-    application.add_handler(CommandHandler("match_qr", match_qr_handler))
-    application.add_handler(CommandHandler("stats", stats_handler))
-    application.add_handler(CommandHandler("change_location", change_location_handler))
-    application.add_handler(CommandHandler("change_date", change_date_handler))
+    add_command(application, "meetup_new", new_meetup_handler)
+    add_command(application, "meetup_next", next_meetup_handler)
+    add_command(application, "meetup_add_player", add_player_handler)
+    add_command(application, "meetup_remove_player", remove_player_handler)
+    add_command(application, "meetup_create_teams", create_teams_handler)
+    add_command(application, "meetup_list", list_meetups_handler)
+    add_command(application, "meetup_show", show_meetup_handler)
+    add_command(application, "meetup_search", search_handler)
+    add_command(application, "meetup_lock", lock_handler)
+    add_command(application, "meetup_unlock", unlock_handler)
+    add_command(application, "meetup_match_qr", match_qr_handler)
+    add_command(application, "meetup_stats", stats_handler)
+    add_command(application, "meetup_change_location", change_location_handler)
+    add_command(application, "meetup_change_date", change_date_handler)
 
 
 @log_func
 @authorized
 async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /new_meetup command - creates meetup and sends callup messages."""
+    """Handle /meetup_new command - creates meetup and sends callup messages."""
     message = update.message
     if message is None:
         return
@@ -91,7 +92,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     args = context.args
     if not args or len(args) < 2:
         await message.reply_text(
-            _date_usage_msg("new_meetup", settings.pyball.display_date_format),
+            _date_usage_msg("meetup_new", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -100,7 +101,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         date = parse_display(f"{args[0]} {args[1]}", settings.pyball.display_date_format)
     except ValueError:
         await message.reply_text(
-            _date_usage_msg("new_meetup", settings.pyball.display_date_format),
+            _date_usage_msg("meetup_new", settings.pyball.display_date_format),
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -111,7 +112,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @log_func
 @authorized
 async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
+    """Handle /meetup_next command - creates meetup for next default weekday and sends callup."""
     message = update.message
     if message is None:
         return
@@ -124,7 +125,7 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /add_player command."""
+    """Handle /meetup_add_player command."""
     message = update.message
     if message is None:
         return
@@ -140,7 +141,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return
     else:
-        meetup = await _resolve_meetup(message, [], settings, container, "add_player")
+        meetup = await _resolve_meetup(message, [], settings, container, "meetup_add_player")
         if meetup is None:
             return
 
@@ -148,7 +149,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not names:
         await message.reply_text(
             _date_usage_msg(
-                "add_player",
+                "meetup_add_player",
                 settings.pyball.display_date_format,
                 r"`<name1>`, `<name2>`, \.\.\.",
             ),
@@ -184,7 +185,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @log_func
 @authorized
 async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /remove_player command."""
+    """Handle /meetup_remove_player command."""
     message = update.message
     if message is None:
         return
@@ -202,7 +203,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
             return
         player_name = " ".join(name_args)
     else:
-        meetup = await _resolve_meetup(message, [], settings, container, "remove_player")
+        meetup = await _resolve_meetup(message, [], settings, container, "meetup_remove_player")
         if meetup is None:
             return
         player_name = " ".join(name_args)
@@ -210,7 +211,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if not player_name:
         await message.reply_text(
             _date_usage_msg(
-                "remove_player",
+                "meetup_remove_player",
                 settings.pyball.display_date_format,
                 r"`<player_name>`",
             ),
@@ -225,7 +226,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     except ValueError:
         await message.reply_text(
             _date_usage_msg(
-                "remove_player",
+                "meetup_remove_player",
                 settings.pyball.display_date_format,
                 r"`<player_name>`",
             ),
@@ -246,7 +247,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /create_teams [fecha] [hora] [algoritmo] command."""
+    """Handle /meetup_create_teams [fecha] [hora] [algoritmo] command."""
     message = update.message
     if message is None:
         return
@@ -254,7 +255,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
     usage = _date_usage_msg(
-        "create_teams",
+        "meetup_create_teams",
         settings.pyball.display_date_format,
         suffix=(
             r"\[algoritmo\]"
@@ -319,7 +320,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /list_meetups command."""
+    """Handle /meetup_list command."""
     message = update.message
     if message is None:
         return
@@ -347,14 +348,14 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /show_meetup command."""
+    """Handle /meetup_show command."""
     message = update.message
     if message is None:
         return
     container: Container = context.bot_data["container"]
     settings: TelegramAppSettings = context.bot_data["settings"]
 
-    meetup = await _resolve_meetup(message, context.args, settings, container, "show_meetup")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_show")
     if meetup is None:
         return
 
@@ -372,7 +373,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /search command - send substitutes message."""
+    """Handle /meetup_search command - send substitutes message."""
     message = update.message
     if message is None:
         return
@@ -383,7 +384,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("El chat de suplentes no está configurado.")
         return
 
-    meetup = await _resolve_meetup(message, context.args, settings, container, "search")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_search")
     if meetup is None:
         return
 
@@ -428,7 +429,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @log_func
 @authorized
 async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /stats command — send a stats image for the requested scope."""
+    """Handle /meetup_stats command — send a stats image for the requested scope."""
     message = update.message
     if message is None:
         return
@@ -436,7 +437,7 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     args = context.args
     if not args or args[0] not in ("temporada", "historico"):
         await message.reply_text(
-            text="Usa `/stats temporada` o `/stats historico`",
+            text="Usa `/meetup_stats temporada` o `/meetup_stats historico`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -473,13 +474,13 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 @log_func
 @authorized
 async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /lock command — remove inline keyboards from callup messages."""
+    """Handle /meetup_lock command — remove inline keyboards from callup messages."""
     message = update.message
     if message is None:
         return
     settings: TelegramAppSettings = context.bot_data["settings"]
     container: Container = context.bot_data["container"]
-    meetup = await _resolve_meetup(message, context.args, settings, container, "lock")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_lock")
     if meetup is None:
         return
     await refresh_callup_messages(context.bot, settings, container, meetup, include_keyboard=False)
@@ -489,13 +490,13 @@ async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 @log_func
 @authorized
 async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /unlock command — restore inline keyboards on callup messages."""
+    """Handle /meetup_unlock command — restore inline keyboards on callup messages."""
     message = update.message
     if message is None:
         return
     settings: TelegramAppSettings = context.bot_data["settings"]
     container: Container = context.bot_data["container"]
-    meetup = await _resolve_meetup(message, context.args, settings, container, "unlock")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_unlock")
     if meetup is None:
         return
     await refresh_callup_messages(context.bot, settings, container, meetup)
@@ -505,7 +506,7 @@ async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @log_func
 @authorized
 async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /match_qr command — send QR code of the match URL to each admin by DM."""
+    """Handle /meetup_match_qr command — send QR code of the match URL to each admin by DM."""
     message = update.message
     if message is None:
         return
@@ -514,7 +515,7 @@ async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not settings.pyball.base_url:
         await message.reply_text("La URL base no está configurada.")
         return
-    meetup = await _resolve_meetup(message, context.args, settings, container, "match_qr")
+    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_match_qr")
     if meetup is None:
         return
     try:
@@ -544,7 +545,7 @@ async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 @log_func
 @authorized
 async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /change_location [fecha hora] <nueva_localización> command."""
+    """Handle /meetup_change_location [fecha hora] <nueva_localización> command."""
     message = update.message
     if message is None:
         return
@@ -559,7 +560,7 @@ async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_
     if not new_location:
         await message.reply_text(
             _date_usage_msg(
-                "change_location",
+                "meetup_change_location",
                 settings.pyball.display_date_format,
                 r"`<nueva_localización>`",
             ),
@@ -573,7 +574,7 @@ async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_
             await message.reply_text("No existe ningún meetup para esa fecha.")
             return
     else:
-        meetup = await _resolve_meetup(message, [], settings, container, "change_location")
+        meetup = await _resolve_meetup(message, [], settings, container, "meetup_change_location")
         if meetup is None:
             return
 
@@ -593,7 +594,7 @@ async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_
 @log_func
 @authorized
 async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /change_date [vieja_fecha vieja_hora] <nueva_fecha> <nueva_hora> command."""
+    """Handle /meetup_change_date [vieja_fecha vieja_hora] <nueva_fecha> <nueva_hora> command."""
     message = update.message
     if message is None:
         return
@@ -602,7 +603,7 @@ async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args or []
     fmt = settings.pyball.display_date_format
     usage = _date_usage_msg(
-        "change_date",
+        "meetup_change_date",
         fmt,
         r"`<nueva_fecha>` `<nueva_hora>`",
     )
@@ -781,9 +782,9 @@ async def _parse_change_date_args(
     Returns (old_date, new_date) or None if parsing failed or the meetup could not be resolved.
     """
     fmt = settings.pyball.display_date_format
-    usage = _date_usage_msg("change_date", fmt, r"`<nueva_fecha>` `<nueva_hora>`")
+    usage = _date_usage_msg("meetup_change_date", fmt, r"`<nueva_fecha>` `<nueva_hora>`")
     if len(args) == 2:
-        old_meetup = await _resolve_meetup(message, [], settings, container, "change_date")
+        old_meetup = await _resolve_meetup(message, [], settings, container, "meetup_change_date")
         if old_meetup is None:
             return None
         old_date = old_meetup.date

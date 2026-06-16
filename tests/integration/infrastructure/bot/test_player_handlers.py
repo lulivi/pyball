@@ -20,7 +20,7 @@ from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 @pytest.mark.asyncio
 async def test_new_player_persists(bot_update, bot_context):
     """Create a new player and verify it exists in the real repo."""
-    bot_context.args = ["Luis", "regular"]
+    bot_context.args = ["Luis,", "regular"]
 
     await new_player_handler(bot_update, bot_context)
 
@@ -33,7 +33,7 @@ async def test_new_player_persists(bot_update, bot_context):
 @pytest.mark.asyncio
 async def test_new_player_duplicate_replies_spanish_error(bot_update, bot_context):
     """Reply with Spanish error when player already exists."""
-    bot_context.args = ["Luis", "regular"]
+    bot_context.args = ["Luis,", "regular"]
     await new_player_handler(bot_update, bot_context)
 
     bot_update.message.reply_text.reset_mock()
@@ -66,7 +66,7 @@ async def test_delete_player_removes_from_repo(bot_update, bot_context):
     player = Player.create("ToDelete", "regular")
     container.player_repository.save(player)
 
-    bot_context.args = [str(player.id.value)]
+    bot_context.args = ["ToDelete"]
 
     await delete_player_handler(bot_update, bot_context)
 
@@ -96,7 +96,7 @@ async def test_change_group_persists(bot_update, bot_context):
     player = Player.create("Luis", "regular")
     container.player_repository.save(player)
 
-    bot_context.args = ["Luis", "substitute"]
+    bot_context.args = ["Luis,", "substitute"]
 
     await change_group_handler(bot_update, bot_context)
 
@@ -111,7 +111,7 @@ async def test_link_player_writes_mapping(bot_update, bot_context):
     player = Player.create("Luis", "regular")
     container.player_repository.save(player)
 
-    bot_context.args = ["Luis", "55555"]
+    bot_context.args = ["Luis,", "55555"]
 
     await link_player_handler(bot_update, bot_context)
 
@@ -131,7 +131,7 @@ async def test_unlink_player_removes_mapping(bot_update, bot_context):
     store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
     store.set_player_id(55555, str(player.id.value))
 
-    bot_context.args = ["55555"]
+    bot_context.args = ["Luis"]
 
     await unlink_player_handler(bot_update, bot_context)
 

@@ -26,18 +26,14 @@ import logging
 import telegram
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
 from pyball.application.fuzzy_match import fuzzy_match_player
-from pyball.domain.player.errors import (
-    InvalidPlayerIdError,
-    NameAlreadyTakenError,
-    PlayerAlreadyExistsError,
-    PlayerNotFoundError,
-)
+from pyball.domain.player.errors import NameAlreadyTakenError, PlayerAlreadyExistsError
 from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.bot.auth import authorized
+from pyball.infrastructure.telegram.bot.handlers.general import add_command
 from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.logger import log_func
@@ -47,35 +43,34 @@ logger = logging.getLogger(__name__)
 
 def setup_player_handlers(application):
     """Register player-related handlers."""
-    application.add_handler(CommandHandler("new_player", new_player_handler))
-    application.add_handler(CommandHandler("rename_player", rename_player_handler))
-    application.add_handler(CommandHandler("delete_player", delete_player_handler))
-    application.add_handler(CommandHandler("list_players", list_players_handler))
-    application.add_handler(CommandHandler("change_group", change_group_handler))
-    application.add_handler(CommandHandler("link_player", link_player_handler))
-    application.add_handler(CommandHandler("unlink_player", unlink_player_handler))
+    add_command(application, "player_new", new_player_handler)
+    add_command(application, "player_rename", rename_player_handler)
+    add_command(application, "player_delete", delete_player_handler)
+    add_command(application, "player_list", list_players_handler)
+    add_command(application, "player_change_group", change_group_handler)
+    add_command(application, "player_link", link_player_handler)
+    add_command(application, "player_unlink", unlink_player_handler)
 
 
 @log_func
 @authorized
 async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /new_player command."""
+    """Handle /player_new command."""
     message = update.message
     if message is None:
         return
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or len(args) < 2:
+    name, _, group = " ".join(context.args or []).partition(",")
+    name = name.strip()
+    group = group.strip()
+    if not name or not group:
         await message.reply_text(
-            text=r"Usage: `/new_player` `<name>` `<regular|substitute>`",
+            text=r"Usage: `/player_new` `<name>, <regular|substitute>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    name = args[0]
-    group = args[1]
 
     if group not in ("regular", "substitute"):
         await message.reply_text(
@@ -106,7 +101,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @log_func
 @authorized
 async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /rename_player command."""
+    """Handle /player_rename command."""
     message = update.message
     if message is None:
         return
@@ -119,7 +114,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
     new_name = new_name.strip()
     if not player_name or not new_name:
         await message.reply_text(
-            text=r"Usage: `/rename_player` `<old_name>, <new_name>`",
+            text=r"Usage: `/player_rename` `<old_name>, <new_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
@@ -153,29 +148,31 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /delete_player command."""
+    """Handle /player_delete command."""
     message = update.message
     if message is None:
         return
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or not args:
+    player_name = " ".join(context.args or []).strip()
+    if not player_name:
         await message.reply_text(
-            text=r"Usage: `/delete_player` `<player_id>`",
+            text=r"Usage: `/player_delete` `<player_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
-    player_id = args[0]
+    player_repo = container.player_repository
     try:
-        container.delete_player().execute(player_id)
+        match = fuzzy_match_player(player_name, player_repo.find_all())
+    except ValueError:
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
+        return
+
+    try:
+        container.delete_player().execute(str(match.player_id.value))
         await react_ok(context.bot, message)
-    except InvalidPlayerIdError:
-        await message.reply_text("Formato de ID de jugador no válido.")
-    except PlayerNotFoundError:
-        await message.reply_text("Jugador no encontrado.")
     except PlayerError as error:
         logger.error("Player error deleting player: %s", error)
         await message.reply_text("Error en el jugador. Inténtalo de nuevo.")
@@ -190,7 +187,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /list_players command."""
+    """Handle /player_list command."""
     message = update.message
     if message is None:
         return
@@ -232,23 +229,22 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /change_group command."""
+    """Handle /player_change_group command."""
     message = update.message
     if message is None:
         return
 
     container: Container = context.bot_data["container"]
 
-    args = context.args
-    if args is None or len(args) < 2:
+    player_name, _, new_group = " ".join(context.args or []).partition(",")
+    player_name = player_name.strip()
+    new_group = new_group.strip()
+    if not player_name or not new_group:
         await message.reply_text(
-            text=r"Usage: `/change_group` `<player_name>` `<regular|substitute>`",
+            text=r"Usage: `/player_change_group` `<player_name>, <regular|substitute>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    player_name = args[0]
-    new_group = args[1]
 
     if new_group not in ("regular", "substitute"):
         await message.reply_text("El grupo debe ser 'regular' o 'substitute'.")
@@ -281,7 +277,7 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /link_player command."""
+    """Handle /player_link command."""
     message = update.message
     if message is None:
         return
@@ -291,17 +287,17 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
 
-    args = context.args
-    if args is None or len(args) < 2:
+    player_name, _, telegram_id_str = " ".join(context.args or []).partition(",")
+    player_name = player_name.strip()
+    telegram_id_str = telegram_id_str.strip()
+    if not player_name or not telegram_id_str:
         await message.reply_text(
-            text=r"Usage: `/link_player` `<player_name>` `<telegram_id>`",
+            text=r"Usage: `/player_link` `<player_name>, <telegram_id>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
-
-    player_name = args[0]
     try:
-        telegram_id = int(args[1])
+        telegram_id = int(telegram_id_str)
     except ValueError:
         await message.reply_text("ID de Telegram no válido. Debe ser un número.")
         return
@@ -324,7 +320,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await message.reply_text(
                 "Este ID de Telegram ya está vinculado a otro jugador. "
-                "Elimina el enlace primero con /unlink_player <telegram_id>"
+                "Elimina el enlace primero con /player_unlink <player_name>"
             )
         return
 
@@ -336,31 +332,33 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /unlink_player command."""
+    """Handle /player_unlink command."""
     message = update.message
     if message is None:
         return
 
+    container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
     mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
 
-    args = context.args
-    if args is None or not args:
+    player_name = " ".join(context.args or []).strip()
+    if not player_name:
         await message.reply_text(
-            text=r"Usage: `/unlink_player `<telegram_id>`",
+            text=r"Usage: `/player_unlink` `<player_name>`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
 
+    player_repo = container.player_repository
     try:
-        telegram_id = int(args[0])
+        match = fuzzy_match_player(player_name, player_repo.find_all())
     except ValueError:
-        await message.reply_text("ID de Telegram no válido. Debe ser un número.")
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
         return
 
-    player_id = mapping_store.get_player_id(telegram_id)
-    if not player_id:
-        await message.reply_text("Este ID de Telegram no está vinculado a ningún jugador.")
+    telegram_id = mapping_store.get_telegram_id(str(match.player_id.value))
+    if telegram_id is None:
+        await message.reply_text("Este jugador no está vinculado a ningún ID de Telegram.")
         return
 
     mapping_store.delete_player_id(telegram_id)

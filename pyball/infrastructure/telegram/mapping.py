@@ -49,6 +49,14 @@ class TelegramMappingStore:
             del data[str(telegram_id)]
             self._write(data)
 
+    def get_telegram_id(self, player_id: str) -> int | None:
+        """Get the telegram_id linked to a player_id, if any."""
+        data = self._read()
+        for tg_id, pid in data.items():
+            if pid == player_id:
+                return int(tg_id)
+        return None
+
     def _ensure_file_exists(self) -> None:
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.file_path.exists():
