@@ -175,7 +175,7 @@ function renderOffline() {
 function renderApp() {
     const state = store.get();
     document.getElementById('app').innerHTML = `
-            <div style="height:100svh;display:flex;flex-direction:column;padding:8px 12px 12px;">
+            <div style="height:100vh;height:100svh;display:flex;flex-direction:column;padding:8px 12px 12px;">
                 <div class="match-date">${formatMatchDate(ctx.meetupDate)}</div>
                 <div class="tab-bar">
                     <button class="tab-btn ${state.activeTab === 'players' ? 'active' : ''}" onclick="setTab('players')">Jugadores</button>
