@@ -32,6 +32,7 @@ from pyball.application.bootstrap import bootstrap_core
 from pyball.infrastructure.http.app import _Server, create_app
 from pyball.infrastructure.telegram.bot.entrypoint import create_application
 from pyball.infrastructure.telegram.bot.handlers import (
+    register_bot_commands,
     setup_general_handlers,
     setup_meetup_handlers,
     setup_player_handlers,
@@ -101,6 +102,7 @@ async def _main_async(config_path: Path) -> None:
         loop.add_signal_handler(sig, _handle_signal)
 
     async with application:
+        await register_bot_commands(application.bot)
         await application.start()
         await application.updater.start_polling()
         logger.info("Bot polling started")
