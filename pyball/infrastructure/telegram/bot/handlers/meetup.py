@@ -83,7 +83,7 @@ def setup_meetup_handlers(application):
 @log_func
 @authorized
 async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /new_meetup command - creates meetup and sends callup messages."""
+    """Handle /meetup_new command - creates meetup and sends callup messages."""
     message = update.message
     if message is None:
         return
@@ -112,7 +112,7 @@ async def new_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @log_func
 @authorized
 async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /next_meetup command - creates meetup for next default weekday and sends callup."""
+    """Handle /meetup_next command - creates meetup for next default weekday and sends callup."""
     message = update.message
     if message is None:
         return
@@ -125,7 +125,7 @@ async def next_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /add_player command."""
+    """Handle /meetup_add_player command."""
     message = update.message
     if message is None:
         return
@@ -185,7 +185,7 @@ async def add_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @log_func
 @authorized
 async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /remove_player command."""
+    """Handle /meetup_remove_player command."""
     message = update.message
     if message is None:
         return
@@ -247,7 +247,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /create_teams [fecha] [hora] [algoritmo] command."""
+    """Handle /meetup_create_teams [fecha] [hora] [algoritmo] command."""
     message = update.message
     if message is None:
         return
@@ -320,7 +320,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /list_meetups command."""
+    """Handle /meetup_list command."""
     message = update.message
     if message is None:
         return
@@ -348,7 +348,7 @@ async def list_meetups_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /show_meetup command."""
+    """Handle /meetup_show command."""
     message = update.message
     if message is None:
         return
@@ -373,7 +373,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /search command - send substitutes message."""
+    """Handle /meetup_search command - send substitutes message."""
     message = update.message
     if message is None:
         return
@@ -429,7 +429,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @log_func
 @authorized
 async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /stats command — send a stats image for the requested scope."""
+    """Handle /meetup_stats command — send a stats image for the requested scope."""
     message = update.message
     if message is None:
         return
@@ -474,7 +474,7 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 @log_func
 @authorized
 async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /lock command — remove inline keyboards from callup messages."""
+    """Handle /meetup_lock command — remove inline keyboards from callup messages."""
     message = update.message
     if message is None:
         return
@@ -490,7 +490,7 @@ async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 @log_func
 @authorized
 async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /unlock command — restore inline keyboards on callup messages."""
+    """Handle /meetup_unlock command — restore inline keyboards on callup messages."""
     message = update.message
     if message is None:
         return
@@ -506,7 +506,7 @@ async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @log_func
 @authorized
 async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /match_qr command — send QR code of the match URL to each admin by DM."""
+    """Handle /meetup_match_qr command — send QR code of the match URL to each admin by DM."""
     message = update.message
     if message is None:
         return
@@ -545,7 +545,7 @@ async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 @log_func
 @authorized
 async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /change_location [fecha hora] <nueva_localización> command."""
+    """Handle /meetup_change_location [fecha hora] <nueva_localización> command."""
     message = update.message
     if message is None:
         return
@@ -594,7 +594,7 @@ async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_
 @log_func
 @authorized
 async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /change_date [vieja_fecha vieja_hora] <nueva_fecha> <nueva_hora> command."""
+    """Handle /meetup_change_date [vieja_fecha vieja_hora] <nueva_fecha> <nueva_hora> command."""
     message = update.message
     if message is None:
         return

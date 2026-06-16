@@ -102,15 +102,6 @@ async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await message.reply_text(_render_help(), parse_mode=ParseMode.MARKDOWN_V2)
 
 
-def _category(name: str) -> str:
-    """Derive the help category from the command's group prefix."""
-    if name.startswith("player_"):
-        return "Player"
-    if name.startswith("meetup_"):
-        return "Meetup"
-    return "General"
-
-
 def _render_help() -> str:
     """Render the MarkdownV2 help text from COMMAND_DESCRIPTIONS."""
     lines = [r"*Available Commands:*"]
@@ -123,6 +114,15 @@ def _render_help() -> str:
             current_category = category
         lines.append(rf"`/{name}` \- {_escape_md(desc)}")
     return "\n".join(lines)
+
+
+def _category(name: str) -> str:
+    """Derive the help category from the command's group prefix."""
+    if name.startswith("player_"):
+        return "Player"
+    if name.startswith("meetup_"):
+        return "Meetup"
+    return "General"
 
 
 def _escape_md(text: str) -> str:

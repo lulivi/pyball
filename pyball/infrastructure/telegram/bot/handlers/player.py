@@ -55,7 +55,7 @@ def setup_player_handlers(application):
 @log_func
 @authorized
 async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /new_player command."""
+    """Handle /player_new command."""
     message = update.message
     if message is None:
         return
@@ -101,7 +101,7 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @log_func
 @authorized
 async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /rename_player command."""
+    """Handle /player_rename command."""
     message = update.message
     if message is None:
         return
@@ -148,7 +148,7 @@ async def rename_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /delete_player command."""
+    """Handle /player_delete command."""
     message = update.message
     if message is None:
         return
@@ -187,7 +187,7 @@ async def delete_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /list_players command."""
+    """Handle /player_list command."""
     message = update.message
     if message is None:
         return
@@ -229,7 +229,7 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /change_group command."""
+    """Handle /player_change_group command."""
     message = update.message
     if message is None:
         return
@@ -277,7 +277,7 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_func
 @authorized
 async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /link_player command."""
+    """Handle /player_link command."""
     message = update.message
     if message is None:
         return
@@ -332,7 +332,7 @@ async def link_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def unlink_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /unlink_player command."""
+    """Handle /player_unlink command."""
     message = update.message
     if message is None:
         return
