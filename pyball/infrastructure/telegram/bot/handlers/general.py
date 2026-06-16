@@ -88,6 +88,7 @@ async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def _render_help() -> str:
+    """Render the MarkdownV2 help text from COMMAND_DESCRIPTIONS."""
     lines = [r"*Available Commands:*"]
     current_category: str | None = None
     for name, (desc, category) in COMMAND_DESCRIPTIONS.items():
@@ -100,4 +101,5 @@ def _render_help() -> str:
 
 
 def _escape_md(text: str) -> str:
+    """Escape MarkdownV2 special characters in text."""
     return "".join(f"\\{ch}" if ch in _MD_V2_SPECIAL else ch for ch in text)

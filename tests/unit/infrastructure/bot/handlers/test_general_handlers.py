@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from telegram import BotCommand
+from telegram.constants import ParseMode
 from telegram.ext import Application
 
 from pyball.infrastructure.telegram.bot.handlers import (
@@ -59,3 +60,4 @@ async def test_help_handler_renders_categories():
     assert "*Player:*" in text
     assert r"`/new_player`" in text
     assert r"`/change_location`" in text
+    assert update.message.reply_text.call_args.kwargs["parse_mode"] == ParseMode.MARKDOWN_V2
