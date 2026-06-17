@@ -20,17 +20,24 @@ class _StubNotifier(MatchNotifier):
     def __init__(self):
         self.closed = []
         self.edited = []
+        self.updated = []
+        self.cancelled = []
 
     async def on_match_closed(self, meetup):
         """Record the closed meetup."""
         self.closed.append(meetup)
 
     async def on_meetup_updated(self, meetup):
-        """Do nothing."""
+        """Record the updated meetup."""
+        self.updated.append(meetup)
 
     async def on_match_edited(self, meetup):
         """Record the edited meetup."""
         self.edited.append(meetup)
+
+    async def on_meetup_cancelled(self, meetup):
+        """Record the cancelled meetup."""
+        self.cancelled.append(meetup)
 
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
