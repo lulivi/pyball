@@ -46,9 +46,12 @@ from pyball.infrastructure.http.schemas import (
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
+    from pyball.application.notifier import MatchNotifier
 
 
-def register_meetup_routes(app: FastAPI, container: "Container") -> None:
+def register_meetup_routes(
+    app: FastAPI, container: "Container", notifier: "MatchNotifier"
+) -> None:
     """Register meetup-related routes."""
 
     @app.get("/api/meetup/active")
@@ -63,6 +66,7 @@ def register_meetup_routes(app: FastAPI, container: "Container") -> None:
             meetup = container.cancel_meetup().execute()
         except MeetupNotFoundError as exc:
             raise HTTPException(404, "No active meetup to cancel") from exc
+        await notifier.on_meetup_cancelled(meetup)
         return {"status": "cancelled", "date": meetup.date.strftime("%Y-%m-%dT%H:%M")}
 
     @app.post("/api/meetup/parse-callup")
@@ -78,7 +82,7 @@ def register_meetup_routes(app: FastAPI, container: "Container") -> None:
     @app.post("/api/meetup/generate-teams")
     async def generate_teams_endpoint(body: GenerateTeamsInput):
         """Generate balanced teams for an existing meetup and return the full meetup state."""
-        return _handle_generate_teams(container, body)
+        return await _handle_generate_teams(container, notifier, body)
 
     @app.post("/api/meetup/assign-teams")
     async def assign_teams(body: AssignTeamsInput):
@@ -97,23 +101,28 @@ def register_meetup_routes(app: FastAPI, container: "Container") -> None:
             raise HTTPException(409, "Match already finished, cannot reassign teams")
 
         try:
-            container.assign_teams_by_id().execute(meetup_date, body.team_a_ids, body.team_b_ids)
+            meetup = container.assign_teams_by_id().execute(
+                meetup_date, body.team_a_ids, body.team_b_ids
+            )
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
+        await notifier.on_meetup_updated(meetup)
         return build_meetup_active_response(container)
 
     @app.post("/api/meetup/create")
     async def create_meetup_endpoint(body: CreateMeetupInput):
         """Create (or reset) a meetup with the given player list."""
-        return _handle_create_meetup(container, body)
+        return await _handle_create_meetup(container, notifier, body)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
 
-def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> dict:
-    """Validate, upsert via SetMeetupPlayers, and serialise the response."""
+async def _handle_create_meetup(
+    container: "Container", notifier: "MatchNotifier", body: CreateMeetupInput
+) -> dict:
+    """Validate, upsert via SetMeetupPlayers, notify, and serialise the response."""
     try:
         meetup_date = datetime.fromisoformat(body.date)
     except ValueError as exc:
@@ -125,6 +134,8 @@ def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> di
         raise HTTPException(409, "Match already finished, cannot reset") from exc
     except InvalidPlayerIdError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_meetup_updated(meetup)
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -139,8 +150,10 @@ def _handle_create_meetup(container: "Container", body: CreateMeetupInput) -> di
     return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
 
 
-def _handle_generate_teams(container: "Container", body: GenerateTeamsInput) -> dict:
-    """Validate, generate teams, and serialise the response for POST /api/meetup/generate-teams."""
+async def _handle_generate_teams(
+    container: "Container", notifier: "MatchNotifier", body: GenerateTeamsInput
+) -> dict:
+    """Validate, generate teams, notify, and serialise the active meetup response."""
     try:
         meetup_date = datetime.fromisoformat(body.date)
     except ValueError as exc:
@@ -153,8 +166,9 @@ def _handle_generate_teams(container: "Container", body: GenerateTeamsInput) -> 
         raise HTTPException(409, "Match already finished, cannot regenerate teams")
 
     try:
-        container.create_teams(body.algorithm).execute(meetup_date)
+        meetup = container.create_teams(body.algorithm).execute(meetup_date)
     except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
+    await notifier.on_meetup_updated(meetup)
     return build_meetup_active_response(container)
