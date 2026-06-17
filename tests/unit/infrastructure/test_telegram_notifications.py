@@ -130,3 +130,72 @@ async def test_on_match_edited_sends_new_message_and_reposts_stats(monkeypatch):
     assert "Resultado corregido" in kwargs["text"]
     assert "resumen" in kwargs["text"]
     assert len(stats_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_cancelled_edits_regular_message_with_cancelado_prefix(tmp_path):
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
+
+    await notifier.on_meetup_cancelled(meetup)
+
+    bot.edit_message_text.assert_called_once()
+    kwargs = bot.edit_message_text.call_args.kwargs
+    assert kwargs["chat_id"] == -100
+    assert kwargs["message_id"] == 42
+    assert kwargs["reply_markup"] is None
+    assert "CANCELADO" in kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_cancelled_edits_both_messages_with_cancelado_prefix(tmp_path):
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "substitute", MessageTracking(chat_id=-200, message_id=99)
+    )
+
+    await notifier.on_meetup_cancelled(meetup)
+
+    assert bot.edit_message_text.call_count == 2
+    for call in bot.edit_message_text.call_args_list:
+        assert call.kwargs["reply_markup"] is None
+        assert "CANCELADO" in call.kwargs["text"]
+    chat_ids = {c.kwargs["chat_id"] for c in bot.edit_message_text.call_args_list}
+    assert chat_ids == {-100, -200}
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_cancelled_deletes_tracking_entries(tmp_path):
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "substitute", MessageTracking(chat_id=-200, message_id=99)
+    )
+
+    await notifier.on_meetup_cancelled(meetup)
+
+    assert store.get_message(datetime(2026, 4, 30, 20, 0), "regular") is None
+    assert store.get_message(datetime(2026, 4, 30, 20, 0), "substitute") is None
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_cancelled_does_nothing_when_no_tracked_messages(tmp_path):
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+
+    await notifier.on_meetup_cancelled(meetup)
+
+    bot.edit_message_text.assert_not_called()

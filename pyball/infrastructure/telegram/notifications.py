@@ -63,6 +63,10 @@ class TelegramMatchNotifier(MatchNotifier):
         """Handle a meetup update by refreshing platform messages."""
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
 
+    async def on_meetup_cancelled(self, meetup: Meetup) -> None:
+        """Handle a cancelled meetup by marking messages as cancelled and clearing tracking."""
+        await _cancel_callup_messages(self._bot, self._settings, self._container, meetup)
+
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Handle a closed match by updating messages, clearing tracking, and posting stats."""
         await refresh_callup_messages(
@@ -177,6 +181,71 @@ async def refresh_callup_messages(
             logger.warning("Could not edit substitutes message: %s", error)
         except Exception as error:  # pylint: disable=broad-except
             logger.error("Error editing substitutes message: %s", error)
+
+
+async def _cancel_callup_messages(
+    bot: telegram.Bot,
+    settings: "TelegramAppSettings",
+    container: "Container",
+    meetup: Meetup,
+) -> None:
+    """Edit tracked callup messages to show cancellation, then clear their tracking."""
+    player_repo = container.player_repository
+    all_players = player_repo.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    player_groups = {str(p.id.value): p.group for p in all_players}
+
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    date_fmt = settings.pyball.display_date_format
+    cancelled_prefix = "🚫 *CANCELADO*\n\n"
+
+    regular_tracking = store.get_message(meetup.date, "regular")
+    if regular_tracking:
+        text = cancelled_prefix + format_main_message(
+            meetup,
+            player_names,
+            team_colors=settings.pyball.team_colors,
+            team_emojis=settings.pyball.team_emojis,
+            date_fmt=date_fmt,
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=regular_tracking.chat_id,
+                message_id=regular_tracking.message_id,
+                text=text,
+                reply_markup=None,
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+        except telegram.error.BadRequest as error:
+            logger.warning("Could not edit regulars message on cancel: %s", error)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.error("Error editing regulars message on cancel: %s", error)
+
+    sub_tracking = store.get_message(meetup.date, "substitute")
+    if sub_tracking:
+        subs_text = cancelled_prefix + format_subs_message(
+            meetup,
+            player_names,
+            player_groups,
+            team_colors=settings.pyball.team_colors,
+            team_emojis=settings.pyball.team_emojis,
+            date_fmt=date_fmt,
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=sub_tracking.chat_id,
+                message_id=sub_tracking.message_id,
+                text=subs_text,
+                reply_markup=None,
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+        except telegram.error.BadRequest as error:
+            logger.warning("Could not edit substitutes message on cancel: %s", error)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.error("Error editing substitutes message on cancel: %s", error)
+
+    store.delete_message(meetup.date, "regular")
+    store.delete_message(meetup.date, "substitute")
 
 
 async def _post_match_stats(
