@@ -60,7 +60,7 @@ def create_app(
     register_static_routes(app, static_dir, container)
     register_match_routes(app, container, notifier)
     register_player_routes(app, container)
-    register_meetup_routes(app, container)
+    register_meetup_routes(app, container, notifier)
 
     icons_dir = Path(container.icons_dir) if container.icons_dir else None
     if icons_dir and icons_dir.exists():

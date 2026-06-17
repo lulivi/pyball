@@ -20,17 +20,24 @@ class _StubNotifier(MatchNotifier):
     def __init__(self):
         self.closed = []
         self.edited = []
+        self.updated = []
+        self.cancelled = []
 
     async def on_match_closed(self, meetup):
         """Record the closed meetup."""
         self.closed.append(meetup)
 
     async def on_meetup_updated(self, meetup):
-        """Do nothing."""
+        """Record the updated meetup."""
+        self.updated.append(meetup)
 
     async def on_match_edited(self, meetup):
         """Record the edited meetup."""
         self.edited.append(meetup)
+
+    async def on_meetup_cancelled(self, meetup):
+        """Record the cancelled meetup."""
+        self.cancelled.append(meetup)
 
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
@@ -1062,3 +1069,165 @@ class TestCancelMeetupEndpoint:
             resp = await c.delete("/api/meetup/active")
 
         assert resp.status_code == 404
+
+
+class TestMeetupRouteNotifierCalls:
+    """Notifier is called correctly for all meetup-mutating HTTP endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_calls_on_meetup_updated_on_success(self):
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert resp.status_code == 200
+        assert notifier.updated == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_does_not_call_notifier_on_error(self):
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.side_effect = MeetupAlreadyClosedError(
+            "closed"
+        )
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert notifier.updated == []
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_calls_on_meetup_updated_on_success(self):
+        from unittest.mock import patch
+
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        container = MagicMock()
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.create_teams.return_value.execute.return_value = meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value={"date": "2026-06-08T20:00", "players": [], "teams": None},
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(
+                    "/api/meetup/generate-teams",
+                    json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+                )
+
+        assert resp.status_code == 200
+        assert notifier.updated == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_does_not_call_notifier_on_error(self):
+        container = MagicMock()
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.create_teams.return_value.execute.side_effect = ValueError(
+            "Need at least 2 players"
+        )
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+
+        assert notifier.updated == []
+
+    @pytest.mark.asyncio
+    async def test_assign_teams_calls_on_meetup_updated_on_success(self):
+        from unittest.mock import patch
+
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.assign_teams_by_id.return_value.execute.return_value = meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value={"date": "2026-06-08T20:00", "players": [], "teams": None},
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(
+                    "/api/meetup/assign-teams",
+                    json={"date": "2026-06-08T20:00", "team_a_ids": [], "team_b_ids": []},
+                )
+
+        assert resp.status_code == 200
+        assert notifier.updated == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_assign_teams_does_not_call_notifier_on_error(self):
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.assign_teams_by_id.return_value.execute.side_effect = ValueError("bad ids")
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            await c.post(
+                "/api/meetup/assign-teams",
+                json={"date": "2026-06-08T20:00", "team_a_ids": [], "team_b_ids": []},
+            )
+
+        assert notifier.updated == []
+
+    @pytest.mark.asyncio
+    async def test_cancel_meetup_calls_on_meetup_cancelled_on_success(self):
+        meetup = MagicMock()
+        meetup.date = datetime(2026, 6, 17, 20, 0)
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.return_value = meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/meetup/active")
+
+        assert resp.status_code == 200
+        assert notifier.cancelled == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_cancel_meetup_does_not_call_notifier_on_404(self):
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            await c.delete("/api/meetup/active")
+
+        assert notifier.cancelled == []
