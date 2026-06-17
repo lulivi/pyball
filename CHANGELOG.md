@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.13.0 (2026-06-17)
+
+### Features
+
+- **GL-46**: Refresh Telegram messages from web UI meetup mutations
+  ([`d5837c4`](https://gitlab.com/lulivi/pyball/-/commit/d5837c4c7411e29454950c61f783f543057ee8fb))
+
+
 ## v4.12.0 (2026-06-16)
 
 ### Features
