@@ -12,13 +12,24 @@ Telegram bot for managing football meetups, teams, and player statistics.
 
 ### Configuration
 
-Copy the example config and fill in your values:
+Generate a deployment workspace with config template, compose file, and directory
+structure:
 
 ```bash
-cp example.config.toml config.toml
+# With Docker (recommended for servers):
+docker run --rm --user $(id -u):$(id -g) -v $(pwd):/pyball lulivi/pyball-web --bootstrap
+# or for the Telegram topology:
+docker run --rm --user $(id -u):$(id -g) -v $(pwd):/pyball lulivi/pyball-telegram --bootstrap
+
+# Without Docker:
+uv run pyball-web --bootstrap
+# or:
+uv run pyball-tg --bootstrap
 ```
 
-Edit `config.toml` with your Telegram bot token, admin IDs, and chat IDs. Any value can be overridden with environment variables using the `PYBALL_<SECTION>_<KEY>` format (e.g. `PYBALL_TELEGRAM_BOT_TOKEN`).
+Then edit `config.toml` with your settings. Any value can be overridden with
+environment variables using the `PYBALL_<SECTION>_<KEY>` format
+(e.g. `PYBALL_TELEGRAM_BOT_TOKEN`).
 
 ### Install Dependencies
 
@@ -27,6 +38,14 @@ uv sync --all-extras
 ```
 
 ### Run
+
+On first run, generate the workspace:
+
+```bash
+uv run pyball-tg --bootstrap
+```
+
+Then start the app:
 
 ```bash
 make up
