@@ -54,7 +54,20 @@ def main() -> None:
         default=Path("config.toml"),
         help="Path to config.toml (default: config.toml)",
     )
+    parser.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help=(
+            "Generate a deployment workspace"
+            " (config.toml, compose.yaml, .env, README.md) and exit"
+        ),
+    )
     args = parser.parse_args()
+    if args.bootstrap:
+        from pyball.application.init_workspace import init_workspace  # pylint: disable=C0415
+
+        init_workspace("tg", args.config)
+        return
     try:
         asyncio.run(_main_async(args.config))
     except SettingsValidationError as exc:
