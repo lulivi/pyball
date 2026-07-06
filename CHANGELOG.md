@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.14.0 (2026-07-06)
+
+### Features
+
+- **GL-47,GL-48,GL-49**: Add --bootstrap command for first-time deployment setup
+  ([`5e2a4a8`](https://gitlab.com/lulivi/pyball/-/commit/5e2a4a813453b7c11cc2219391101451e0443531))
+
+
 ## v4.13.0 (2026-06-17)
 
 ### Features
