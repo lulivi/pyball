@@ -1,5 +1,6 @@
 """Tests for meetup bot handlers."""
 
+import asyncio
 from datetime import datetime
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -1177,8 +1178,14 @@ async def test_change_date_wrong_arg_count_replies_usage(mock_update, mock_conte
 
 
 @pytest.mark.asyncio
-async def test_close_triangular_handler_closes_and_sends_summary(mock_update, mock_context):
-    """/meetup_close_triangular closes the meetup and sends the final round summary."""
+async def test_close_triangular_handler_closes_and_sends_summary(
+    mock_update, mock_context, monkeypatch
+):
+    """/meetup_close_triangular closes the meetup and sends the final round summary.
+
+    It also mirrors the classic-close cleanup: the callup keyboard is locked,
+    tracked messages are dropped, and season stats are posted.
+    """
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
     closed_meetup = MagicMock()
@@ -1193,7 +1200,27 @@ async def test_close_triangular_handler_closes_and_sends_summary(mock_update, mo
     mock_context.bot_data["settings"].telegram.regulars.meetups_thread_id = "42"
     mock_context.args = []
 
-    await close_triangular_handler(mock_update, mock_context)
+    stats_calls = []
+
+    async def _fake_post_match_stats(bot, container_arg, settings_arg):
+        stats_calls.append((bot, container_arg, settings_arg))
+
+    monkeypatch.setattr(
+        "pyball.infrastructure.telegram.bot.handlers.meetup._post_match_stats",
+        _fake_post_match_stats,
+    )
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+        ) as mock_refresh,
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"
+        ) as mock_store_cls,
+    ):
+        mock_refresh.return_value = None
+        await close_triangular_handler(mock_update, mock_context)
+        await asyncio.sleep(0)  # let the fire-and-forget stats task run
 
     container.close_meetup.return_value.execute.assert_called_once_with(meetup.date)
     container.format_match_summary.return_value.execute.assert_called_once()
@@ -1202,6 +1229,64 @@ async def test_close_triangular_handler_closes_and_sends_summary(mock_update, mo
         text="resumen final",
         message_thread_id=42,
     )
+    mock_refresh.assert_awaited_once_with(
+        mock_context.bot,
+        mock_context.bot_data["settings"],
+        container,
+        closed_meetup,
+        include_keyboard=False,
+    )
+    mock_store_cls.return_value.delete_message.assert_any_call(closed_meetup.date, "regular")
+    mock_store_cls.return_value.delete_message.assert_any_call(closed_meetup.date, "substitute")
+    assert stats_calls == [(mock_context.bot, container, mock_context.bot_data["settings"])]
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_no_matches_skips_summary_still_confirms(
+    mock_update, mock_context, monkeypatch
+):
+    """Closing a triangular with zero played rounds doesn't crash and still confirms.
+
+    CloseMeetup.execute() pops any dangling pending match, so a triangular where
+    teams were formed but no round was ever finished ends up with no matches at
+    all. FormatMatchSummary.execute() would raise ValueError("Meetup has no
+    matches yet") for that meetup — the handler must skip building the summary
+    instead of letting that propagate, while still confirming the close.
+    """
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    closed_meetup = MagicMock()
+    closed_meetup.matches = []
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.return_value = closed_meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    async def _fake_post_match_stats(bot, container_arg, settings_arg):
+        del bot, container_arg, settings_arg
+
+    monkeypatch.setattr(
+        "pyball.infrastructure.telegram.bot.handlers.meetup._post_match_stats",
+        _fake_post_match_stats,
+    )
+
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        await close_triangular_handler(mock_update, mock_context)
+        await asyncio.sleep(0)  # let the fire-and-forget stats task run
+
+    container.format_match_summary.return_value.execute.assert_not_called()
+    mock_context.bot.send_message.assert_not_called()
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,
         message_id=mock_update.message.message_id,

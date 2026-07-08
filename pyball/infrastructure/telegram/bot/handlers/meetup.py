@@ -20,6 +20,7 @@
 """Meetup command handlers."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -55,7 +56,7 @@ from pyball.infrastructure.telegram.formatters import (
     parse_display,
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.infrastructure.telegram.notifications import refresh_callup_messages
+from pyball.infrastructure.telegram.notifications import _post_match_stats, refresh_callup_messages
 from pyball.infrastructure.telegram.settings import TelegramAppSettings, TelegramSettings
 from pyball.logger import log_func
 from pyball.settings import PyballConfig
@@ -646,7 +647,12 @@ async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 @log_func
 @authorized
 async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /meetup_close_triangular [fecha] [hora] command."""
+    """Handle /meetup_close_triangular [fecha] [hora] command.
+
+    Sends the round-by-round summary (skipped if no round was ever played), then
+    mirrors the same cleanup a classic match close triggers: locks the callup
+    keyboard, drops the tracked message entries, and posts refreshed season stats.
+    """
     message = update.message
     if message is None:
         return
@@ -668,20 +674,30 @@ async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT
         await message.reply_text("No existe ningún meetup para esa fecha.")
         return
 
-    player_names = _get_player_names(container.player_repository)
-    summary = container.format_match_summary().execute(
-        closed_meetup,
-        player_names,
-        team_colors=settings.pyball.team_colors,
-        team_emojis=settings.pyball.team_emojis,
-        legacy_stats=container.legacy_stats,
+    if closed_meetup.matches:
+        player_names = _get_player_names(container.player_repository)
+        summary = container.format_match_summary().execute(
+            closed_meetup,
+            player_names,
+            team_colors=settings.pyball.team_colors,
+            team_emojis=settings.pyball.team_emojis,
+            legacy_stats=container.legacy_stats,
+        )
+        thread_id = settings.telegram.regulars.meetups_thread_id or None
+        await context.bot.send_message(
+            chat_id=settings.telegram.regulars.chat_id,
+            text=summary,
+            message_thread_id=int(thread_id) if thread_id else None,
+        )
+
+    await refresh_callup_messages(
+        context.bot, settings, container, closed_meetup, include_keyboard=False
     )
-    thread_id = settings.telegram.regulars.meetups_thread_id or None
-    await context.bot.send_message(
-        chat_id=settings.telegram.regulars.chat_id,
-        text=summary,
-        message_thread_id=int(thread_id) if thread_id else None,
-    )
+    message_store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    message_store.delete_message(closed_meetup.date, "regular")
+    message_store.delete_message(closed_meetup.date, "substitute")
+    asyncio.create_task(_post_match_stats(context.bot, container, settings))
+
     await react_ok(context.bot, message)
 
 
