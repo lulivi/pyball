@@ -325,6 +325,40 @@ class TestCreateTeams:
         all_assigned = list(result.teams[0].players) + list(result.teams[1].players)
         assert set(all_assigned) == {p1, p2}
 
+    def test_create_teams_with_team_count_three(self):
+        """team_count=3 produces three teams named A, B, C covering all players."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        player_ids = [PlayerId.generate() for _ in range(9)]
+        for pid in player_ids:
+            meetup.add_player(pid)
+        meetup_repo.save(meetup)
+
+        result = CreateTeams(meetup_repo, RandomAlgorithm()).execute(
+            datetime(2024, 1, 15, 20, 0), team_count=3
+        )
+
+        assert result.teams is not None
+        assert len(result.teams) == 3
+        assert [t.name for t in result.teams] == ["A", "B", "C"]
+        all_assigned = [pid for team in result.teams for pid in team.players]
+        assert sorted(str(p.value) for p in all_assigned) == sorted(
+            str(p.value) for p in player_ids
+        )
+
+    def test_create_teams_team_count_rejects_invalid_value(self):
+        """team_count outside {2, 3} raises ValueError."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        meetup.add_player(PlayerId.generate())
+        meetup.add_player(PlayerId.generate())
+        meetup_repo.save(meetup)
+
+        with pytest.raises(ValueError, match="team_count must be 2 or 3"):
+            CreateTeams(meetup_repo, RandomAlgorithm()).execute(
+                datetime(2024, 1, 15, 20, 0), team_count=4
+            )
+
 
 class TestCreateMeetup:
     """Tests for CreateMeetup use case."""
