@@ -21,7 +21,9 @@
 
 from __future__ import annotations
 
-from pyball.domain.meetup.models import Meetup
+from datetime import datetime
+
+from pyball.domain.meetup.models import Match, Meetup, Team
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 
@@ -32,18 +34,22 @@ class FormatMatchSummary:
         self,
         meetup: Meetup,
         player_names: dict[str, str],
-        team_colors: tuple[str, str] = ("blanco", "negro"),
-        team_emojis: tuple[str, str] = ("⚪", "⚫"),
+        team_colors: tuple[str, ...] = ("blanco", "negro"),
+        team_emojis: tuple[str, ...] = ("⚪", "⚫"),
         date_label: str | None = None,
         legacy_stats: LegacyStats | None = None,
     ) -> str:
         """Return the WhatsApp-ready summary string.
 
+        For a classic (2-team) meetup, renders one score block per team. For a
+        triangular (3-team) meetup, renders one score block per round played,
+        in order, so every match result appears in the summary.
+
         Args:
-            meetup: A finished meetup with result and teams.
+            meetup: A finished meetup with matches and teams.
             player_names: Mapping of str(player_id.value) to display name.
-            team_colors: Color name for team A and team B (capitalized as display name).
-            team_emojis: Circle emoji for team A and team B.
+            team_colors: Color name per team (capitalized as display name).
+            team_emojis: Circle emoji per team.
             date_label: Pre-formatted date string (e.g. "18 Mayo"). If None,
                 derived from meetup.date using the current locale.
             legacy_stats: Optional legacy statistics. When provided, assists for
@@ -52,56 +58,87 @@ class FormatMatchSummary:
         Returns:
             Multi-line WhatsApp message string.
         """
-        if meetup.result is None:
-            raise ValueError("Meetup has no result yet")
+        if not meetup.matches:
+            raise ValueError("Meetup has no matches yet")
         if meetup.teams is None:
             raise ValueError("Meetup has no teams yet")
 
-        result = meetup.result
-        teams = meetup.teams
-        name_a = team_colors[0].capitalize()
-        name_b = team_colors[1].capitalize()
-        emoji_a = team_emojis[0]
-        emoji_b = team_emojis[1]
         label = date_label or meetup.date.strftime("%-d %B").title()
+        lines = ["⚽ Día de Partido ⚽", f"🗓 {label}", "", "*RESULTADO:*"]
 
-        goals: dict[str, int] = {}
-        own_goals: dict[str, int] = {}
-        assists: dict[str, int] = {}
-        for event in result.events:
-            sid = str(event.scorer_id.value)
-            if event.is_own_goal:
-                own_goals[sid] = own_goals.get(sid, 0) + 1
-            else:
-                goals[sid] = goals.get(sid, 0) + 1
-                if event.assistant_id:
-                    aid = str(event.assistant_id.value)
-                    assists[aid] = assists.get(aid, 0) + 1
+        for match in meetup.matches:
+            if match.result is None:
+                continue
+            lines.append("")
+            lines.extend(
+                _match_block(
+                    match,
+                    meetup.teams,
+                    player_names,
+                    team_colors,
+                    team_emojis,
+                    legacy_stats,
+                    meetup.date,
+                )
+            )
 
-        if legacy_stats is not None:
-            all_pids = [str(pid.value) for team in teams for pid in team.players]
-            for pid in all_pids:
-                if assists.get(pid, 0) == 0:
-                    legacy_count = legacy_stats.get_assists_for_match(pid, meetup.date)
-                    if legacy_count:
-                        assists[pid] = legacy_count
-
-        team_a_ids = [str(pid.value) for pid in teams[0].players]
-        team_b_ids = [str(pid.value) for pid in teams[1].players]
-
-        lines = [
-            "⚽ Día de Partido ⚽",
-            f"🗓 {label}",
-            "",
-            "*RESULTADO:*",
-            "",
-            f"{emoji_a} *{name_a} - {result.score_a}*",
-            *[_player_line(pid, player_names, goals, own_goals, assists) for pid in team_a_ids],
-            "",
-            f"{emoji_b} *{name_b} - {result.score_b}*",
-            *[_player_line(pid, player_names, goals, own_goals, assists) for pid in team_b_ids],
-        ]
         return "\n".join(lines)
+
+
+def _match_block(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    match: Match,
+    all_teams: list[Team],
+    player_names: dict[str, str],
+    team_colors: tuple[str, ...],
+    team_emojis: tuple[str, ...],
+    legacy_stats: LegacyStats | None,
+    meetup_date: datetime,
+) -> list[str]:
+    """Return the summary lines for a single match: two team blocks with scorers.
+
+    Colors/emojis are indexed by each team's position in the meetup's overall team
+    list (not its position within this match), so a team keeps the same color
+    across every round of a triangular meetup.
+    """
+    result = match.result
+    assert result is not None
+
+    goals: dict[str, int] = {}
+    own_goals: dict[str, int] = {}
+    assists: dict[str, int] = {}
+    for event in result.events:
+        sid = str(event.scorer_id.value)
+        if event.is_own_goal:
+            own_goals[sid] = own_goals.get(sid, 0) + 1
+        else:
+            goals[sid] = goals.get(sid, 0) + 1
+            if event.assistant_id:
+                aid = str(event.assistant_id.value)
+                assists[aid] = assists.get(aid, 0) + 1
+
+    if legacy_stats is not None:
+        all_pids = [str(pid.value) for team in match.teams_playing for pid in team.players]
+        for pid in all_pids:
+            if assists.get(pid, 0) == 0:
+                legacy_count = legacy_stats.get_assists_for_match(pid, meetup_date)
+                if legacy_count:
+                    assists[pid] = legacy_count
+
+    lines: list[str] = []
+    for i, team in enumerate(match.teams_playing):
+        if i > 0:
+            lines.append("")
+        score = result.score_a if i == 0 else result.score_b
+        team_index = all_teams.index(team)
+        color = team_colors[team_index] if team_index < len(team_colors) else None
+        name = color.capitalize() if color is not None else team.name
+        emoji = team_emojis[team_index] if team_index < len(team_emojis) else ""
+        lines.append(f"{emoji} *{name} - {score}*")
+        team_ids = [str(pid.value) for pid in team.players]
+        lines.extend(
+            _player_line(pid, player_names, goals, own_goals, assists) for pid in team_ids
+        )
+    return lines
 
 
 def _player_line(

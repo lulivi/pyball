@@ -22,7 +22,7 @@
 from datetime import datetime, time
 
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
@@ -60,13 +60,10 @@ class TestFormatMatchSummary:
         )
         result = MatchResult(score_a=1, score_b=2, events=events)
         meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
-        meetup.set_teams(
-            [
-                Team.create("A", [a1, a2]),
-                Team.create("B", [b1, b2]),
-            ]
-        )
-        meetup.set_result(result)
+        team_a = Team.create("A", [a1, a2])
+        team_b = Team.create("B", [b1, b2])
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=result))
         self.meetup = meetup
         _ = b2
 
@@ -147,13 +144,10 @@ class TestFormatMatchSummary:
         )
         result = MatchResult(score_a=0, score_b=1, events=(own_goal_event,))
         meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
-        meetup.set_teams(
-            [
-                Team.create("A", [a1, PlayerId.from_string(self.pid_a2)]),
-                Team.create("B", [b1, PlayerId.from_string(self.pid_b2)]),
-            ]
-        )
-        meetup.set_result(result)
+        team_a = Team.create("A", [a1, PlayerId.from_string(self.pid_a2)])
+        team_b = Team.create("B", [b1, PlayerId.from_string(self.pid_b2)])
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=result))
 
         msg = self.use_case.execute(
             meetup,
@@ -188,13 +182,10 @@ class TestFormatMatchSummaryWithLegacy:
         events = (GoalEvent(scorer_id=b1, assistant_id=None, team="B", timestamp=time(20, 5)),)
         result = MatchResult(score_a=0, score_b=1, events=events)
         meetup = Meetup.create(date=datetime(2026, 2, 16, 22, 0), location="Parque")
-        meetup.set_teams(
-            [
-                Team.create("A", [a1]),
-                Team.create("B", [b1]),
-            ]
-        )
-        meetup.set_result(result)
+        team_a = Team.create("A", [a1])
+        team_b = Team.create("B", [b1])
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=result))
         self.meetup = meetup
 
     def test_legacy_assists_appear_when_no_event_assists(self):
@@ -234,3 +225,31 @@ class TestFormatMatchSummaryWithLegacy:
             legacy_stats=legacy,
         )
         assert "🅰️" not in msg
+
+
+def test_triangular_summary_lists_every_round():
+    """A 3-team meetup's summary shows one score line per round played."""
+    meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.teams = [team_a, team_b, team_c]
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+    meetup.add_match(Match(teams_playing=(team_a, team_c), result=MatchResult(1, 1, ())))
+    meetup.close()
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa", str(p3.value): "Nico"}
+    summary = FormatMatchSummary().execute(
+        meetup,
+        player_names,
+        team_colors=("blanco", "negro", "rojo"),
+        team_emojis=("⚪", "⚫", "🔴"),
+    )
+
+    assert "Blanco - 2" in summary
+    assert "Negro - 0" in summary
+    assert "Blanco - 1" in summary
+    assert "Rojo - 1" in summary
