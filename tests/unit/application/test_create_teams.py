@@ -13,7 +13,9 @@ from pyball.domain.meetup.models import Meetup, PlayerId
 class StubAlgorithm:
     """Stub that splits players in half deterministically."""
 
-    def assign(self, players, _finished_meetups, _season_meetups, _season_start):
+    def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, players, _finished_meetups, _season_meetups, _season_start, _team_count=2
+    ):
         """Split players in half and return two groups."""
         mid = len(players) // 2
         return players[:mid], players[mid:]
@@ -69,7 +71,7 @@ class TestCreateTeams:
 
         CreateTeams(repo, algorithm).execute(datetime(2026, 5, 6, 20, 0))
 
-        _, _, _, season_start = algorithm.assign.call_args.args
+        _, _, _, season_start, _ = algorithm.assign.call_args.args
         assert isinstance(season_start, datetime)
 
     def test_saves_meetup_after_assigning_teams(self):

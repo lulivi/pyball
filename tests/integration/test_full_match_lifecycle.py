@@ -312,6 +312,7 @@ class TestFullMatchLifecycle:
             await add_player_handler(bot_update, bot_context)
         bot_context.args = _DATE_ARGS
         await create_teams_handler(bot_update, bot_context)
+        await self._start_match(bot_update, bot_context)
 
         events = [
             {"scorer": "Player_01", "assistant": None, "team": "A", "timestamp": "20:30:00"},
