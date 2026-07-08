@@ -295,6 +295,8 @@ async function toggleTeamsEditPanel() {
         editAddOpenTeam = null;
         editAddQuery = '';
         container.innerHTML = '';
+        const teamsBox = document.getElementById('teams-text');
+        if (teamsBox) teamsBox.style.display = '';
         return;
     }
     const open = () => {
@@ -727,6 +729,8 @@ function _rerenderActiveState() {
 }
 
 function _renderTeamsEditPanel() {
+    const teamsBox = document.getElementById('teams-text');
+    if (teamsBox) teamsBox.style.display = 'none';
     const sizes = editTeamLetters.map(letter => editTeams[letter].length);
     const tooUneven = Math.max(...sizes) - Math.min(...sizes) > 1;
     const t = activeMatchData.teams;
@@ -745,10 +749,7 @@ function _renderTeamsEditPanel() {
             .join('');
         const removeBtn = `<button class="remove-btn"
       onclick="removeFromEditTeam('${escAttr(p.id)}','${team}')">✕</button>`;
-        const order = (editTeamLetters.length === 2 && team === 'B')
-            ? `${removeBtn}${moveButtons}${nameBtn}`
-            : `${nameBtn}${moveButtons}${removeBtn}`;
-        return `<div class="edit-chip" style="${hl}">${order}</div>`;
+        return `<div class="edit-chip" style="${hl}">${nameBtn}${moveButtons}${removeBtn}</div>`;
     };
 
     const addBtn = (team) => `<button class="btn-sm gray"
@@ -779,15 +780,13 @@ function _renderTeamsEditPanel() {
          onclick="saveTeams()">💾 Guardar equipos</button>`;
 
     const teamBlock = (letter) => `
-        <div style="${editTeamLetters.length === 2 ? 'flex:1;' : 'margin-bottom:10px;'}">
+        <div style="margin-bottom:10px;">
           <div class="step-label" style="font-size:0.65rem;">${escHtml(emojiByLetter[letter])} ${escHtml(nameByLetter[letter])} (${editTeams[letter].length})</div>
           ${editTeams[letter].map(p => row(p, letter)).join('')}
           ${addBtn(letter)}
         </div>`;
 
-    const teamsSection = editTeamLetters.length === 2
-        ? `<div style="display:flex;gap:8px;margin-bottom:8px;">${editTeamLetters.map(teamBlock).join('')}</div>`
-        : `<div style="margin-bottom:8px;">${editTeamLetters.map(teamBlock).join('')}</div>`;
+    const teamsSection = `<div style="margin-bottom:8px;">${editTeamLetters.map(teamBlock).join('')}</div>`;
 
     document.getElementById('edit-panel-container').innerHTML = `
     <div class="edit-panel" id="teams-edit-panel">
