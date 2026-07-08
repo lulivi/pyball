@@ -152,9 +152,10 @@ class TestFullMatchLifecycle:
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.is_closed()
-        assert meetup.result.score_a == 2
-        assert meetup.result.score_b == 1
-        assert len(meetup.result.events) == 3
+        result = meetup.matches[-1].result
+        assert result.score_a == 2
+        assert result.score_b == 1
+        assert len(result.events) == 3
 
     async def _verify_stats(self, bot_update, bot_context, _real_container, monkeypatch):
         fake_png = b"\x89PNG\r\n\x1a\n"

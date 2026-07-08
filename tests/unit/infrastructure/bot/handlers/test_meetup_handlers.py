@@ -45,7 +45,6 @@ async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context
     """lock with no args calls refresh with include_keyboard=False on the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -85,7 +84,6 @@ async def test_unlock_handler_uses_active_meetup(mock_update, mock_context):
     """unlock calls refresh with include_keyboard=True on the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -110,7 +108,6 @@ async def test_match_qr_handler_sends_qr_to_admins(mock_update, mock_context):
     """match_qr sends a QR photo to each configured admin."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     url = "http://pyball:8000/match?token=secret"
     admin_id = 99999
@@ -160,7 +157,6 @@ async def test_match_qr_handler_no_teams_replies_error(mock_update, mock_context
     """match_qr replies in Spanish when meetup has no teams."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -212,7 +208,6 @@ async def test_show_meetup_handler_no_args_uses_active_meetup(mock_update, mock_
     meetup.date = datetime(2026, 6, 4, 20, 0)
     meetup.players = []
     meetup.teams = None
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -906,7 +901,6 @@ async def test_search_handler_no_args_uses_active_meetup(mock_update, mock_conte
     meetup.date = datetime(2026, 6, 4, 20, 0)
     meetup.players = []
     meetup.teams = None
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -953,7 +947,6 @@ async def test_add_player_handler_no_date_uses_active_meetup(mock_update, mock_c
     """add_player with only names (no date) uses the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -991,7 +984,6 @@ async def test_remove_player_handler_no_date_uses_active_meetup(mock_update, moc
     """remove_player with only a name (no date) uses the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -1056,7 +1048,6 @@ async def test_change_location_updates_location_and_refreshes(mock_update, mock_
 
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
-    meetup.result = None
 
     updated = MagicMock()
     container = MagicMock()
@@ -1084,7 +1075,6 @@ async def test_change_location_no_args_replies_usage(mock_update, mock_context):
 
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
-    meetup.result = None
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
     mock_context.bot_data["container"] = container
@@ -1124,7 +1114,6 @@ async def test_change_date_2args_changes_active_meetup_date(mock_update, mock_co
 
     meetup = MagicMock()
     meetup.date = old_date
-    meetup.result = None
 
     updated = MagicMock()
     updated.date = new_date
@@ -1194,7 +1183,6 @@ async def test_change_date_conflict_replies_error(mock_update, mock_context):
 
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup

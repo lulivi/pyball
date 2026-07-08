@@ -25,7 +25,7 @@ import pytest
 
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 
 
 class FakeMeetupRepository:
@@ -105,8 +105,10 @@ class TestUpdateMeetupLocation:
         p1, p2 = PlayerId.generate(), PlayerId.generate()
         meetup.add_player(p1)
         meetup.add_player(p2)
-        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
-        meetup.set_result(MatchResult(score_a=2, score_b=1, events=()))
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 1, ())))
+        meetup.close()
         repo.meetups.append(meetup)
 
         use_case = UpdateMeetupLocation(repo)
