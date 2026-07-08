@@ -1388,6 +1388,69 @@ class TestMeetupRouteNotifierCalls:
         assert notifier.updated == []
 
     @pytest.mark.asyncio
+    async def test_assign_teams_passes_team_c_ids_through(self):
+        """POST /api/meetup/assign-teams with team_c_ids forwards it to execute()."""
+        from unittest.mock import patch
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.assign_teams_by_id.return_value.execute.return_value = meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value={"date": "2026-06-08T20:00", "players": [], "teams": None},
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(
+                    "/api/meetup/assign-teams",
+                    json={
+                        "date": "2026-06-08T20:00",
+                        "team_a_ids": ["id-a"],
+                        "team_b_ids": ["id-b"],
+                        "team_c_ids": ["id-c"],
+                    },
+                )
+
+        assert resp.status_code == 200
+        container.assign_teams_by_id.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0), ["id-a"], ["id-b"], ["id-c"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_assign_teams_passes_none_when_team_c_ids_omitted(self):
+        """POST /api/meetup/assign-teams without team_c_ids passes None to execute()."""
+        from unittest.mock import patch
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.assign_teams_by_id.return_value.execute.return_value = meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value={"date": "2026-06-08T20:00", "players": [], "teams": None},
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(
+                    "/api/meetup/assign-teams",
+                    json={"date": "2026-06-08T20:00", "team_a_ids": [], "team_b_ids": []},
+                )
+
+        assert resp.status_code == 200
+        container.assign_teams_by_id.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0), [], [], None
+        )
+
+    @pytest.mark.asyncio
     async def test_cancel_meetup_calls_on_meetup_cancelled_on_success(self):
         meetup = MagicMock()
         meetup.date = datetime(2026, 6, 17, 20, 0)

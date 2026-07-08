@@ -102,7 +102,7 @@ def register_meetup_routes(
 
         try:
             meetup = container.assign_teams_by_id().execute(
-                meetup_date, body.team_a_ids, body.team_b_ids
+                meetup_date, body.team_a_ids, body.team_b_ids, body.team_c_ids
             )
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
