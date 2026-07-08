@@ -77,12 +77,44 @@ export function clearAssist(eventIndex) {
 
 export async function finishMatch() {
     if (!confirm('¿Seguro que quieres guardar el partido y enviarlo al Bot?')) return;
-    await _submit('/api/match/finish', {
-        success: '✅ Partido guardado y enviado a Telegram',
-        message: 'Abre el enlace desde<br>Telegram para el próximo partido.',
-        idleLabel: '💾 CONFIRMAR Y GUARDAR PARTIDO',
-        clear: true,
-    });
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Enviando datos...';
+    try {
+        const data = await post('/api/match/finish', {
+            meetup_date: ctx.meetupDate,
+            events: [...store.get().events].reverse(),
+            finalScore: { A: getGoals('A'), B: getGoals('B') },
+        });
+        if (data.next_round) {
+            _continueToNextRound(data.next_round);
+            return;
+        }
+        clearSaved();
+        document.getElementById('app').innerHTML = `
+            <div class="no-match">
+                <div class="success-banner">✅ Partido guardado y enviado a Telegram</div>
+                <div class="no-match-icon">⚽</div>
+                <div class="no-match-title">PyBall</div>
+                <div class="no-match-msg">Abre el enlace desde<br>Telegram para el próximo partido.</div>
+            </div>`;
+    } catch (err) {
+        if (err.status === 0) {
+            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
+        } else {
+            alert(`❌ Error del servidor: ${err.detail || err.message}`);
+        }
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
+    }
+}
+
+function _continueToNextRound(nextRound) {
+    ctx.teamA = nextRound.teamA;
+    ctx.teamB = nextRound.teamB;
+    ctx.nameA = nextRound.nameA;
+    ctx.nameB = nextRound.nameB;
+    store.set({ events: [], currentStep: 1, tempScorer: null, tempScorerTeam: null, editingEvent: null });
 }
 
 export async function editMatch() {
