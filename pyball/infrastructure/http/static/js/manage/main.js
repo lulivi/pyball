@@ -152,7 +152,10 @@ function renderState1(data) {
     <div id="roster-list">${buildRosterList(data.players)}</div>
     <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
     ${addPanel}
-    <button class="btn btn-green" onclick="generateFromActive()">⚽ Generar equipos equilibrados</button>
+    <div class="action-row">
+      <button class="btn btn-green" onclick="generateFromActive(2, this)">⚽ Generar 2 equipos</button>
+      <button class="btn btn-green" onclick="generateFromActive(3, this)">⚽ Generar 3 equipos</button>
+    </div>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
@@ -164,20 +167,22 @@ function renderState1(data) {
     }
 }
 
-async function generateFromActive() {
-    const btn = document.querySelector('#tab-equipos .btn-green');
-    if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
+async function generateFromActive(teamCount, btn) {
+    const buttons = document.querySelectorAll('#tab-equipos .action-row .btn');
+    const originalLabels = Array.from(buttons).map(b => b.textContent);
+    buttons.forEach(b => { b.disabled = true; });
+    if (btn) btn.textContent = 'Generando...';
     try {
-        activeMatchData = await _callGenerateTeams();
+        activeMatchData = await _callGenerateTeams(teamCount);
         if (!activeMatchData.teams) {
             alert('Error: el servidor no devolvió equipos.');
-            if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos equilibrados'; }
+            buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
             return;
         }
         renderState2(activeMatchData);
     } catch (e) {
         alert('Error: ' + e.message);
-        if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos equilibrados'; }
+        buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
     }
 }
 
@@ -681,9 +686,11 @@ function _renderQR(url, canvas) {
     }
 }
 
-async function _callGenerateTeams() {
+async function _callGenerateTeams(teamCount) {
     try {
-        return await post('/api/meetup/generate-teams', { date: activeMatchData.date, algorithm: 'balanceado' });
+        return await post('/api/meetup/generate-teams', {
+            date: activeMatchData.date, algorithm: 'balanceado', team_count: teamCount,
+        });
     } catch (err) {
         throw new Error(err.detail || err.message);
     }
