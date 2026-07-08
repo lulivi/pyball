@@ -24,7 +24,7 @@ from datetime import datetime, time
 from pathlib import Path
 from uuid import UUID
 
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, MeetupId, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, MeetupId, Team
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.models import PlayerId
 
@@ -48,33 +48,25 @@ class JsonMeetupRepository(MeetupRepository):
                 Team.create(t["name"], [PlayerId(UUID(p)) for p in t["players"]])
                 for t in data["teams"]
             ]
-        result = None
-        if data.get("result"):
-            r = data["result"]
-            events = tuple(
-                GoalEvent(
-                    scorer_id=PlayerId(UUID(e["scorer_id"])),
-                    assistant_id=(
-                        PlayerId(UUID(e["assistant_id"])) if e.get("assistant_id") else None
-                    ),
-                    team=e["team"],
-                    timestamp=time.fromisoformat(e["timestamp"]),
-                    is_own_goal=e.get("is_own_goal", False),
-                )
-                for e in r.get("events", [])
+        teams_by_name = {t.name: t for t in teams} if teams else {}
+        matches = [
+            Match(
+                teams_playing=(
+                    teams_by_name[m["teams_playing"][0]],
+                    teams_by_name[m["teams_playing"][1]],
+                ),
+                result=_dict_to_result(m["result"]) if m.get("result") else None,
             )
-            result = MatchResult(
-                score_a=r["score_a"],
-                score_b=r["score_b"],
-                events=events,
-            )
+            for m in data.get("matches", [])
+        ]
         return Meetup(
             id=MeetupId(UUID(data["id"])),
             date=datetime.fromisoformat(data["date"]),
             location=data.get("location", "Parque Central"),
             players=[PlayerId(UUID(p)) for p in data.get("players", [])],
             teams=teams,
-            result=result,
+            matches=matches,
+            closed=data.get("closed", False),
         )
 
     def _write(self, meetup: Meetup) -> None:
@@ -85,29 +77,21 @@ class JsonMeetupRepository(MeetupRepository):
                 {"name": t.name, "players": [str(p.value) for p in t.players]}
                 for t in meetup.teams
             ]
-        result_data = None
-        if meetup.result:
-            result_data = {
-                "score_a": meetup.result.score_a,
-                "score_b": meetup.result.score_b,
-                "events": [
-                    {
-                        "scorer_id": str(e.scorer_id.value),
-                        "assistant_id": str(e.assistant_id.value) if e.assistant_id else None,
-                        "team": e.team,
-                        "timestamp": e.timestamp.isoformat(),
-                        "is_own_goal": e.is_own_goal,
-                    }
-                    for e in meetup.result.events
-                ],
+        matches_data = [
+            {
+                "teams_playing": [m.teams_playing[0].name, m.teams_playing[1].name],
+                "result": _result_to_dict(m.result) if m.result else None,
             }
+            for m in meetup.matches
+        ]
         data = {
             "id": str(meetup.id.value),
             "date": meetup.date.isoformat(),
             "location": meetup.location,
             "players": [str(p.value) for p in meetup.players],
             "teams": teams_data,
-            "result": result_data,
+            "matches": matches_data,
+            "closed": meetup.closed,
         }
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -156,3 +140,36 @@ class JsonMeetupRepository(MeetupRepository):
         """Delete the meetup file for the given datetime, if it exists."""
         file_path = self.directory / f"{meetup_date.isoformat(timespec='minutes')}.json"
         file_path.unlink(missing_ok=True)
+
+
+def _dict_to_result(r: dict) -> MatchResult:
+    """Build a MatchResult from its JSON dict representation."""
+    events = tuple(
+        GoalEvent(
+            scorer_id=PlayerId(UUID(e["scorer_id"])),
+            assistant_id=(PlayerId(UUID(e["assistant_id"])) if e.get("assistant_id") else None),
+            team=e["team"],
+            timestamp=time.fromisoformat(e["timestamp"]),
+            is_own_goal=e.get("is_own_goal", False),
+        )
+        for e in r.get("events", [])
+    )
+    return MatchResult(score_a=r["score_a"], score_b=r["score_b"], events=events)
+
+
+def _result_to_dict(result: MatchResult) -> dict:
+    """Serialize a MatchResult to its JSON dict representation."""
+    return {
+        "score_a": result.score_a,
+        "score_b": result.score_b,
+        "events": [
+            {
+                "scorer_id": str(e.scorer_id.value),
+                "assistant_id": str(e.assistant_id.value) if e.assistant_id else None,
+                "team": e.team,
+                "timestamp": e.timestamp.isoformat(),
+                "is_own_goal": e.is_own_goal,
+            }
+            for e in result.events
+        ],
+    }

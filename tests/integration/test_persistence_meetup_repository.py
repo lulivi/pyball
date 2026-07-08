@@ -5,7 +5,7 @@ import tempfile
 from datetime import datetime, time
 from pathlib import Path
 
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.persistence.meetup_repository import JsonMeetupRepository
 
@@ -108,6 +108,49 @@ class TestJsonMeetupRepository:
         assert found is None
 
 
+def test_round_trips_a_triangular_meetup_with_multiple_matches(tmp_path):
+    """Saving and reloading a 3-team meetup preserves every match and the closed flag."""
+    repo = JsonMeetupRepository(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    meetup.add_player(p1)
+    meetup.add_player(p2)
+    meetup.add_player(p3)
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.set_teams([team_a, team_b, team_c])
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+    meetup.add_match(Match(teams_playing=(team_a, team_c)))
+
+    repo.save(meetup)
+    loaded = repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
+
+    assert loaded is not None
+    assert len(loaded.teams) == 3
+    assert len(loaded.matches) == 2
+    assert loaded.matches[0].result.score_a == 2
+    assert loaded.matches[1].result is None
+    assert not loaded.is_closed()
+
+
+def test_round_trips_closed_flag(tmp_path):
+    """A closed meetup reloads with is_closed() == True."""
+    repo = JsonMeetupRepository(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+    team_a, team_b = Team.create("A", []), Team.create("B", [])
+    meetup.set_teams([team_a, team_b])
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, ())))
+    meetup.close()
+
+    repo.save(meetup)
+    loaded = repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
+
+    assert loaded.is_closed()
+
+
 class TestJsonMeetupRepositoryResult:
     """Integration tests for MatchResult persistence."""
 
@@ -127,7 +170,8 @@ class TestJsonMeetupRepositoryResult:
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()
-        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        meetup.set_teams([team_a, team_b])
         scorer = PlayerId.generate()
         assistant = PlayerId.generate()
         event = GoalEvent(
@@ -137,35 +181,38 @@ class TestJsonMeetupRepositoryResult:
             timestamp=time(20, 15),
         )
         result = MatchResult(score_a=2, score_b=1, events=(event,))
-        meetup.set_result(result)
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=result))
 
         self.repo.save(meetup)
         loaded = self.repo.find_by_id(meetup.id)
 
         assert loaded is not None
-        assert loaded.result is not None
-        assert loaded.result.score_a == 2
-        assert loaded.result.score_b == 1
-        assert len(loaded.result.events) == 1
-        assert loaded.result.events[0].scorer_id == scorer
-        assert loaded.result.events[0].assistant_id == assistant
-        assert loaded.result.events[0].team == "A"
-        assert loaded.result.events[0].timestamp == time(20, 15)
+        assert len(loaded.matches) == 1
+        loaded_result = loaded.matches[0].result
+        assert loaded_result is not None
+        assert loaded_result.score_a == 2
+        assert loaded_result.score_b == 1
+        assert len(loaded_result.events) == 1
+        assert loaded_result.events[0].scorer_id == scorer
+        assert loaded_result.events[0].assistant_id == assistant
+        assert loaded_result.events[0].team == "A"
+        assert loaded_result.events[0].timestamp == time(20, 15)
 
     def test_save_and_load_meetup_without_result(self):
-        """A meetup with no result loads with result=None."""
+        """A meetup with no matches loads with an empty matches list."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self.repo.save(meetup)
         loaded = self.repo.find_by_id(meetup.id)
         assert loaded is not None
-        assert loaded.result is None
+        assert not loaded.matches
 
     def test_own_goal_round_trips(self):
         """An own-goal event (is_own_goal=True) survives a save/load cycle."""
         meetup = Meetup.create(datetime(2026, 6, 1, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()
-        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        meetup.set_teams([team_a, team_b])
         event = GoalEvent(
             scorer_id=p1,
             assistant_id=None,
@@ -173,12 +220,17 @@ class TestJsonMeetupRepositoryResult:
             timestamp=time(20, 30),
             is_own_goal=True,
         )
-        meetup.set_result(MatchResult(score_a=0, score_b=1, events=(event,)))
+        meetup.add_match(
+            Match(
+                teams_playing=(team_a, team_b),
+                result=MatchResult(score_a=0, score_b=1, events=(event,)),
+            )
+        )
 
         self.repo.save(meetup)
         loaded = self.repo.find_by_id(meetup.id)
 
-        assert loaded.result.events[0].is_own_goal is True
+        assert loaded.matches[0].result.events[0].is_own_goal is True
 
     def test_missing_is_own_goal_defaults_to_false(self):
         """Old JSON files without is_own_goal field load with is_own_goal=False."""
@@ -187,24 +239,30 @@ class TestJsonMeetupRepositoryResult:
         meetup = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()
-        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        meetup.set_teams([team_a, team_b])
         event = GoalEvent(
             scorer_id=p1,
             assistant_id=None,
             team="A",
             timestamp=time(20, 15),
         )
-        meetup.set_result(MatchResult(score_a=1, score_b=0, events=(event,)))
+        meetup.add_match(
+            Match(
+                teams_playing=(team_a, team_b),
+                result=MatchResult(score_a=1, score_b=0, events=(event,)),
+            )
+        )
         self.repo.save(meetup)
 
         # Manually strip is_own_goal from the saved file
         file_path = self.directory / f"{meetup.date.isoformat(timespec='minutes')}.json"
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
-        for ev in data["result"]["events"]:
+        for ev in data["matches"][0]["result"]["events"]:
             ev.pop("is_own_goal", None)
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
 
         loaded = self.repo.find_by_id(meetup.id)
-        assert loaded.result.events[0].is_own_goal is False
+        assert loaded.matches[0].result.events[0].is_own_goal is False
