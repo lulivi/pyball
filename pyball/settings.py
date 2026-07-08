@@ -25,6 +25,7 @@ import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 
 def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
@@ -135,10 +136,10 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     default_hour: str = "20:00"
     base_url: str = "http://localhost:8000"
     api_port: int = 8000
-    team_colors: tuple[str, str] = ("blanco", "negro")
-    team_emojis: tuple[str, str] = field(init=False)
-    team_hex_bg: tuple[str, str] = field(init=False)
-    team_hex_text: tuple[str, str] = field(init=False)
+    team_colors: tuple[str, str, str] = ("blanco", "negro", "rojo")
+    team_emojis: tuple[str, str, str] = field(init=False)
+    team_hex_bg: tuple[str, str, str] = field(init=False)
+    team_hex_text: tuple[str, str, str] = field(init=False)
     locale: str = "en_US.UTF-8"
     display_date_format: str = "%Y-%m-%d %H:%M"
     data_dir: str = "data"
@@ -153,17 +154,14 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
             if color_name not in COLOR_PALETTE:
                 valid = ", ".join(COLOR_PALETTE)
                 raise ValueError(f"Color de equipo desconocido: '{color_name}'. Opciones: {valid}")
-        self.team_emojis = (
-            COLOR_PALETTE[self.team_colors[0]]["emoji"],
-            COLOR_PALETTE[self.team_colors[1]]["emoji"],
+        self.team_emojis = cast(
+            "tuple[str, str, str]", tuple(COLOR_PALETTE[c]["emoji"] for c in self.team_colors)
         )
-        self.team_hex_bg = (
-            COLOR_PALETTE[self.team_colors[0]]["bg"],
-            COLOR_PALETTE[self.team_colors[1]]["bg"],
+        self.team_hex_bg = cast(
+            "tuple[str, str, str]", tuple(COLOR_PALETTE[c]["bg"] for c in self.team_colors)
         )
-        self.team_hex_text = (
-            COLOR_PALETTE[self.team_colors[0]]["text"],
-            COLOR_PALETTE[self.team_colors[1]]["text"],
+        self.team_hex_text = cast(
+            "tuple[str, str, str]", tuple(COLOR_PALETTE[c]["text"] for c in self.team_colors)
         )
 
 
@@ -200,15 +198,19 @@ def _parse_api_port(value) -> int:
         return 8000
 
 
-def _parse_team_colors(value) -> tuple[str, str]:
+def _parse_team_colors(value) -> tuple[str, str, str]:
     """Parse team_colors from config list or comma-separated env string."""
-    if isinstance(value, list) and len(value) == 2:
-        return (str(value[0]).strip().lower(), str(value[1]).strip().lower())
+    if isinstance(value, list) and len(value) == 3:
+        return (
+            str(value[0]).strip().lower(),
+            str(value[1]).strip().lower(),
+            str(value[2]).strip().lower(),
+        )
     if isinstance(value, str):
         parts = [p.strip().lower() for p in value.split(",") if p.strip()]
-        if len(parts) == 2:
-            return (parts[0], parts[1])
-    return ("blanco", "negro")
+        if len(parts) == 3:
+            return (parts[0], parts[1], parts[2])
+    return ("blanco", "negro", "rojo")
 
 
 def _get_env_override(section: str, key: str, default):

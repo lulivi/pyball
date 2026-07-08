@@ -46,10 +46,10 @@ default_hour = "20:00"
 # Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
 display_date_format = "%Y-%m-%d %H:%M"
 
-# Colors for the two teams (display names, emojis and match UI)
-# Override with PYBALL_CORE_TEAM_COLORS (comma-separated, e.g. "amarillo,negro")
+# Colors for the teams (2 for classic matches, a 3rd for triangulars)
+# Override with PYBALL_CORE_TEAM_COLORS (comma-separated, e.g. "amarillo,negro,rojo")
 # Available: blanco  negro  rojo  naranja  amarillo  verde  azul  morado  marron
-team_colors = ["blanco", "negro"]
+team_colors = ["blanco", "negro", "rojo"]
 
 # The path prefix (derived from name) is appended automatically: base_url/name-slug/match
 # Override with PYBALL_CORE_BASE_URL
@@ -170,8 +170,8 @@ variables using the `PYBALL_<SECTION>_<KEY>` pattern.
 | `core.default_hour` | Default start time (`HH:MM`) | `20:00` | `PYBALL_CORE_DEFAULT_HOUR` |
 | `core.display_date_format` | Date format in messages | \
 `%Y-%m-%d %H:%M` | `PYBALL_CORE_DISPLAY_DATE_FORMAT` |
-| `core.team_colors` | Two team colors (see below) | \
-`["blanco","negro"]` | `PYBALL_CORE_TEAM_COLORS` |
+| `core.team_colors` | Three team colors: 2 for classic matches, a 3rd for \
+triangulars (see below) | `["blanco","negro","rojo"]` | `PYBALL_CORE_TEAM_COLORS` |
 | `core.base_url` | Public URL for match links | — | `PYBALL_CORE_BASE_URL` |
 | `core.api_port` | HTTP server port | `8000` | `PYBALL_CORE_API_PORT` |
 | `core.locale` | Locale for player name sorting | `es_ES.UTF-8` | `PYBALL_CORE_LOCALE` |
@@ -231,8 +231,8 @@ variables using the `PYBALL_<SECTION>_<KEY>` pattern.
 | `core.default_hour` | Default start time (`HH:MM`) | `20:00` | `PYBALL_CORE_DEFAULT_HOUR` |
 | `core.display_date_format` | Date format in messages | \
 `%Y-%m-%d %H:%M` | `PYBALL_CORE_DISPLAY_DATE_FORMAT` |
-| `core.team_colors` | Two team colors (see below) | \
-`["blanco","negro"]` | `PYBALL_CORE_TEAM_COLORS` |
+| `core.team_colors` | Three team colors: 2 for classic matches, a 3rd for \
+triangulars (see below) | `["blanco","negro","rojo"]` | `PYBALL_CORE_TEAM_COLORS` |
 | `core.base_url` | Public URL for match links | — | `PYBALL_CORE_BASE_URL` |
 | `core.api_port` | HTTP server port | `8000` | `PYBALL_CORE_API_PORT` |
 | `core.locale` | Locale for player name sorting | `es_ES.UTF-8` | `PYBALL_CORE_LOCALE` |

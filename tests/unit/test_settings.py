@@ -7,6 +7,7 @@ from pyball.settings import (
     AppSettings,
     PyballConfig,
     SettingsValidationError,
+    _parse_team_colors,
     load_app_settings,
 )
 
@@ -98,12 +99,12 @@ class TestLoadAppSettings:
         """team_colors is loaded from config and resolved correctly."""
         config = _FULL_CORE.replace(
             'team_colors = ["blanco", "negro"]',
-            'team_colors = ["amarillo", "negro"]',
+            'team_colors = ["amarillo", "negro", "azul"]',
         )
         settings = load_app_settings(_write(tmp_path, config))
-        assert settings.pyball.team_colors == ("amarillo", "negro")
-        assert settings.pyball.team_emojis == ("🟡", "⚫")
-        assert settings.pyball.team_hex_bg == ("#fbbf24", "#27272a")
+        assert settings.pyball.team_colors == ("amarillo", "negro", "azul")
+        assert settings.pyball.team_emojis == ("🟡", "⚫", "🔵")
+        assert settings.pyball.team_hex_bg == ("#fbbf24", "#27272a", "#1d4ed8")
 
     def test_display_date_format_from_config(self, tmp_path):
         """display_date_format is read from config when set."""
@@ -119,24 +120,24 @@ class TestPyballConfigColors:
     """Unit tests for PyballConfig team color resolution."""
 
     def test_default_team_colors(self):
-        """Default team_colors is ('blanco', 'negro')."""
+        """Default team_colors is ('blanco', 'negro', 'rojo')."""
         s = PyballConfig()
-        assert s.team_colors == ("blanco", "negro")
+        assert s.team_colors == ("blanco", "negro", "rojo")
 
     def test_default_resolves_emojis(self):
-        """Default colors resolve to white and black circle emojis."""
+        """Default colors resolve to white, black and red circle emojis."""
         s = PyballConfig()
-        assert s.team_emojis == ("⚪", "⚫")
+        assert s.team_emojis == ("⚪", "⚫", "🔴")
 
     def test_default_resolves_hex_bg(self):
         """Default colors resolve to correct background hex values."""
         s = PyballConfig()
-        assert s.team_hex_bg == ("#e4e4e7", "#27272a")
+        assert s.team_hex_bg == ("#e4e4e7", "#27272a", "#b91c1c")
 
     def test_default_resolves_hex_text(self):
         """Default colors resolve to correct text hex values."""
         s = PyballConfig()
-        assert s.team_hex_text == ("#27272a", "#e4e4e7")
+        assert s.team_hex_text == ("#27272a", "#e4e4e7", "#fff1f2")
 
     def test_custom_colors_resolve_correctly(self):
         """Custom team_colors resolve to the correct palette values."""
@@ -154,6 +155,27 @@ class TestPyballConfigColors:
         """Every color in COLOR_PALETTE can be used without raising."""
         for color in COLOR_PALETTE:
             PyballConfig(team_colors=(color, "negro"))
+
+    def test_team_colors_defaults_to_three_colors(self):
+        """Default team_colors has three entries with fully resolved derived tuples."""
+        config = PyballConfig()
+        assert config.team_colors == ("blanco", "negro", "rojo")
+        assert len(config.team_emojis) == 3
+        assert len(config.team_hex_bg) == 3
+        assert len(config.team_hex_text) == 3
+
+    def test_parse_team_colors_from_toml_list_of_three(self):
+        """A three-element TOML list is parsed and lower-cased."""
+        assert _parse_team_colors(["Blanco", "Negro", "Azul"]) == ("blanco", "negro", "azul")
+
+    def test_parse_team_colors_from_env_string_of_three(self):
+        """A three-element comma-separated env string is parsed correctly."""
+        assert _parse_team_colors("blanco,negro,verde") == ("blanco", "negro", "verde")
+
+    def test_parse_team_colors_falls_back_on_wrong_length(self):
+        """A list or string with a length other than three falls back to the default."""
+        assert _parse_team_colors(["blanco", "negro"]) == ("blanco", "negro", "rojo")
+        assert _parse_team_colors("blanco,negro,verde,azul") == ("blanco", "negro", "rojo")
 
 
 class TestTokenSettings:
