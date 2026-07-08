@@ -258,11 +258,13 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         "meetup_create_teams",
         settings.pyball.display_date_format,
         suffix=(
-            r"\[algoritmo\]"
+            r"\[algoritmo\] \[n\_equipos\]"
             "\n"
             r"• `balanceado` \- por defecto"
             "\n"
             r"• `manual Nombre1,Nombre2;Nombre3,Nombre4` \- equipos manuales"
+            "\n"
+            r"• `n\_equipos`: `2` \(por defecto\) o `3` para triangular"
         ),
     )
 
@@ -273,6 +275,10 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     date_str = f"{args[0]} {args[1]}"
     algo_name = args[2] if len(args) > 2 else None
+    team_count = _parse_team_count(args, algo_name)
+    if team_count is None:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
@@ -295,7 +301,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await refresh_callup_messages(context.bot, settings, container, meetup)
         else:
             meetup = await _do_create_teams(
-                meetup_date, container, context.bot, settings, algo_name
+                meetup_date, container, context.bot, settings, algo_name, team_count
             )
             if not meetup.teams:
                 await message.reply_text("No se han creado equipos.")
@@ -644,15 +650,16 @@ def generate_qr_bytes(url: str) -> BytesIO:
     return buf
 
 
-async def _do_create_teams(
+async def _do_create_teams(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     meetup_date: datetime,
     container: Container,
     bot: telegram.Bot,
     settings: TelegramAppSettings,
     algo_name: str | None = None,
+    team_count: int = 2,
 ) -> Meetup:
     """Execute create_teams and refresh callup messages with updated keyboard."""
-    meetup = container.create_teams(algo_name).execute(meetup_date)
+    meetup = container.create_teams(algo_name).execute(meetup_date, team_count)
     await refresh_callup_messages(bot, settings, container, meetup)
     return meetup
 
@@ -825,6 +832,22 @@ def _try_parse_date_args(
         except ValueError:
             pass
     return None, list(args)
+
+
+def _parse_team_count(args: list[str], algo_name: str | None) -> int | None:
+    """Parse the optional trailing team-count arg (args[3]) for the algorithmic path.
+
+    The "manual" algorithm always builds exactly the 2 named teams given and does not
+    take a team-count arg. Returns 2 when absent/not applicable, the parsed value when
+    valid (2 or 3), or None when the value is missing/invalid/out of range.
+    """
+    if algo_name == "manual" or len(args) <= 3:
+        return 2
+    try:
+        team_count = int(args[3])
+    except ValueError:
+        return None
+    return team_count if team_count in (2, 3) else None
 
 
 def _get_next_weekday(pyball_settings: PyballConfig) -> datetime:

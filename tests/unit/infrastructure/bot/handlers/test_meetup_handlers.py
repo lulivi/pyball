@@ -514,6 +514,73 @@ async def test_create_teams_handler_passes_none_when_no_algo(mock_update, mock_c
 
 
 @pytest.mark.asyncio
+async def test_create_teams_handler_with_team_count_three(mock_update, mock_context):
+    """/meetup_create_teams <fecha> <hora> balanceado 3 passes team_count=3 through."""
+    container = MagicMock()
+    meetup = MagicMock()
+    meetup.teams = [MagicMock(), MagicMock(), MagicMock()]
+    container.create_teams.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado", "3"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_called_once()
+    call_args = container.create_teams.return_value.execute.call_args
+    assert call_args.args[1] == 3
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_defaults_to_team_count_two(mock_update, mock_context):
+    """Without a trailing count, team_count defaults to 2 (unchanged behavior)."""
+    container = MagicMock()
+    meetup = MagicMock()
+    meetup.teams = [MagicMock(), MagicMock()]
+    container.create_teams.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_called_once()
+    call_args = container.create_teams.return_value.execute.call_args
+    assert call_args.args[1] == 2
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_invalid_team_count_non_numeric(mock_update, mock_context):
+    """A non-numeric trailing team-count arg shows the usage message and doesn't execute."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado", "abc"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_not_called()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Formato de fecha no válido" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_invalid_team_count_out_of_range(mock_update, mock_context):
+    """A trailing team-count arg outside {2, 3} shows the usage message and doesn't execute."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado", "4"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_not_called()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Formato de fecha no válido" in text
+
+
+@pytest.mark.asyncio
 async def test_create_teams_handler_replies_on_unknown_algorithm(mock_update, mock_context):
     """Handler replies with an error message when an unknown algorithm is requested."""
     container = MagicMock()
