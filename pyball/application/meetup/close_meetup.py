@@ -46,6 +46,9 @@ class CloseMeetup:
         if meetup.is_closed():
             raise MeetupAlreadyClosedError(f"Meetup on {meetup_date} is already closed.")
 
+        if meetup.matches and meetup.matches[-1].result is None:
+            meetup.matches.pop()
+
         meetup.close()
         self.meetup_repository.save(meetup)
         return meetup

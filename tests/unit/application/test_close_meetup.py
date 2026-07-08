@@ -49,6 +49,28 @@ class TestCloseMeetup:
         result = CloseMeetup(repo).execute(datetime(2026, 4, 12, 20, 0))
 
         assert result.is_closed()
+        assert len(result.matches) == 1
+        assert result.matches[0].result is not None
+
+    def test_closing_removes_a_trailing_dangling_pending_match(self) -> None:
+        """Test that a trailing pending match (no result) is removed on close."""
+        repo: MeetupRepository = FakeMeetupRepository()  # type: ignore
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        team_a, team_b, team_c = (
+            Team.create("A", [PlayerId.generate()]),
+            Team.create("B", [PlayerId.generate()]),
+            Team.create("C", [PlayerId.generate()]),
+        )
+        meetup.teams = [team_a, team_b, team_c]
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+        meetup.add_match(Match(teams_playing=(team_b, team_c), result=None))
+        repo.save(meetup)
+
+        result = CloseMeetup(repo).execute(datetime(2026, 4, 12, 20, 0))
+
+        assert result.is_closed()
+        assert len(result.matches) == 1
+        assert result.matches[0].result is not None
 
     def test_raises_if_meetup_not_found(self) -> None:
         """Test that closing a nonexistent meetup raises MeetupNotFoundError."""
