@@ -166,7 +166,7 @@ async def _handle_generate_teams(
         raise HTTPException(409, "Match already finished, cannot regenerate teams")
 
     try:
-        meetup = container.create_teams(body.algorithm).execute(meetup_date)
+        meetup = container.create_teams(body.algorithm).execute(meetup_date, body.team_count)
     except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 

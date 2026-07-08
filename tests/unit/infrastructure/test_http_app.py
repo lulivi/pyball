@@ -840,6 +840,46 @@ class TestGenerateTeams:
         container.create_teams.assert_called_once_with("balanceado")
         mock_build.assert_called_once_with(container)
 
+    @pytest.mark.asyncio
+    async def test_generate_teams_defaults_team_count_to_two(self):
+        """POST /api/meetup/generate-teams without team_count passes 2 to execute()."""
+        container = MagicMock()
+        meetup = MagicMock()
+        meetup.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = meetup
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+
+        assert resp.status_code == 200
+        container.create_teams.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0), 2
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_teams_passes_team_count_through(self):
+        """POST /api/meetup/generate-teams with team_count=3 passes 3 to execute()."""
+        container = MagicMock()
+        meetup = MagicMock()
+        meetup.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = meetup
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado", "team_count": 3},
+            )
+
+        assert resp.status_code == 200
+        container.create_teams.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0), 3
+        )
+
 
 @pytest.mark.asyncio
 async def test_create_meetup_409_when_closed():

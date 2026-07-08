@@ -72,6 +72,7 @@ class GenerateTeamsInput(BaseModel):
 
     date: str
     algorithm: str = "balanceado"
+    team_count: int = 2
 
 
 class CreatePlayerInput(BaseModel):
