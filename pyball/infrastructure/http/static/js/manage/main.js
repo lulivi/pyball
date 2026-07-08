@@ -15,10 +15,10 @@ let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:
 let activeMatchData = null;
 let editTeams = { A: [], B: [], C: [] };  // {id, name}[] per team letter — working copies
 let editTeamLetters = ['A', 'B'];          // ['A','B'] or ['A','B','C'] — set when panel opens
-let editReplacingPlayer = null; // {id, name, team: 'A'|'B'} | null
+let editReplacingPlayer = null; // {id, name, team: 'A'|'B'|'C'} | null
 let rosterAddVisible = false;   // State 1: add-player search panel open?
 let rosterSearchQuery = '';     // State 1: current add-player search text
-let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | null — which column's add widget is open
+let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
 let repastePanelOpen = false;   // collapsed re-paste section open?
 
