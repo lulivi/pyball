@@ -308,8 +308,9 @@ class TestCreateTeams:
         past_meetup = Meetup.create(date=datetime(2024, 10, 1, 20, 0), location="Parque Central")
         past_meetup.add_player(p1)
         past_meetup.add_player(p2)
-        past_meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
-        past_meetup.set_result(MatchResult(score_a=2, score_b=0, events=()))
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        past_meetup.set_teams([team_a, team_b])
+        past_meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
         meetup_repo.save(past_meetup)
 
         # Create the current meetup with the same players
@@ -612,9 +613,9 @@ class TestGetActiveMeetup:
         assert GetActiveMeetup(self.meetup_repo).execute() == newer
 
     def test_ignores_closed_meetups(self):
-        """A meetup with a result set is not returned."""
+        """A closed meetup is not returned."""
         closed = Meetup.create(datetime(2026, 6, 5, 20, 0), "Campo")
-        closed.result = MatchResult(score_a=1, score_b=0, events=())
+        closed.close()
         self.meetup_repo.save(closed)
         active = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
         self.meetup_repo.save(active)

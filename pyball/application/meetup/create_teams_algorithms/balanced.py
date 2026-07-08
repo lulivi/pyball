@@ -220,19 +220,17 @@ def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
     """Return sorted (pid_a, pid_b) -> shared win count for all player pairs."""
     counts: dict[tuple[str, str], int] = {}
     for meetup in meetups:
-        if meetup.result is None or meetup.teams is None:
-            continue
-        score_a = meetup.result.score_a
-        score_b = meetup.result.score_b
-        for team in meetup.teams:
-            team_wins = (team.name == "A" and score_a > score_b) or (
-                team.name == "B" and score_b > score_a
-            )
-            if team_wins:
-                for pid_a, pid_b in itertools.combinations(team.players, 2):
-                    key_list = [str(pid_a.value), str(pid_b.value)]
-                    key: tuple[str, str] = tuple(sorted(key_list))  # type: ignore[assignment]
-                    counts[key] = counts.get(key, 0) + 1
+        for match in meetup.matches:
+            if match.result is None:
+                continue
+            score_a, score_b = match.result.score_a, match.result.score_b
+            for i, team in enumerate(match.teams_playing):
+                team_wins = (score_a > score_b) if i == 0 else (score_b > score_a)
+                if team_wins:
+                    for pid_a, pid_b in itertools.combinations(team.players, 2):
+                        key_list = [str(pid_a.value), str(pid_b.value)]
+                        key: tuple[str, str] = tuple(sorted(key_list))  # type: ignore[assignment]
+                        counts[key] = counts.get(key, 0) + 1
     return counts
 
 
@@ -421,13 +419,14 @@ def _player_role(
     def _count_events(meetups: list[Meetup]) -> tuple[int, int]:
         goals = assists = 0
         for meetup in meetups:
-            if meetup.result is None:
-                continue
-            for event in meetup.result.events:
-                if event.scorer_id == player_id:
-                    goals += 1
-                if event.assistant_id == player_id:
-                    assists += 1
+            for match in meetup.matches:
+                if match.result is None:
+                    continue
+                for event in match.result.events:
+                    if event.scorer_id == player_id:
+                        goals += 1
+                    if event.assistant_id == player_id:
+                        assists += 1
         return goals, assists
 
     goals_s, assists_s = _count_events(season_meetups)
@@ -460,23 +459,21 @@ def _player_stats(
     """Return (matches_played, goals_per_match, assists_per_match, win_rate)."""
     goals = assists = wins = mp = 0
     for meetup in meetups:
-        if meetup.result is None or meetup.teams is None:
-            continue
-        score_a = meetup.result.score_a
-        score_b = meetup.result.score_b
-        for team in meetup.teams:
-            if player_id in team.players:
-                mp += 1
-                team_wins = (team.name == "A" and score_a > score_b) or (
-                    team.name == "B" and score_b > score_a
-                )
-                if team_wins:
-                    wins += 1
-        for event in meetup.result.events:
-            if event.scorer_id == player_id:
-                goals += 1
-            if event.assistant_id == player_id:
-                assists += 1
+        for match in meetup.matches:
+            if match.result is None:
+                continue
+            score_a, score_b = match.result.score_a, match.result.score_b
+            for i, team in enumerate(match.teams_playing):
+                if player_id in team.players:
+                    mp += 1
+                    team_wins = (score_a > score_b) if i == 0 else (score_b > score_a)
+                    if team_wins:
+                        wins += 1
+            for event in match.result.events:
+                if event.scorer_id == player_id:
+                    goals += 1
+                if event.assistant_id == player_id:
+                    assists += 1
     if legacy_stats and mp > 0:
         pid_str = str(player_id.value)
         assists += legacy_stats.get_assists(pid_str, from_date)

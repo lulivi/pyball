@@ -13,7 +13,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     optimize_teams,
 )
 from pyball.domain.meetup.errors import UnknownAlgorithmError
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
 
 
 def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -28,8 +28,14 @@ def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-
     m = Meetup.create(datetime.strptime(date_str, "%Y-%m-%d %H:%M"), "Campo")
     for pid in team_a + team_b:
         m.add_player(pid)
-    m.set_teams([Team.create("A", team_a), Team.create("B", team_b)])
-    m.set_result(MatchResult(score_a=score_a, score_b=score_b, events=events))
+    team_a_obj, team_b_obj = Team.create("A", team_a), Team.create("B", team_b)
+    m.set_teams([team_a_obj, team_b_obj])
+    m.add_match(
+        Match(
+            teams_playing=(team_a_obj, team_b_obj),
+            result=MatchResult(score_a=score_a, score_b=score_b, events=events),
+        )
+    )
     return m
 
 
@@ -226,9 +232,10 @@ class TestPlayerRole:
         p1 = PlayerId.generate()
         meetups = []
         for i in range(3):
+            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
             m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            m.set_teams([team_a, team_b])
             events = [
                 GoalEvent(
                     scorer_id=PlayerId.generate(),
@@ -246,7 +253,12 @@ class TestPlayerRole:
                     timestamp=time(20, 15),
                 )
             )
-            m.set_result(MatchResult(score_a=3, score_b=0, events=tuple(events)))
+            m.add_match(
+                Match(
+                    teams_playing=(team_a, team_b),
+                    result=MatchResult(score_a=3, score_b=0, events=tuple(events)),
+                )
+            )
             meetups.append(m)
 
         role = _player_role(p1, meetups)
@@ -257,9 +269,10 @@ class TestPlayerRole:
         p1 = PlayerId.generate()
         season = []
         for i in range(2):
+            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
             m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            m.set_teams([team_a, team_b])
             events = (
                 GoalEvent(
                     scorer_id=p1,
@@ -268,13 +281,14 @@ class TestPlayerRole:
                     timestamp=time(20, 10),
                 ),
             )
-            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            m.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
             season.append(m)
         history = []
         for i in range(3):
+            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
             m = Meetup.create(datetime(2024, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            m.set_teams([team_a, team_b])
             events = (
                 GoalEvent(
                     scorer_id=PlayerId.generate(),
@@ -283,7 +297,7 @@ class TestPlayerRole:
                     timestamp=time(20, 10),
                 ),
             )
-            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            m.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
             history.append(m)
 
         role = _player_role(p1, season, history)
