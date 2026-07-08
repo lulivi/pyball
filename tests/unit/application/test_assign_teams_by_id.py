@@ -138,3 +138,100 @@ class TestAssignTeamsById:
         )
 
         assert list(result.players) == [p1.id, p2.id]
+
+    def test_happy_path_assigns_three_teams(self):
+        """Valid equal-sized non-overlapping IDs covering all players creates 3 teams."""
+        p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")
+        meetup = _meetup(p1, p2, p3)
+        uc, repo = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p2.id.value)],
+            [str(p3.id.value)],
+        )
+
+        assert result.teams is not None
+        assert len(result.teams) == 3
+        assert p1.id in result.teams[0].players
+        assert p2.id in result.teams[1].players
+        assert p3.id in result.teams[2].players
+        repo.save.assert_called_once_with(meetup)
+
+    def test_team_c_ids_none_keeps_two_team_result(self):
+        """Omitting team_c_ids (None) still produces exactly 2 teams."""
+        p1, p2 = _player("Juan"), _player("Pedro")
+        meetup = _meetup(p1, p2)
+        uc, _ = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p2.id.value)],
+            None,
+        )
+
+        assert result.teams is not None
+        assert len(result.teams) == 2
+
+    def test_raises_on_overlap_across_three_teams(self):
+        """ValueError when the same player ID appears in team A and team C."""
+        p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")
+        meetup = _meetup(p1, p2, p3)
+        uc, _ = _use_case(meetup)
+        pid = str(p1.id.value)
+
+        with pytest.raises(ValueError, match="más de un equipo"):
+            uc.execute(
+                datetime(2026, 5, 6, 20, 0),
+                [pid],
+                [str(p2.id.value)],
+                [pid, str(p3.id.value)],
+            )
+
+    def test_raises_on_unequal_sizes_across_three_teams(self):
+        """ValueError mentioning the limit when 3-team sizes differ by more than 1."""
+        players = [_player(f"Player{i}") for i in range(6)]
+        meetup = _meetup(*players)
+        uc, _ = _use_case(meetup)
+
+        with pytest.raises(ValueError, match="máximo 1"):
+            uc.execute(
+                datetime(2026, 5, 6, 20, 0),
+                [str(players[0].id.value)],
+                [str(players[1].id.value)],
+                [str(p.id.value) for p in players[2:]],
+            )
+
+    def test_accepts_one_player_size_difference_across_three_teams(self):
+        """Teams of 3, 3, 2 players (max-min = 1) are accepted."""
+        players = [_player(f"Player{i}") for i in range(8)]
+        meetup = _meetup(*players)
+        uc, repo = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p.id.value) for p in players[:3]],
+            [str(p.id.value) for p in players[3:6]],
+            [str(p.id.value) for p in players[6:]],
+        )
+
+        assert result.teams is not None
+        assert [len(t.players) for t in result.teams] == [3, 3, 2]
+        repo.save.assert_called_once_with(meetup)
+
+    def test_roster_updated_to_include_team_c_players(self):
+        """meetup.players equals team_a + team_b + team_c in order when team_c is given."""
+        p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")
+        meetup = _meetup(p1, p2)  # p3 NOT originally in meetup
+        uc, _ = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p2.id.value)],
+            [str(p3.id.value)],
+        )
+
+        assert list(result.players) == [p1.id, p2.id, p3.id]

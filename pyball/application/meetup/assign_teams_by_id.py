@@ -39,6 +39,7 @@ class AssignTeamsById:
         meetup_date: datetime,
         team_a_ids: list[str],
         team_b_ids: list[str],
+        team_c_ids: list[str] | None = None,
     ) -> Meetup:
         """Assign players to teams by ID, updating the meetup roster accordingly.
 
@@ -46,35 +47,54 @@ class AssignTeamsById:
             meetup_date: Exact datetime of the meetup.
             team_a_ids: UUID strings for team A players.
             team_b_ids: UUID strings for team B players.
+            team_c_ids: UUID strings for team C players, or None for a 2-team meetup.
 
         Returns:
             The updated meetup with teams set.
 
         Raises:
             MeetupNotFoundError: No meetup at meetup_date.
-            ValueError: Any player ID appears in both teams, or team sizes differ by more than 1.
+            ValueError: Any player ID appears in more than one team, or team sizes
+                differ by more than 1 across all provided teams.
         """
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if meetup is None:
             raise MeetupNotFoundError(str(meetup_date))
 
-        a_ids = [PlayerId.from_string(s) for s in team_a_ids]
-        b_ids = [PlayerId.from_string(s) for s in team_b_ids]
+        groups = [
+            [PlayerId.from_string(s) for s in team_a_ids],
+            [PlayerId.from_string(s) for s in team_b_ids],
+        ]
+        if team_c_ids is not None:
+            groups.append([PlayerId.from_string(s) for s in team_c_ids])
 
-        overlap = set(a_ids) & set(b_ids)
-        if overlap:
-            raise ValueError(
-                f"Jugadores asignados a los dos equipos: "
-                f"{', '.join(str(p.value) for p in overlap)}"
-            )
+        all_ids = [pid for group in groups for pid in group]
+        _raise_on_duplicates(all_ids, team_c_ids is not None)
 
-        if abs(len(a_ids) - len(b_ids)) > 1:
+        sizes = [len(group) for group in groups]
+        if max(sizes) - min(sizes) > 1:
             raise ValueError(
                 f"Los equipos deben tener un tamaño similar, máximo 1 de diferencia "
-                f"({len(a_ids)} vs {len(b_ids)})"
+                f"({' vs '.join(str(s) for s in sizes)})"
             )
 
-        meetup.players[:] = a_ids + b_ids
-        meetup.set_teams([Team.create("A", a_ids), Team.create("B", b_ids)])
+        meetup.players[:] = all_ids
+        names = ["A", "B", "C"]
+        meetup.set_teams([Team.create(names[i], group) for i, group in enumerate(groups)])
         self.meetup_repository.save(meetup)
         return meetup
+
+
+def _raise_on_duplicates(all_ids: list[PlayerId], has_third_team: bool) -> None:
+    """Raise ValueError listing any player ID that appears in more than one team."""
+    seen: set[PlayerId] = set()
+    dupes: set[PlayerId] = set()
+    for pid in all_ids:
+        if pid in seen:
+            dupes.add(pid)
+        seen.add(pid)
+    if dupes:
+        label = "más de un equipo" if has_third_team else "los dos equipos"
+        raise ValueError(
+            f"Jugadores asignados a {label}: {', '.join(str(p.value) for p in dupes)}"
+        )
