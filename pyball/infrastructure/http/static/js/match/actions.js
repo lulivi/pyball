@@ -1,4 +1,4 @@
-import { ctx, store, getGoals, clearSaved } from './state.js';
+import { ctx, store, getGoals, clearSaved, applyTeamColors, saveTeamsSnapshot } from './state.js';
 import { post } from '../api.js';
 
 export function setTab(tabName) {
@@ -114,6 +114,11 @@ function _continueToNextRound(nextRound) {
     ctx.teamB = nextRound.teamB;
     ctx.nameA = nextRound.nameA;
     ctx.nameB = nextRound.nameB;
+    applyTeamColors(nextRound.colorA, nextRound.colorTextA, nextRound.colorB, nextRound.colorTextB);
+    saveTeamsSnapshot({
+        colorA: nextRound.colorA, colorB: nextRound.colorB,
+        colorTextA: nextRound.colorTextA, colorTextB: nextRound.colorTextB,
+    });
     store.set({ events: [], currentStep: 1, tempScorer: null, tempScorerTeam: null, editingEvent: null });
 }
 

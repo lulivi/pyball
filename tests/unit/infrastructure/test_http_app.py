@@ -93,6 +93,56 @@ async def test_finish_match_success_returns_score():
 
 
 @pytest.mark.asyncio
+async def test_finish_match_returns_next_round_with_colors_when_round_advances():
+    """next_round carries colorA/colorB/colorTextA/colorTextB for the new pairing."""
+    pid_a = MagicMock()
+    pid_a.value = "p1"
+    pid_b = MagicMock()
+    pid_b.value = "p2"
+
+    player_a = MagicMock()
+    player_a.id.value = "p1"
+    player_a.name = "Dani"
+    player_b = MagicMock()
+    player_b.id.value = "p2"
+    player_b.name = "Rafa"
+
+    meetup = MagicMock()
+    meetup.is_closed.return_value = False
+    meetup.matches = [
+        MagicMock(result=MagicMock(score_a=2, score_b=1)),
+        MagicMock(result=MagicMock(score_a=2, score_b=1)),
+    ]
+    meetup.current_match.return_value = MagicMock(
+        teams_playing=(MagicMock(players=[pid_a]), MagicMock(players=[pid_b]))
+    )
+
+    container = MagicMock()
+    container.finish_match.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = [player_a, player_b]
+    container.team_colors = ("blanco", "negro")
+    container.team_hex_bg = ("#e4e4e7", "#27272a")
+    container.team_hex_text = ("#27272a", "#e4e4e7")
+    notifier = _StubNotifier()
+    app = create_app(container, notifier)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/match/finish", json=_VALID_BODY)
+
+    assert response.status_code == 200
+    next_round = response.json()["next_round"]
+    assert next_round["teamA"] == ["Dani"]
+    assert next_round["teamB"] == ["Rafa"]
+    assert next_round["nameA"] == "Blanco"
+    assert next_round["nameB"] == "Negro"
+    assert next_round["colorA"] == "#e4e4e7"
+    assert next_round["colorB"] == "#27272a"
+    assert next_round["colorTextA"] == "#27272a"
+    assert next_round["colorTextB"] == "#e4e4e7"
+    assert len(notifier.closed) == 0
+
+
+@pytest.mark.asyncio
 async def test_finish_match_404_does_not_call_notifier():
     app, notifier = _make_app(finish_side_effect=MeetupNotFoundError("2026-04-30"))
 

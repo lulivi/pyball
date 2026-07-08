@@ -136,11 +136,17 @@ async def _handle_finish_match(
         current = meetup.current_match()
         player_names = {str(p.id.value): p.name for p in container.player_repository.find_all()}
         colors = container.team_colors
+        hex_bg = container.team_hex_bg
+        hex_text = container.team_hex_text
         response["next_round"] = {
             "teamA": sorted_names(current.teams_playing[0].players, player_names),
             "teamB": sorted_names(current.teams_playing[1].players, player_names),
             "nameA": colors[0].capitalize(),
             "nameB": colors[1].capitalize(),
+            "colorA": hex_bg[0],
+            "colorB": hex_bg[1],
+            "colorTextA": hex_text[0],
+            "colorTextB": hex_text[1],
         }
 
     return response
