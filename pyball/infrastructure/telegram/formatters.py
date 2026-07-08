@@ -27,7 +27,7 @@ from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 
-from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.models import Match, Meetup, Team
 
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
 _DEFAULT_DATE_FMT = "%Y-%m-%d %H:%M"
@@ -117,7 +117,7 @@ def format_main_message(
     - After results: teams + results
     """
     date_str = format_display(meetup.date, date_fmt)
-    if meetup.result is not None:
+    if meetup.is_closed():
         header = f"🎉 *Partido terminado:* `{date_str}`"
     else:
         header = f"📅 *Convocatoria:* `{date_str}`"
@@ -139,9 +139,7 @@ def format_main_message(
         lines.append("*Equipos:*")
         for i, team in enumerate(meetup.teams):
             display_name = team_colors[i].capitalize() if i < len(team_colors) else team.name
-            score = None
-            if meetup.result is not None:
-                score = meetup.result.score_a if i == 0 else meetup.result.score_b
+            score = _latest_score_for(team, meetup.matches)
             escaped = _escape_mdv2(display_name)
             emoji = team_emojis[i] if i < len(team_emojis) else ""
             header = (
@@ -155,19 +153,26 @@ def format_main_message(
             for name in sorted_names:
                 lines.append(rf"  \- `{name}`")
 
-    if meetup.result is not None and meetup.result.events:
-        lines.append("")
-        lines.append(r"⏱️ *Goles:*")
-        for event in meetup.result.events:
-            scorer = player_names.get(str(event.scorer_id.value), "?")
-            minutes = event.timestamp.strftime("%M")
-            if event.is_own_goal:
-                lines.append(rf"  \- 🥅 {minutes}' `{scorer}` \(en propia\)")
-            elif event.assistant_id:
-                assistant = player_names.get(str(event.assistant_id.value), "?")
-                lines.append(rf"  \- ⚽ {minutes}' `{scorer}` \- `{assistant}`")
-            else:
-                lines.append(rf"  \- ⚽ {minutes}' `{scorer}`")
+    if meetup.matches:
+        all_events = [
+            event
+            for match in meetup.matches
+            if match.result is not None
+            for event in match.result.events
+        ]
+        if all_events:
+            lines.append("")
+            lines.append(r"⏱️ *Goles:*")
+            for event in all_events:
+                scorer = player_names.get(str(event.scorer_id.value), "?")
+                minutes = event.timestamp.strftime("%M")
+                if event.is_own_goal:
+                    lines.append(rf"  \- 🥅 {minutes}' `{scorer}` \(en propia\)")
+                elif event.assistant_id:
+                    assistant = player_names.get(str(event.assistant_id.value), "?")
+                    lines.append(rf"  \- ⚽ {minutes}' `{scorer}` \- `{assistant}`")
+                else:
+                    lines.append(rf"  \- ⚽ {minutes}' `{scorer}`")
 
     return "\n".join(lines)
 
@@ -181,7 +186,7 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only."""
-    if meetup.result is not None:
+    if meetup.is_closed():
         return "*Partido terminado*"
 
     date_str = format_display(meetup.date, date_fmt)
@@ -253,3 +258,13 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
 def _escape_mdv2(text: str) -> str:
     """Escape special characters for Telegram MarkdownV2."""
     return _MDV2_RE.sub(r"\\\1", text)
+
+
+def _latest_score_for(team: Team, matches: list[Match]) -> int | None:
+    """Return this team's score in its most recent resolved match, or None if it hasn't played."""
+    for match in reversed(matches):
+        if match.result is None or team not in match.teams_playing:
+            continue
+        index = match.teams_playing.index(team)
+        return match.result.score_a if index == 0 else match.result.score_b
+    return None
