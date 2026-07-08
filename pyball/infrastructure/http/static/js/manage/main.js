@@ -246,8 +246,9 @@ function renderState2(data) {
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
     <div class="regen-row">
+      <button class="btn-sm green" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar (2)</button>
+      <button class="btn-sm green" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar (3)</button>
       <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
-      <button class="btn-sm green" onclick="regenerateCurrentTeams()">↺ Regenerar</button>
     </div>
     <div id="edit-panel-container"></div>
     <hr class="divider">
@@ -266,20 +267,22 @@ function copyTeams() {
     _copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
-async function regenerateCurrentTeams() {
-    const btn = document.querySelector('.regen-row .btn-sm.green');
-    if (btn) { btn.textContent = 'Regenerando...'; btn.disabled = true; }
+async function regenerateCurrentTeams(teamCount, btn) {
+    const buttons = document.querySelectorAll('.regen-row .btn-sm.green');
+    const originalLabels = Array.from(buttons).map(b => b.textContent);
+    buttons.forEach(b => { b.disabled = true; });
+    if (btn) btn.textContent = 'Regenerando...';
     try {
-        activeMatchData = await _callGenerateTeams();
+        activeMatchData = await _callGenerateTeams(teamCount);
         if (!activeMatchData.teams) {
             alert('Error: el servidor no devolvió equipos.');
-            if (btn) { btn.disabled = false; btn.textContent = '↺ Regenerar'; }
+            buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
             return;
         }
         renderState2(activeMatchData);
     } catch (e) {
         alert('Error: ' + e.message);
-        if (btn) { btn.textContent = '↺ Regenerar'; btn.disabled = false; }
+        buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
     }
 }
 
