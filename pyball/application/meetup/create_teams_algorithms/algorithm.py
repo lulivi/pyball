@@ -30,11 +30,12 @@ from pyball.domain.meetup.models import Meetup, PlayerId
 class TeamAssignmentAlgorithm(Protocol):
     """Protocol for pluggable team assignment algorithms."""
 
-    def assign(
+    def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         players: list[PlayerId],
         finished_meetups: list[Meetup],
         season_meetups: list[Meetup],
         season_start: datetime,
-    ) -> tuple[list[PlayerId], list[PlayerId]]:
-        """Assign players to two teams and return (team_a, team_b)."""
+        team_count: int = 2,
+    ) -> tuple[list[PlayerId], ...]:
+        """Assign players to team_count groups and return them as a tuple."""

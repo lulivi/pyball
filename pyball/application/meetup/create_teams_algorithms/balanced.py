@@ -94,22 +94,28 @@ class BalancedAlgorithm:
         """Initialize with optional legacy stats for pre-app historical data."""
         self.legacy_stats = legacy_stats
 
-    def assign(
+    def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         players: list[PlayerId],
         finished_meetups: list[Meetup],
         season_meetups: list[Meetup],
         season_start: datetime,
-    ) -> tuple[list[PlayerId], list[PlayerId]]:
-        """Assign players to two balanced teams using historical performance data."""
+        team_count: int = 2,
+    ) -> tuple[list[PlayerId], ...]:
+        """Assign players to team_count balanced groups using historical performance data."""
+        if team_count not in (2, 3):
+            raise ValueError("team_count must be 2 or 3")
         player_scores = compute_player_scores(
             players, season_meetups, finished_meetups, self.legacy_stats, season_start
         )
-        player_roles = compute_player_roles(
-            players, season_meetups, finished_meetups, self.legacy_stats, season_start
-        )
-        winning_counts = extract_winning_counts(finished_meetups)
-        return optimize_teams(players, player_scores, winning_counts, player_roles)
+        if team_count == 2:
+            player_roles = compute_player_roles(
+                players, season_meetups, finished_meetups, self.legacy_stats, season_start
+            )
+            winning_counts = extract_winning_counts(finished_meetups)
+            team_a, team_b = optimize_teams(players, player_scores, winning_counts, player_roles)
+            return (team_a, team_b)
+        return _snake_draft(players, player_scores, team_count)
 
 
 def optimize_teams(
@@ -478,3 +484,33 @@ def _player_stats(
     if mp == 0:
         return 0, 0.0, 0.0, 0.0
     return mp, goals / mp, assists / mp, wins / mp
+
+
+def _snake_draft(
+    player_ids: list[PlayerId],
+    player_scores: dict[PlayerId, float],
+    team_count: int,
+) -> tuple[list[PlayerId], ...]:
+    """Distribute players into team_count groups via a score-sorted snake draft.
+
+    Players are sorted strongest-first and dealt out in a 0,1,2,2,1,0,0,1,2,...
+    zig-zag order, which keeps summed team strength close without the
+    combinatorial partition search `optimize_teams` uses for 2 teams.
+    """
+    ordered = sorted(player_ids, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
+    teams: list[list[PlayerId]] = [[] for _ in range(team_count)]
+    index = 0
+    forward = True
+    for pid in ordered:
+        teams[index].append(pid)
+        if forward:
+            index += 1
+            if index == team_count:
+                index = team_count - 1
+                forward = False
+        else:
+            index -= 1
+            if index < 0:
+                index = 0
+                forward = True
+    return tuple(teams)
