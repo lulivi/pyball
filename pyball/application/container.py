@@ -23,6 +23,7 @@ from pyball.application.meetup import (
     AddPlayerToMeetup,
     AssignTeamsById,
     CancelMeetup,
+    CloseMeetup,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
@@ -155,6 +156,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def cancel_meetup(self) -> CancelMeetup:
         """Create a new CancelMeetup use case."""
         return CancelMeetup(self.meetup_repository)
+
+    def close_meetup(self) -> CloseMeetup:
+        """Create a new CloseMeetup use case."""
+        return CloseMeetup(self.meetup_repository)
 
     def parse_callup(self) -> ParseCallup:
         """Create a new ParseCallup use case."""
