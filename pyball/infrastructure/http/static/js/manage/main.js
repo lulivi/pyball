@@ -233,7 +233,9 @@ async function createAndAddPlayer(name) {
 // ── STATE 2: match with teams ─────────────────────────────────────────────
 function renderState2(data) {
     const t = data.teams;
-    const teamsText = `${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}\n\n${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`;
+    const blocks = [`${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}`, `${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`];
+    if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${t.teamC.join('\n')}`);
+    const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
