@@ -34,7 +34,7 @@ from pyball.application.meetup import (
     ParseCallup,
     RemovePlayerFromMeetup,
     SetMeetupPlayers,
-    StartMatch,
+    StartNextRound,
     UpdateMeetupDate,
     UpdateMeetupLocation,
 )
@@ -112,9 +112,9 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new AssignTeamsById use case."""
         return AssignTeamsById(self.meetup_repository)
 
-    def start_match(self) -> StartMatch:
-        """Create a new StartMatch use case."""
-        return StartMatch(self.meetup_repository)
+    def start_next_round(self) -> StartNextRound:
+        """Create a new StartNextRound use case."""
+        return StartNextRound(self.meetup_repository)
 
     def match_link_builder(self) -> MatchLinkBuilder:
         """Create the web match-link builder for this instance."""
