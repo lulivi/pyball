@@ -105,8 +105,8 @@ def build_callback_data(action: str, meetup_date: datetime) -> str:
 def format_main_message(
     meetup: Meetup,
     player_names: dict,
-    team_colors: tuple[str, str] = ("blanco", "negro"),
-    team_emojis: tuple[str, str] = ("⚪", "⚫"),
+    team_colors: tuple[str, ...] = ("blanco", "negro"),
+    team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for main (regulars) chat.
@@ -181,8 +181,8 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     meetup: Meetup,
     player_names: dict,
     player_groups: dict,
-    team_colors: tuple[str, str] = ("blanco", "negro"),
-    team_emojis: tuple[str, str] = ("⚪", "⚫"),
+    team_colors: tuple[str, ...] = ("blanco", "negro"),
+    team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only."""

@@ -48,6 +48,7 @@ COMMAND_DESCRIPTIONS: dict[str, str] = {
     "meetup_stats": "Show statistics",
     "meetup_change_location": "Change meetup location",
     "meetup_change_date": "Change meetup date",
+    "meetup_close_triangular": "Close a triangular tournament session",
 }
 
 _MD_V2_SPECIAL = r"_*[]()~`>#+-=|{}.!"

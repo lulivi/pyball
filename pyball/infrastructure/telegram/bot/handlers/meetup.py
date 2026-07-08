@@ -34,6 +34,7 @@ from pyball.application.container import Container
 from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.domain.meetup.errors import (
+    MeetupAlreadyClosedError,
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
@@ -78,6 +79,7 @@ def setup_meetup_handlers(application):
     add_command(application, "meetup_stats", stats_handler)
     add_command(application, "meetup_change_location", change_location_handler)
     add_command(application, "meetup_change_date", change_date_handler)
+    add_command(application, "meetup_close_triangular", close_triangular_handler)
 
 
 @log_func
@@ -639,6 +641,46 @@ async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception:
         logger.exception("Unexpected error changing meetup date")
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
+
+
+@log_func
+@authorized
+async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /meetup_close_triangular [fecha] [hora] command."""
+    message = update.message
+    if message is None:
+        return
+    container: Container = context.bot_data["container"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
+
+    meetup = await _resolve_meetup(
+        message, context.args, settings, container, "meetup_close_triangular"
+    )
+    if meetup is None:
+        return
+
+    try:
+        closed_meetup = container.close_meetup().execute(meetup.date)
+    except MeetupAlreadyClosedError:
+        await message.reply_text("Este meetup ya está cerrado.")
+        return
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+        return
+
+    player_names = _get_player_names(container.player_repository)
+    summary = container.format_match_summary().execute(
+        closed_meetup,
+        player_names,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
+        legacy_stats=container.legacy_stats,
+    )
+    await context.bot.send_message(
+        chat_id=settings.telegram.regulars.chat_id,
+        text=summary,
+    )
+    await react_ok(context.bot, message)
 
 
 def generate_qr_bytes(url: str) -> BytesIO:

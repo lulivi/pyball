@@ -9,6 +9,7 @@ from telegram.constants import ParseMode, ReactionEmoji
 
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
+    MeetupAlreadyClosedError,
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
@@ -19,6 +20,7 @@ from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
     add_player_handler,
+    close_triangular_handler,
     create_teams_handler,
     generate_qr_bytes,
     lock_handler,
@@ -1172,6 +1174,95 @@ async def test_change_date_wrong_arg_count_replies_usage(mock_update, mock_conte
     await change_date_handler(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_closes_and_sends_summary(mock_update, mock_context):
+    """/meetup_close_triangular closes the meetup and sends the final round summary."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    closed_meetup = MagicMock()
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.return_value = closed_meetup
+    container.player_repository.find_all.return_value = []
+    container.format_match_summary.return_value.execute.return_value = "resumen final"
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.regulars.chat_id = -1009999
+    mock_context.args = []
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    container.close_meetup.return_value.execute.assert_called_once_with(meetup.date)
+    container.format_match_summary.return_value.execute.assert_called_once()
+    mock_context.bot.send_message.assert_called_once_with(
+        chat_id=-1009999,
+        text="resumen final",
+    )
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_reports_already_closed(mock_update, mock_context):
+    """Replies with a Spanish error when the meetup is already closed."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.side_effect = MeetupAlreadyClosedError("x")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "ya está cerrado" in text.lower()
+    mock_context.bot.send_message.assert_not_called()
+    mock_context.bot.set_message_reaction.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_reports_not_found(mock_update, mock_context):
+    """Replies with a Spanish error when there's no meetup for the resolved date."""
+    mock_context.args = ["2026-06-08", "20:00"]
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = MagicMock(
+        date=datetime(2026, 6, 8, 20, 0)
+    )
+    container.close_meetup.return_value.execute.side_effect = MeetupNotFoundError("x")
+    mock_context.bot_data["container"] = container
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_once_with(
+        "No existe ningún meetup para esa fecha."
+    )
+    mock_context.bot.send_message.assert_not_called()
+    mock_context.bot.set_message_reaction.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_no_active_meetup_replies_error(mock_update, mock_context):
+    """/meetup_close_triangular with no args and no active meetup replies in Spanish."""
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
+    container.close_meetup.return_value.execute.assert_not_called()
 
 
 @pytest.mark.asyncio
