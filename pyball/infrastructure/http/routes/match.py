@@ -31,6 +31,7 @@ from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFound
 from pyball.infrastructure.http.presenters import (
     build_active_match_response,
     build_match_events_response,
+    sorted_names,
 )
 from pyball.infrastructure.http.schemas import FinishMatchInput
 
@@ -60,7 +61,7 @@ def register_match_routes(app: FastAPI, container: "Container", notifier: "Match
     async def latest_match():
         """Return the date of the most recent finished meetup."""
         all_meetups = container.meetup_repository.find_all()
-        finished = [m for m in all_meetups if m.result is not None]
+        finished = [m for m in all_meetups if m.matches and m.matches[-1].result is not None]
         if not finished:
             raise HTTPException(404, "No finished matches found")
         latest = max(finished, key=lambda m: m.date)
@@ -101,7 +102,7 @@ async def _handle_finish_match(
     notifier: "MatchNotifier",
     body: FinishMatchInput,
 ) -> dict:
-    """Execute the finish-match use case, notify, and return the result."""
+    """Execute the finish-match use case, notify if closed, and return the result."""
     logger.info(
         "finish_match called: meetup_date=%s, finalScore=%s",
         body.meetup_date,
@@ -113,7 +114,6 @@ async def _handle_finish_match(
         meetup = use_case.execute(
             body.meetup_date, events, {"A": body.finalScore.A, "B": body.finalScore.B}
         )
-        logger.info("finish_match: meetup result set: %s", meetup.result)
     except MeetupNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Meetup not found") from exc
     except MeetupAlreadyClosedError as exc:
@@ -121,13 +121,29 @@ async def _handle_finish_match(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    await notifier.on_match_closed(meetup)
+    just_finished = meetup.matches[-2] if not meetup.is_closed() else meetup.matches[-1]
+    logger.info("finish_match: match result set: %s", just_finished.result)
 
-    return {
+    response = {
         "meetup_date": body.meetup_date,
-        "score_a": meetup.result.score_a,
-        "score_b": meetup.result.score_b,
+        "score_a": just_finished.result.score_a,
+        "score_b": just_finished.result.score_b,
     }
+
+    if meetup.is_closed():
+        await notifier.on_match_closed(meetup)
+    else:
+        current = meetup.current_match()
+        player_names = {str(p.id.value): p.name for p in container.player_repository.find_all()}
+        colors = container.team_colors
+        response["next_round"] = {
+            "teamA": sorted_names(current.teams_playing[0].players, player_names),
+            "teamB": sorted_names(current.teams_playing[1].players, player_names),
+            "nameA": colors[0].capitalize(),
+            "nameB": colors[1].capitalize(),
+        }
+
+    return response
 
 
 def _handle_match_summary(container: "Container", date: str) -> dict:
@@ -196,9 +212,7 @@ def _handle_match_events(container: "Container", date: str) -> dict:
         raise HTTPException(404, "Meetup not found")
     if not meetup.is_closed():
         raise HTTPException(409, "Match is not closed yet")
-    if meetup.teams is None:
-        raise HTTPException(409, "Match has no teams")
-    if meetup.result is None:  # pragma: no cover — implied by is_closed()
+    if not meetup.matches or meetup.matches[-1].result is None:
         raise HTTPException(409, "Match has no result")
 
     return build_match_events_response(container, meetup)
@@ -236,6 +250,6 @@ async def _handle_edit_match(
 
     return {
         "meetup_date": date,
-        "score_a": updated.result.score_a,
-        "score_b": updated.result.score_b,
+        "score_a": updated.matches[-1].result.score_a,
+        "score_b": updated.matches[-1].result.score_b,
     }

@@ -166,22 +166,22 @@ class Container:  # pylint: disable=too-many-public-methods
         return ParseCallup(self.player_repository, self.default_hour)
 
     @property
-    def team_colors(self) -> tuple[str, str]:
+    def team_colors(self) -> tuple[str, str, str]:
         """Return the configured team color names."""
         return self._settings.pyball.team_colors
 
     @property
-    def team_emojis(self) -> tuple[str, str]:
+    def team_emojis(self) -> tuple[str, str, str]:
         """Return the configured team emojis."""
         return self._settings.pyball.team_emojis
 
     @property
-    def team_hex_bg(self) -> tuple[str, str]:
+    def team_hex_bg(self) -> tuple[str, str, str]:
         """Return the configured team background hex colors."""
         return self._settings.pyball.team_hex_bg
 
     @property
-    def team_hex_text(self) -> tuple[str, str]:
+    def team_hex_text(self) -> tuple[str, str, str]:
         """Return the configured team text hex colors."""
         return self._settings.pyball.team_hex_text
 

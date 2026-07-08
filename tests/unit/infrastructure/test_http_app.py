@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
-from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
 from pyball.domain.player.errors import InvalidPlayerIdError, PlayerAlreadyExistsError
 from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
@@ -63,8 +63,8 @@ _VALID_BODY = {
 @pytest.mark.asyncio
 async def test_finish_match_success_calls_notifier():
     meetup = MagicMock()
-    meetup.result.score_a = 2
-    meetup.result.score_b = 1
+    meetup.is_closed.return_value = True
+    meetup.matches = [MagicMock(result=MagicMock(score_a=2, score_b=1))]
     app, notifier = _make_app(finish_return=meetup)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -78,8 +78,8 @@ async def test_finish_match_success_calls_notifier():
 @pytest.mark.asyncio
 async def test_finish_match_success_returns_score():
     meetup = MagicMock()
-    meetup.result.score_a = 2
-    meetup.result.score_b = 1
+    meetup.is_closed.return_value = True
+    meetup.matches = [MagicMock(result=MagicMock(score_a=2, score_b=1))]
     app, _ = _make_app(finish_return=meetup)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -145,7 +145,6 @@ class TestActiveMatch:
     async def test_returns_200_with_team_data(self):
         """Returns team data for the most recent unfinished meetup with teams."""
         meetup = MagicMock()
-        meetup.result = None
         meetup.date = datetime(2026, 5, 26, 20, 0)
 
         pid_a = MagicMock()
@@ -153,6 +152,9 @@ class TestActiveMatch:
         pid_b = MagicMock()
         pid_b.value = "p2"
         meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+        meetup.current_match.return_value = MagicMock(
+            teams_playing=(MagicMock(players=[pid_a]), MagicMock(players=[pid_b]))
+        )
 
         player_a = MagicMock()
         player_a.id.value = "p1"
@@ -216,7 +218,6 @@ class TestMeetupActive:
     async def test_returns_players_and_null_teams_when_no_teams(self):
         """200 with sorted players list and teams=null for a meetup without teams."""
         meetup = MagicMock()
-        meetup.result = None
         meetup.teams = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
         pid = MagicMock()
@@ -245,7 +246,6 @@ class TestMeetupActive:
     async def test_returns_full_payload_when_teams_exist(self):
         """200 with players list and populated teams object when meetup has teams."""
         meetup = MagicMock()
-        meetup.result = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
         pid_a = MagicMock()
         pid_a.value = "p1"
@@ -298,7 +298,6 @@ class TestMeetupActive:
     async def test_uses_match_token_url_when_configured(self):
         """matchUrl is built by StartMatch.execute(), which now returns the token URL."""
         meetup = MagicMock()
-        meetup.result = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
         pid = MagicMock()
         pid.value = "p1"
@@ -355,11 +354,15 @@ class TestMatchEvents:
         pid_b = MagicMock()
         pid_b.value = "p2"
 
+        match = MagicMock()
+        match.result.events = (ev,)
+        match.teams_playing = (MagicMock(players=[pid_a]), MagicMock(players=[pid_b]))
+
         meetup = MagicMock()
         meetup.is_closed.return_value = True
         meetup.date = datetime(2026, 5, 28, 20, 0)
-        meetup.result.events = (ev,)
         meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+        meetup.matches = [match]
         return meetup
 
     def _make_players(self):
@@ -455,8 +458,7 @@ class TestEditMatchResult:
         """Returns score and fires notifier for a closed meetup."""
         meetup = MagicMock()
         meetup.is_closed.return_value = True
-        meetup.result.score_a = 0
-        meetup.result.score_b = 0
+        meetup.matches = [MagicMock(result=MagicMock(score_a=0, score_b=0))]
 
         container = MagicMock()
         container.meetup_repository.find_by_datetime.return_value = meetup
@@ -554,8 +556,7 @@ class TestEditMatchResult:
         closed.is_closed.return_value = True
         container.meetup_repository.find_by_datetime.return_value = closed
         updated = MagicMock()
-        updated.result.score_a = 3
-        updated.result.score_b = 2
+        updated.matches = [MagicMock(result=MagicMock(score_a=3, score_b=2))]
         container.edit_match_result.return_value.execute.return_value = updated
         app, notifier = _make_app(container)
 
@@ -980,6 +981,97 @@ async def test_meetup_active_with_teams_response_shape():
     assert body["teams"]["teamB"] == ["Bea"]
     assert body["teams"]["nameA"] == "Blanco"
     assert body["teams"]["matchUrl"] == "http://x/match?token=t"
+
+
+@pytest.mark.asyncio
+async def test_active_match_response_reflects_the_current_pending_round():
+    """For a triangular with 2 finished rounds, /api/match/active shows round 3's pairing."""
+    container = _container_for_responses()
+    ana, bea, cara = Player.create("Ana"), Player.create("Bea"), Player.create("Cara")
+    container.player_repository.find_all.return_value = [ana, bea, cara]
+
+    team_a = Team.create("A", [ana.id])
+    team_b = Team.create("B", [bea.id])
+    team_c = Team.create("C", [cara.id])
+
+    meetup = Meetup.create(date=datetime(2026, 6, 20, 20, 0), location="X")
+    meetup.add_player(ana.id)
+    meetup.add_player(bea.id)
+    meetup.add_player(cara.id)
+    meetup.set_teams([team_a, team_b, team_c])
+
+    finished_result = MatchResult(score_a=1, score_b=0, events=())
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=finished_result))
+    meetup.add_match(Match(teams_playing=(team_b, team_c), result=finished_result))
+    meetup.add_match(Match(teams_playing=(team_c, team_a)))  # round 3 is pending
+
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/match/active")
+
+    assert response.status_code == 200
+    data = response.json()
+    # The pending match pairs team C against team A — not meetup.teams[0]/[1] (A vs B).
+    assert data["teamA"] == ["Cara"]
+    assert data["teamB"] == ["Ana"]
+
+
+@pytest.mark.asyncio
+async def test_meetup_active_response_includes_third_team_for_triangular():
+    """build_meetup_active_response includes teamC/nameC/etc. when there are 3 teams."""
+    container = _container_for_responses()
+    container.team_colors = ("blanco", "negro", "rojo")
+    container.team_emojis = ("⚪", "⚫", "🔴")
+    container.team_hex_bg = ("#e4e4e7", "#27272a", "#ef4444")
+    container.team_hex_text = ("#27272a", "#e4e4e7", "#ffffff")
+
+    ana, bea, cara = Player.create("Ana"), Player.create("Bea"), Player.create("Cara")
+    container.player_repository.find_all.return_value = [ana, bea, cara]
+
+    meetup = Meetup.create(date=datetime(2026, 6, 21, 20, 0), location="X")
+    meetup.add_player(ana.id)
+    meetup.add_player(bea.id)
+    meetup.add_player(cara.id)
+    meetup.set_teams(
+        [Team.create("A", [ana.id]), Team.create("B", [bea.id]), Team.create("C", [cara.id])]
+    )
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/meetup/active")
+
+    teams = response.json()["teams"]
+    assert teams["teamA"] == ["Ana"]
+    assert teams["teamB"] == ["Bea"]
+    assert teams["teamC"] == ["Cara"]
+    assert teams["nameC"] == "Rojo"
+    assert teams["emojiC"] == "🔴"
+    assert teams["colorC"] == "#ef4444"
+    assert teams["colorTextC"] == "#ffffff"
+
+
+@pytest.mark.asyncio
+async def test_meetup_active_response_omits_third_team_for_classic():
+    """Classic 2-team meetups keep the exact same response shape as before (no teamC key)."""
+    container = _container_for_responses()
+    ana, bea = Player.create("Ana"), Player.create("Bea")
+    container.player_repository.find_all.return_value = [ana, bea]
+
+    meetup = Meetup.create(date=datetime(2026, 6, 22, 20, 0), location="X")
+    meetup.add_player(ana.id)
+    meetup.add_player(bea.id)
+    meetup.set_teams([Team.create("A", [ana.id]), Team.create("B", [bea.id])])
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/meetup/active")
+
+    teams = response.json()["teams"]
+    assert "teamC" not in teams
 
 
 @pytest.mark.asyncio
