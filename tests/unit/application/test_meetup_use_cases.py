@@ -21,7 +21,7 @@ from pyball.domain.meetup.errors import (
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
 )
-from pyball.domain.meetup.models import MatchResult, Meetup, MeetupId, PlayerId, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, MeetupId, PlayerId, Team
 from pyball.domain.player.models import Player
 
 
@@ -475,7 +475,9 @@ class TestFinishMatch:
         p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
         p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
         self.player_repo.players.extend([p1, p2])
-        meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
+        team_a, team_b = Team.create("A", [p1.id]), Team.create("B", [p2.id])
+        meetup.teams = [team_a, team_b]
+        meetup.add_match(Match(teams_playing=(team_a, team_b)))
         self.meetup_repo.save(meetup)
         return meetup, p1, p2
 
@@ -496,11 +498,12 @@ class TestFinishMatch:
         saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
         assert saved is not None
         assert saved.is_closed()
-        assert saved.result.score_a == 1
-        assert saved.result.score_b == 0
-        assert len(saved.result.events) == 1
-        assert saved.result.events[0].scorer_id == p1.id
-        assert saved.result.events[0].assistant_id == p2.id
+        result = saved.matches[0].result
+        assert result.score_a == 1
+        assert result.score_b == 0
+        assert len(result.events) == 1
+        assert result.events[0].scorer_id == p1.id
+        assert result.events[0].assistant_id == p2.id
 
     def test_goal_without_assistant(self):
         """An event with assistant=None stores assistant_id=None."""
@@ -517,7 +520,40 @@ class TestFinishMatch:
         self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
 
         saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
-        assert saved.result.events[0].assistant_id is None
+        assert saved.matches[0].result.events[0].assistant_id is None
+
+    def test_two_teams_closes_meetup_automatically(self):
+        """With 2 teams, finishing the one match closes the meetup, as before."""
+        self._meetup_with_teams()
+        self.use_case.execute("2026-04-12 20:00", [], {"A": 1, "B": 0})
+        saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
+        assert saved.is_closed()
+        assert len(saved.matches) == 1
+        assert saved.matches[0].result.score_a == 1
+
+    def test_three_teams_appends_next_round_instead_of_closing(self):
+        """With 3 teams, finishing a match appends the next computed round and stays open."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
+        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
+        p3 = Player(id=PlayerId.generate(), name="Nico", group="regular")
+        self.player_repo.players.extend([p1, p2, p3])
+        team_a, team_b, team_c = (
+            Team.create("A", [p1.id]),
+            Team.create("B", [p2.id]),
+            Team.create("C", [p3.id]),
+        )
+        meetup.teams = [team_a, team_b, team_c]
+        meetup.add_match(Match(teams_playing=(team_a, team_b)))
+        self.meetup_repo.save(meetup)
+
+        result = self.use_case.execute("2026-04-12 20:00", [], {"A": 2, "B": 0})
+
+        assert not result.is_closed()
+        assert len(result.matches) == 2
+        assert result.matches[0].result.score_a == 2
+        assert result.matches[1].result is None
+        assert set(result.matches[1].teams_playing) == {team_a, team_c}
 
     def test_raises_if_meetup_not_found(self):
         """FinishMatch raises MeetupNotFoundError for unknown dates."""
@@ -525,14 +561,23 @@ class TestFinishMatch:
             self.use_case.execute("2026-04-12 20:00", [], {"A": 0, "B": 0})
 
     def test_raises_if_already_closed(self):
-        """FinishMatch raises MeetupAlreadyClosedError if result already set."""
+        """FinishMatch raises MeetupAlreadyClosedError if the meetup is already closed."""
         meetup, _, _ = self._meetup_with_teams()
-        result = MatchResult(score_a=1, score_b=0, events=())
-        meetup.set_result(result)
+        meetup.record_result(MatchResult(score_a=1, score_b=0, events=()))
+        meetup.close()
         self.meetup_repo.save(meetup)
 
         with pytest.raises(MeetupAlreadyClosedError):
             self.use_case.execute("2026-04-12 20:00", [], {"A": 1, "B": 0})
+
+    def test_raises_if_no_pending_match(self):
+        """FinishMatch raises ValueError if there is no pending match to record."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        meetup.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(meetup)
+
+        with pytest.raises(ValueError, match="No pending match"):
+            self.use_case.execute("2026-04-12 20:00", [], {"A": 0, "B": 0})
 
     def test_raises_if_player_not_found(self):
         """FinishMatch raises ValueError if a player name cannot be resolved."""
