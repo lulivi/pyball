@@ -117,7 +117,7 @@ async def test_match_qr_handler_sends_qr_to_admins(mock_update, mock_context):
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
-    container.start_match.return_value.execute.return_value = meetup
+    container.start_next_round.return_value.execute.return_value = meetup
     container.match_link_builder.return_value.build.return_value = url
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
@@ -164,7 +164,7 @@ async def test_match_qr_handler_no_teams_replies_error(mock_update, mock_context
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
-    container.start_match.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
+    container.start_next_round.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
     mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"

@@ -525,7 +525,7 @@ async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if meetup is None:
         return
     try:
-        container.start_match().execute(meetup.date)
+        container.start_next_round().execute(meetup.date)
         url = container.match_link_builder().build()
     except MeetupHasNoTeamsError:
         display_date = format_display(meetup.date, settings.pyball.display_date_format)
