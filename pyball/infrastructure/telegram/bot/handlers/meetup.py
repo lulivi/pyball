@@ -247,7 +247,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /meetup_create_teams [fecha] [hora] [algoritmo] command."""
+    """Handle /meetup_create_teams [fecha] [hora] [algoritmo] [n_equipos] command."""
     message = update.message
     if message is None:
         return
