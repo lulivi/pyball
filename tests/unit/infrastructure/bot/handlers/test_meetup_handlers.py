@@ -1190,6 +1190,7 @@ async def test_close_triangular_handler_closes_and_sends_summary(mock_update, mo
     container.format_match_summary.return_value.execute.return_value = "resumen final"
     mock_context.bot_data["container"] = container
     mock_context.bot_data["settings"].telegram.regulars.chat_id = -1009999
+    mock_context.bot_data["settings"].telegram.regulars.meetups_thread_id = "42"
     mock_context.args = []
 
     await close_triangular_handler(mock_update, mock_context)
@@ -1199,6 +1200,7 @@ async def test_close_triangular_handler_closes_and_sends_summary(mock_update, mo
     mock_context.bot.send_message.assert_called_once_with(
         chat_id=-1009999,
         text="resumen final",
+        message_thread_id=42,
     )
     mock_context.bot.set_message_reaction.assert_called_once_with(
         chat_id=mock_update.message.chat_id,

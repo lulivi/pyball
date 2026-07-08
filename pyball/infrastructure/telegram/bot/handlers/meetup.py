@@ -676,9 +676,11 @@ async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT
         team_emojis=settings.pyball.team_emojis,
         legacy_stats=container.legacy_stats,
     )
+    thread_id = settings.telegram.regulars.meetups_thread_id or None
     await context.bot.send_message(
         chat_id=settings.telegram.regulars.chat_id,
         text=summary,
+        message_thread_id=int(thread_id) if thread_id else None,
     )
     await react_ok(context.bot, message)
 
