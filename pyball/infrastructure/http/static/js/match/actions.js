@@ -76,7 +76,7 @@ export function clearAssist(eventIndex) {
 }
 
 export async function finishMatch() {
-    if (!confirm('¿Seguro que quieres guardar el partido y enviarlo al Bot?')) return;
+    if (!confirm('¿Seguro que quieres guardar el partido?')) return;
     const saveBtn = document.getElementById('save-btn');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Enviando datos...';
@@ -93,10 +93,10 @@ export async function finishMatch() {
         clearSaved();
         document.getElementById('app').innerHTML = `
             <div class="no-match">
-                <div class="success-banner">✅ Partido guardado y enviado a Telegram</div>
+                <div class="success-banner">✅ Partido guardado</div>
                 <div class="no-match-icon">⚽</div>
                 <div class="no-match-title">PyBall</div>
-                <div class="no-match-msg">Abre el enlace desde<br>Telegram para el próximo partido.</div>
+                <div class="no-match-msg">Vuelve a /manage<br>para el próximo partido.</div>
             </div>`;
     } catch (err) {
         if (err.status === 0) {
@@ -123,9 +123,9 @@ function _continueToNextRound(nextRound) {
 }
 
 export async function editMatch() {
-    if (!confirm('¿Guardar la corrección y reenviar el resumen a Telegram?')) return;
+    if (!confirm('¿Guardar la corrección del resultado?')) return;
     await _submit('/api/match/' + encodeURIComponent(ctx.meetupDate) + '/edit', {
-        success: '✅ Corrección guardada y reenviada a Telegram',
+        success: '✅ Corrección guardada',
         message: 'Resultado corregido correctamente.',
         idleLabel: '💾 GUARDAR CORRECCIÓN',
         clear: false,
