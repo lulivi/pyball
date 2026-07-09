@@ -372,6 +372,7 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         team_colors=settings.pyball.team_colors,
         team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
+        legacy_stats=container.legacy_stats,
     )
     await message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
 

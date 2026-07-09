@@ -27,7 +27,9 @@ from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 
+from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.domain.meetup.models import Match, Meetup, Team
+from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
 _DEFAULT_DATE_FMT = "%Y-%m-%d %H:%M"
@@ -102,25 +104,34 @@ def build_callback_data(action: str, meetup_date: datetime) -> str:
     return f"{action}:{meetup_date.strftime('%Y-%m-%dT%H:%M')}"
 
 
-def format_main_message(
+def format_main_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     meetup: Meetup,
     player_names: dict,
     team_colors: tuple[str, ...] = ("blanco", "negro"),
     team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
+    legacy_stats: LegacyStats | None = None,
 ) -> str:
     """Format message for main (regulars) chat.
 
     Format varies:
     - Before teams: player list sorted by name
     - After teams: teams only
-    - After results: teams + results
+    - After results: unified match summary (same format as /manage and other
+      Telegram result messages), via FormatMatchSummary.
     """
-    date_str = format_display(meetup.date, date_fmt)
     if meetup.is_closed():
-        header = f"🎉 *Partido terminado:* `{date_str}`"
-    else:
-        header = f"📅 *Convocatoria:* `{date_str}`"
+        summary = FormatMatchSummary().execute(
+            meetup,
+            player_names,
+            team_colors=team_colors,
+            team_emojis=team_emojis,
+            legacy_stats=legacy_stats,
+        )
+        return escape_summary_for_telegram(summary)
+
+    date_str = format_display(meetup.date, date_fmt)
+    header = f"📅 *Convocatoria:* `{date_str}`"
     lines = [header]
 
     if meetup.location:

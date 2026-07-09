@@ -135,6 +135,37 @@ class TestFormatMatchSummary:
         msg = self.use_case.execute(self.meetup, self.player_names, date_label="18 Mayo")
         assert "➖" not in msg
 
+    def test_classic_summary_has_goles_section_in_chronological_order(self):
+        """A classic match's summary lists every event, in order, under *GOLES:*."""
+        msg = self.use_case.execute(
+            self.meetup,
+            self.player_names,
+            team_colors=("amarillo", "negro"),
+            team_emojis=("🟡", "⚫"),
+            date_label="18 Mayo",
+        )
+        assert "*GOLES:*" in msg
+        goles_section = msg.split("*GOLES:*", 1)[1]
+        lines = [line for line in goles_section.splitlines() if line.strip()]
+        assert lines == [
+            "  - ⚽ 05' Juande",
+            "  - ⚽ 10' Simón (asist. Juande)",
+            "  - ⚽ 15' Simón",
+        ]
+
+    def test_classic_summary_no_goles_section_without_events(self):
+        """A match with a score but no recorded events has no *GOLES:* section."""
+        meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
+        a1 = PlayerId.from_string(self.pid_a1)
+        b1 = PlayerId.from_string(self.pid_b1)
+        team_a = Team.create("A", [a1])
+        team_b = Team.create("B", [b1])
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, ())))
+
+        msg = self.use_case.execute(meetup, self.player_names, date_label="18 Mayo")
+        assert "*GOLES:*" not in msg
+
     def test_own_goal_shown_with_net_emoji_on_scorer_line(self):
         """An own-goal event shows 🥅 on the scorer's line; no goal on the benefiting team."""
         a1 = PlayerId.from_string(self.pid_a1)
@@ -170,6 +201,8 @@ class TestFormatMatchSummary:
         simon_line = next(line for line in lines if "Simón" in line)
         assert "⚽" not in simon_line
         assert "🥅" not in simon_line
+
+        assert "  - 🥅 20' Juande (en propia)" in msg
 
 
 class TestFormatMatchSummaryWithLegacy:
@@ -260,11 +293,11 @@ def test_triangular_summary_lists_every_round():
     assert "Rojo - 1" in summary
 
 
-def test_triangular_round_blocks_only_list_players_with_stats():
-    """In a triangular's round-by-round breakdown, only scorers/assisters/own-goal
+def test_triangular_round_blocks_have_header_and_events_only():
+    """A triangular round shows only the two score headers plus that round's events
 
-    players are listed per round -- full rosters only appear once, in the
-    "*EQUIPOS:*" section at the top.
+    -- no per-player roster lines, since full rosters (with aggregate stats)
+    already appear once in the "*EQUIPOS:*" section at the top.
     """
     meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
     scorer, quiet, keeper = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
@@ -292,16 +325,67 @@ def test_triangular_round_blocks_only_list_players_with_stats():
     )
 
     resultado_section = summary.split("*RESULTADO:*", 1)[1]
-    assert "Marca" in resultado_section
+    assert "  - ⚽ 05' Marca" in resultado_section
     assert "Callado" not in resultado_section
     assert "Portero" not in resultado_section
     assert "Rival" not in resultado_section
 
     # But the full roster still appears once, in the standings section.
     equipos_section = summary.split("*EQUIPOS:*", 1)[1].split("*RESULTADO:*", 1)[0]
-    assert "Marca" in equipos_section
     assert "Callado" in equipos_section
     assert "Portero" in equipos_section
+
+
+def test_triangular_round_block_has_no_events_line_when_scoreless():
+    """A 0-0 triangular round shows only the two score headers, no events list."""
+    meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.teams = [team_a, team_b, team_c]
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(0, 0, ())))
+    meetup.close()
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa", str(p3.value): "Nico"}
+    summary = FormatMatchSummary().execute(
+        meetup,
+        player_names,
+        team_colors=("blanco", "negro", "rojo"),
+        team_emojis=("⚪", "⚫", "🔴"),
+    )
+
+    resultado_section = summary.split("*RESULTADO:*", 1)[1]
+    assert "-" not in resultado_section.split("Negro - 0*", 1)[1]
+
+
+def test_triangular_standings_show_per_player_aggregate_stats():
+    """The EQUIPOS section shows each player's session-wide goal/assist stats."""
+    meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.teams = [team_a, team_b, team_c]
+    events = (GoalEvent(scorer_id=p1, assistant_id=None, team="A", timestamp=time(20, 5)),)
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
+    meetup.close()
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa", str(p3.value): "Nico"}
+    summary = FormatMatchSummary().execute(
+        meetup,
+        player_names,
+        team_colors=("blanco", "negro", "rojo"),
+        team_emojis=("⚪", "⚫", "🔴"),
+    )
+
+    equipos_section = summary.split("*EQUIPOS:*", 1)[1].split("*RESULTADO:*", 1)[0]
+    assert "Dani ⚽" in equipos_section
+    assert "Rafa\n" in equipos_section or equipos_section.rstrip().endswith("Rafa")
 
 
 def test_triangular_summary_has_team_standings_section():

@@ -27,7 +27,7 @@ def test_format_main_message_header_emoji_no_result():
 
 
 def test_format_main_message_header_emoji_with_result():
-    """When there's a result, header should show 🎉 Partido terminado."""
+    """When there's a result, the closed message delegates to the unified summary."""
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
@@ -42,7 +42,9 @@ def test_format_main_message_header_emoji_with_result():
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
     text = format_main_message(meetup, player_names)
 
-    assert "🎉 *Partido terminado:*" in text
+    assert "⚽ Día de Partido ⚽" in text
+    assert r"⚪ *Blanco \- 1*" in text
+    assert r"⚫ *Negro \- 0*" in text
 
 
 def test_format_main_message_location_emoji():
@@ -253,7 +255,7 @@ def test_format_main_message_with_teams_shows_color_as_name():
 
 
 def test_format_main_message_with_result_shows_events():
-    """When there's a result, show goals section with timestamps."""
+    """When there's a result, show the unified *GOLES:* section with timestamps."""
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
@@ -285,9 +287,9 @@ def test_format_main_message_with_result_shows_events():
         meetup, player_names, team_colors=("blanco", "negro"), team_emojis=("⚪", "⚫")
     )
 
-    assert "⏱️ *Goles:*" in text
-    assert r"  \- ⚽ 10' `Dani` \- `Rafa`" in text
-    assert r"  \- ⚽ 25' `Rafa`" in text
+    assert "*GOLES:*" in text
+    assert r"  \- ⚽ 10' Dani \(asist\. Rafa\)" in text
+    assert r"  \- ⚽ 25' Rafa" in text
 
 
 def test_format_main_message_with_result_shows_score():

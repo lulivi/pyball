@@ -105,9 +105,13 @@ clásico nunca necesita esto — se cierra solo en cuanto termina su único part
 
 - **`/manage` → pestaña "Resumen":** el resumen del último partido terminado, listo
   para copiar o compartir como imagen, más un enlace para corregir un resultado si se
-  introdujo mal. En un triangular, el resumen empieza con la convocatoria de cada
-  equipo y su récord de victorias/empates/derrotas de la sesión (ej.
-  `⚪ Blanco (1V 1E 0D)`), antes de los resultados ronda a ronda.
+  introdujo mal. En un partido clásico, la convocatoria de cada equipo muestra los
+  goles/asistencias/goles en propia de cada jugador, seguida de una lista cronológica
+  de eventos bajo `*GOLES:*`. En un triangular, el resumen empieza con la convocatoria
+  de cada equipo (con estadísticas de cada jugador en toda la sesión) y su récord de
+  victorias/empates/derrotas (ej. `⚪ Blanco (1V 1E 0D)`), y luego cada ronda muestra
+  solo su marcador y su propia lista de eventos. El mensaje de Telegram al terminar un
+  partido usa este mismo formato.
 - **Telegram:** `/meetup_stats [temporada|historico]` publica las estadísticas de
   temporada o históricas como imagen.
 

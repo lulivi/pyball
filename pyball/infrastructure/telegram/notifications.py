@@ -141,6 +141,7 @@ async def refresh_callup_messages(
             team_colors=settings.pyball.team_colors,
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
+            legacy_stats=container.legacy_stats,
         )
         kb = (
             build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
