@@ -33,6 +33,7 @@ from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
+    escape_summary_for_telegram,
     format_main_message,
     format_subs_message,
 )
@@ -99,8 +100,9 @@ class TelegramMatchNotifier(MatchNotifier):
         try:
             await self._bot.send_message(
                 chat_id=self._settings.telegram.regulars.chat_id,
-                text=f"✏️ Resultado corregido\n\n{summary}",
+                text=f"✏️ Resultado corregido\n\n{escape_summary_for_telegram(summary)}",
                 message_thread_id=int(thread_id) if thread_id else None,
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
             asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
         except Exception as error:  # pylint: disable=broad-except

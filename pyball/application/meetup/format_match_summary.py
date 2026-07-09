@@ -26,6 +26,8 @@ from datetime import datetime
 from pyball.domain.meetup.models import Match, Meetup, Team
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
+_ROUND_SEPARATOR = "➖➖➖➖➖➖➖➖➖➖"
+
 
 class FormatMatchSummary:
     """Build the plain-text post-match summary for a finished meetup."""
@@ -66,10 +68,14 @@ class FormatMatchSummary:
         label = date_label or meetup.date.strftime("%-d %B").title()
         lines = ["⚽ Día de Partido ⚽", f"🗓 {label}", "", "*RESULTADO:*"]
 
+        played_a_round = False
         for match in meetup.matches:
             if match.result is None:
                 continue
             lines.append("")
+            if played_a_round:
+                lines.append(_ROUND_SEPARATOR)
+                lines.append("")
             lines.extend(
                 _match_block(
                     match,
@@ -81,6 +87,7 @@ class FormatMatchSummary:
                     meetup.date,
                 )
             )
+            played_a_round = True
 
         return "\n".join(lines)
 

@@ -245,6 +245,20 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     return "\n".join(lines)
 
 
+def escape_summary_for_telegram(summary: str) -> str:
+    """Escape a FormatMatchSummary block for Telegram MarkdownV2.
+
+    FormatMatchSummary's only markup is single-asterisk bold spans (e.g.
+    "*Blanco - 2*"), written for plain-text consumers (pasting into a chat,
+    /manage's copy button) that don't require escaping. Every other
+    MarkdownV2-special character is escaped here, while the asterisk pairs are
+    preserved as real bold delimiters so Telegram renders them instead of
+    showing literal asterisks.
+    """
+    parts = summary.split("*")
+    return "*".join(_escape_mdv2(part) for part in parts)
+
+
 def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     """Parse callback data. Returns (action, meetup_date_str) or None."""
     if ":" not in callback_data:

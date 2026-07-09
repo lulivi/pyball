@@ -6,6 +6,7 @@ from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, T
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.formatters import (
     _escape_mdv2,
+    escape_summary_for_telegram,
     format_display,
     format_main_message,
     format_subs_message,
@@ -172,6 +173,24 @@ def test_escape_mdv2_special_characters():
     assert _escape_mdv2("Hello (world)") == r"Hello \(world\)"
     assert _escape_mdv2("score: 1.0") == r"score: 1\.0"
     assert _escape_mdv2("player_name") == r"player\_name"
+
+
+def test_escape_summary_for_telegram_preserves_bold_pairs():
+    """Text between a pair of asterisks stays wrapped in real bold delimiters."""
+    result = escape_summary_for_telegram("⚪ *Blanco - 2*")
+    assert result == r"⚪ *Blanco \- 2*"
+
+
+def test_escape_summary_for_telegram_escapes_special_characters():
+    """Special MarkdownV2 characters outside bold spans are escaped."""
+    result = escape_summary_for_telegram("Nacho (Luvo)\nscore: 1.0")
+    assert result == "Nacho \\(Luvo\\)\nscore: 1\\.0"
+
+
+def test_escape_summary_for_telegram_handles_multiple_bold_spans():
+    """Multiple bold spans in the same text are all preserved correctly."""
+    result = escape_summary_for_telegram("*RESULTADO:*\n\n⚪ *Blanco - 2*\nAna\n\n⚫ *Negro - 0*")
+    assert result == "*RESULTADO:*\n\n⚪ *Blanco \\- 2*\nAna\n\n⚫ *Negro \\- 0*"
 
 
 def test_format_main_message_team_emojis():

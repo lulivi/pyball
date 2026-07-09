@@ -130,6 +130,11 @@ class TestFormatMatchSummary:
         assert "⚪ *Blanco - 1*" in msg
         assert "⚫ *Negro - 2*" in msg
 
+    def test_single_match_has_no_round_separator(self):
+        """A classic (single-match) summary has no round-separator line."""
+        msg = self.use_case.execute(self.meetup, self.player_names, date_label="18 Mayo")
+        assert "➖" not in msg
+
     def test_own_goal_shown_with_net_emoji_on_scorer_line(self):
         """An own-goal event shows 🥅 on the scorer's line; no goal on the benefiting team."""
         a1 = PlayerId.from_string(self.pid_a1)
@@ -253,3 +258,32 @@ def test_triangular_summary_lists_every_round():
     assert "Negro - 0" in summary
     assert "Blanco - 1" in summary
     assert "Rojo - 1" in summary
+
+
+def test_triangular_summary_has_separator_between_rounds():
+    """Consecutive rounds are visually separated by a divider line."""
+    meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.teams = [team_a, team_b, team_c]
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+    meetup.add_match(Match(teams_playing=(team_a, team_c), result=MatchResult(1, 1, ())))
+    meetup.add_match(Match(teams_playing=(team_c, team_b), result=MatchResult(2, 1, ())))
+    meetup.close()
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa", str(p3.value): "Nico"}
+    summary = FormatMatchSummary().execute(
+        meetup,
+        player_names,
+        team_colors=("blanco", "negro", "rojo"),
+        team_emojis=("⚪", "⚫", "🔴"),
+    )
+
+    # 3 rounds played -> exactly 2 separators, one between each consecutive pair.
+    assert summary.count("➖➖➖➖➖➖➖➖➖➖") == 2
+    # No separator before the very first round's header.
+    assert not summary.split("*RESULTADO:*", 1)[1].lstrip("\n").startswith("➖")

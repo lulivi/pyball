@@ -47,6 +47,7 @@ from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
+    escape_summary_for_telegram,
     format_display,
     format_main_message,
     format_subs_message,
@@ -643,8 +644,9 @@ async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT
         thread_id = settings.telegram.regulars.meetups_thread_id or None
         await context.bot.send_message(
             chat_id=settings.telegram.regulars.chat_id,
-            text=summary,
+            text=escape_summary_for_telegram(summary),
             message_thread_id=int(thread_id) if thread_id else None,
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
 
     await refresh_callup_messages(

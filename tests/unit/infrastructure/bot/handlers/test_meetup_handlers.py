@@ -1147,6 +1147,7 @@ async def test_close_triangular_handler_closes_and_sends_summary(
         chat_id=-1009999,
         text="resumen final",
         message_thread_id=42,
+        parse_mode=ParseMode.MARKDOWN_V2,
     )
     mock_refresh.assert_awaited_once_with(
         mock_context.bot,
@@ -1164,6 +1165,43 @@ async def test_close_triangular_handler_closes_and_sends_summary(
         reaction=ReactionEmoji.OK_HAND_SIGN,
     )
     mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_escapes_summary_for_markdown_v2(
+    mock_update, mock_context, monkeypatch
+):
+    """The plain-text summary is escaped for MarkdownV2 before being sent."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    closed_meetup = MagicMock()
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.return_value = closed_meetup
+    container.player_repository.find_all.return_value = []
+    container.format_match_summary.return_value.execute.return_value = (
+        "⚪ *Blanco - 2*\nNacho (Luvo)"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.regulars.chat_id = -1009999
+    mock_context.bot_data["settings"].telegram.regulars.meetups_thread_id = ""
+    mock_context.args = []
+
+    monkeypatch.setattr(
+        "pyball.infrastructure.telegram.bot.handlers.meetup._post_match_stats",
+        AsyncMock(),
+    )
+
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        await close_triangular_handler(mock_update, mock_context)
+        await asyncio.sleep(0)
+
+    sent_text = mock_context.bot.send_message.call_args.kwargs["text"]
+    assert sent_text == "⚪ *Blanco \\- 2*\nNacho \\(Luvo\\)"
 
 
 @pytest.mark.asyncio
