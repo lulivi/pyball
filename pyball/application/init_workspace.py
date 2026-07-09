@@ -136,7 +136,9 @@ services:
     restart: unless-stopped
 """
 
-_WEB_README = """\
+_DOCS_BASE_URL = "https://gitlab.com/lulivi/pyball/-/blob/main/docs"
+
+_WEB_README = f"""\
 # PyBall
 
 PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
@@ -144,46 +146,18 @@ managing players, and recording results.
 
 ## Quick Start
 
-### Docker (recommended)
-
 ```bash
 docker compose up -d
 ```
 
-### Local (without Docker)
+Edit `config.toml` first — see the full setup guide for configuration, access tokens,
+and how to use `/manage` and `/match`:
 
-```bash
-uv run pyball-web
-```
-
-## Configuration
-
-Edit `config.toml` before starting. All values can also be set via environment
-variables using the `PYBALL_<SECTION>_<KEY>` pattern.
-
-| Key | Description | Default | Env var |
-|-----|-------------|---------|---------|
-| `core.location` | Default meetup location | — | `PYBALL_CORE_LOCATION` |
-| `core.name` | Instance name shown in the UI | — | `PYBALL_CORE_NAME` |
-| `core.default_week_day` | Default day (`monday`-`sunday`) | \
-`wednesday` | `PYBALL_CORE_DEFAULT_WEEK_DAY` |
-| `core.default_hour` | Default start time (`HH:MM`) | `20:00` | `PYBALL_CORE_DEFAULT_HOUR` |
-| `core.display_date_format` | Date format in messages | \
-`%Y-%m-%d %H:%M` | `PYBALL_CORE_DISPLAY_DATE_FORMAT` |
-| `core.team_colors` | Three team colors: 2 for classic matches, a 3rd for \
-triangulars (see below) | `["blanco","negro","rojo"]` | `PYBALL_CORE_TEAM_COLORS` |
-| `core.base_url` | Public URL for match links | — | `PYBALL_CORE_BASE_URL` |
-| `core.api_port` | HTTP server port | `8000` | `PYBALL_CORE_API_PORT` |
-| `core.locale` | Locale for player name sorting | `es_ES.UTF-8` | `PYBALL_CORE_LOCALE` |
-| `core.data_dir` | Directory for JSON data files | `data` | `PYBALL_CORE_DATA_DIR` |
-| `core.match_token` | Token for match page auth (optional) | — | `PYBALL_CORE_MATCH_TOKEN` |
-| `core.manage_token` | Token for manage page auth (optional) | — | `PYBALL_CORE_MANAGE_TOKEN` |
-| `core.theme_color` | PWA theme/background color (optional) | \
-`#0f172a` | `PYBALL_CORE_THEME_COLOR` |
-| `core.icons_dir` | Custom icons directory (optional) | — | `PYBALL_CORE_ICONS_DIR` |
-
-Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` \
-`azul` `morado` `marron`
+- [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
+- [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
+[Flujo de la aplicación]({_DOCS_BASE_URL}/workflow.es.md)
+- [Data Directory]({_DOCS_BASE_URL}/data-directory.md) / \
+[Directorio de datos]({_DOCS_BASE_URL}/data-directory.es.md)
 
 ## Updating
 
@@ -195,7 +169,7 @@ docker compose up -d
 Pin a specific version in `.env`: `TAG=4.13.0`
 """
 
-_TG_README = """\
+_TG_README = f"""\
 # PyBall
 
 PyBall is a self-hosted football meetup manager with a Telegram bot and web UI for
@@ -203,65 +177,18 @@ tracking matches, managing players, and recording results.
 
 ## Quick Start
 
-### Docker (recommended)
-
 ```bash
 docker compose up -d
 ```
 
-### Local (without Docker)
+Edit `config.toml` first — see the full setup guide for configuration (including the
+Telegram-specific settings), access tokens, and how to use `/manage` and `/match`:
 
-```bash
-uv run pyball-tg
-```
-
-## Configuration
-
-Edit `config.toml` before starting. All values can also be set via environment
-variables using the `PYBALL_<SECTION>_<KEY>` pattern.
-
-### Core
-
-| Key | Description | Default | Env var |
-|-----|-------------|---------|---------|
-| `core.location` | Default meetup location | — | `PYBALL_CORE_LOCATION` |
-| `core.name` | Instance name shown in the UI | — | `PYBALL_CORE_NAME` |
-| `core.default_week_day` | Default day (`monday`-`sunday`) | \
-`wednesday` | `PYBALL_CORE_DEFAULT_WEEK_DAY` |
-| `core.default_hour` | Default start time (`HH:MM`) | `20:00` | `PYBALL_CORE_DEFAULT_HOUR` |
-| `core.display_date_format` | Date format in messages | \
-`%Y-%m-%d %H:%M` | `PYBALL_CORE_DISPLAY_DATE_FORMAT` |
-| `core.team_colors` | Three team colors: 2 for classic matches, a 3rd for \
-triangulars (see below) | `["blanco","negro","rojo"]` | `PYBALL_CORE_TEAM_COLORS` |
-| `core.base_url` | Public URL for match links | — | `PYBALL_CORE_BASE_URL` |
-| `core.api_port` | HTTP server port | `8000` | `PYBALL_CORE_API_PORT` |
-| `core.locale` | Locale for player name sorting | `es_ES.UTF-8` | `PYBALL_CORE_LOCALE` |
-| `core.data_dir` | Directory for JSON data files | `data` | `PYBALL_CORE_DATA_DIR` |
-| `core.match_token` | Token for match page auth (optional) | — | `PYBALL_CORE_MATCH_TOKEN` |
-| `core.manage_token` | Token for manage page auth (optional) | — | `PYBALL_CORE_MANAGE_TOKEN` |
-| `core.theme_color` | PWA theme/background color (optional) | \
-`#0f172a` | `PYBALL_CORE_THEME_COLOR` |
-| `core.icons_dir` | Custom icons directory (optional) | — | `PYBALL_CORE_ICONS_DIR` |
-
-Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` \
-`azul` `morado` `marron`
-
-### Telegram
-
-| Key | Description | Env var |
-|-----|-------------|---------|
-| `telegram.bot_token` | Telegram bot token from @BotFather | `PYBALL_TELEGRAM_BOT_TOKEN` |
-| `telegram.admins_ids` | List of authorized Telegram user IDs | `PYBALL_TELEGRAM_ADMINS_IDS` |
-| `telegram.regulars.chat_id` | Main group chat ID (negative) | \
-`PYBALL_TELEGRAM_REGULARS_CHAT_ID` |
-| `telegram.regulars.meetups_thread_id` | Forum topic for callup messages | \
-`PYBALL_TELEGRAM_REGULARS_MEETUPS_THREAD_ID` |
-| `telegram.regulars.stats_thread_id` | Forum topic for stats | \
-`PYBALL_TELEGRAM_REGULARS_STATS_THREAD_ID` |
-| `telegram.substitutes.chat_id` | Substitutes group chat ID (negative) | \
-`PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID` |
-| `telegram.management.chat_id` | Operational log channel ID (0 to disable) | \
-`PYBALL_TELEGRAM_MANAGEMENT_CHAT_ID` |
+- [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
+- [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
+[Flujo de la aplicación]({_DOCS_BASE_URL}/workflow.es.md)
+- [Data Directory]({_DOCS_BASE_URL}/data-directory.md) / \
+[Directorio de datos]({_DOCS_BASE_URL}/data-directory.es.md)
 
 ## Updating
 
