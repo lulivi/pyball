@@ -44,7 +44,6 @@ COMMAND_DESCRIPTIONS: dict[str, str] = {
     "meetup_create_teams": "Create random teams",
     "meetup_lock": "Remove inline buttons from callup messages",
     "meetup_unlock": "Restore inline buttons on callup messages",
-    "meetup_match_qr": "Send QR code with match URL",
     "meetup_stats": "Show statistics",
     "meetup_change_location": "Change meetup location",
     "meetup_change_date": "Change meetup date",

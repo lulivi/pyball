@@ -7,7 +7,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="/manifest-manage.json">
 <title>PyBall Gestión</title>
-<script src="/qrcode.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100%; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
@@ -73,8 +72,7 @@
 
   /* Teams result */
   .teams-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.8; white-space: pre-wrap; }
-  .qr-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; gap: 8px; margin-bottom: 10px; }
-  .qr-hint { font-size: 0.75rem; color: #38bdf8; text-align: center; text-decoration: underline; }
+  .qr-hint { display: block; font-size: 0.75rem; color: #38bdf8; text-align: center; text-decoration: underline; margin-bottom: 10px; }
   .regen-row { display: flex; gap: 8px; margin-top: 6px; }
   .action-row { display: flex; gap: 8px; margin-top: 8px; }
   .action-row .btn { width: auto; flex: 1; margin-top: 0; }

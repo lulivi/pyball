@@ -2,7 +2,6 @@
 
 import asyncio
 from datetime import datetime
-from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,7 +10,6 @@ from telegram.constants import ParseMode, ReactionEmoji
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
-    MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
@@ -23,9 +21,7 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     close_triangular_handler,
     create_teams_handler,
-    generate_qr_bytes,
     lock_handler,
-    match_qr_handler,
     new_meetup_handler,
     next_meetup_handler,
     remove_player_handler,
@@ -34,13 +30,6 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     stats_handler,
     unlock_handler,
 )
-
-
-def test_generate_qr_bytes_returns_png_buffer():
-    buf = generate_qr_bytes("https://example.com/match?date=2026-04-19")
-    assert isinstance(buf, BytesIO)
-    header = buf.read(4)
-    assert header == b"\x89PNG"
 
 
 @pytest.mark.asyncio
@@ -104,76 +93,6 @@ async def test_unlock_handler_uses_active_meetup(mock_update, mock_context):
         container,
         meetup,
     )
-
-
-@pytest.mark.asyncio
-async def test_match_qr_handler_sends_qr_to_admins(mock_update, mock_context):
-    """match_qr sends a QR photo to each configured admin."""
-    meetup = MagicMock()
-    meetup.date = datetime(2026, 6, 4, 20, 0)
-
-    url = "http://pyball:8000/match?token=secret"
-    admin_id = 99999
-
-    container = MagicMock()
-    container.get_active_meetup.return_value.execute.return_value = meetup
-    container.start_next_round.return_value.execute.return_value = meetup
-    container.match_link_builder.return_value.build.return_value = url
-    mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
-    mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
-    mock_context.bot = AsyncMock()
-    mock_context.args = []
-
-    fake_buf = BytesIO(b"fakepng")
-
-    with patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
-        return_value=fake_buf,
-    ) as mock_qr:
-        await match_qr_handler(mock_update, mock_context)
-
-    mock_qr.assert_called_once_with(url)
-    mock_context.bot.send_photo.assert_called_once_with(
-        chat_id=admin_id,
-        photo=fake_buf,
-        caption=f"🔗 Enlace del partido:\n{url}",
-    )
-
-
-@pytest.mark.asyncio
-async def test_match_qr_handler_no_base_url_replies_error(mock_update, mock_context):
-    """match_qr replies error when base_url is not configured."""
-    mock_context.bot_data["settings"].pyball.base_url = ""
-    mock_context.bot_data["container"] = MagicMock()
-    mock_context.args = []
-
-    await match_qr_handler(mock_update, mock_context)
-
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "url" in text.lower() or "base" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_match_qr_handler_no_teams_replies_error(mock_update, mock_context):
-    """match_qr replies in Spanish when meetup has no teams."""
-    meetup = MagicMock()
-    meetup.date = datetime(2026, 6, 4, 20, 0)
-
-    container = MagicMock()
-    container.get_active_meetup.return_value.execute.return_value = meetup
-    container.start_next_round.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
-    mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
-    mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"
-    mock_context.args = []
-
-    await match_qr_handler(mock_update, mock_context)
-
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "equipos" in text.lower()
 
 
 @pytest.mark.asyncio

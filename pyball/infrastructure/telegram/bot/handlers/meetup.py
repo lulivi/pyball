@@ -23,9 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from io import BytesIO
 
-import qrcode
 import telegram
 from telegram import Message, Update
 from telegram.constants import ParseMode
@@ -36,7 +34,6 @@ from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.domain.meetup.errors import (
     MeetupAlreadyClosedError,
-    MeetupHasNoTeamsError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
@@ -76,7 +73,6 @@ def setup_meetup_handlers(application):
     add_command(application, "meetup_search", search_handler)
     add_command(application, "meetup_lock", lock_handler)
     add_command(application, "meetup_unlock", unlock_handler)
-    add_command(application, "meetup_match_qr", match_qr_handler)
     add_command(application, "meetup_stats", stats_handler)
     add_command(application, "meetup_change_location", change_location_handler)
     add_command(application, "meetup_change_date", change_date_handler)
@@ -514,45 +510,6 @@ async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 @log_func
 @authorized
-async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /meetup_match_qr command — send QR code of the match URL to each admin by DM."""
-    message = update.message
-    if message is None:
-        return
-    settings: TelegramAppSettings = context.bot_data["settings"]
-    container: Container = context.bot_data["container"]
-    if not settings.pyball.base_url:
-        await message.reply_text("La URL base no está configurada.")
-        return
-    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_match_qr")
-    if meetup is None:
-        return
-    try:
-        container.start_next_round().execute(meetup.date)
-        url = container.match_link_builder().build()
-    except MeetupHasNoTeamsError:
-        display_date = format_display(meetup.date, settings.pyball.display_date_format)
-        await message.reply_text(
-            text=rf"El meetup del `{display_date}` no tiene equipos asignados\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-    qr = generate_qr_bytes(url)
-    for admin in settings.telegram.admins_ids:
-        try:
-            qr.seek(0)
-            await context.bot.send_photo(
-                chat_id=admin,
-                photo=qr,
-                caption=f"🔗 Enlace del partido:\n{url}",
-            )
-        except telegram.error.Forbidden:
-            logger.error("Could not send message to '%s' admin", admin)
-    await react_ok(context.bot, message)
-
-
-@log_func
-@authorized
 async def change_location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /meetup_change_location [fecha hora] <nueva_localización> command."""
     message = update.message
@@ -699,15 +656,6 @@ async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT
     asyncio.create_task(_post_match_stats(context.bot, container, settings))
 
     await react_ok(context.bot, message)
-
-
-def generate_qr_bytes(url: str) -> BytesIO:
-    """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
-    img = qrcode.make(url)
-    buf = BytesIO()
-    img.save(buf)
-    buf.seek(0)
-    return buf
 
 
 async def _do_create_teams(  # pylint: disable=too-many-arguments,too-many-positional-arguments

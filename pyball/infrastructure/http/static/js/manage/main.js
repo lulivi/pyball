@@ -253,14 +253,10 @@ function renderState2(data) {
     <div id="edit-panel-container"></div>
     <hr class="divider">
     <div class="step-label">Abre el marcador en otro móvil</div>
-    <div class="qr-box">
-      <canvas id="qr-canvas"></canvas>
-      <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
-    </div>
+    <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
-    _renderQR(t.matchUrl, document.getElementById('qr-canvas'));
 }
 
 function copyTeams() {
@@ -670,31 +666,6 @@ async function bootstrap() {
 }
 
 // ── PRIVATE HELPERS ───────────────────────────────────────────────────────────
-function _renderQR(url, canvas) {
-    try {
-        const qr = qrcode(0, 'M');
-        qr.addData(url);
-        qr.make();
-        const cells = qr.getModuleCount();
-        const margin = 4;
-        const scale = Math.max(4, Math.floor(220 / cells));
-        const size = (cells + margin * 2) * scale;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, size, size);
-        for (let r = 0; r < cells; r++) {
-            for (let c = 0; c < cells; c++) {
-                ctx.fillStyle = qr.isDark(r, c) ? '#000000' : '#ffffff';
-                ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
-            }
-        }
-    } catch (e) {
-        canvas.style.display = 'none';
-    }
-}
-
 async function _callGenerateTeams(teamCount) {
     try {
         return await post('/api/meetup/generate-teams', {
