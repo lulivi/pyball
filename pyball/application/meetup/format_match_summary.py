@@ -65,10 +65,11 @@ class FormatMatchSummary:
         if meetup.teams is None:
             raise ValueError("Meetup has no teams yet")
 
+        is_triangular = len(meetup.teams) == 3
         label = date_label or meetup.date.strftime("%-d %B").title()
         lines = ["⚽ Día de Partido ⚽", f"🗓 {label}"]
 
-        if len(meetup.teams) == 3:
+        if is_triangular:
             lines.append("")
             lines.append("*EQUIPOS:*")
             for index, team in enumerate(meetup.teams):
@@ -99,6 +100,7 @@ class FormatMatchSummary:
                     team_emojis,
                     legacy_stats,
                     meetup.date,
+                    only_active_players=is_triangular,
                 )
             )
             played_a_round = True
@@ -114,12 +116,18 @@ def _match_block(  # pylint: disable=too-many-arguments,too-many-positional-argu
     team_emojis: tuple[str, ...],
     legacy_stats: LegacyStats | None,
     meetup_date: datetime,
+    only_active_players: bool = False,
 ) -> list[str]:
     """Return the summary lines for a single match: two team blocks with scorers.
 
     Colors/emojis are indexed by each team's position in the meetup's overall team
     list (not its position within this match), so a team keeps the same color
     across every round of a triangular meetup.
+
+    When only_active_players is True (triangulars), players with no goal, assist,
+    or own goal in this round are omitted — full rosters are already shown once in
+    the "*EQUIPOS:*" standings section, so repeating every player on every round
+    they play would be redundant.
     """
     result = match.result
     assert result is not None
@@ -156,6 +164,10 @@ def _match_block(  # pylint: disable=too-many-arguments,too-many-positional-argu
         emoji = team_emojis[team_index] if team_index < len(team_emojis) else ""
         lines.append(f"{emoji} *{name} - {score}*")
         team_ids = [str(pid.value) for pid in team.players]
+        if only_active_players:
+            team_ids = [
+                pid for pid in team_ids if goals.get(pid) or own_goals.get(pid) or assists.get(pid)
+            ]
         lines.extend(
             _player_line(pid, player_names, goals, own_goals, assists) for pid in team_ids
         )

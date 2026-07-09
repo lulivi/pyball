@@ -260,6 +260,50 @@ def test_triangular_summary_lists_every_round():
     assert "Rojo - 1" in summary
 
 
+def test_triangular_round_blocks_only_list_players_with_stats():
+    """In a triangular's round-by-round breakdown, only scorers/assisters/own-goal
+
+    players are listed per round -- full rosters only appear once, in the
+    "*EQUIPOS:*" section at the top.
+    """
+    meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+    scorer, quiet, keeper = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    opponent = PlayerId.generate()
+    team_a = Team.create("A", [scorer, quiet, keeper])
+    team_b = Team.create("B", [opponent])
+    team_c = Team.create("C", [PlayerId.generate()])
+    meetup.teams = [team_a, team_b, team_c]
+
+    events = (GoalEvent(scorer_id=scorer, assistant_id=None, team="A", timestamp=time(20, 5)),)
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
+    meetup.close()
+
+    player_names = {
+        str(scorer.value): "Marca",
+        str(quiet.value): "Callado",
+        str(keeper.value): "Portero",
+        str(opponent.value): "Rival",
+    }
+    summary = FormatMatchSummary().execute(
+        meetup,
+        player_names,
+        team_colors=("blanco", "negro", "rojo"),
+        team_emojis=("⚪", "⚫", "🔴"),
+    )
+
+    resultado_section = summary.split("*RESULTADO:*", 1)[1]
+    assert "Marca" in resultado_section
+    assert "Callado" not in resultado_section
+    assert "Portero" not in resultado_section
+    assert "Rival" not in resultado_section
+
+    # But the full roster still appears once, in the standings section.
+    equipos_section = summary.split("*EQUIPOS:*", 1)[1].split("*RESULTADO:*", 1)[0]
+    assert "Marca" in equipos_section
+    assert "Callado" in equipos_section
+    assert "Portero" in equipos_section
+
+
 def test_triangular_summary_has_team_standings_section():
     """A 3-team summary opens with each team's roster and win/draw/loss record."""
     meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
