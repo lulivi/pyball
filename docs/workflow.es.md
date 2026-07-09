@@ -35,11 +35,17 @@ convocatoria de jugadores.
   suplentes. Confirmar crea el partido con esa convocatoria.
 - **Telegram:** `/meetup_new <fecha> <hora>` crea un partido vacío para esa fecha;
   `/meetup_next` crea uno para la siguiente ocurrencia del día de la semana y hora por
-  defecto configurados.
+  defecto configurados. Cualquiera de los dos comandos publica un mensaje de
+  convocatoria en el chat de titulares (y otro aparte en el de suplentes) con botones
+  "✔ Unirse" / "✖ Salir", para que los jugadores se apunten o se bajen ellos mismos
+  tocando un botón — sin necesidad de añadirlos a mano. El mensaje de titulares también
+  tiene un botón "🔀 Crear equipos" que va directo al [paso 3](#3-generar-equipos).
 
 ## 2. Gestionar la convocatoria
 
-Antes de generar los equipos todavía puedes ajustar quién juega:
+Antes de generar los equipos todavía puedes ajustar quién juega. En Telegram, los
+jugadores normalmente lo hacen ellos mismos con los botones "✔ Unirse" / "✖ Salir" del
+paso 1 — estos comandos son para que un admin ajuste la convocatoria directamente:
 
 - **`/manage`:** la lista de convocados permite quitar un jugador o buscar y añadir otro.
 - **Telegram:** `/meetup_add_player <fecha> <hora> <nombre>` y

@@ -31,11 +31,17 @@ A meetup is one scheduled session: a date, a time, a location, and a roster of p
   resolve, and lets you exclude reserves. Confirming creates the meetup with that roster.
 - **Telegram:** `/meetup_new <fecha> <hora>` creates an empty meetup for that date;
   `/meetup_next` creates one for the next occurrence of the configured default weekday
-  and time.
+  and time. Either command posts a callup message to the regulars chat (and a separate
+  one to the substitutes chat) with "✔ Unirse" / "✖ Salir" buttons, so players can join
+  or leave the roster themselves by tapping a button — no need to add them by hand. The
+  regulars message also has a "🔀 Crear equipos" button that jumps straight to
+  [step 3](#3-generate-teams).
 
 ## 2. Manage the roster
 
-Before generating teams you can still adjust who's playing:
+Before generating teams you can still adjust who's playing. On Telegram, players
+usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 1 — these
+commands are for an admin adjusting the roster directly:
 
 - **`/manage`:** the roster list lets you remove a player or search-and-add another one.
 - **Telegram:** `/meetup_add_player <fecha> <hora> <nombre>` and
