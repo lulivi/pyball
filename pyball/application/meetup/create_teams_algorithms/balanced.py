@@ -483,27 +483,32 @@ def _player_stats(
     return mp, goals / mp, assists / mp, wins / mp
 
 
+_DRAFT_PICK_TEMPERATURE = 1.5
+
+
 def _snake_draft(
     player_ids: list[PlayerId],
     player_scores: dict[PlayerId, float],
     team_count: int,
 ) -> tuple[list[PlayerId], ...]:
-    """Distribute players into team_count groups via a score-sorted snake draft.
+    """Distribute players into team_count groups via a weighted-lottery snake draft.
 
-    Players are sorted strongest-first and dealt out in a 0,1,2,2,1,0,0,1,2,...
-    zig-zag order, which keeps summed team strength close without the
-    combinatorial partition search `optimize_teams` uses for 2 teams. The list is
-    shuffled before the (stable) sort so that players tied on score — the common
-    case when there's little or no match history — land in a different team each
-    time instead of always repeating the same grouping.
+    Dealt out in a 0,1,2,2,1,0,0,1,2,... zig-zag order. At each pick, instead of
+    deterministically taking the single highest-scored remaining player (which
+    reproduces the exact same grouping every time whenever players have distinct
+    historical scores, not just when they're tied), the next player is drawn from
+    a weighted lottery favoring higher-ranked remaining players — strong players
+    are still likely to be spread across teams early, but which specific player is
+    picked, and thus the final grouping, varies between calls.
     """
-    shuffled = list(player_ids)
-    random.shuffle(shuffled)
-    ordered = sorted(shuffled, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
+    remaining = sorted(player_ids, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
     teams: list[list[PlayerId]] = [[] for _ in range(team_count)]
     index = 0
     forward = True
-    for pid in ordered:
+    while remaining:
+        weights = [1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining))]
+        pid = random.choices(remaining, weights=weights, k=1)[0]
+        remaining.remove(pid)
         teams[index].append(pid)
         if forward:
             index += 1
