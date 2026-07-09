@@ -86,8 +86,9 @@ runs.
 Because a triangular has no fixed number of rounds, an admin closes it explicitly when
 the session's time is up:
 
-- **`/manage`:** the close action is available once a triangular has at least one
-  finished round.
+- **`/manage`:** the "🏁 Cerrar triangular" button appears on the Equipos tab whenever
+  the active meetup is a triangular (it's hidden for classic matches, which don't need
+  it).
 - **Telegram:** `/meetup_close_triangular <fecha> <hora>`.
 
 Closing posts a summary covering every round played in the session. A classic meetup

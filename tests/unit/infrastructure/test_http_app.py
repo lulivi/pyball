@@ -1424,6 +1424,61 @@ class TestCancelMeetupEndpoint:
         assert resp.status_code == 404
 
 
+class TestCloseMeetupEndpoint:
+    """Tests for POST /api/meetup/close."""
+
+    @pytest.mark.asyncio
+    async def test_close_returns_200_with_status_and_date(self):
+        """POST /api/meetup/close closes the active meetup and reports its date."""
+        active_meetup = MagicMock()
+        active_meetup.date = datetime(2026, 7, 8, 20, 0)
+        closed_meetup = MagicMock()
+        closed_meetup.date = datetime(2026, 7, 8, 20, 0)
+        container = MagicMock()
+        container.get_active_meetup.return_value.execute.return_value = active_meetup
+        container.close_meetup.return_value.execute.return_value = closed_meetup
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/close")
+
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "closed", "date": "2026-07-08T20:00"}
+        container.close_meetup.return_value.execute.assert_called_once_with(active_meetup.date)
+
+    @pytest.mark.asyncio
+    async def test_close_404_when_no_active_meetup(self):
+        """POST /api/meetup/close returns 404 when there is no active meetup."""
+        container = MagicMock()
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/close")
+
+        assert resp.status_code == 404
+        container.close_meetup.return_value.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_close_409_when_already_closed(self):
+        """POST /api/meetup/close returns 409 if the meetup got closed concurrently."""
+        active_meetup = MagicMock()
+        active_meetup.date = datetime(2026, 7, 8, 20, 0)
+        container = MagicMock()
+        container.get_active_meetup.return_value.execute.return_value = active_meetup
+        container.close_meetup.return_value.execute.side_effect = MeetupAlreadyClosedError(
+            "closed"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/close")
+
+        assert resp.status_code == 409
+
+
 class TestMeetupRouteNotifierCalls:
     """Notifier is called correctly for all meetup-mutating HTTP endpoints."""
 
@@ -1647,3 +1702,35 @@ class TestMeetupRouteNotifierCalls:
             await c.delete("/api/meetup/active")
 
         assert notifier.cancelled == []
+
+    @pytest.mark.asyncio
+    async def test_close_meetup_calls_on_match_closed_on_success(self):
+        active_meetup = MagicMock()
+        active_meetup.date = datetime(2026, 7, 8, 20, 0)
+        closed_meetup = MagicMock()
+        closed_meetup.date = datetime(2026, 7, 8, 20, 0)
+        container = MagicMock()
+        container.get_active_meetup.return_value.execute.return_value = active_meetup
+        container.close_meetup.return_value.execute.return_value = closed_meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/close")
+
+        assert resp.status_code == 200
+        assert notifier.closed == [closed_meetup]
+
+    @pytest.mark.asyncio
+    async def test_close_meetup_does_not_call_notifier_on_404(self):
+        container = MagicMock()
+        container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "active"
+        )
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            await c.post("/api/meetup/close")
+
+        assert notifier.closed == []

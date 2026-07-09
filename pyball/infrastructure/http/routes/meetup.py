@@ -69,6 +69,24 @@ def register_meetup_routes(
         await notifier.on_meetup_cancelled(meetup)
         return {"status": "cancelled", "date": meetup.date.strftime("%Y-%m-%dT%H:%M")}
 
+    @app.post("/api/meetup/close")
+    async def close_meetup_endpoint():
+        """Close the active meetup, or 404/409 if none exists or it's already closed.
+
+        Mainly for ending a triangular session — a classic meetup closes itself
+        automatically once its one match gets a result.
+        """
+        try:
+            meetup = container.get_active_meetup().execute()
+        except MeetupNotFoundError as exc:
+            raise HTTPException(404, "No active meetup to close") from exc
+        try:
+            closed = container.close_meetup().execute(meetup.date)
+        except MeetupAlreadyClosedError as exc:
+            raise HTTPException(409, "Meetup already closed") from exc
+        await notifier.on_match_closed(closed)
+        return {"status": "closed", "date": closed.date.strftime("%Y-%m-%dT%H:%M")}
+
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
         """Parse a callup text and fuzzy-match player names."""

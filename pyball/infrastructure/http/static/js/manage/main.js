@@ -250,6 +250,7 @@ function renderState2(data) {
       <button class="btn-sm green" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar (3)</button>
       <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     </div>
+    ${t.teamC ? '<button class="btn-sm amber" style="width:100%;margin-top:6px;" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     <div id="edit-panel-container"></div>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
@@ -510,6 +511,21 @@ async function cancelMeetup() {
     if (!confirm('¿Seguro que quieres cancelar el partido? Esta acción no se puede deshacer.')) return;
     try {
         await del('/api/meetup/active');
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = null;
+    repastePanelOpen = false;
+    rosterAddVisible = false;
+    _buildFreshFlowHTML();
+    showStep('paste');
+}
+
+async function closeMeetup() {
+    if (!confirm('¿Seguro que quieres cerrar el triangular? Esta acción no se puede deshacer.')) return;
+    try {
+        await post('/api/meetup/close');
     } catch (err) {
         alert('Error: ' + (err.detail || err.message));
         return;
@@ -820,6 +836,7 @@ Object.assign(window, {
     parseRepaste,
     confirmRepaste,
     cancelMeetup,
+    closeMeetup,
     copySummary,
     downloadStats,
     shareStats,
