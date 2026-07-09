@@ -51,6 +51,8 @@ def build_active_match_response(container: Container) -> dict:
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
+    index_a = meetup.teams.index(current.teams_playing[0])
+    index_b = meetup.teams.index(current.teams_playing[1])
     team_a = sorted_names(current.teams_playing[0].players, player_names)
     team_b = sorted_names(current.teams_playing[1].players, player_names)
 
@@ -58,12 +60,12 @@ def build_active_match_response(container: Container) -> dict:
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
         "teamA": team_a,
         "teamB": team_b,
-        "nameA": colors[0].capitalize(),
-        "nameB": colors[1].capitalize(),
-        "colorA": hex_bg[0],
-        "colorB": hex_bg[1],
-        "colorTextA": hex_text[0],
-        "colorTextB": hex_text[1],
+        "nameA": colors[index_a].capitalize(),
+        "nameB": colors[index_b].capitalize(),
+        "colorA": hex_bg[index_a],
+        "colorB": hex_bg[index_b],
+        "colorTextA": hex_text[index_a],
+        "colorTextB": hex_text[index_b],
     }
 
 
@@ -148,6 +150,8 @@ def build_match_events_response(container: Container, meetup: Meetup) -> dict:
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
+    index_a = meetup.teams.index(last_match.teams_playing[0])
+    index_b = meetup.teams.index(last_match.teams_playing[1])
     team_a = sorted_names(last_match.teams_playing[0].players, player_names)
     team_b = sorted_names(last_match.teams_playing[1].players, player_names)
 
@@ -166,14 +170,14 @@ def build_match_events_response(container: Container, meetup: Meetup) -> dict:
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
-        "nameA": colors[0].capitalize(),
-        "nameB": colors[1].capitalize(),
+        "nameA": colors[index_a].capitalize(),
+        "nameB": colors[index_b].capitalize(),
         "teamA": team_a,
         "teamB": team_b,
-        "colorA": hex_bg[0],
-        "colorB": hex_bg[1],
-        "colorTextA": hex_text[0],
-        "colorTextB": hex_text[1],
+        "colorA": hex_bg[index_a],
+        "colorB": hex_bg[index_b],
+        "colorTextA": hex_text[index_a],
+        "colorTextB": hex_text[index_b],
         "events": events,
     }
 

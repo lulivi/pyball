@@ -138,15 +138,17 @@ async def _handle_finish_match(
         colors = container.team_colors
         hex_bg = container.team_hex_bg
         hex_text = container.team_hex_text
+        index_a = meetup.teams.index(current.teams_playing[0])
+        index_b = meetup.teams.index(current.teams_playing[1])
         response["next_round"] = {
             "teamA": sorted_names(current.teams_playing[0].players, player_names),
             "teamB": sorted_names(current.teams_playing[1].players, player_names),
-            "nameA": colors[0].capitalize(),
-            "nameB": colors[1].capitalize(),
-            "colorA": hex_bg[0],
-            "colorB": hex_bg[1],
-            "colorTextA": hex_text[0],
-            "colorTextB": hex_text[1],
+            "nameA": colors[index_a].capitalize(),
+            "nameB": colors[index_b].capitalize(),
+            "colorA": hex_bg[index_a],
+            "colorB": hex_bg[index_b],
+            "colorTextA": hex_text[index_a],
+            "colorTextB": hex_text[index_b],
         }
 
     return response

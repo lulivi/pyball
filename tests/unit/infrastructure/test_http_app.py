@@ -107,15 +107,16 @@ async def test_finish_match_returns_next_round_with_colors_when_round_advances()
     player_b.id.value = "p2"
     player_b.name = "Rafa"
 
+    team_a_mock = MagicMock(players=[pid_a])
+    team_b_mock = MagicMock(players=[pid_b])
     meetup = MagicMock()
     meetup.is_closed.return_value = False
+    meetup.teams = [team_a_mock, team_b_mock]
     meetup.matches = [
         MagicMock(result=MagicMock(score_a=2, score_b=1)),
         MagicMock(result=MagicMock(score_a=2, score_b=1)),
     ]
-    meetup.current_match.return_value = MagicMock(
-        teams_playing=(MagicMock(players=[pid_a]), MagicMock(players=[pid_b]))
-    )
+    meetup.current_match.return_value = MagicMock(teams_playing=(team_a_mock, team_b_mock))
 
     container = MagicMock()
     container.finish_match.return_value.execute.return_value = meetup
@@ -140,6 +141,60 @@ async def test_finish_match_returns_next_round_with_colors_when_round_advances()
     assert next_round["colorTextA"] == "#27272a"
     assert next_round["colorTextB"] == "#e4e4e7"
     assert len(notifier.closed) == 0
+
+
+@pytest.mark.asyncio
+async def test_finish_match_next_round_colors_follow_each_teams_own_position():
+    """Regression test: next_round after a triangular round not involving the
+
+    meetup's first team must not be mislabeled "Blanco"/"Negro" -- each team
+    keeps its own configured color regardless of which 2 of the 3 are playing.
+    """
+    pid_b = MagicMock()
+    pid_b.value = "p2"
+    pid_c = MagicMock()
+    pid_c.value = "p3"
+
+    player_b = MagicMock()
+    player_b.id.value = "p2"
+    player_b.name = "Rafa"
+    player_c = MagicMock()
+    player_c.id.value = "p3"
+    player_c.name = "Nico"
+
+    team_a_mock = MagicMock(players=[MagicMock(value="p1")])
+    team_b_mock = MagicMock(players=[pid_b])
+    team_c_mock = MagicMock(players=[pid_c])
+
+    meetup = MagicMock()
+    meetup.is_closed.return_value = False
+    meetup.teams = [team_a_mock, team_b_mock, team_c_mock]
+    meetup.matches = [
+        MagicMock(result=MagicMock(score_a=2, score_b=1)),
+        MagicMock(result=MagicMock(score_a=2, score_b=1)),
+    ]
+    # Next round: team C (Rojo) plays team B (Negro) -- C is "A" in this match.
+    meetup.current_match.return_value = MagicMock(teams_playing=(team_c_mock, team_b_mock))
+
+    container = MagicMock()
+    container.finish_match.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = [player_b, player_c]
+    container.team_colors = ("blanco", "negro", "rojo")
+    container.team_hex_bg = ("#e4e4e7", "#27272a", "#b91c1c")
+    container.team_hex_text = ("#27272a", "#e4e4e7", "#fff1f2")
+    notifier = _StubNotifier()
+    app = create_app(container, notifier)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/match/finish", json=_VALID_BODY)
+
+    next_round = response.json()["next_round"]
+    assert next_round["teamA"] == ["Nico"]
+    assert next_round["teamB"] == ["Rafa"]
+    assert next_round["nameA"] == "Rojo"
+    assert next_round["nameB"] == "Negro"
+    assert next_round["colorA"] == "#b91c1c"
+    assert next_round["colorB"] == "#27272a"
 
 
 @pytest.mark.asyncio
@@ -201,10 +256,10 @@ class TestActiveMatch:
         pid_a.value = "p1"
         pid_b = MagicMock()
         pid_b.value = "p2"
-        meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
-        meetup.current_match.return_value = MagicMock(
-            teams_playing=(MagicMock(players=[pid_a]), MagicMock(players=[pid_b]))
-        )
+        team_a_mock = MagicMock(players=[pid_a])
+        team_b_mock = MagicMock(players=[pid_b])
+        meetup.teams = [team_a_mock, team_b_mock]
+        meetup.current_match.return_value = MagicMock(teams_playing=(team_a_mock, team_b_mock))
 
         player_a = MagicMock()
         player_a.id.value = "p1"
@@ -235,6 +290,55 @@ class TestActiveMatch:
         assert data["colorTextA"] == "#27272a"
         assert data["colorB"] == "#27272a"
         assert data["colorTextB"] == "#e4e4e7"
+
+    @pytest.mark.asyncio
+    async def test_colors_follow_each_teams_own_position_not_match_order(self):
+        """Regression test: a triangular round not involving team A/B must not be
+
+        mislabeled "Blanco"/"Negro" — each team keeps its own configured color
+        regardless of which 2 of the 3 teams are currently playing.
+        """
+        meetup = MagicMock()
+        meetup.date = datetime(2026, 5, 26, 20, 0)
+
+        pid_a = MagicMock()
+        pid_a.value = "p1"
+        pid_c = MagicMock()
+        pid_c.value = "p3"
+        team_a_mock = MagicMock(players=[pid_a])
+        team_b_mock = MagicMock(players=[MagicMock(value="p2")])
+        team_c_mock = MagicMock(players=[pid_c])
+        meetup.teams = [team_a_mock, team_b_mock, team_c_mock]
+        # Current round: team C (Rojo) plays team A (Blanco) -- C is "A" in this match.
+        meetup.current_match.return_value = MagicMock(teams_playing=(team_c_mock, team_a_mock))
+
+        player_a = MagicMock()
+        player_a.id.value = "p1"
+        player_a.name = "Juande"
+        player_c = MagicMock()
+        player_c.id.value = "p3"
+        player_c.name = "Rulo"
+
+        container = MagicMock()
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = [player_a, player_c]
+        container.team_colors = ("blanco", "negro", "rojo")
+        container.team_hex_bg = ("#e4e4e7", "#27272a", "#b91c1c")
+        container.team_hex_text = ("#27272a", "#e4e4e7", "#fff1f2")
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/active")
+
+        data = response.json()
+        assert data["teamA"] == ["Rulo"]
+        assert data["teamB"] == ["Juande"]
+        assert data["nameA"] == "Rojo"
+        assert data["nameB"] == "Blanco"
+        assert data["colorA"] == "#b91c1c"
+        assert data["colorB"] == "#e4e4e7"
+        assert data["colorTextA"] == "#fff1f2"
+        assert data["colorTextB"] == "#27272a"
 
     @pytest.mark.asyncio
     async def test_returns_404_when_no_active_meetup(self):
@@ -403,15 +507,17 @@ class TestMatchEvents:
         pid_a.value = "p1"
         pid_b = MagicMock()
         pid_b.value = "p2"
+        team_a_mock = MagicMock(players=[pid_a])
+        team_b_mock = MagicMock(players=[pid_b])
 
         match = MagicMock()
         match.result.events = (ev,)
-        match.teams_playing = (MagicMock(players=[pid_a]), MagicMock(players=[pid_b]))
+        match.teams_playing = (team_a_mock, team_b_mock)
 
         meetup = MagicMock()
         meetup.is_closed.return_value = True
         meetup.date = datetime(2026, 5, 28, 20, 0)
-        meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+        meetup.teams = [team_a_mock, team_b_mock]
         meetup.matches = [match]
         return meetup
 
@@ -456,6 +562,63 @@ class TestMatchEvents:
         assert data["events"][0]["assistant"] is None
         assert data["events"][0]["team"] == "A"
         assert data["events"][0]["timestamp"] == "20:15"
+
+    @pytest.mark.asyncio
+    async def test_colors_follow_each_teams_own_position_for_triangular(self):
+        """Regression test: the last round's colors must match each team's own
+
+        identity, not always "Blanco"/"Negro", when it's not teams 0/1 that played.
+        """
+        ev = MagicMock()
+        ev.scorer_id.value = "p3"
+        ev.assistant_id = None
+        ev.team = "A"
+        ev.timestamp.strftime.return_value = "20:15"
+
+        pid_a = MagicMock()
+        pid_a.value = "p1"
+        pid_c = MagicMock()
+        pid_c.value = "p3"
+
+        team_a_mock = MagicMock(players=[pid_a])
+        team_b_mock = MagicMock(players=[MagicMock(value="p2")])
+        team_c_mock = MagicMock(players=[pid_c])
+
+        match = MagicMock()
+        match.result.events = (ev,)
+        match.teams_playing = (team_c_mock, team_a_mock)
+
+        meetup = MagicMock()
+        meetup.is_closed.return_value = True
+        meetup.date = datetime(2026, 5, 28, 20, 0)
+        meetup.teams = [team_a_mock, team_b_mock, team_c_mock]
+        meetup.matches = [match]
+
+        player_a = MagicMock()
+        player_a.id.value = "p1"
+        player_a.name = "Dani"
+        player_c = MagicMock()
+        player_c.id.value = "p3"
+        player_c.name = "Nico"
+
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = meetup
+        container.player_repository.find_all.return_value = [player_a, player_c]
+        container.team_colors = ("blanco", "negro", "rojo")
+        container.team_hex_bg = ("#e4e4e7", "#27272a", "#b91c1c")
+        container.team_hex_text = ("#27272a", "#e4e4e7", "#fff1f2")
+
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/match/2026-05-28T20:00/events")
+
+        data = response.json()
+        assert data["teamA"] == ["Nico"]
+        assert data["teamB"] == ["Dani"]
+        assert data["nameA"] == "Rojo"
+        assert data["nameB"] == "Blanco"
+        assert data["colorA"] == "#b91c1c"
+        assert data["colorB"] == "#e4e4e7"
 
     @pytest.mark.asyncio
     async def test_returns_404_when_meetup_not_found(self):
@@ -1037,6 +1200,9 @@ async def test_meetup_active_with_teams_response_shape():
 async def test_active_match_response_reflects_the_current_pending_round():
     """For a triangular with 2 finished rounds, /api/match/active shows round 3's pairing."""
     container = _container_for_responses()
+    container.team_colors = ("blanco", "negro", "rojo")
+    container.team_hex_bg = ("#e4e4e7", "#27272a", "#b91c1c")
+    container.team_hex_text = ("#27272a", "#e4e4e7", "#fff1f2")
     ana, bea, cara = Player.create("Ana"), Player.create("Bea"), Player.create("Cara")
     container.player_repository.find_all.return_value = [ana, bea, cara]
 
@@ -1066,6 +1232,11 @@ async def test_active_match_response_reflects_the_current_pending_round():
     # The pending match pairs team C against team A — not meetup.teams[0]/[1] (A vs B).
     assert data["teamA"] == ["Cara"]
     assert data["teamB"] == ["Ana"]
+    # Each team keeps its own configured color: C is "Rojo", not "Blanco"/"Negro".
+    assert data["nameA"] == "Rojo"
+    assert data["nameB"] == "Blanco"
+    assert data["colorA"] == "#b91c1c"
+    assert data["colorB"] == "#e4e4e7"
 
 
 @pytest.mark.asyncio
