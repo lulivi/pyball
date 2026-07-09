@@ -1,11 +1,16 @@
 """Tests for the triangular round-robin next-round calculator."""
 
 import random
+from datetime import datetime
 
 import pytest
 
-from pyball.domain.meetup.models import Match, MatchResult, Team
-from pyball.domain.meetup.next_round_calculator import calculate_next_round, pick_first_pairing
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
+from pyball.domain.meetup.next_round_calculator import (
+    calculate_next_round,
+    ensure_first_match,
+    pick_first_pairing,
+)
 from pyball.domain.player.models import PlayerId
 
 TEAM_A = Team.create("A", [PlayerId.generate()])
@@ -108,3 +113,48 @@ class TestCalculateNextRoundDraw:
         matches = [Match(teams_playing=(TEAM_A, TEAM_B))]
         with pytest.raises(ValueError, match="no result"):
             calculate_next_round(TEAMS, matches)
+
+
+class TestEnsureFirstMatch:
+    """Tests for ensure_first_match."""
+
+    def test_no_op_when_teams_not_assigned(self):
+        """Returns False and adds no match when the meetup has no teams yet."""
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        assert ensure_first_match(meetup) is False
+        assert not meetup.matches
+
+    def test_creates_the_one_match_for_two_teams(self):
+        """With 2 teams, creates the single match between them and returns True."""
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        meetup.set_teams([TEAM_A, TEAM_B])
+        assert ensure_first_match(meetup) is True
+        assert len(meetup.matches) == 1
+        assert set(meetup.matches[0].teams_playing) == {TEAM_A, TEAM_B}
+        assert meetup.matches[0].result is None
+
+    def test_creates_a_random_pairing_for_three_teams(self):
+        """With 3 teams, creates a match pairing 2 of the 3 and returns True."""
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        meetup.set_teams([TEAM_A, TEAM_B, TEAM_C])
+        assert ensure_first_match(meetup) is True
+        assert len(meetup.matches) == 1
+        playing = set(meetup.matches[0].teams_playing)
+        assert playing.issubset({TEAM_A, TEAM_B, TEAM_C})
+        assert len(playing) == 2
+
+    def test_no_op_when_a_match_is_already_pending(self):
+        """Does not duplicate the pending match if one already exists."""
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        meetup.set_teams([TEAM_A, TEAM_B])
+        meetup.add_match(Match(teams_playing=(TEAM_A, TEAM_B)))
+        assert ensure_first_match(meetup) is False
+        assert len(meetup.matches) == 1
+
+    def test_no_op_when_matches_already_played(self):
+        """Does not create a new first match if matches history is non-empty."""
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        meetup.set_teams([TEAM_A, TEAM_B])
+        meetup.add_match(Match(teams_playing=(TEAM_A, TEAM_B), result=_result(2, 1)))
+        assert ensure_first_match(meetup) is False
+        assert len(meetup.matches) == 1

@@ -139,6 +139,42 @@ class TestAssignTeamsById:
 
         assert list(result.players) == [p1.id, p2.id]
 
+    def test_creates_first_pending_match_after_assigning_teams(self):
+        """execute() auto-starts the first match, so /match works without a separate step."""
+        p1, p2 = _player("Juan"), _player("Pedro")
+        meetup = _meetup(p1, p2)
+        uc, _ = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p2.id.value)],
+        )
+
+        assert result.current_match() is not None
+        assert set(result.current_match().teams_playing) == set(result.teams)
+
+    def test_does_not_duplicate_pending_match_on_re_edit(self):
+        """Re-editing teams mid-tournament (matches already exist) does not touch matches."""
+        p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")
+        meetup = _meetup(p1, p2, p3)
+        uc, _ = _use_case(meetup)
+
+        first = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p2.id.value)],
+        )
+        assert len(first.matches) == 1
+
+        second = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p3.id.value)],
+        )
+        assert len(second.matches) == 1
+        assert second.matches[0] is first.matches[0]
+
     def test_happy_path_assigns_three_teams(self):
         """Valid equal-sized non-overlapping IDs covering all players creates 3 teams."""
         p1, p2, p3 = _player("Juan"), _player("Pedro"), _player("Carlos")

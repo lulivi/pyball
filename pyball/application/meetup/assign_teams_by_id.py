@@ -23,6 +23,7 @@ from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.models import PlayerId
 
@@ -81,6 +82,7 @@ class AssignTeamsById:
         meetup.players[:] = all_ids
         names = ["A", "B", "C"]
         meetup.set_teams([Team.create(names[i], group) for i, group in enumerate(groups)])
+        ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
         return meetup
 

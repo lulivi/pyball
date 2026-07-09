@@ -24,6 +24,7 @@ from datetime import date, datetime
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignmentAlgorithm
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
 
 
@@ -63,6 +64,7 @@ class CreateTeams:
 
         names = ["A", "B", "C"][:team_count]
         meetup.set_teams([Team.create(name, group) for name, group in zip(names, groups)])
+        ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
         return meetup
 

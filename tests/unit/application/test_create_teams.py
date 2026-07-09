@@ -89,3 +89,19 @@ class TestCreateTeams:
         use_case.execute(datetime(2026, 5, 6, 20, 0))
 
         repo.save.assert_called_once()
+
+    def test_creates_first_pending_match_after_assigning_teams(self):
+        """execute() auto-starts the first match, so /match works without a separate step."""
+        players = [PlayerId.generate() for _ in range(4)]
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        for p in players:
+            meetup.add_player(p)
+
+        repo = MagicMock()
+        repo.find_by_datetime.return_value = meetup
+        repo.find_all.return_value = []
+
+        result = CreateTeams(repo, StubAlgorithm()).execute(datetime(2026, 5, 6, 20, 0))
+
+        assert result.current_match() is not None
+        assert set(result.current_match().teams_playing) == set(result.teams)

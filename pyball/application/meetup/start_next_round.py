@@ -22,8 +22,8 @@
 from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
-from pyball.domain.meetup.models import Match, Meetup
-from pyball.domain.meetup.next_round_calculator import pick_first_pairing
+from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
 
 
@@ -51,13 +51,7 @@ class StartNextRound:
         if meetup.teams is None:
             raise MeetupHasNoTeamsError("Meetup has no teams. Run /create_teams first.")
 
-        if meetup.current_match() is None and not meetup.matches:
-            teams = meetup.teams
-            if len(teams) == 2:
-                pairing = (teams[0], teams[1])
-            else:
-                pairing = pick_first_pairing((teams[0], teams[1], teams[2]))
-            meetup.add_match(Match(teams_playing=pairing))
+        if ensure_first_match(meetup):
             self.meetup_repository.save(meetup)
 
         return meetup

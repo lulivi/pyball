@@ -23,9 +23,26 @@ from __future__ import annotations
 
 import random as random_module
 
-from pyball.domain.meetup.models import Match, Team
+from pyball.domain.meetup.models import Match, Meetup, Team
 
 _MAX_CONSECUTIVE = 3
+
+
+def ensure_first_match(meetup: Meetup) -> bool:
+    """Create meetup's first pending match in place, if none exists yet.
+
+    No-op (returns False) if teams aren't assigned yet, a match is already
+    pending, or any match has already been played.
+    """
+    if meetup.teams is None or meetup.current_match() is not None or meetup.matches:
+        return False
+    teams = meetup.teams
+    if len(teams) == 2:
+        pairing = (teams[0], teams[1])
+    else:
+        pairing = pick_first_pairing((teams[0], teams[1], teams[2]))
+    meetup.add_match(Match(teams_playing=pairing))
+    return True
 
 
 def pick_first_pairing(
