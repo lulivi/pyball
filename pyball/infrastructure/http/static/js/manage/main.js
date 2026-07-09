@@ -251,9 +251,6 @@ function renderState2(data) {
       <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     </div>
     <div id="edit-panel-container"></div>
-    <hr class="divider">
-    <div class="step-label">Abre el marcador en otro móvil</div>
-    <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
