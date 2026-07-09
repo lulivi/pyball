@@ -97,7 +97,9 @@ never needs this — it closes itself the moment its one match finishes.
 ## 6. View stats
 
 - **`/manage` → "Resumen" tab:** the summary of the last finished match, ready to copy
-  or share as an image, plus a link to correct a result if it was entered wrong.
+  or share as an image, plus a link to correct a result if it was entered wrong. For a
+  triangular, the summary opens with each team's roster and its win/draw/loss record for
+  the session (e.g. `⚪ Blanco (1V 1E 0D)`), before the round-by-round results.
 - **Telegram:** `/meetup_stats [temporada|historico]` posts season or all-time stats as
   an image.
 

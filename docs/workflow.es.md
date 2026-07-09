@@ -105,7 +105,9 @@ clásico nunca necesita esto — se cierra solo en cuanto termina su único part
 
 - **`/manage` → pestaña "Resumen":** el resumen del último partido terminado, listo
   para copiar o compartir como imagen, más un enlace para corregir un resultado si se
-  introdujo mal.
+  introdujo mal. En un triangular, el resumen empieza con la convocatoria de cada
+  equipo y su récord de victorias/empates/derrotas de la sesión (ej.
+  `⚪ Blanco (1V 1E 0D)`), antes de los resultados ronda a ronda.
 - **Telegram:** `/meetup_stats [temporada|historico]` publica las estadísticas de
   temporada o históricas como imagen.
 

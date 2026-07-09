@@ -260,6 +260,65 @@ def test_triangular_summary_lists_every_round():
     assert "Rojo - 1" in summary
 
 
+def test_triangular_summary_has_team_standings_section():
+    """A 3-team summary opens with each team's roster and win/draw/loss record."""
+    meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.teams = [team_a, team_b, team_c]
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+    meetup.add_match(Match(teams_playing=(team_a, team_c), result=MatchResult(1, 1, ())))
+    meetup.add_match(Match(teams_playing=(team_c, team_b), result=MatchResult(2, 1, ())))
+    meetup.close()
+
+    player_names = {str(p1.value): "Dani", str(p2.value): "Rafa", str(p3.value): "Nico"}
+    summary = FormatMatchSummary().execute(
+        meetup,
+        player_names,
+        team_colors=("blanco", "negro", "rojo"),
+        team_emojis=("⚪", "⚫", "🔴"),
+    )
+
+    lines = summary.splitlines()
+    assert "*EQUIPOS:*" in lines
+    # Team A: win vs B, draw vs C -> 1V 1E 0D. Roster line follows the header.
+    idx_a = next(i for i, line in enumerate(lines) if "Blanco" in line and "V" in line)
+    assert lines[idx_a] == "⚪ *Blanco* (1V 1E 0D)"
+    assert lines[idx_a + 1] == "Dani"
+    # Team B: loss vs A, loss vs C -> 0V 0E 2D.
+    idx_b = next(i for i, line in enumerate(lines) if "Negro" in line and "V" in line)
+    assert lines[idx_b] == "⚫ *Negro* (0V 0E 2D)"
+    assert lines[idx_b + 1] == "Rafa"
+    # Team C: draw vs A, win vs B -> 1V 1E 0D.
+    idx_c = next(i for i, line in enumerate(lines) if "Rojo" in line and "V" in line)
+    assert lines[idx_c] == "🔴 *Rojo* (1V 1E 0D)"
+    assert lines[idx_c + 1] == "Nico"
+    # The standings section comes before the round-by-round breakdown.
+    assert summary.index("*EQUIPOS:*") < summary.index("*RESULTADO:*")
+
+
+class TestFormatMatchSummaryNoStandings:
+    """A classic (2-team) summary has no team-standings section."""
+
+    def test_no_standings_section_for_classic_meetup(self):
+        """The classic 2-team path never shows the "*EQUIPOS:*" standings section."""
+        meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        meetup.teams = [team_a, team_b]
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, ())))
+        meetup.close()
+
+        player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
+        summary = FormatMatchSummary().execute(meetup, player_names, date_label="18 Mayo")
+
+        assert "*EQUIPOS:*" not in summary
+
+
 def test_triangular_summary_has_separator_between_rounds():
     """Consecutive rounds are visually separated by a divider line."""
     meetup = Meetup.create(datetime(2026, 5, 18, 20, 0), "Campo Norte")

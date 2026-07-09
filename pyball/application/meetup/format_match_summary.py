@@ -66,7 +66,21 @@ class FormatMatchSummary:
             raise ValueError("Meetup has no teams yet")
 
         label = date_label or meetup.date.strftime("%-d %B").title()
-        lines = ["⚽ Día de Partido ⚽", f"🗓 {label}", "", "*RESULTADO:*"]
+        lines = ["⚽ Día de Partido ⚽", f"🗓 {label}"]
+
+        if len(meetup.teams) == 3:
+            lines.append("")
+            lines.append("*EQUIPOS:*")
+            for index, team in enumerate(meetup.teams):
+                lines.append("")
+                lines.extend(
+                    _team_standing_block(
+                        team, index, meetup.matches, player_names, team_colors, team_emojis
+                    )
+                )
+
+        lines.append("")
+        lines.append("*RESULTADO:*")
 
         played_a_round = False
         for match in meetup.matches:
@@ -146,6 +160,42 @@ def _match_block(  # pylint: disable=too-many-arguments,too-many-positional-argu
             _player_line(pid, player_names, goals, own_goals, assists) for pid in team_ids
         )
     return lines
+
+
+def _team_standing_block(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    team: Team,
+    index: int,
+    matches: list[Match],
+    player_names: dict[str, str],
+    team_colors: tuple[str, ...],
+    team_emojis: tuple[str, ...],
+) -> list[str]:
+    """Return this team's roster preceded by its win/draw/loss record so far."""
+    wins, draws, losses = _team_record(team, matches)
+    color = team_colors[index] if index < len(team_colors) else None
+    name = color.capitalize() if color is not None else team.name
+    emoji = team_emojis[index] if index < len(team_emojis) else ""
+    lines = [f"{emoji} *{name}* ({wins}V {draws}E {losses}D)"]
+    lines.extend(player_names.get(str(pid.value), str(pid.value)) for pid in team.players)
+    return lines
+
+
+def _team_record(team: Team, matches: list[Match]) -> tuple[int, int, int]:
+    """Return (wins, draws, losses) for team across all of its finished matches."""
+    wins = draws = losses = 0
+    for match in matches:
+        if match.result is None or team not in match.teams_playing:
+            continue
+        index = match.teams_playing.index(team)
+        score = match.result.score_a if index == 0 else match.result.score_b
+        opponent_score = match.result.score_b if index == 0 else match.result.score_a
+        if score > opponent_score:
+            wins += 1
+        elif score < opponent_score:
+            losses += 1
+        else:
+            draws += 1
+    return wins, draws, losses
 
 
 def _player_line(
