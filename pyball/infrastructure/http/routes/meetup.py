@@ -71,7 +71,7 @@ def register_meetup_routes(
 
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
-        """Parse a WhatsApp callup text and fuzzy-match player names."""
+        """Parse a callup text and fuzzy-match player names."""
         outcome = container.parse_callup().execute(body.text)
         return {
             "titulars": [serialise_callup_match(m) for m in outcome.titulars],

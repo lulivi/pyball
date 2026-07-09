@@ -244,7 +244,7 @@ function renderState2(data) {
     document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
+    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     <div class="regen-row">
       <button class="btn-sm green" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar (2)</button>
       <button class="btn-sm green" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar (3)</button>

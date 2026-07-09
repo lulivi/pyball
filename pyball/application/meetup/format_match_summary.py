@@ -28,7 +28,7 @@ from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 
 class FormatMatchSummary:
-    """Build the WhatsApp-format post-match summary for a finished meetup."""
+    """Build the plain-text post-match summary for a finished meetup."""
 
     def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
@@ -39,7 +39,7 @@ class FormatMatchSummary:
         date_label: str | None = None,
         legacy_stats: LegacyStats | None = None,
     ) -> str:
-        """Return the WhatsApp-ready summary string.
+        """Return the summary string, ready to paste into a chat.
 
         For a classic (2-team) meetup, renders one score block per team. For a
         triangular (3-team) meetup, renders one score block per round played,
@@ -56,7 +56,7 @@ class FormatMatchSummary:
                 players with no event assists are read from it for this match date.
 
         Returns:
-            Multi-line WhatsApp message string.
+            Multi-line summary message string.
         """
         if not meetup.matches:
             raise ValueError("Meetup has no matches yet")

@@ -61,13 +61,13 @@ class ParseResult:
 
 
 class ParseCallupText:
-    """Use case: parse a WhatsApp callup message and match names to DB players."""
+    """Use case: parse a callup message and match names to DB players."""
 
     def execute(self, text: str, players: list[Player]) -> ParseResult:
         """Parse callup text and fuzzy-match each name.
 
         Args:
-            text: Raw WhatsApp callup message.
+            text: Raw callup message.
             players: All players from the DB.
 
         Returns:

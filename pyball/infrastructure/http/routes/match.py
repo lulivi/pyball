@@ -74,7 +74,7 @@ def register_match_routes(app: FastAPI, container: "Container", notifier: "Match
 
     @app.get("/api/match/{date}/summary")
     async def match_summary(date: str):
-        """Return the WhatsApp-format summary for a finished match."""
+        """Return the summary for a finished match."""
         return _handle_match_summary(container, date)
 
     @app.get("/api/match/{date}/stats.png")
@@ -153,7 +153,7 @@ async def _handle_finish_match(
 
 
 def _handle_match_summary(container: "Container", date: str) -> dict:
-    """Fetch, validate, and serialise the WhatsApp-format summary for a finished match."""
+    """Fetch, validate, and serialise the summary for a finished match."""
     try:
         meetup_date = datetime.fromisoformat(date)
     except ValueError as exc:
