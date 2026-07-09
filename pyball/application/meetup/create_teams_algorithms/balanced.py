@@ -492,9 +492,14 @@ def _snake_draft(
 
     Players are sorted strongest-first and dealt out in a 0,1,2,2,1,0,0,1,2,...
     zig-zag order, which keeps summed team strength close without the
-    combinatorial partition search `optimize_teams` uses for 2 teams.
+    combinatorial partition search `optimize_teams` uses for 2 teams. The list is
+    shuffled before the (stable) sort so that players tied on score — the common
+    case when there's little or no match history — land in a different team each
+    time instead of always repeating the same grouping.
     """
-    ordered = sorted(player_ids, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
+    shuffled = list(player_ids)
+    random.shuffle(shuffled)
+    ordered = sorted(shuffled, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
     teams: list[list[PlayerId]] = [[] for _ in range(team_count)]
     index = 0
     forward = True

@@ -7,6 +7,7 @@ import pytest
 from pyball.application.meetup.create_teams_algorithms.balanced import (
     BalancedAlgorithm,
     _player_role,
+    _snake_draft,
     _team_score,
     compute_player_scores,
     extract_winning_counts,
@@ -321,6 +322,59 @@ class TestBalancedAlgorithmAssign:
         algo = BalancedAlgorithm()
         team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
         assert abs(len(team_a) - len(team_b)) <= 1
+
+    def test_three_teams_vary_across_repeated_calls_with_tied_scores(self):
+        """Regression test: /manage's "Regenerar 3 equipos" always returned the
+        same teams when players have no match history (all tied at the 0.5
+        default score), because the 3-team snake draft had no randomness at all.
+        """
+        players = [PlayerId.generate() for _ in range(15)]
+        algo = BalancedAlgorithm()
+        results = {
+            tuple(
+                frozenset(team) for team in algo.assign(players, [], [], datetime(2025, 9, 1), 3)
+            )
+            for _ in range(20)
+        }
+        assert len(results) > 1
+
+
+class TestSnakeDraft:
+    """Tests for _snake_draft (3-team balanced distribution)."""
+
+    def test_assigns_all_players_across_three_teams(self):
+        """Every player ends up in exactly one of the three teams."""
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: 0.5 for pid in players}
+
+        teams = _snake_draft(players, scores, 3)
+
+        assert len(teams) == 3
+        assert sum(len(team) for team in teams) == len(players)
+        assert set(players) == {pid for team in teams for pid in team}
+
+    def test_varies_across_repeated_calls_with_tied_scores(self):
+        """With all-equal scores, repeated calls must not always return the
+        identical grouping — this was the root cause of teams looking "stuck".
+        """
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: 0.5 for pid in players}
+
+        results = {
+            tuple(frozenset(team) for team in _snake_draft(players, scores, 3)) for _ in range(20)
+        }
+
+        assert len(results) > 1
+
+    def test_keeps_balance_with_distinct_scores(self):
+        """Clearly-ranked players still end up close in summed team strength."""
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: i / 14 for i, pid in enumerate(players)}
+
+        teams = _snake_draft(players, scores, 3)
+        totals = [sum(scores[pid] for pid in team) for team in teams]
+
+        assert max(totals) - min(totals) <= 1.0
 
 
 class TestUnknownAlgorithmError:
