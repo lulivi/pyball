@@ -119,11 +119,12 @@ See [docs/workflow.md](workflow.md) for the full step-by-step flow.
 
 ## 6. Access tokens
 
-`match_token` and `manage_token` protect the app when it's exposed outside your own
-network (e.g. via [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)) — without
-them, `/manage` and `/match` are open to anyone who reaches the URL. If both are left
-empty, no authentication is enforced at all (fine for a private network you already
-trust).
+`match_token` and `manage_token` protect the app when it's exposed beyond your own
+private network (e.g. through a reverse proxy on the public internet) — without them,
+`/manage` and `/match` are open to anyone who reaches the URL. If both are left empty,
+no authentication is enforced at all (fine for a private network you already trust).
+How you expose the app publicly (reverse proxy, VPN, tunnel, etc.) is up to you — these
+tokens work the same regardless.
 
 | Path | Required token |
 |---|---|

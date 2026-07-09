@@ -64,7 +64,7 @@ locale = "es_ES.UTF-8"
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
-# Static tokens for Tailscale Funnel access (optional -- leave empty to disable auth)
+# Static tokens for public access (optional -- leave empty to disable auth)
 # Override with PYBALL_CORE_MATCH_TOKEN
 # match_token = ""
 

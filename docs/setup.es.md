@@ -123,11 +123,12 @@ Ver [docs/workflow.es.md](workflow.es.md) para el flujo completo paso a paso.
 
 ## 6. Tokens de acceso
 
-`match_token` y `manage_token` protegen la aplicación cuando se expone fuera de tu
-propia red (ej. vía [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)) — sin
-ellos, `/manage` y `/match` quedan abiertos a cualquiera que llegue a la URL. Si ambos
-se dejan vacíos, no se aplica ninguna autenticación (correcto para una red privada en
-la que ya confías).
+`match_token` y `manage_token` protegen la aplicación cuando se expone más allá de tu
+propia red privada (ej. a través de un proxy inverso en internet) — sin ellos, `/manage`
+y `/match` quedan abiertos a cualquiera que llegue a la URL. Si ambos se dejan vacíos,
+no se aplica ninguna autenticación (correcto para una red privada en la que ya
+confías). Cómo expongas la aplicación públicamente (proxy inverso, VPN, túnel, etc.)
+depende de ti — estos tokens funcionan igual en cualquier caso.
 
 | Ruta | Token requerido |
 |---|---|
