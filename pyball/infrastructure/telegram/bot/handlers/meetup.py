@@ -379,7 +379,19 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         if meetup.is_closed()
         else build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
     )
-    await message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN_V2)
+    sent = await message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN_V2)
+
+    if keyboard is not None and message.chat_id == settings.telegram.regulars.chat_id:
+        store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+        store.save_message(
+            meetup.date,
+            "regular",
+            MessageTracking(
+                chat_id=message.chat_id,
+                thread_id=settings.telegram.regulars.meetups_thread_id or None,
+                message_id=sent.message_id,
+            ),
+        )
 
 
 @log_func

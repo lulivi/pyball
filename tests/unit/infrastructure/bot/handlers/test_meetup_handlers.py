@@ -30,6 +30,7 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     stats_handler,
     unlock_handler,
 )
+from pyball.infrastructure.telegram.message_store import TelegramMessageStore
 
 
 @pytest.mark.asyncio
@@ -195,6 +196,114 @@ async def test_show_meetup_handler_closed_meetup_has_no_keyboard(mock_update, mo
 
     kwargs = mock_update.message.reply_text.call_args.kwargs
     assert kwargs.get("reply_markup") is None
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_in_regulars_chat_retracks_message(
+    mock_update, mock_context, tmp_path
+):
+    """show_meetup run in the regulars chat re-points message tracking to itself."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = False
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    settings = mock_context.bot_data["settings"]
+    settings.paths.data_dir = tmp_path
+    settings.telegram.regulars.chat_id = -100111
+    settings.telegram.regulars.meetups_thread_id = None
+
+    mock_update.message.chat_id = -100111
+    sent_message = MagicMock()
+    sent_message.message_id = 555
+    mock_update.message.reply_text.return_value = sent_message
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    tracking = store.get_message(meetup.date, "regular")
+    assert tracking is not None
+    assert tracking.chat_id == -100111
+    assert tracking.message_id == 555
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_outside_regulars_chat_does_not_retrack(
+    mock_update, mock_context, tmp_path
+):
+    """show_meetup run elsewhere (e.g. an admin's DM) leaves message tracking untouched."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = False
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    settings = mock_context.bot_data["settings"]
+    settings.paths.data_dir = tmp_path
+    settings.telegram.regulars.chat_id = -100111
+    settings.telegram.regulars.meetups_thread_id = None
+
+    mock_update.message.chat_id = 999999
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "regular") is None
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_closed_meetup_does_not_retrack(
+    mock_update, mock_context, tmp_path
+):
+    """show_meetup for a closed meetup never re-tracks, even in the regulars chat."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = True
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    settings = mock_context.bot_data["settings"]
+    settings.paths.data_dir = tmp_path
+    settings.telegram.regulars.chat_id = -100111
+    settings.telegram.regulars.meetups_thread_id = None
+
+    mock_update.message.chat_id = -100111
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "regular") is None
 
 
 @pytest.mark.asyncio
