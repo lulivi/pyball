@@ -45,8 +45,25 @@ def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
     return datetime.strptime(s, fmt)
 
 
-def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> InlineKeyboardMarkup:
-    """Build inline keyboard for main chat."""
+def build_main_keyboard(
+    meetup_date: datetime, has_teams: bool = False, locked: bool = False
+) -> InlineKeyboardMarkup:
+    """Build inline keyboard for main chat.
+
+    When locked, every other button is replaced by a single "Desfijar partido"
+    button that undoes the lock.
+    """
+    if locked:
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        text="🔓 Desfijar partido",
+                        callback_data=build_callback_data("unlock", meetup_date),
+                    ),
+                ]
+            ]
+        )
     rows = [
         [
             InlineKeyboardButton(
@@ -287,6 +304,7 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
         "create_teams",
         "create_teams_3",
         "lock",
+        "unlock",
     ):
         return None
     return action, date_str

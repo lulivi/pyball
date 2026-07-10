@@ -490,7 +490,7 @@ async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_lock")
     if meetup is None:
         return
-    await refresh_callup_messages(context.bot, settings, container, meetup, include_keyboard=False)
+    await refresh_callup_messages(context.bot, settings, container, meetup, locked=True)
     await react_ok(context.bot, message)
 
 

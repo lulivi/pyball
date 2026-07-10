@@ -46,6 +46,15 @@ def test_build_main_keyboard_default_no_teams():
     assert len(kb.inline_keyboard) == 2
 
 
+def test_build_main_keyboard_locked_has_single_unlock_button():
+    kb = build_main_keyboard(datetime(2026, 5, 15, 20, 0), has_teams=True, locked=True)
+    assert len(kb.inline_keyboard) == 1
+    assert len(kb.inline_keyboard[0]) == 1
+    btn = kb.inline_keyboard[0][0]
+    assert btn.text == "🔓 Desfijar partido"
+    assert btn.callback_data == "unlock:2026-05-15T20:00"
+
+
 def test_parse_callback_data_create_teams():
     assert parse_callback_data("create_teams:2026-05-15T20:00") == (
         "create_teams",
@@ -62,6 +71,10 @@ def test_parse_callback_data_create_teams_3():
 
 def test_parse_callback_data_lock():
     assert parse_callback_data("lock:2026-05-15T20:00") == ("lock", "2026-05-15T20:00")
+
+
+def test_parse_callback_data_unlock():
+    assert parse_callback_data("unlock:2026-05-15T20:00") == ("unlock", "2026-05-15T20:00")
 
 
 def test_parse_callback_data_start_match_is_rejected():

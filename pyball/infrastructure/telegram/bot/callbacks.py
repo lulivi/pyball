@@ -92,8 +92,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_create_teams_callback(
             meetup_date, query, container, context.bot, settings, from_user.id, team_count
         )
-    elif action == "lock":
-        await _handle_lock_callback(meetup, query, container, context.bot, settings, from_user.id)
+    elif action in ("lock", "unlock"):
+        await _handle_lock_callback(
+            meetup,
+            query,
+            container,
+            context.bot,
+            settings,
+            from_user.id,
+            locked=action == "lock",
+        )
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -191,15 +199,16 @@ async def _handle_lock_callback(
     bot: telegram.Bot,
     settings: "TelegramAppSettings",
     user_id: int,
+    locked: bool,
 ) -> None:
-    """Handle lock button callback — remove keyboards from all tracked messages."""
+    """Handle lock/unlock button callback — toggle the callup keyboards."""
     if not settings.telegram.is_authorized(user_id):
         await query.answer(
             "Solo los administradores pueden realizar esta acción.", show_alert=True
         )
         return
     try:
-        await refresh_callup_messages(bot, settings, container, meetup, include_keyboard=False)
+        await refresh_callup_messages(bot, settings, container, meetup, locked=locked)
         await query.answer()
     except Exception:  # pylint: disable=broad-except
         logger.exception("Unexpected error in lock callback")

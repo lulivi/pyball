@@ -34,7 +34,7 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
 
 @pytest.mark.asyncio
 async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context):
-    """lock with no args calls refresh with include_keyboard=False on the active meetup."""
+    """lock with no args calls refresh with locked=True on the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
 
@@ -53,7 +53,7 @@ async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context
         mock_context.bot_data["settings"],
         container,
         meetup,
-        include_keyboard=False,
+        locked=True,
     )
 
 
