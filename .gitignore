@@ -169,6 +169,8 @@ data/
 logs/
 scripts/
 !scripts/migrate_*.py
+scripts/migrate_to_triangular.py
+tests/integration/test_migrate_to_triangular.py
 .worktrees/
 
 # Claude
