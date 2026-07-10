@@ -56,7 +56,7 @@ class FormatMatchSummary:
             team_colors: Color name per team (capitalized as display name).
             team_emojis: Circle emoji per team.
             date_label: Pre-formatted date string (e.g. "18 Mayo"). If None,
-                derived from meetup.date using the current locale.
+                defaults to meetup.date formatted as "YYYY-MM-DD HH:MM".
             legacy_stats: Optional legacy statistics. When provided, assists for
                 players with no event assists are read from it for this match date.
 
@@ -69,8 +69,10 @@ class FormatMatchSummary:
             raise ValueError("Meetup has no teams yet")
 
         is_triangular = len(meetup.teams) == 3
-        label = date_label or meetup.date.strftime("%-d %B").title()
-        lines = ["⚽ Día de Partido ⚽", f"🗓 {label}"]
+        label = date_label or meetup.date.strftime("%Y-%m-%d %H:%M")
+        lines = [f"🎉 *Partido terminado:* {label}"]
+        if meetup.location:
+            lines.append(f"📍 *Lugar:* {meetup.location}")
 
         if is_triangular:
             lines.append("")

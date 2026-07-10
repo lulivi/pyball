@@ -76,8 +76,24 @@ class TestFormatMatchSummary:
             team_emojis=("🟡", "⚫"),
             date_label="18 Mayo",
         )
-        assert "⚽ Día de Partido ⚽" in msg
-        assert "🗓 18 Mayo" in msg
+        assert msg.startswith("🎉 *Partido terminado:* 18 Mayo\n📍 *Lugar:* Parque")
+
+    def test_header_uses_iso_date_and_time_by_default(self):
+        """Without an explicit date_label, the header shows "YYYY-MM-DD HH:MM"."""
+        msg = self.use_case.execute(self.meetup, self.player_names)
+        assert "🎉 *Partido terminado:* 2026-05-18 20:00" in msg
+
+    def test_header_omits_location_line_when_meetup_has_none(self):
+        """A meetup with no location has no "📍 Lugar:" line."""
+        meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
+        a1 = PlayerId.from_string(self.pid_a1)
+        b1 = PlayerId.from_string(self.pid_b1)
+        team_a, team_b = Team.create("A", [a1]), Team.create("B", [b1])
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, ())))
+        meetup.location = ""
+        msg = self.use_case.execute(meetup, self.player_names, date_label="18 Mayo")
+        assert "📍" not in msg
 
     def test_score_in_team_headers(self):
         """Team headers include emoji, capitalized color name and score."""

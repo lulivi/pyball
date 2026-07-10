@@ -42,7 +42,7 @@ def test_format_main_message_header_emoji_with_result():
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
     text = format_main_message(meetup, player_names)
 
-    assert "⚽ Día de Partido ⚽" in text
+    assert "🎉 *Partido terminado:*" in text
     assert r"⚪ *Blanco \- 1*" in text
     assert r"⚫ *Negro \- 0*" in text
 
