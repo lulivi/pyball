@@ -90,7 +90,6 @@ def register_match_routes(app: FastAPI, container: "Container", notifier: "Match
     @app.post("/api/match/{date}/edit")
     async def edit_match(date: str, body: FinishMatchInput):
         """Replace the result of a closed match and re-fire the Telegram notification."""
-        logger.info("edit_match called: date=%s", date)
         return await _handle_edit_match(container, notifier, date, body)
 
 
@@ -122,7 +121,6 @@ async def _handle_finish_match(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     just_finished = meetup.matches[-2] if not meetup.is_closed() else meetup.matches[-1]
-    logger.info("finish_match: match result set: %s", just_finished.result)
 
     response = {
         "meetup_date": body.meetup_date,
