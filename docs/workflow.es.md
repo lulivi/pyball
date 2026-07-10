@@ -39,7 +39,8 @@ convocatoria de jugadores.
   convocatoria en el chat de titulares (y otro aparte en el de suplentes) con botones
   "✔ Unirse" / "✖ Salir", para que los jugadores se apunten o se bajen ellos mismos
   tocando un botón — sin necesidad de añadirlos a mano. El mensaje de titulares también
-  tiene un botón "🔀 Crear equipos" que va directo al [paso 3](#3-generar-equipos).
+  tiene botones "🔀 Crear 2 equipos" / "🔀 Crear 3 equipos" que van directo al
+  [paso 3](#3-generar-equipos).
 
 ## 2. Gestionar la convocatoria
 

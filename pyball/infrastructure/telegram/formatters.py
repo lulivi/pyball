@@ -62,8 +62,12 @@ def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> Inlin
         ],
         [
             InlineKeyboardButton(
-                text="🔀 Crear equipos",
+                text="🔀 Crear 2 equipos",
                 callback_data=build_callback_data("create_teams", meetup_date),
+            ),
+            InlineKeyboardButton(
+                text="🔀 Crear 3 equipos",
+                callback_data=build_callback_data("create_teams_3", meetup_date),
             ),
         ],
     ]
@@ -275,7 +279,15 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     if ":" not in callback_data:
         return None
     action, date_str = callback_data.split(":", 1)
-    if action not in ("join", "leave", "join_sub", "leave_sub", "create_teams", "lock"):
+    if action not in (
+        "join",
+        "leave",
+        "join_sub",
+        "leave_sub",
+        "create_teams",
+        "create_teams_3",
+        "lock",
+    ):
         return None
     return action, date_str
 

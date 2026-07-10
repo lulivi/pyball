@@ -282,6 +282,23 @@ async def test_create_teams_callback_authorized_creates_teams(
 
 
 @pytest.mark.asyncio
+async def test_create_teams_3_callback_authorized_creates_triangular(
+    callback_update, bot_context, meetup_with_players  # pylint: disable=unused-argument
+):
+    """Admin pressing create_teams_3 creates a 3-team triangular."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
+    callback_update.callback_query.data = "create_teams_3:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    container = bot_context.bot_data["container"]
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
+    assert meetup.teams is not None
+    assert len(meetup.teams) == 3
+    callback_update.callback_query.answer.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_create_teams_callback_unauthorized_answers_admin_alert(
     callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
 ):

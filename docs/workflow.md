@@ -34,7 +34,7 @@ A meetup is one scheduled session: a date, a time, a location, and a roster of p
   and time. Either command posts a callup message to the regulars chat (and a separate
   one to the substitutes chat) with "✔ Unirse" / "✖ Salir" buttons, so players can join
   or leave the roster themselves by tapping a button — no need to add them by hand. The
-  regulars message also has a "🔀 Crear equipos" button that jumps straight to
+  regulars message also has "🔀 Crear 2 equipos" / "🔀 Crear 3 equipos" buttons that jump straight to
   [step 3](#3-generate-teams).
 
 ## 2. Manage the roster
