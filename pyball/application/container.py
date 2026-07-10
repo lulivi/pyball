@@ -23,6 +23,7 @@ from pyball.application.meetup import (
     AddPlayerToMeetup,
     AssignTeamsById,
     CancelMeetup,
+    CloseMeetup,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
@@ -34,7 +35,7 @@ from pyball.application.meetup import (
     ParseCallup,
     RemovePlayerFromMeetup,
     SetMeetupPlayers,
-    StartMatch,
+    StartNextRound,
     UpdateMeetupDate,
     UpdateMeetupLocation,
 )
@@ -112,9 +113,9 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new AssignTeamsById use case."""
         return AssignTeamsById(self.meetup_repository)
 
-    def start_match(self) -> StartMatch:
-        """Create a new StartMatch use case."""
-        return StartMatch(self.meetup_repository)
+    def start_next_round(self) -> StartNextRound:
+        """Create a new StartNextRound use case."""
+        return StartNextRound(self.meetup_repository)
 
     def match_link_builder(self) -> MatchLinkBuilder:
         """Create the web match-link builder for this instance."""
@@ -156,27 +157,31 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new CancelMeetup use case."""
         return CancelMeetup(self.meetup_repository)
 
+    def close_meetup(self) -> CloseMeetup:
+        """Create a new CloseMeetup use case."""
+        return CloseMeetup(self.meetup_repository)
+
     def parse_callup(self) -> ParseCallup:
         """Create a new ParseCallup use case."""
         return ParseCallup(self.player_repository, self.default_hour)
 
     @property
-    def team_colors(self) -> tuple[str, str]:
+    def team_colors(self) -> tuple[str, str, str]:
         """Return the configured team color names."""
         return self._settings.pyball.team_colors
 
     @property
-    def team_emojis(self) -> tuple[str, str]:
+    def team_emojis(self) -> tuple[str, str, str]:
         """Return the configured team emojis."""
         return self._settings.pyball.team_emojis
 
     @property
-    def team_hex_bg(self) -> tuple[str, str]:
+    def team_hex_bg(self) -> tuple[str, str, str]:
         """Return the configured team background hex colors."""
         return self._settings.pyball.team_hex_bg
 
     @property
-    def team_hex_text(self) -> tuple[str, str]:
+    def team_hex_text(self) -> tuple[str, str, str]:
         """Return the configured team text hex colors."""
         return self._settings.pyball.team_hex_text
 

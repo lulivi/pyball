@@ -17,24 +17,29 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Start match use case."""
+"""Start next round use case."""
 
 from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
 
 
-class StartMatch:
-    """Use case validating that a meetup is ready for match tracking."""
+class StartNextRound:
+    """Use case that ensures a meetup has a pending match ready for tracking."""
 
     def __init__(self, meetup_repository: MeetupRepository):
         """Initialize with the meetup repository."""
         self.meetup_repository = meetup_repository
 
     def execute(self, meetup_date: datetime) -> Meetup:
-        """Return the meetup at the given date if it is ready for tracking.
+        """Return the meetup with a pending match ready for tracking.
+
+        If a match is already pending (no result yet), this is a no-op. Otherwise,
+        creates the first match: the 2 teams for classic meetups, or a random pairing
+        of 2 of the 3 teams for triangulars.
 
         Raises:
             MeetupNotFoundError: If no meetup exists at the date.
@@ -45,4 +50,8 @@ class StartMatch:
             raise MeetupNotFoundError(str(meetup_date))
         if meetup.teams is None:
             raise MeetupHasNoTeamsError("Meetup has no teams. Run /create_teams first.")
+
+        if ensure_first_match(meetup):
+            self.meetup_repository.save(meetup)
+
         return meetup

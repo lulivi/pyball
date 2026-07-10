@@ -24,6 +24,7 @@ from datetime import date, datetime
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignmentAlgorithm
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
 
 
@@ -39,26 +40,31 @@ class CreateTeams:
         self.meetup_repository = meetup_repository
         self.algorithm = algorithm
 
-    def execute(self, meetup_date: datetime) -> Meetup:
+    def execute(self, meetup_date: datetime, team_count: int = 2) -> Meetup:
         """Create teams for a meetup by delegating to the injected algorithm."""
+        if team_count not in (2, 3):
+            raise ValueError("team_count must be 2 or 3")
+
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
 
-        if len(meetup.players) < 2:
-            raise ValueError("Need at least 2 players to create teams.")
+        if len(meetup.players) < team_count:
+            raise ValueError(f"Need at least {team_count} players to create teams.")
 
         all_meetups = self.meetup_repository.find_all()
-        finished = [m for m in all_meetups if m.result is not None]
+        finished = [m for m in all_meetups if m.matches and m.matches[-1].result is not None]
         season_start = _season_start(date.today())
         season_start_dt = datetime.combine(season_start, datetime.min.time())
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
-        team_a_ids, team_b_ids = self.algorithm.assign(
-            meetup.players, finished, season_meetups, season_start_dt
+        groups = self.algorithm.assign(
+            meetup.players, finished, season_meetups, season_start_dt, team_count
         )
 
-        meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
+        names = ["A", "B", "C"][:team_count]
+        meetup.set_teams([Team.create(name, group) for name, group in zip(names, groups)])
+        ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
         return meetup
 

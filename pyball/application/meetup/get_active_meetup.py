@@ -14,11 +14,11 @@ class GetActiveMeetup:
     def execute(self, require_teams: bool = False) -> Meetup:
         """Return the most recent active meetup, or raise MeetupNotFoundError.
 
-        An active meetup has no recorded result. If require_teams is True,
+        An active meetup has not been closed. If require_teams is True,
         only meetups with assigned teams are eligible.
         """
         all_meetups = self.meetup_repository.find_all()
-        active = [m for m in all_meetups if m.result is None]
+        active = [m for m in all_meetups if not m.closed]
         if require_teams:
             active = [m for m in active if m.teams is not None]
         if not active:

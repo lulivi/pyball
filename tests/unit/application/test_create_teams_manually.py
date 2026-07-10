@@ -47,6 +47,17 @@ class TestCreateTeamsManually:
         assert p2.id in result.teams[1].players
         repo.save.assert_called_once_with(meetup)
 
+    def test_creates_first_pending_match_after_assigning_teams(self):
+        """execute() auto-starts the first match, so /match works without a separate step."""
+        p1, p2 = _player("Juan"), _player("Pedro")
+        meetup = _meetup(p1, p2)
+        uc, _ = _use_case(meetup, p1, p2)
+
+        result = uc.execute(datetime(2026, 5, 6, 20, 0), ["Juan"], ["Pedro"])
+
+        assert result.current_match() is not None
+        assert set(result.current_match().teams_playing) == set(result.teams)
+
     def test_raises_meetup_not_found(self):
         """MeetupNotFoundError raised when no meetup at given datetime."""
         meetup_repo = MagicMock()

@@ -20,11 +20,10 @@
 """Meetup command handlers."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
-from io import BytesIO
 
-import qrcode
 import telegram
 from telegram import Message, Update
 from telegram.constants import ParseMode
@@ -34,7 +33,7 @@ from pyball.application.container import Container
 from pyball.application.meetup import DuplicateMeetupError
 from pyball.application.meetup.compute_stats import ComputeStats
 from pyball.domain.meetup.errors import (
-    MeetupHasNoTeamsError,
+    MeetupAlreadyClosedError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
@@ -48,13 +47,14 @@ from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
+    escape_summary_for_telegram,
     format_display,
     format_main_message,
     format_subs_message,
     parse_display,
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.infrastructure.telegram.notifications import refresh_callup_messages
+from pyball.infrastructure.telegram.notifications import _post_match_stats, refresh_callup_messages
 from pyball.infrastructure.telegram.settings import TelegramAppSettings, TelegramSettings
 from pyball.logger import log_func
 from pyball.settings import PyballConfig
@@ -74,10 +74,10 @@ def setup_meetup_handlers(application):
     add_command(application, "meetup_search", search_handler)
     add_command(application, "meetup_lock", lock_handler)
     add_command(application, "meetup_unlock", unlock_handler)
-    add_command(application, "meetup_match_qr", match_qr_handler)
     add_command(application, "meetup_stats", stats_handler)
     add_command(application, "meetup_change_location", change_location_handler)
     add_command(application, "meetup_change_date", change_date_handler)
+    add_command(application, "meetup_close_triangular", close_triangular_handler)
 
 
 @log_func
@@ -247,7 +247,7 @@ async def remove_player_handler(update: Update, context: ContextTypes.DEFAULT_TY
 @log_func
 @authorized
 async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /meetup_create_teams [fecha] [hora] [algoritmo] command."""
+    """Handle /meetup_create_teams [fecha] [hora] [algoritmo] [n_equipos] command."""
     message = update.message
     if message is None:
         return
@@ -258,11 +258,13 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         "meetup_create_teams",
         settings.pyball.display_date_format,
         suffix=(
-            r"\[algoritmo\]"
+            r"\[algoritmo\] \[n\_equipos\]"
             "\n"
             r"• `balanceado` \- por defecto"
             "\n"
             r"• `manual Nombre1,Nombre2;Nombre3,Nombre4` \- equipos manuales"
+            "\n"
+            r"• `n\_equipos`: `2` \(por defecto\) o `3` para triangular"
         ),
     )
 
@@ -273,6 +275,10 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     date_str = f"{args[0]} {args[1]}"
     algo_name = args[2] if len(args) > 2 else None
+    team_count = _parse_team_count(args, algo_name)
+    if team_count is None:
+        await message.reply_text(usage, parse_mode=ParseMode.MARKDOWN_V2)
+        return
 
     try:
         meetup_date = parse_display(date_str, settings.pyball.display_date_format)
@@ -295,7 +301,7 @@ async def create_teams_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await refresh_callup_messages(context.bot, settings, container, meetup)
         else:
             meetup = await _do_create_teams(
-                meetup_date, container, context.bot, settings, algo_name
+                meetup_date, container, context.bot, settings, algo_name, team_count
             )
             if not meetup.teams:
                 await message.reply_text("No se han creado equipos.")
@@ -366,8 +372,26 @@ async def show_meetup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         team_colors=settings.pyball.team_colors,
         team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
+        legacy_stats=container.legacy_stats,
     )
-    await message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
+    keyboard = (
+        None
+        if meetup.is_closed()
+        else build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
+    )
+    sent = await message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN_V2)
+
+    if keyboard is not None and message.chat_id == settings.telegram.regulars.chat_id:
+        store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+        store.save_message(
+            meetup.date,
+            "regular",
+            MessageTracking(
+                chat_id=message.chat_id,
+                thread_id=settings.telegram.regulars.meetups_thread_id or None,
+                message_id=sent.message_id,
+            ),
+        )
 
 
 @log_func
@@ -483,7 +507,7 @@ async def lock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_lock")
     if meetup is None:
         return
-    await refresh_callup_messages(context.bot, settings, container, meetup, include_keyboard=False)
+    await refresh_callup_messages(context.bot, settings, container, meetup, locked=True)
     await react_ok(context.bot, message)
 
 
@@ -500,45 +524,6 @@ async def unlock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if meetup is None:
         return
     await refresh_callup_messages(context.bot, settings, container, meetup)
-    await react_ok(context.bot, message)
-
-
-@log_func
-@authorized
-async def match_qr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /meetup_match_qr command — send QR code of the match URL to each admin by DM."""
-    message = update.message
-    if message is None:
-        return
-    settings: TelegramAppSettings = context.bot_data["settings"]
-    container: Container = context.bot_data["container"]
-    if not settings.pyball.base_url:
-        await message.reply_text("La URL base no está configurada.")
-        return
-    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_match_qr")
-    if meetup is None:
-        return
-    try:
-        container.start_match().execute(meetup.date)
-        url = container.match_link_builder().build()
-    except MeetupHasNoTeamsError:
-        display_date = format_display(meetup.date, settings.pyball.display_date_format)
-        await message.reply_text(
-            text=rf"El meetup del `{display_date}` no tiene equipos asignados\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-    qr = generate_qr_bytes(url)
-    for admin in settings.telegram.admins_ids:
-        try:
-            qr.seek(0)
-            await context.bot.send_photo(
-                chat_id=admin,
-                photo=qr,
-                caption=f"🔗 Enlace del partido:\n{url}",
-            )
-        except telegram.error.Forbidden:
-            logger.error("Could not send message to '%s' admin", admin)
     await react_ok(context.bot, message)
 
 
@@ -635,24 +620,74 @@ async def change_date_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 
-def generate_qr_bytes(url: str) -> BytesIO:
-    """Generate a PNG QR code for url and return it as a seeked BytesIO buffer."""
-    img = qrcode.make(url)
-    buf = BytesIO()
-    img.save(buf)
-    buf.seek(0)
-    return buf
+@log_func
+@authorized
+async def close_triangular_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /meetup_close_triangular [fecha] [hora] command.
+
+    Sends the round-by-round summary (skipped if no round was ever played), then
+    mirrors the same cleanup a classic match close triggers: locks the callup
+    keyboard, drops the tracked message entries, and posts refreshed season stats.
+    """
+    message = update.message
+    if message is None:
+        return
+    container: Container = context.bot_data["container"]
+    settings: TelegramAppSettings = context.bot_data["settings"]
+
+    meetup = await _resolve_meetup(
+        message, context.args, settings, container, "meetup_close_triangular"
+    )
+    if meetup is None:
+        return
+
+    try:
+        closed_meetup = container.close_meetup().execute(meetup.date)
+    except MeetupAlreadyClosedError:
+        await message.reply_text("Este meetup ya está cerrado.")
+        return
+    except MeetupNotFoundError:
+        await message.reply_text("No existe ningún meetup para esa fecha.")
+        return
+
+    if closed_meetup.matches:
+        player_names = _get_player_names(container.player_repository)
+        summary = container.format_match_summary().execute(
+            closed_meetup,
+            player_names,
+            team_colors=settings.pyball.team_colors,
+            team_emojis=settings.pyball.team_emojis,
+            legacy_stats=container.legacy_stats,
+        )
+        thread_id = settings.telegram.regulars.meetups_thread_id or None
+        await context.bot.send_message(
+            chat_id=settings.telegram.regulars.chat_id,
+            text=escape_summary_for_telegram(summary),
+            message_thread_id=int(thread_id) if thread_id else None,
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+
+    await refresh_callup_messages(
+        context.bot, settings, container, closed_meetup, include_keyboard=False
+    )
+    message_store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    message_store.delete_message(closed_meetup.date, "regular")
+    message_store.delete_message(closed_meetup.date, "substitute")
+    asyncio.create_task(_post_match_stats(context.bot, container, settings))
+
+    await react_ok(context.bot, message)
 
 
-async def _do_create_teams(
+async def _do_create_teams(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     meetup_date: datetime,
     container: Container,
     bot: telegram.Bot,
     settings: TelegramAppSettings,
     algo_name: str | None = None,
+    team_count: int = 2,
 ) -> Meetup:
     """Execute create_teams and refresh callup messages with updated keyboard."""
-    meetup = container.create_teams(algo_name).execute(meetup_date)
+    meetup = container.create_teams(algo_name).execute(meetup_date, team_count)
     await refresh_callup_messages(bot, settings, container, meetup)
     return meetup
 
@@ -825,6 +860,22 @@ def _try_parse_date_args(
         except ValueError:
             pass
     return None, list(args)
+
+
+def _parse_team_count(args: list[str], algo_name: str | None) -> int | None:
+    """Parse the optional trailing team-count arg (args[3]) for the algorithmic path.
+
+    The "manual" algorithm always builds exactly the 2 named teams given and does not
+    take a team-count arg. Returns 2 when absent/not applicable, the parsed value when
+    valid (2 or 3), or None when the value is missing/invalid/out of range.
+    """
+    if algo_name == "manual" or len(args) <= 3:
+        return 2
+    try:
+        team_count = int(args[3])
+    except ValueError:
+        return None
+    return team_count if team_count in (2, 3) else None
 
 
 def _get_next_weekday(pyball_settings: PyballConfig) -> datetime:

@@ -282,6 +282,23 @@ async def test_create_teams_callback_authorized_creates_teams(
 
 
 @pytest.mark.asyncio
+async def test_create_teams_3_callback_authorized_creates_triangular(
+    callback_update, bot_context, meetup_with_players  # pylint: disable=unused-argument
+):
+    """Admin pressing create_teams_3 creates a 3-team triangular."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
+    callback_update.callback_query.data = "create_teams_3:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    container = bot_context.bot_data["container"]
+    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
+    assert meetup.teams is not None
+    assert len(meetup.teams) == 3
+    callback_update.callback_query.answer.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_create_teams_callback_unauthorized_answers_admin_alert(
     callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
 ):
@@ -298,16 +315,18 @@ async def test_create_teams_callback_unauthorized_answers_admin_alert(
 
 
 @pytest.mark.asyncio
-async def test_lock_callback_authorized_removes_buttons(
+async def test_lock_callback_authorized_shows_single_unlock_button(
     callback_update, bot_context, meetup_with_teams  # pylint: disable=unused-argument
 ):
-    """Admin pressing lock removes keyboards from all tracked messages."""
+    """Admin pressing lock replaces the keyboard with a single unlock button."""
     bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
     callback_update.callback_query.data = "lock:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
 
-    bot_context.bot.edit_message_text.assert_called()
+    kb = bot_context.bot.edit_message_text.call_args.kwargs["reply_markup"]
+    assert len(kb.inline_keyboard) == 1
+    assert kb.inline_keyboard[0][0].text == "🔓 Desfijar partido"
     callback_update.callback_query.answer.assert_called_once()
     bot_context.bot.send_photo.assert_not_called()
 
@@ -319,6 +338,37 @@ async def test_lock_callback_unauthorized_answers_admin_alert(
     """Non-admin pressing lock receives an admin-only alert."""
     bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
     callback_update.callback_query.data = "lock:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    call_kwargs = callback_update.callback_query.answer.call_args
+    assert call_kwargs[1].get("show_alert") is True
+    text = call_kwargs[1].get("text") or call_kwargs[0][0]
+    assert "administrador" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_unlock_callback_authorized_restores_buttons(
+    callback_update, bot_context, meetup_with_teams  # pylint: disable=unused-argument
+):
+    """Admin pressing unlock restores the full keyboard."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
+    callback_update.callback_query.data = "unlock:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    kb = bot_context.bot.edit_message_text.call_args.kwargs["reply_markup"]
+    assert len(kb.inline_keyboard) > 1
+    callback_update.callback_query.answer.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_unlock_callback_unauthorized_answers_admin_alert(
+    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
+):
+    """Non-admin pressing unlock receives an admin-only alert."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
+    callback_update.callback_query.data = "unlock:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
 

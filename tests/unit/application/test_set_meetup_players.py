@@ -6,7 +6,7 @@ import pytest
 
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError
-from pyball.domain.meetup.models import MatchResult, Meetup, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 
@@ -77,8 +77,10 @@ def test_raises_when_meetup_is_closed():
     repo = FakeMeetupRepository()
     closed = Meetup.create(date=DATE, location="Old")
     pid_a, pid_b = PlayerId.generate(), PlayerId.generate()
-    closed.set_teams([Team.create("A", [pid_a]), Team.create("B", [pid_b])])
-    closed.set_result(MatchResult(score_a=1, score_b=0, events=()))
+    team_a, team_b = Team.create("A", [pid_a]), Team.create("B", [pid_b])
+    closed.set_teams([team_a, team_b])
+    closed.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, ())))
+    closed.close()
     repo.save(closed)
 
     with pytest.raises(MeetupAlreadyClosedError):

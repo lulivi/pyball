@@ -1,4 +1,4 @@
-import { ctx, store, getGoals, clearSaved } from './state.js';
+import { ctx, store, getGoals, clearSaved, applyTeamColors, saveTeamsSnapshot } from './state.js';
 import { post } from '../api.js';
 
 export function setTab(tabName) {
@@ -76,19 +76,56 @@ export function clearAssist(eventIndex) {
 }
 
 export async function finishMatch() {
-    if (!confirm('¿Seguro que quieres guardar el partido y enviarlo al Bot?')) return;
-    await _submit('/api/match/finish', {
-        success: '✅ Partido guardado y enviado a Telegram',
-        message: 'Abre el enlace desde<br>Telegram para el próximo partido.',
-        idleLabel: '💾 CONFIRMAR Y GUARDAR PARTIDO',
-        clear: true,
+    if (!confirm('¿Seguro que quieres guardar el partido?')) return;
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Enviando datos...';
+    try {
+        const data = await post('/api/match/finish', {
+            meetup_date: ctx.meetupDate,
+            events: [...store.get().events].reverse(),
+            finalScore: { A: getGoals('A'), B: getGoals('B') },
+        });
+        if (data.next_round) {
+            _continueToNextRound(data.next_round);
+            return;
+        }
+        clearSaved();
+        document.getElementById('app').innerHTML = `
+            <div class="no-match">
+                <div class="success-banner">✅ Partido guardado</div>
+                <div class="no-match-icon">⚽</div>
+                <div class="no-match-title">PyBall</div>
+                <div class="no-match-msg">Vuelve a /manage<br>para el próximo partido.</div>
+            </div>`;
+    } catch (err) {
+        if (err.status === 0) {
+            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
+        } else {
+            alert(`❌ Error del servidor: ${err.detail || err.message}`);
+        }
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
+    }
+}
+
+function _continueToNextRound(nextRound) {
+    ctx.teamA = nextRound.teamA;
+    ctx.teamB = nextRound.teamB;
+    ctx.nameA = nextRound.nameA;
+    ctx.nameB = nextRound.nameB;
+    applyTeamColors(nextRound.colorA, nextRound.colorTextA, nextRound.colorB, nextRound.colorTextB);
+    saveTeamsSnapshot({
+        colorA: nextRound.colorA, colorB: nextRound.colorB,
+        colorTextA: nextRound.colorTextA, colorTextB: nextRound.colorTextB,
     });
+    store.set({ events: [], currentStep: 1, tempScorer: null, tempScorerTeam: null, editingEvent: null });
 }
 
 export async function editMatch() {
-    if (!confirm('¿Guardar la corrección y reenviar el resumen a Telegram?')) return;
+    if (!confirm('¿Guardar la corrección del resultado?')) return;
     await _submit('/api/match/' + encodeURIComponent(ctx.meetupDate) + '/edit', {
-        success: '✅ Corrección guardada y reenviada a Telegram',
+        success: '✅ Corrección guardada',
         message: 'Resultado corregido correctamente.',
         idleLabel: '💾 GUARDAR CORRECCIÓN',
         clear: false,

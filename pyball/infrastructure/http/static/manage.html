@@ -7,7 +7,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="/manifest-manage.json">
 <title>PyBall Gestión</title>
-<script src="/qrcode.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100%; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
@@ -38,6 +37,7 @@
   .btn-sm { width: auto; padding: 8px 14px; font-size: 0.82rem; font-weight: bold; color: white; border: none; border-radius: 6px; cursor: pointer; }
   .btn-sm.gray  { background: #334155; }
   .btn-sm.green { background: #16a34a; }
+  .btn-sm.amber { background: #b45309; }
 
   /* Player list rows */
   #chip-container { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
@@ -73,9 +73,9 @@
 
   /* Teams result */
   .teams-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.8; white-space: pre-wrap; }
-  .qr-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; gap: 8px; margin-bottom: 10px; }
-  .qr-hint { font-size: 0.75rem; color: #38bdf8; text-align: center; text-decoration: underline; }
   .regen-row { display: flex; gap: 8px; margin-top: 6px; }
+  .action-row { display: flex; gap: 8px; margin-top: 8px; }
+  .action-row .btn { width: auto; flex: 1; margin-top: 0; }
 
   /* Summary tab */
   .summary-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-family: monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; }
@@ -105,7 +105,7 @@
   /* ── Edit panel ──────────────────────────────── */
   .edit-panel { background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; padding: 10px; margin-top: 8px; }
   .edit-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .edit-chip { display: flex; align-items: center; justify-content: space-between; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; margin-bottom: 3px; font-size: 0.85rem; }
+  .edit-chip { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; margin-bottom: 3px; font-size: 0.85rem; }
   .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
   .remove-btn:hover { color: #fca5a5; }
   .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }

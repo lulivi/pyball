@@ -1,6 +1,14 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents (Claude Code, Gemini, etc. — `CLAUDE.md`
+and `GEMINI.md` are symlinks to this file) when working with code in this repository.
+
+PyBall is a self-hosted football (soccer) meetup manager: recurring meetups, balanced
+team generation (2-team classic matches or 3-team "triangular" round-robin sessions),
+live match tracking, and season stats — via a web UI (`/manage`, `/match`) and an
+optional Telegram bot. User-facing documentation (setup, the full application workflow,
+data file formats) lives in `docs/` and `README.md`, in English and Spanish
+(`*.es.md`) — keep those in sync with this file when you change related behavior.
 
 ## Superpowers
 
@@ -62,10 +70,11 @@ make l             # alias
 make format        # or: nox -e format
 make f             # alias
 
-# Run via Docker Compose (production)
+# Build image from source and run it locally via Docker Compose (dev loop only —
+# for a real deployment, see docs/setup.md)
 make up
 
-# Build Docker image
+# Build the Docker image from source without running it
 make build
 ```
 
@@ -78,12 +87,18 @@ pyball/
 ├── domain/                  # Core models and repository interfaces (no deps on other layers)
 │   ├── player/
 │   └── meetup/
+│       ├── models.py              #   Meetup, Match, Team, GoalEvent, MatchResult
+│       └── next_round_calculator.py  # Pure rules engine: who plays next in a triangular
 ├── application/             # Use cases — one file per action, injected with repository interfaces
 │   ├── player/
-│   ├── meetup/
-│   ├── bootstrap.py         #   bootstrap_core() — shared init for all topologies
-│   ├── notifier.py          #   MatchNotifier ABC + NullMatchNotifier
-│   ├── container.py         #   Simple DI container (accepts AppSettings)
+│   ├── meetup/               #   create_meetup, create_teams / create_teams_manually /
+│   │                         #   create_teams_algorithms/, assign_teams_by_id,
+│   │                         #   start_next_round, finish_match, close_meetup,
+│   │                         #   edit_match_result, compute_stats, ...
+│   ├── bootstrap.py          #   bootstrap_core() — shared init for all topologies
+│   ├── init_workspace.py     #   --bootstrap: generates config.toml/compose.yaml/.env/README.md
+│   ├── notifier.py           #   MatchNotifier ABC + NullMatchNotifier
+│   ├── container.py          #   Simple DI container (accepts AppSettings)
 │   └── fuzzy_match.py
 ├── infrastructure/          # Concrete implementations of domain interfaces
 │   ├── persistence/         #   JsonPlayerRepository, JsonMeetupRepository, LegacyStats
@@ -99,26 +114,46 @@ pyball/
 │   │   ├── formatters.py
 │   │   ├── notifications.py
 │   │   ├── mapping.py
-│   │   └── message_store.py
+│   │   └── message_store.py #     Telegram message-ID tracking (pyball-telegram only)
 │   └── http/
-│       └── app.py           #   FastAPI factory + _Server
+│       ├── app.py            #   FastAPI factory (create_app) + _Server
+│       ├── auth.py           #   TokenAuthMiddleware (match_token / manage_token)
+│       ├── links.py          #   MatchLinkBuilder — builds the /match URL
+│       ├── presenters.py     #   Domain → JSON response serialisation
+│       ├── schemas.py        #   Pydantic request models
+│       ├── routes/           #   meetup.py, match.py, player.py, static.py
+│       └── static/           #   manage.html/match.html + their JS (no build step)
 ├── cmd/
-│   ├── run_web.py           #   Topology: FastAPI only  (uv run pyball-web)
-│   └── run_telegram.py      #   Topology: Telegram + FastAPI  (uv run pyball-tg)
+│   ├── run_web.py           #   Topology: FastAPI only  (uv run pyball-web [--bootstrap])
+│   └── run_telegram.py      #   Topology: Telegram + FastAPI  (uv run pyball-tg [--bootstrap])
 ├── settings.py              #   AppSettings, PyballConfig, Paths, load_app_settings()
 └── exceptions.py
 ```
 
+Other top-level directories: `scripts/` — one-off, self-contained data migration scripts
+(not imported by `pyball/`, run manually when a stored JSON schema changes); `docs/` —
+user-facing documentation (see the intro above).
+
 **Data flow:** `bootstrap_core()` loads `AppSettings`, configures logging, sets locale, and
 builds the `Container`. Each `cmd/run_*.py` is the Composition Root for its topology —
 it calls `bootstrap_core()`, loads any integration-specific settings, wires
-infrastructure components, and manages graceful shutdown.
+infrastructure components, and manages graceful shutdown. Both entrypoints also accept
+`--bootstrap`, which just generates a deployment workspace and exits (see
+`init_workspace.py` and `docs/setup.md`) — it never touches the running app.
 
 **Topology: Telegram+FastAPI** (`uv run pyball-tg`): bot polls Telegram, FastAPI serves
-the match-tracking UI on port 8000. Both run in the same asyncio event loop.
+the `/manage` and `/match` web UI on port 8000. Both run in the same asyncio event loop.
 
 **Topology: Web-only** (`uv run pyball-web`): FastAPI only, with a `NullMatchNotifier`.
-Does not require `python-telegram-bot` to be installed.
+Does not require `python-telegram-bot` to be installed. Every feature is reachable from
+`/manage`/`/match` alone — Telegram is a convenience layer on top of the same use cases,
+never a requirement for any feature to function.
+
+**Match formats:** a `Meetup` holds 2 or 3 `Team`s and a `matches: list[Match]`. 2 teams
+means a single classic match that closes the meetup on its own result; 3 teams means a
+triangular — `next_round_calculator.py` computes each subsequent pairing automatically
+per a fixed ruleset, and the meetup stays open across rounds until explicitly closed
+(`close_meetup`/`CloseMeetup`). See `docs/workflow.md` for the full rules and lifecycle.
 
 ## Package Management
 
@@ -141,36 +176,18 @@ uv run pyball-web  # FastAPI only
 
 ## Configuration
 
-Copy `example.config.toml` to `config.toml` and fill in values.
+Run `uv run pyball-web --bootstrap` or `uv run pyball-tg --bootstrap` to generate a
+`config.toml` template (there's no static `example.config.toml` to copy — the template
+is generated code, in `application/init_workspace.py`, kept in sync with `PyballConfig`
+and `TelegramSettings`). **Do not add a config key to `settings.py` or
+`telegram/settings.py` without also adding it to `init_workspace.py`'s templates and to
+`docs/setup.md`'s tables** — those three are the only places a key is documented, and
+they drift independently if only one is updated.
 
-```toml
-[pyball.core]
-location = "Parque Central"              # Required: default meetup location
-default_week_day = "wednesday"            # Optional: monday-sunday
-default_hour = "20:00"                    # Optional: HH:MM format
-base_url = "http://pyball:8000"          # Optional: for match links
-team_display_names = ["Claro", "Oscuro"]  # Optional: display names for teams
-locale = "es_ES.UTF-8"                   # Optional: for name sorting
-data_dir = "data"                         # Optional: data files directory
-display_date_format = "%Y-%m-%d %H:%M"   # Optional: date format for messages
-
-[pyball.telegram]
-bot_token = "..."                         # Required: Telegram bot token
-admins_ids = [123456789]                  # Required: authorized user IDs
-
-[pyball.telegram.regulars]
-chat_id = -1000000000000                  # Required: main group chat ID
-meetups_thread_id = ""                    # Optional: forum topic for callups
-stats_thread_id = ""                      # Optional: forum topic for stats
-
-[pyball.telegram.substitutes]
-chat_id = -1000000000001                  # Required: substitutes group chat ID
-
-[pyball.telegram.management]              # Optional: operational log channel
-chat_id = 0
-```
-
-Any value can be overridden with env var `PYBALL_<SECTION>_<KEY>` (e.g. `PYBALL_TELEGRAM_BOT_TOKEN`). The `pyball.` prefix is stripped for env vars, so `pyball.core.location` becomes `PYBALL_CORE_LOCATION`.
+Any value can be overridden with env var `PYBALL_<SECTION>_<KEY>` (e.g.
+`PYBALL_TELEGRAM_BOT_TOKEN`). The `pyball.` prefix is stripped for env vars, so
+`pyball.core.location` becomes `PYBALL_CORE_LOCATION`. See `docs/setup.md` for the full,
+current table of every key.
 
 ## Testing
 
@@ -182,7 +199,10 @@ Any value can be overridden with env var `PYBALL_<SECTION>_<KEY>` (e.g. `PYBALL_
 ## Internationalization
 
 - **Code** (variables, functions, comments, docstrings): always in English
-- **Telegram messages** sent to users: always in Spanish
+- **User-facing text** — Telegram messages and the `/manage`/`/match` web UI alike:
+  always in Spanish
+- **`docs/` and `README.md`**: written in both languages as parallel files (`foo.md` in
+  English, `foo.es.md` in Spanish) — update both when either changes
 
 ## Code Quality
 

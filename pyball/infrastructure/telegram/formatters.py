@@ -27,7 +27,9 @@ from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 
-from pyball.domain.meetup.models import Meetup
+from pyball.application.meetup.format_match_summary import FormatMatchSummary
+from pyball.domain.meetup.models import Match, Meetup, Team
+from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
 _DEFAULT_DATE_FMT = "%Y-%m-%d %H:%M"
@@ -43,8 +45,25 @@ def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
     return datetime.strptime(s, fmt)
 
 
-def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> InlineKeyboardMarkup:
-    """Build inline keyboard for main chat."""
+def build_main_keyboard(
+    meetup_date: datetime, has_teams: bool = False, locked: bool = False
+) -> InlineKeyboardMarkup:
+    """Build inline keyboard for main chat.
+
+    When locked, every other button is replaced by a single "Desfijar partido"
+    button that undoes the lock.
+    """
+    if locked:
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        text="🔓 Desfijar partido",
+                        callback_data=build_callback_data("unlock", meetup_date),
+                    ),
+                ]
+            ]
+        )
     rows = [
         [
             InlineKeyboardButton(
@@ -60,8 +79,12 @@ def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> Inlin
         ],
         [
             InlineKeyboardButton(
-                text="🔀 Crear equipos",
+                text="🔀 Crear 2 equipos",
                 callback_data=build_callback_data("create_teams", meetup_date),
+            ),
+            InlineKeyboardButton(
+                text="🔀 Crear 3 equipos",
+                callback_data=build_callback_data("create_teams_3", meetup_date),
             ),
         ],
     ]
@@ -102,25 +125,34 @@ def build_callback_data(action: str, meetup_date: datetime) -> str:
     return f"{action}:{meetup_date.strftime('%Y-%m-%dT%H:%M')}"
 
 
-def format_main_message(
+def format_main_message(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     meetup: Meetup,
     player_names: dict,
-    team_colors: tuple[str, str] = ("blanco", "negro"),
-    team_emojis: tuple[str, str] = ("⚪", "⚫"),
+    team_colors: tuple[str, ...] = ("blanco", "negro"),
+    team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
+    legacy_stats: LegacyStats | None = None,
 ) -> str:
     """Format message for main (regulars) chat.
 
     Format varies:
     - Before teams: player list sorted by name
     - After teams: teams only
-    - After results: teams + results
+    - After results: unified match summary (same format as /manage and other
+      Telegram result messages), via FormatMatchSummary.
     """
+    if meetup.is_closed():
+        summary = FormatMatchSummary().execute(
+            meetup,
+            player_names,
+            team_colors=team_colors,
+            team_emojis=team_emojis,
+            legacy_stats=legacy_stats,
+        )
+        return escape_summary_for_telegram(summary)
+
     date_str = format_display(meetup.date, date_fmt)
-    if meetup.result is not None:
-        header = f"🎉 *Partido terminado:* `{date_str}`"
-    else:
-        header = f"📅 *Convocatoria:* `{date_str}`"
+    header = f"📅 *Convocatoria:* `{date_str}`"
     lines = [header]
 
     if meetup.location:
@@ -139,9 +171,7 @@ def format_main_message(
         lines.append("*Equipos:*")
         for i, team in enumerate(meetup.teams):
             display_name = team_colors[i].capitalize() if i < len(team_colors) else team.name
-            score = None
-            if meetup.result is not None:
-                score = meetup.result.score_a if i == 0 else meetup.result.score_b
+            score = _latest_score_for(team, meetup.matches)
             escaped = _escape_mdv2(display_name)
             emoji = team_emojis[i] if i < len(team_emojis) else ""
             header = (
@@ -155,19 +185,26 @@ def format_main_message(
             for name in sorted_names:
                 lines.append(rf"  \- `{name}`")
 
-    if meetup.result is not None and meetup.result.events:
-        lines.append("")
-        lines.append(r"⏱️ *Goles:*")
-        for event in meetup.result.events:
-            scorer = player_names.get(str(event.scorer_id.value), "?")
-            minutes = event.timestamp.strftime("%M")
-            if event.is_own_goal:
-                lines.append(rf"  \- 🥅 {minutes}' `{scorer}` \(en propia\)")
-            elif event.assistant_id:
-                assistant = player_names.get(str(event.assistant_id.value), "?")
-                lines.append(rf"  \- ⚽ {minutes}' `{scorer}` \- `{assistant}`")
-            else:
-                lines.append(rf"  \- ⚽ {minutes}' `{scorer}`")
+    if meetup.matches:
+        all_events = [
+            event
+            for match in meetup.matches
+            if match.result is not None
+            for event in match.result.events
+        ]
+        if all_events:
+            lines.append("")
+            lines.append(r"⏱️ *Goles:*")
+            for event in all_events:
+                scorer = player_names.get(str(event.scorer_id.value), "?")
+                minutes = event.timestamp.strftime("%M")
+                if event.is_own_goal:
+                    lines.append(rf"  \- 🥅 {minutes}' `{scorer}` \(en propia\)")
+                elif event.assistant_id:
+                    assistant = player_names.get(str(event.assistant_id.value), "?")
+                    lines.append(rf"  \- ⚽ {minutes}' `{scorer}` \- `{assistant}`")
+                else:
+                    lines.append(rf"  \- ⚽ {minutes}' `{scorer}`")
 
     return "\n".join(lines)
 
@@ -176,12 +213,12 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     meetup: Meetup,
     player_names: dict,
     player_groups: dict,
-    team_colors: tuple[str, str] = ("blanco", "negro"),
-    team_emojis: tuple[str, str] = ("⚪", "⚫"),
+    team_colors: tuple[str, ...] = ("blanco", "negro"),
+    team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only."""
-    if meetup.result is not None:
+    if meetup.is_closed():
         return "*Partido terminado*"
 
     date_str = format_display(meetup.date, date_fmt)
@@ -240,12 +277,35 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     return "\n".join(lines)
 
 
+def escape_summary_for_telegram(summary: str) -> str:
+    """Escape a FormatMatchSummary block for Telegram MarkdownV2.
+
+    FormatMatchSummary's only markup is single-asterisk bold spans (e.g.
+    "*Blanco - 2*"), written for plain-text consumers (pasting into a chat,
+    /manage's copy button) that don't require escaping. Every other
+    MarkdownV2-special character is escaped here, while the asterisk pairs are
+    preserved as real bold delimiters so Telegram renders them instead of
+    showing literal asterisks.
+    """
+    parts = summary.split("*")
+    return "*".join(_escape_mdv2(part) for part in parts)
+
+
 def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     """Parse callback data. Returns (action, meetup_date_str) or None."""
     if ":" not in callback_data:
         return None
     action, date_str = callback_data.split(":", 1)
-    if action not in ("join", "leave", "join_sub", "leave_sub", "create_teams", "lock"):
+    if action not in (
+        "join",
+        "leave",
+        "join_sub",
+        "leave_sub",
+        "create_teams",
+        "create_teams_3",
+        "lock",
+        "unlock",
+    ):
         return None
     return action, date_str
 
@@ -253,3 +313,13 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
 def _escape_mdv2(text: str) -> str:
     """Escape special characters for Telegram MarkdownV2."""
     return _MDV2_RE.sub(r"\\\1", text)
+
+
+def _latest_score_for(team: Team, matches: list[Match]) -> int | None:
+    """Return this team's score in its most recent resolved match, or None if it hasn't played."""
+    for match in reversed(matches):
+        if match.result is None or team not in match.teams_playing:
+            continue
+        index = match.teams_playing.index(team)
+        return match.result.score_a if index == 0 else match.result.score_b
+    return None

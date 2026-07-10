@@ -41,25 +41,31 @@ def build_active_match_response(container: Container) -> dict:
         raise HTTPException(404, "No active match found") from exc
     assert meetup.teams is not None  # guaranteed by require_teams=True
 
+    current = meetup.current_match()
+    if current is None:
+        raise HTTPException(404, "No active match found")
+
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
     colors = container.team_colors
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
-    team_a = sorted_names(meetup.teams[0].players, player_names)
-    team_b = sorted_names(meetup.teams[1].players, player_names)
+    index_a = meetup.teams.index(current.teams_playing[0])
+    index_b = meetup.teams.index(current.teams_playing[1])
+    team_a = sorted_names(current.teams_playing[0].players, player_names)
+    team_b = sorted_names(current.teams_playing[1].players, player_names)
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
         "teamA": team_a,
         "teamB": team_b,
-        "nameA": colors[0].capitalize(),
-        "nameB": colors[1].capitalize(),
-        "colorA": hex_bg[0],
-        "colorB": hex_bg[1],
-        "colorTextA": hex_text[0],
-        "colorTextB": hex_text[1],
+        "nameA": colors[index_a].capitalize(),
+        "nameB": colors[index_b].capitalize(),
+        "colorA": hex_bg[index_a],
+        "colorB": hex_bg[index_b],
+        "colorTextA": hex_text[index_a],
+        "colorTextB": hex_text[index_b],
     }
 
 
@@ -100,29 +106,43 @@ def build_meetup_active_response(container: Container) -> dict:
 
     match_url = container.match_link_builder().build()
 
+    teams_payload = {
+        "teamA": team_a,
+        "teamB": team_b,
+        "nameA": colors[0].capitalize(),
+        "nameB": colors[1].capitalize(),
+        "emojiA": emojis[0],
+        "emojiB": emojis[1],
+        "colorA": hex_bg[0],
+        "colorB": hex_bg[1],
+        "colorTextA": hex_text[0],
+        "colorTextB": hex_text[1],
+        "matchUrl": match_url,
+    }
+    if len(meetup.teams) == 3:
+        teams_payload.update(
+            {
+                "teamC": sorted_names(meetup.teams[2].players, player_names),
+                "nameC": colors[2].capitalize(),
+                "emojiC": emojis[2],
+                "colorC": hex_bg[2],
+                "colorTextC": hex_text[2],
+            }
+        )
+
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
         "players": players,
-        "teams": {
-            "teamA": team_a,
-            "teamB": team_b,
-            "nameA": colors[0].capitalize(),
-            "nameB": colors[1].capitalize(),
-            "emojiA": emojis[0],
-            "emojiB": emojis[1],
-            "colorA": hex_bg[0],
-            "colorB": hex_bg[1],
-            "colorTextA": hex_text[0],
-            "colorTextB": hex_text[1],
-            "matchUrl": match_url,
-        },
+        "teams": teams_payload,
     }
 
 
 def build_match_events_response(container: Container, meetup: Meetup) -> dict:
-    """Serialise a closed meetup's events and team data into a response dict."""
+    """Serialise the most recent match's events and team data into a response dict."""
     assert meetup.teams is not None
-    assert meetup.result is not None
+    assert meetup.matches
+    last_match = meetup.matches[-1]
+    assert last_match.result is not None
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -130,8 +150,10 @@ def build_match_events_response(container: Container, meetup: Meetup) -> dict:
     hex_bg = container.team_hex_bg
     hex_text = container.team_hex_text
 
-    team_a = sorted_names(meetup.teams[0].players, player_names)
-    team_b = sorted_names(meetup.teams[1].players, player_names)
+    index_a = meetup.teams.index(last_match.teams_playing[0])
+    index_b = meetup.teams.index(last_match.teams_playing[1])
+    team_a = sorted_names(last_match.teams_playing[0].players, player_names)
+    team_b = sorted_names(last_match.teams_playing[1].players, player_names)
 
     events = [
         {
@@ -143,19 +165,19 @@ def build_match_events_response(container: Container, meetup: Meetup) -> dict:
             "timestamp": ev.timestamp.strftime("%H:%M"),
             "is_own_goal": ev.is_own_goal,
         }
-        for ev in reversed(meetup.result.events)
+        for ev in reversed(last_match.result.events)
     ]
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
-        "nameA": colors[0].capitalize(),
-        "nameB": colors[1].capitalize(),
+        "nameA": colors[index_a].capitalize(),
+        "nameB": colors[index_b].capitalize(),
         "teamA": team_a,
         "teamB": team_b,
-        "colorA": hex_bg[0],
-        "colorB": hex_bg[1],
-        "colorTextA": hex_text[0],
-        "colorTextB": hex_text[1],
+        "colorA": hex_bg[index_a],
+        "colorB": hex_bg[index_b],
+        "colorTextA": hex_text[index_a],
+        "colorTextB": hex_text[index_b],
         "events": events,
     }
 

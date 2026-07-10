@@ -94,22 +94,28 @@ class BalancedAlgorithm:
         """Initialize with optional legacy stats for pre-app historical data."""
         self.legacy_stats = legacy_stats
 
-    def assign(
+    def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         players: list[PlayerId],
         finished_meetups: list[Meetup],
         season_meetups: list[Meetup],
         season_start: datetime,
-    ) -> tuple[list[PlayerId], list[PlayerId]]:
-        """Assign players to two balanced teams using historical performance data."""
+        team_count: int = 2,
+    ) -> tuple[list[PlayerId], ...]:
+        """Assign players to team_count balanced groups using historical performance data."""
+        if team_count not in (2, 3):
+            raise ValueError("team_count must be 2 or 3")
         player_scores = compute_player_scores(
             players, season_meetups, finished_meetups, self.legacy_stats, season_start
         )
-        player_roles = compute_player_roles(
-            players, season_meetups, finished_meetups, self.legacy_stats, season_start
-        )
-        winning_counts = extract_winning_counts(finished_meetups)
-        return optimize_teams(players, player_scores, winning_counts, player_roles)
+        if team_count == 2:
+            player_roles = compute_player_roles(
+                players, season_meetups, finished_meetups, self.legacy_stats, season_start
+            )
+            winning_counts = extract_winning_counts(finished_meetups)
+            team_a, team_b = optimize_teams(players, player_scores, winning_counts, player_roles)
+            return (team_a, team_b)
+        return _snake_draft(players, player_scores, team_count)
 
 
 def optimize_teams(
@@ -214,19 +220,17 @@ def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
     """Return sorted (pid_a, pid_b) -> shared win count for all player pairs."""
     counts: dict[tuple[str, str], int] = {}
     for meetup in meetups:
-        if meetup.result is None or meetup.teams is None:
-            continue
-        score_a = meetup.result.score_a
-        score_b = meetup.result.score_b
-        for team in meetup.teams:
-            team_wins = (team.name == "A" and score_a > score_b) or (
-                team.name == "B" and score_b > score_a
-            )
-            if team_wins:
-                for pid_a, pid_b in itertools.combinations(team.players, 2):
-                    key_list = [str(pid_a.value), str(pid_b.value)]
-                    key: tuple[str, str] = tuple(sorted(key_list))  # type: ignore[assignment]
-                    counts[key] = counts.get(key, 0) + 1
+        for match in meetup.matches:
+            if match.result is None:
+                continue
+            score_a, score_b = match.result.score_a, match.result.score_b
+            for i, team in enumerate(match.teams_playing):
+                team_wins = (score_a > score_b) if i == 0 else (score_b > score_a)
+                if team_wins:
+                    for pid_a, pid_b in itertools.combinations(team.players, 2):
+                        key_list = [str(pid_a.value), str(pid_b.value)]
+                        key: tuple[str, str] = tuple(sorted(key_list))  # type: ignore[assignment]
+                        counts[key] = counts.get(key, 0) + 1
     return counts
 
 
@@ -415,13 +419,14 @@ def _player_role(
     def _count_events(meetups: list[Meetup]) -> tuple[int, int]:
         goals = assists = 0
         for meetup in meetups:
-            if meetup.result is None:
-                continue
-            for event in meetup.result.events:
-                if event.scorer_id == player_id:
-                    goals += 1
-                if event.assistant_id == player_id:
-                    assists += 1
+            for match in meetup.matches:
+                if match.result is None:
+                    continue
+                for event in match.result.events:
+                    if event.scorer_id == player_id:
+                        goals += 1
+                    if event.assistant_id == player_id:
+                        assists += 1
         return goals, assists
 
     goals_s, assists_s = _count_events(season_meetups)
@@ -454,23 +459,21 @@ def _player_stats(
     """Return (matches_played, goals_per_match, assists_per_match, win_rate)."""
     goals = assists = wins = mp = 0
     for meetup in meetups:
-        if meetup.result is None or meetup.teams is None:
-            continue
-        score_a = meetup.result.score_a
-        score_b = meetup.result.score_b
-        for team in meetup.teams:
-            if player_id in team.players:
-                mp += 1
-                team_wins = (team.name == "A" and score_a > score_b) or (
-                    team.name == "B" and score_b > score_a
-                )
-                if team_wins:
-                    wins += 1
-        for event in meetup.result.events:
-            if event.scorer_id == player_id:
-                goals += 1
-            if event.assistant_id == player_id:
-                assists += 1
+        for match in meetup.matches:
+            if match.result is None:
+                continue
+            score_a, score_b = match.result.score_a, match.result.score_b
+            for i, team in enumerate(match.teams_playing):
+                if player_id in team.players:
+                    mp += 1
+                    team_wins = (score_a > score_b) if i == 0 else (score_b > score_a)
+                    if team_wins:
+                        wins += 1
+            for event in match.result.events:
+                if event.scorer_id == player_id:
+                    goals += 1
+                if event.assistant_id == player_id:
+                    assists += 1
     if legacy_stats and mp > 0:
         pid_str = str(player_id.value)
         assists += legacy_stats.get_assists(pid_str, from_date)
@@ -478,3 +481,43 @@ def _player_stats(
     if mp == 0:
         return 0, 0.0, 0.0, 0.0
     return mp, goals / mp, assists / mp, wins / mp
+
+
+_DRAFT_PICK_TEMPERATURE = 1.5
+
+
+def _snake_draft(
+    player_ids: list[PlayerId],
+    player_scores: dict[PlayerId, float],
+    team_count: int,
+) -> tuple[list[PlayerId], ...]:
+    """Distribute players into team_count groups via a weighted-lottery snake draft.
+
+    Dealt out in a 0,1,2,2,1,0,0,1,2,... zig-zag order. At each pick, instead of
+    deterministically taking the single highest-scored remaining player (which
+    reproduces the exact same grouping every time whenever players have distinct
+    historical scores, not just when they're tied), the next player is drawn from
+    a weighted lottery favoring higher-ranked remaining players — strong players
+    are still likely to be spread across teams early, but which specific player is
+    picked, and thus the final grouping, varies between calls.
+    """
+    remaining = sorted(player_ids, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
+    teams: list[list[PlayerId]] = [[] for _ in range(team_count)]
+    index = 0
+    forward = True
+    while remaining:
+        weights = [1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining))]
+        pid = random.choices(remaining, weights=weights, k=1)[0]
+        remaining.remove(pid)
+        teams[index].append(pid)
+        if forward:
+            index += 1
+            if index == team_count:
+                index = team_count - 1
+                forward = False
+        else:
+            index -= 1
+            if index < 0:
+                index = 0
+                forward = True
+    return tuple(teams)

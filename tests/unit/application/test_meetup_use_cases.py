@@ -14,14 +14,14 @@ from pyball.application.meetup import (
 from pyball.application.meetup.create_teams_algorithms import RandomAlgorithm
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.get_active_meetup import GetActiveMeetup
-from pyball.application.meetup.start_match import StartMatch
+from pyball.application.meetup.start_next_round import StartNextRound
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
 )
-from pyball.domain.meetup.models import MatchResult, Meetup, MeetupId, PlayerId, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, MeetupId, PlayerId, Team
 from pyball.domain.player.models import Player
 
 
@@ -308,8 +308,9 @@ class TestCreateTeams:
         past_meetup = Meetup.create(date=datetime(2024, 10, 1, 20, 0), location="Parque Central")
         past_meetup.add_player(p1)
         past_meetup.add_player(p2)
-        past_meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
-        past_meetup.set_result(MatchResult(score_a=2, score_b=0, events=()))
+        team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+        past_meetup.set_teams([team_a, team_b])
+        past_meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
         meetup_repo.save(past_meetup)
 
         # Create the current meetup with the same players
@@ -324,6 +325,40 @@ class TestCreateTeams:
         assert len(result.teams) == 2
         all_assigned = list(result.teams[0].players) + list(result.teams[1].players)
         assert set(all_assigned) == {p1, p2}
+
+    def test_create_teams_with_team_count_three(self):
+        """team_count=3 produces three teams named A, B, C covering all players."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        player_ids = [PlayerId.generate() for _ in range(9)]
+        for pid in player_ids:
+            meetup.add_player(pid)
+        meetup_repo.save(meetup)
+
+        result = CreateTeams(meetup_repo, RandomAlgorithm()).execute(
+            datetime(2024, 1, 15, 20, 0), team_count=3
+        )
+
+        assert result.teams is not None
+        assert len(result.teams) == 3
+        assert [t.name for t in result.teams] == ["A", "B", "C"]
+        all_assigned = [pid for team in result.teams for pid in team.players]
+        assert sorted(str(p.value) for p in all_assigned) == sorted(
+            str(p.value) for p in player_ids
+        )
+
+    def test_create_teams_team_count_rejects_invalid_value(self):
+        """team_count outside {2, 3} raises ValueError."""
+        meetup_repo = FakeMeetupRepository()
+        meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
+        meetup.add_player(PlayerId.generate())
+        meetup.add_player(PlayerId.generate())
+        meetup_repo.save(meetup)
+
+        with pytest.raises(ValueError, match="team_count must be 2 or 3"):
+            CreateTeams(meetup_repo, RandomAlgorithm()).execute(
+                datetime(2024, 1, 15, 20, 0), team_count=4
+            )
 
 
 class TestCreateMeetup:
@@ -373,36 +408,55 @@ class TestCreateMeetup:
         repo.save.assert_called_once_with(meetup)
 
 
-class TestStartMatch:
-    """Tests for StartMatch use case."""
+class TestStartNextRound:
+    """Tests for StartNextRound use case."""
 
     def setup_method(self):
         """Set up a fresh meetup repository for each test."""
         # pylint: disable=attribute-defined-outside-init
         self.meetup_repo = FakeMeetupRepository()
 
-    def test_start_match_returns_meetup_with_teams(self):
-        """StartMatch returns the meetup when it has teams."""
-        meetup = self._meetup_with_teams()
-        result = StartMatch(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-        assert result is meetup
-
-    def test_start_match_raises_when_meetup_missing(self):
-        """StartMatch raises MeetupNotFoundError when no meetup exists for the given date."""
+    def test_raises_when_meetup_missing(self):
+        """StartNextRound raises MeetupNotFoundError when no meetup exists for the date."""
         with pytest.raises(MeetupNotFoundError):
-            StartMatch(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+            StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
 
-    def test_start_match_raises_when_no_teams(self):
-        """StartMatch raises MeetupHasNoTeamsError when the meetup has no teams yet."""
+    def test_raises_when_no_teams(self):
+        """StartNextRound raises MeetupHasNoTeamsError when the meetup has no teams yet."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         self.meetup_repo.save(meetup)
         with pytest.raises(MeetupHasNoTeamsError):
-            StartMatch(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+            StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
 
-    def _meetup_with_teams(self):
-        """Create and save a meetup with two empty teams."""
+    def test_classic_two_teams_creates_the_one_match(self):
+        """With 2 teams, the first (only) match is created between them."""
+        self._meetup_with_teams(count=2)
+        result = StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+        assert len(result.matches) == 1
+        assert set(result.matches[0].teams_playing) == set(result.teams)
+        assert result.matches[0].result is None
+
+    def test_calling_again_does_not_duplicate_the_pending_match(self):
+        """Calling execute again while a match is already pending is a no-op."""
+        self._meetup_with_teams(count=2)
+        StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+        result = StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+        assert len(result.matches) == 1
+
+    def test_triangular_creates_first_random_pairing(self):
+        """With 3 teams, the first match pairs 2 of the 3 teams, chosen at random."""
+        self._meetup_with_teams(count=3)
+        result = StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
+        assert len(result.matches) == 1
+        playing = set(result.matches[0].teams_playing)
+        assert playing.issubset(set(result.teams))
+        assert len(playing) == 2
+
+    def _meetup_with_teams(self, count=2):
+        """Create and save a meetup with `count` empty teams."""
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        meetup.teams = [Team.create("A", []), Team.create("B", [])]
+        names = ["A", "B", "C"][:count]
+        meetup.teams = [Team.create(n, []) for n in names]
         self.meetup_repo.save(meetup)
         return meetup
 
@@ -422,7 +476,9 @@ class TestFinishMatch:
         p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
         p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
         self.player_repo.players.extend([p1, p2])
-        meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
+        team_a, team_b = Team.create("A", [p1.id]), Team.create("B", [p2.id])
+        meetup.teams = [team_a, team_b]
+        meetup.add_match(Match(teams_playing=(team_a, team_b)))
         self.meetup_repo.save(meetup)
         return meetup, p1, p2
 
@@ -443,11 +499,12 @@ class TestFinishMatch:
         saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
         assert saved is not None
         assert saved.is_closed()
-        assert saved.result.score_a == 1
-        assert saved.result.score_b == 0
-        assert len(saved.result.events) == 1
-        assert saved.result.events[0].scorer_id == p1.id
-        assert saved.result.events[0].assistant_id == p2.id
+        result = saved.matches[0].result
+        assert result.score_a == 1
+        assert result.score_b == 0
+        assert len(result.events) == 1
+        assert result.events[0].scorer_id == p1.id
+        assert result.events[0].assistant_id == p2.id
 
     def test_goal_without_assistant(self):
         """An event with assistant=None stores assistant_id=None."""
@@ -464,7 +521,40 @@ class TestFinishMatch:
         self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
 
         saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
-        assert saved.result.events[0].assistant_id is None
+        assert saved.matches[0].result.events[0].assistant_id is None
+
+    def test_two_teams_closes_meetup_automatically(self):
+        """With 2 teams, finishing the one match closes the meetup, as before."""
+        self._meetup_with_teams()
+        self.use_case.execute("2026-04-12 20:00", [], {"A": 1, "B": 0})
+        saved = self.meetup_repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
+        assert saved.is_closed()
+        assert len(saved.matches) == 1
+        assert saved.matches[0].result.score_a == 1
+
+    def test_three_teams_appends_next_round_instead_of_closing(self):
+        """With 3 teams, finishing a match appends the next computed round and stays open."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
+        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
+        p3 = Player(id=PlayerId.generate(), name="Nico", group="regular")
+        self.player_repo.players.extend([p1, p2, p3])
+        team_a, team_b, team_c = (
+            Team.create("A", [p1.id]),
+            Team.create("B", [p2.id]),
+            Team.create("C", [p3.id]),
+        )
+        meetup.teams = [team_a, team_b, team_c]
+        meetup.add_match(Match(teams_playing=(team_a, team_b)))
+        self.meetup_repo.save(meetup)
+
+        result = self.use_case.execute("2026-04-12 20:00", [], {"A": 2, "B": 0})
+
+        assert not result.is_closed()
+        assert len(result.matches) == 2
+        assert result.matches[0].result.score_a == 2
+        assert result.matches[1].result is None
+        assert set(result.matches[1].teams_playing) == {team_a, team_c}
 
     def test_raises_if_meetup_not_found(self):
         """FinishMatch raises MeetupNotFoundError for unknown dates."""
@@ -472,14 +562,23 @@ class TestFinishMatch:
             self.use_case.execute("2026-04-12 20:00", [], {"A": 0, "B": 0})
 
     def test_raises_if_already_closed(self):
-        """FinishMatch raises MeetupAlreadyClosedError if result already set."""
+        """FinishMatch raises MeetupAlreadyClosedError if the meetup is already closed."""
         meetup, _, _ = self._meetup_with_teams()
-        result = MatchResult(score_a=1, score_b=0, events=())
-        meetup.set_result(result)
+        meetup.record_result(MatchResult(score_a=1, score_b=0, events=()))
+        meetup.close()
         self.meetup_repo.save(meetup)
 
         with pytest.raises(MeetupAlreadyClosedError):
             self.use_case.execute("2026-04-12 20:00", [], {"A": 1, "B": 0})
+
+    def test_raises_if_no_pending_match(self):
+        """FinishMatch raises ValueError if there is no pending match to record."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        meetup.teams = [Team.create("A", []), Team.create("B", [])]
+        self.meetup_repo.save(meetup)
+
+        with pytest.raises(ValueError, match="No pending match"):
+            self.use_case.execute("2026-04-12 20:00", [], {"A": 0, "B": 0})
 
     def test_raises_if_player_not_found(self):
         """FinishMatch raises ValueError if a player name cannot be resolved."""
@@ -514,9 +613,9 @@ class TestGetActiveMeetup:
         assert GetActiveMeetup(self.meetup_repo).execute() == newer
 
     def test_ignores_closed_meetups(self):
-        """A meetup with a result set is not returned."""
+        """A closed meetup is not returned."""
         closed = Meetup.create(datetime(2026, 6, 5, 20, 0), "Campo")
-        closed.result = MatchResult(score_a=1, score_b=0, events=())
+        closed.close()
         self.meetup_repo.save(closed)
         active = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
         self.meetup_repo.save(active)

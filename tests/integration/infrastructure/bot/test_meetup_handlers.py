@@ -3,12 +3,10 @@
 # pylint: disable=redefined-outer-name
 
 from datetime import datetime
-from unittest.mock import AsyncMock
 
 import pytest
-import telegram
 
-from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import Player
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
@@ -16,7 +14,6 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
     list_meetups_handler,
-    match_qr_handler,
     new_meetup_handler,
     next_meetup_handler,
     remove_player_handler,
@@ -139,35 +136,6 @@ async def test_show_meetup_includes_player_name(bot_update, bot_context):
 
     (text, *_), _ = bot_update.message.reply_text.call_args
     assert "Luis" in text
-
-
-@pytest.mark.asyncio
-async def test_match_qr_forbidden_admin_does_not_raise(bot_update, bot_context):
-    """Catch Forbidden per admin in match_qr without re-raising."""
-    container = bot_context.bot_data["container"]
-    players = [Player.create(f"P{i}", "regular") for i in range(4)]
-    for player in players:
-        container.player_repository.save(player)
-    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
-    for player in players:
-        meetup.add_player(player.id)
-    meetup.set_teams(
-        [
-            Team.create("A", [players[0].id, players[1].id]),
-            Team.create("B", [players[2].id, players[3].id]),
-        ]
-    )
-    container.meetup_repository.save(meetup)
-
-    bot_context.bot.send_photo = AsyncMock(
-        side_effect=telegram.error.Forbidden("bot was blocked by the user")
-    )
-    bot_context.args = ["2026-04-25", "20:00"]
-
-    await match_qr_handler(bot_update, bot_context)
-
-    bot_context.bot.send_photo.assert_called_once()
-    bot_update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio

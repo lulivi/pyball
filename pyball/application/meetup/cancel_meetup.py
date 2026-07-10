@@ -34,7 +34,7 @@ class CancelMeetup:
     def execute(self) -> Meetup:
         """Delete the most recent active meetup and return it.
 
-        An active meetup has no recorded result (same lookup as GetActiveMeetup).
+        An active meetup has not been closed (same lookup as GetActiveMeetup).
 
         Returns:
             The deleted meetup.
@@ -43,7 +43,7 @@ class CancelMeetup:
             MeetupNotFoundError: No active meetup exists.
         """
         all_meetups = self.meetup_repository.find_all()
-        active = [m for m in all_meetups if m.result is None]
+        active = [m for m in all_meetups if not m.closed]
         if not active:
             raise MeetupNotFoundError("active")
         meetup = max(active, key=lambda m: m.date)

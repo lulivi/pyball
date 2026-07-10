@@ -39,7 +39,8 @@ class Meetup(Entity["MeetupId"]):
     location: str
     players: list[PlayerId] = field(default_factory=list)
     teams: list[Team] | None = None
-    result: MatchResult | None = None
+    matches: list[Match] = field(default_factory=list)
+    closed: bool = False
 
     @classmethod
     def create(cls, date: datetime, location: str) -> "Meetup":
@@ -59,25 +60,42 @@ class Meetup(Entity["MeetupId"]):
             raise PlayerNotInMeetupError(str(player_id.value))
         self.players.remove(player_id)
 
-    def set_result(self, result: MatchResult) -> None:
-        """Attach the match result. Requires teams to exist."""
-        if self.teams is None:
-            raise ValueError("Cannot set result without teams")
-        self.result = result
-
-    def is_closed(self) -> bool:
-        """Return True if the match result has been recorded."""
-        return self.result is not None
-
     def set_teams(self, teams: list[Team]) -> None:
-        """Assign pre-computed teams to this meetup."""
-        if len(teams) != 2:
-            raise ValueError("Exactly two teams required")
+        """Assign pre-computed teams to this meetup. Accepts 2 (classic) or 3 (triangular)."""
+        if len(teams) not in (2, 3):
+            raise ValueError("Two or three teams required")
         self.teams = teams
 
     def clear_teams(self) -> None:
-        """Clear any assigned teams."""
+        """Clear any assigned teams, and any matches/closed state tied to them."""
         self.teams = None
+        self.matches = []
+        self.closed = False
+
+    def add_match(self, match: "Match") -> None:
+        """Append a new pending (or already-resolved) match to this meetup."""
+        self.matches.append(match)
+
+    def current_match(self) -> "Match | None":
+        """Return the pending match (no result yet), or None if none is pending."""
+        if self.matches and self.matches[-1].result is None:
+            return self.matches[-1]
+        return None
+
+    def record_result(self, result: "MatchResult") -> None:
+        """Attach a result to the current pending match."""
+        current = self.current_match()
+        if current is None:
+            raise ValueError("No pending match to record a result for")
+        current.result = result
+
+    def close(self) -> None:
+        """Mark the meetup as closed. No further matches can be recorded."""
+        self.closed = True
+
+    def is_closed(self) -> bool:
+        """Return True if the meetup has been closed."""
+        return self.closed
 
     def set_location(self, location: str) -> None:
         """Set the meetup location."""
@@ -88,6 +106,14 @@ class Meetup(Entity["MeetupId"]):
     def set_date(self, date: datetime) -> None:
         """Set the meetup date."""
         self.date = date
+
+
+@dataclass
+class Match:
+    """A single 2-team match within a meetup (one match, or one of several in a triangular)."""
+
+    teams_playing: tuple["Team", "Team"]
+    result: "MatchResult | None" = None
 
 
 @dataclass(frozen=True)

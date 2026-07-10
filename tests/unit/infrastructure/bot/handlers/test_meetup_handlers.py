@@ -1,7 +1,7 @@
 """Tests for meetup bot handlers."""
 
+import asyncio
 from datetime import datetime
-from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -9,7 +9,7 @@ from telegram.constants import ParseMode, ReactionEmoji
 
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
-    MeetupHasNoTeamsError,
+    MeetupAlreadyClosedError,
     MeetupNotFoundError,
     PlayerNotInMeetupError,
     UnknownAlgorithmError,
@@ -19,10 +19,9 @@ from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
     add_player_handler,
+    close_triangular_handler,
     create_teams_handler,
-    generate_qr_bytes,
     lock_handler,
-    match_qr_handler,
     new_meetup_handler,
     next_meetup_handler,
     remove_player_handler,
@@ -31,21 +30,14 @@ from pyball.infrastructure.telegram.bot.handlers.meetup import (
     stats_handler,
     unlock_handler,
 )
-
-
-def test_generate_qr_bytes_returns_png_buffer():
-    buf = generate_qr_bytes("https://example.com/match?date=2026-04-19")
-    assert isinstance(buf, BytesIO)
-    header = buf.read(4)
-    assert header == b"\x89PNG"
+from pyball.infrastructure.telegram.message_store import TelegramMessageStore
 
 
 @pytest.mark.asyncio
 async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context):
-    """lock with no args calls refresh with include_keyboard=False on the active meetup."""
+    """lock with no args calls refresh with locked=True on the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -62,7 +54,7 @@ async def test_lock_handler_no_args_uses_active_meetup(mock_update, mock_context
         mock_context.bot_data["settings"],
         container,
         meetup,
-        include_keyboard=False,
+        locked=True,
     )
 
 
@@ -85,7 +77,6 @@ async def test_unlock_handler_uses_active_meetup(mock_update, mock_context):
     """unlock calls refresh with include_keyboard=True on the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -103,78 +94,6 @@ async def test_unlock_handler_uses_active_meetup(mock_update, mock_context):
         container,
         meetup,
     )
-
-
-@pytest.mark.asyncio
-async def test_match_qr_handler_sends_qr_to_admins(mock_update, mock_context):
-    """match_qr sends a QR photo to each configured admin."""
-    meetup = MagicMock()
-    meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
-
-    url = "http://pyball:8000/match?token=secret"
-    admin_id = 99999
-
-    container = MagicMock()
-    container.get_active_meetup.return_value.execute.return_value = meetup
-    container.start_match.return_value.execute.return_value = meetup
-    container.match_link_builder.return_value.build.return_value = url
-    mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
-    mock_context.bot_data["settings"].telegram.admins_ids = [admin_id]
-    mock_context.bot = AsyncMock()
-    mock_context.args = []
-
-    fake_buf = BytesIO(b"fakepng")
-
-    with patch(
-        "pyball.infrastructure.telegram.bot.handlers.meetup.generate_qr_bytes",
-        return_value=fake_buf,
-    ) as mock_qr:
-        await match_qr_handler(mock_update, mock_context)
-
-    mock_qr.assert_called_once_with(url)
-    mock_context.bot.send_photo.assert_called_once_with(
-        chat_id=admin_id,
-        photo=fake_buf,
-        caption=f"🔗 Enlace del partido:\n{url}",
-    )
-
-
-@pytest.mark.asyncio
-async def test_match_qr_handler_no_base_url_replies_error(mock_update, mock_context):
-    """match_qr replies error when base_url is not configured."""
-    mock_context.bot_data["settings"].pyball.base_url = ""
-    mock_context.bot_data["container"] = MagicMock()
-    mock_context.args = []
-
-    await match_qr_handler(mock_update, mock_context)
-
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "url" in text.lower() or "base" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_match_qr_handler_no_teams_replies_error(mock_update, mock_context):
-    """match_qr replies in Spanish when meetup has no teams."""
-    meetup = MagicMock()
-    meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
-
-    container = MagicMock()
-    container.get_active_meetup.return_value.execute.return_value = meetup
-    container.start_match.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
-    mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].pyball.base_url = "http://pyball:8000"
-    mock_context.bot_data["settings"].pyball.display_date_format = "%Y-%m-%d %H:%M"
-    mock_context.args = []
-
-    await match_qr_handler(mock_update, mock_context)
-
-    call = mock_update.message.reply_text.call_args
-    text = call.args[0] if call.args else call.kwargs.get("text", "")
-    assert "equipos" in text.lower()
 
 
 @pytest.mark.asyncio
@@ -212,7 +131,6 @@ async def test_show_meetup_handler_no_args_uses_active_meetup(mock_update, mock_
     meetup.date = datetime(2026, 6, 4, 20, 0)
     meetup.players = []
     meetup.teams = None
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -228,6 +146,164 @@ async def test_show_meetup_handler_no_args_uses_active_meetup(mock_update, mock_
 
     mock_fmt.assert_called_once()
     mock_update.message.reply_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_active_meetup_includes_keyboard(mock_update, mock_context):
+    """show_meetup shows the main keyboard when the meetup is still active."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = False
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    kwargs = mock_update.message.reply_text.call_args.kwargs
+    assert kwargs.get("reply_markup") is not None
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_closed_meetup_has_no_keyboard(mock_update, mock_context):
+    """show_meetup shows no keyboard once the meetup is closed."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = True
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    kwargs = mock_update.message.reply_text.call_args.kwargs
+    assert kwargs.get("reply_markup") is None
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_in_regulars_chat_retracks_message(
+    mock_update, mock_context, tmp_path
+):
+    """show_meetup run in the regulars chat re-points message tracking to itself."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = False
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    settings = mock_context.bot_data["settings"]
+    settings.paths.data_dir = tmp_path
+    settings.telegram.regulars.chat_id = -100111
+    settings.telegram.regulars.meetups_thread_id = None
+
+    mock_update.message.chat_id = -100111
+    sent_message = MagicMock()
+    sent_message.message_id = 555
+    mock_update.message.reply_text.return_value = sent_message
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    tracking = store.get_message(meetup.date, "regular")
+    assert tracking is not None
+    assert tracking.chat_id == -100111
+    assert tracking.message_id == 555
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_outside_regulars_chat_does_not_retrack(
+    mock_update, mock_context, tmp_path
+):
+    """show_meetup run elsewhere (e.g. an admin's DM) leaves message tracking untouched."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = False
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    settings = mock_context.bot_data["settings"]
+    settings.paths.data_dir = tmp_path
+    settings.telegram.regulars.chat_id = -100111
+    settings.telegram.regulars.meetups_thread_id = None
+
+    mock_update.message.chat_id = 999999
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "regular") is None
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_closed_meetup_does_not_retrack(
+    mock_update, mock_context, tmp_path
+):
+    """show_meetup for a closed meetup never re-tracks, even in the regulars chat."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = True
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    settings = mock_context.bot_data["settings"]
+    settings.paths.data_dir = tmp_path
+    settings.telegram.regulars.chat_id = -100111
+    settings.telegram.regulars.meetups_thread_id = None
+
+    mock_update.message.chat_id = -100111
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "regular") is None
 
 
 @pytest.mark.asyncio
@@ -511,6 +587,73 @@ async def test_create_teams_handler_passes_none_when_no_algo(mock_update, mock_c
         await create_teams_handler(mock_update, mock_context)
 
     container.create_teams.assert_called_once_with(None)
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_with_team_count_three(mock_update, mock_context):
+    """/meetup_create_teams <fecha> <hora> balanceado 3 passes team_count=3 through."""
+    container = MagicMock()
+    meetup = MagicMock()
+    meetup.teams = [MagicMock(), MagicMock(), MagicMock()]
+    container.create_teams.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado", "3"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_called_once()
+    call_args = container.create_teams.return_value.execute.call_args
+    assert call_args.args[1] == 3
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_defaults_to_team_count_two(mock_update, mock_context):
+    """Without a trailing count, team_count defaults to 2 (unchanged behavior)."""
+    container = MagicMock()
+    meetup = MagicMock()
+    meetup.teams = [MagicMock(), MagicMock()]
+    container.create_teams.return_value.execute.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado"]
+
+    with patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"):
+        await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_called_once()
+    call_args = container.create_teams.return_value.execute.call_args
+    assert call_args.args[1] == 2
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_invalid_team_count_non_numeric(mock_update, mock_context):
+    """A non-numeric trailing team-count arg shows the usage message and doesn't execute."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado", "abc"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_not_called()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Formato de fecha no válido" in text
+
+
+@pytest.mark.asyncio
+async def test_create_teams_handler_invalid_team_count_out_of_range(mock_update, mock_context):
+    """A trailing team-count arg outside {2, 3} shows the usage message and doesn't execute."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    mock_context.args = ["2026-05-06", "20:00", "balanceado", "4"]
+
+    await create_teams_handler(mock_update, mock_context)
+
+    container.create_teams.return_value.execute.assert_not_called()
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "Formato de fecha no válido" in text
 
 
 @pytest.mark.asyncio
@@ -839,7 +982,6 @@ async def test_search_handler_no_args_uses_active_meetup(mock_update, mock_conte
     meetup.date = datetime(2026, 6, 4, 20, 0)
     meetup.players = []
     meetup.teams = None
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -886,7 +1028,6 @@ async def test_add_player_handler_no_date_uses_active_meetup(mock_update, mock_c
     """add_player with only names (no date) uses the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -924,7 +1065,6 @@ async def test_remove_player_handler_no_date_uses_active_meetup(mock_update, moc
     """remove_player with only a name (no date) uses the active meetup."""
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 4, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
@@ -989,7 +1129,6 @@ async def test_change_location_updates_location_and_refreshes(mock_update, mock_
 
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
-    meetup.result = None
 
     updated = MagicMock()
     container = MagicMock()
@@ -1017,7 +1156,6 @@ async def test_change_location_no_args_replies_usage(mock_update, mock_context):
 
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
-    meetup.result = None
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup
     mock_context.bot_data["container"] = container
@@ -1057,7 +1195,6 @@ async def test_change_date_2args_changes_active_meetup_date(mock_update, mock_co
 
     meetup = MagicMock()
     meetup.date = old_date
-    meetup.result = None
 
     updated = MagicMock()
     updated.date = new_date
@@ -1119,6 +1256,219 @@ async def test_change_date_wrong_arg_count_replies_usage(mock_update, mock_conte
 
 
 @pytest.mark.asyncio
+async def test_close_triangular_handler_closes_and_sends_summary(
+    mock_update, mock_context, monkeypatch
+):
+    """/meetup_close_triangular closes the meetup and sends the final round summary.
+
+    It also mirrors the classic-close cleanup: the callup keyboard is locked,
+    tracked messages are dropped, and season stats are posted.
+    """
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    closed_meetup = MagicMock()
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.return_value = closed_meetup
+    container.player_repository.find_all.return_value = []
+    container.format_match_summary.return_value.execute.return_value = "resumen final"
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.regulars.chat_id = -1009999
+    mock_context.bot_data["settings"].telegram.regulars.meetups_thread_id = "42"
+    mock_context.args = []
+
+    stats_calls = []
+
+    async def _fake_post_match_stats(bot, container_arg, settings_arg):
+        stats_calls.append((bot, container_arg, settings_arg))
+
+    monkeypatch.setattr(
+        "pyball.infrastructure.telegram.bot.handlers.meetup._post_match_stats",
+        _fake_post_match_stats,
+    )
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"
+        ) as mock_refresh,
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"
+        ) as mock_store_cls,
+    ):
+        mock_refresh.return_value = None
+        await close_triangular_handler(mock_update, mock_context)
+        await asyncio.sleep(0)  # let the fire-and-forget stats task run
+
+    container.close_meetup.return_value.execute.assert_called_once_with(meetup.date)
+    container.format_match_summary.return_value.execute.assert_called_once()
+    mock_context.bot.send_message.assert_called_once_with(
+        chat_id=-1009999,
+        text="resumen final",
+        message_thread_id=42,
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    mock_refresh.assert_awaited_once_with(
+        mock_context.bot,
+        mock_context.bot_data["settings"],
+        container,
+        closed_meetup,
+        include_keyboard=False,
+    )
+    mock_store_cls.return_value.delete_message.assert_any_call(closed_meetup.date, "regular")
+    mock_store_cls.return_value.delete_message.assert_any_call(closed_meetup.date, "substitute")
+    assert stats_calls == [(mock_context.bot, container, mock_context.bot_data["settings"])]
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_escapes_summary_for_markdown_v2(
+    mock_update, mock_context, monkeypatch
+):
+    """The plain-text summary is escaped for MarkdownV2 before being sent."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    closed_meetup = MagicMock()
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.return_value = closed_meetup
+    container.player_repository.find_all.return_value = []
+    container.format_match_summary.return_value.execute.return_value = (
+        "⚪ *Blanco - 2*\nNacho (Luvo)"
+    )
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.regulars.chat_id = -1009999
+    mock_context.bot_data["settings"].telegram.regulars.meetups_thread_id = ""
+    mock_context.args = []
+
+    monkeypatch.setattr(
+        "pyball.infrastructure.telegram.bot.handlers.meetup._post_match_stats",
+        AsyncMock(),
+    )
+
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        await close_triangular_handler(mock_update, mock_context)
+        await asyncio.sleep(0)
+
+    sent_text = mock_context.bot.send_message.call_args.kwargs["text"]
+    assert sent_text == "⚪ *Blanco \\- 2*\nNacho \\(Luvo\\)"
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_no_matches_skips_summary_still_confirms(
+    mock_update, mock_context, monkeypatch
+):
+    """Closing a triangular with zero played rounds doesn't crash and still confirms.
+
+    CloseMeetup.execute() pops any dangling pending match, so a triangular where
+    teams were formed but no round was ever finished ends up with no matches at
+    all. FormatMatchSummary.execute() would raise ValueError("Meetup has no
+    matches yet") for that meetup — the handler must skip building the summary
+    instead of letting that propagate, while still confirming the close.
+    """
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+    closed_meetup = MagicMock()
+    closed_meetup.matches = []
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.return_value = closed_meetup
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    async def _fake_post_match_stats(bot, container_arg, settings_arg):
+        del bot, container_arg, settings_arg
+
+    monkeypatch.setattr(
+        "pyball.infrastructure.telegram.bot.handlers.meetup._post_match_stats",
+        _fake_post_match_stats,
+    )
+
+    with (
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.refresh_callup_messages"),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        await close_triangular_handler(mock_update, mock_context)
+        await asyncio.sleep(0)  # let the fire-and-forget stats task run
+
+    container.format_match_summary.return_value.execute.assert_not_called()
+    mock_context.bot.send_message.assert_not_called()
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+    mock_update.message.reply_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_reports_already_closed(mock_update, mock_context):
+    """Replies with a Spanish error when the meetup is already closed."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 8, 20, 0)
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.close_meetup.return_value.execute.side_effect = MeetupAlreadyClosedError("x")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "ya está cerrado" in text.lower()
+    mock_context.bot.send_message.assert_not_called()
+    mock_context.bot.set_message_reaction.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_reports_not_found(mock_update, mock_context):
+    """Replies with a Spanish error when there's no meetup for the resolved date."""
+    mock_context.args = ["2026-06-08", "20:00"]
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = MagicMock(
+        date=datetime(2026, 6, 8, 20, 0)
+    )
+    container.close_meetup.return_value.execute.side_effect = MeetupNotFoundError("x")
+    mock_context.bot_data["container"] = container
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called_once_with(
+        "No existe ningún meetup para esa fecha."
+    )
+    mock_context.bot.send_message.assert_not_called()
+    mock_context.bot.set_message_reaction.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_close_triangular_handler_no_active_meetup_replies_error(mock_update, mock_context):
+    """/meetup_close_triangular with no args and no active meetup replies in Spanish."""
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    await close_triangular_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
+    container.close_meetup.return_value.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_change_date_conflict_replies_error(mock_update, mock_context):
     """change_date replies an error message when new date is already taken."""
     from pyball.domain.meetup.errors import DuplicateMeetupError
@@ -1127,7 +1477,6 @@ async def test_change_date_conflict_replies_error(mock_update, mock_context):
 
     meetup = MagicMock()
     meetup.date = datetime(2026, 6, 8, 20, 0)
-    meetup.result = None
 
     container = MagicMock()
     container.get_active_meetup.return_value.execute.return_value = meetup

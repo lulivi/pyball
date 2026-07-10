@@ -2,10 +2,11 @@ from datetime import datetime, time
 
 import pytest
 
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.formatters import (
     _escape_mdv2,
+    escape_summary_for_telegram,
     format_display,
     format_main_message,
     format_subs_message,
@@ -26,18 +27,24 @@ def test_format_main_message_header_emoji_no_result():
 
 
 def test_format_main_message_header_emoji_with_result():
-    """When there's a result, header should show 🎉 Partido terminado."""
+    """When there's a result, the closed message delegates to the unified summary."""
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
     meetup.add_player(p1)
     meetup.add_player(p2)
-    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
-    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+    team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+    meetup.set_teams([team_a, team_b])
+    meetup.add_match(
+        Match(teams_playing=(team_a, team_b), result=MatchResult(score_a=1, score_b=0, events=()))
+    )
+    meetup.close()
     player_names = {str(p1.value): "Luis", str(p2.value): "Carlos"}
     text = format_main_message(meetup, player_names)
 
     assert "🎉 *Partido terminado:*" in text
+    assert r"⚪ *Blanco \- 1*" in text
+    assert r"⚫ *Negro \- 0*" in text
 
 
 def test_format_main_message_location_emoji():
@@ -105,8 +112,12 @@ def test_format_subs_message_with_result_simple():
     meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
     p1 = PlayerId.generate()
     meetup.add_player(p1)
-    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [])])
-    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+    team_a, team_b = Team.create("A", [p1]), Team.create("B", [])
+    meetup.set_teams([team_a, team_b])
+    meetup.add_match(
+        Match(teams_playing=(team_a, team_b), result=MatchResult(score_a=1, score_b=0, events=()))
+    )
+    meetup.close()
 
     player_names = {str(p1.value): "Luis"}
     player_groups = {str(p1.value): "regular"}
@@ -164,6 +175,24 @@ def test_escape_mdv2_special_characters():
     assert _escape_mdv2("Hello (world)") == r"Hello \(world\)"
     assert _escape_mdv2("score: 1.0") == r"score: 1\.0"
     assert _escape_mdv2("player_name") == r"player\_name"
+
+
+def test_escape_summary_for_telegram_preserves_bold_pairs():
+    """Text between a pair of asterisks stays wrapped in real bold delimiters."""
+    result = escape_summary_for_telegram("⚪ *Blanco - 2*")
+    assert result == r"⚪ *Blanco \- 2*"
+
+
+def test_escape_summary_for_telegram_escapes_special_characters():
+    """Special MarkdownV2 characters outside bold spans are escaped."""
+    result = escape_summary_for_telegram("Nacho (Luvo)\nscore: 1.0")
+    assert result == "Nacho \\(Luvo\\)\nscore: 1\\.0"
+
+
+def test_escape_summary_for_telegram_handles_multiple_bold_spans():
+    """Multiple bold spans in the same text are all preserved correctly."""
+    result = escape_summary_for_telegram("*RESULTADO:*\n\n⚪ *Blanco - 2*\nAna\n\n⚫ *Negro - 0*")
+    assert result == "*RESULTADO:*\n\n⚪ *Blanco \\- 2*\nAna\n\n⚫ *Negro \\- 0*"
 
 
 def test_format_main_message_team_emojis():
@@ -226,11 +255,12 @@ def test_format_main_message_with_teams_shows_color_as_name():
 
 
 def test_format_main_message_with_result_shows_events():
-    """When there's a result, show goals section with timestamps."""
+    """When there's a result, show the unified *GOLES:* section with timestamps."""
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
-    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+    team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+    meetup.teams = [team_a, team_b]
 
     event1 = GoalEvent(
         scorer_id=p1,
@@ -244,16 +274,22 @@ def test_format_main_message_with_result_shows_events():
         team="B",
         timestamp=time(20, 25),
     )
-    meetup.set_result(MatchResult(score_a=1, score_b=1, events=(event1, event2)))
+    meetup.add_match(
+        Match(
+            teams_playing=(team_a, team_b),
+            result=MatchResult(score_a=1, score_b=1, events=(event1, event2)),
+        )
+    )
+    meetup.close()
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
     text = format_main_message(
         meetup, player_names, team_colors=("blanco", "negro"), team_emojis=("⚪", "⚫")
     )
 
-    assert "⏱️ *Goles:*" in text
-    assert r"  \- ⚽ 10' `Dani` \- `Rafa`" in text
-    assert r"  \- ⚽ 25' `Rafa`" in text
+    assert "*GOLES:*" in text
+    assert r"  \- ⚽ 10' Dani \(asist\. Rafa\)" in text
+    assert r"  \- ⚽ 25' Rafa" in text
 
 
 def test_format_main_message_with_result_shows_score():
@@ -261,9 +297,16 @@ def test_format_main_message_with_result_shows_score():
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
-    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+    team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+    meetup.teams = [team_a, team_b]
     event = GoalEvent(scorer_id=p1, assistant_id=None, team="A", timestamp=time(20, 15))
-    meetup.set_result(MatchResult(score_a=3, score_b=1, events=(event,)))
+    meetup.add_match(
+        Match(
+            teams_playing=(team_a, team_b),
+            result=MatchResult(score_a=3, score_b=1, events=(event,)),
+        )
+    )
+    meetup.close()
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
     text = format_main_message(
@@ -281,14 +324,40 @@ def test_format_subs_message_with_result_shows_score():
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1 = PlayerId.generate()
     p2 = PlayerId.generate()
-    meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
-    meetup.set_result(MatchResult(score_a=2, score_b=0, events=()))
+    team_a, team_b = Team.create("A", [p1]), Team.create("B", [p2])
+    meetup.teams = [team_a, team_b]
+    meetup.add_match(
+        Match(teams_playing=(team_a, team_b), result=MatchResult(score_a=2, score_b=0, events=()))
+    )
+    meetup.close()
 
     player_names = {str(p1.value): "Dani", str(p2.value): "Rafa"}
     player_groups = {str(p1.value): "regular", str(p2.value): "regular"}
     text = format_subs_message(meetup, player_names, player_groups)
 
     assert "*Partido terminado*" in text
+
+
+def test_format_main_message_shows_latest_match_score_for_triangular():
+    """For a triangular, each team's score line reflects its most recent match, if any."""
+    meetup = Meetup.create(datetime(2026, 5, 1, 20, 0), "Campo")
+    p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+    team_a, team_b, team_c = (
+        Team.create("A", [p1]),
+        Team.create("B", [p2]),
+        Team.create("C", [p3]),
+    )
+    meetup.teams = [team_a, team_b, team_c]
+    meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+    meetup.add_match(Match(teams_playing=(team_a, team_c)))  # pending
+
+    text = format_main_message(
+        meetup, {}, team_colors=("blanco", "negro", "rojo"), team_emojis=("⚪", "⚫", "🔴")
+    )
+
+    assert "Blanco" in text and "Negro" in text and "Rojo" in text
+    assert r"\(2\)" in text  # team A's latest score
+    assert r"\(0\)" in text  # team B's latest score
 
 
 def test_format_display_default_fmt():

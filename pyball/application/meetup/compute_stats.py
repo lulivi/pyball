@@ -131,51 +131,8 @@ def _aggregate(
     winning_counts: dict[tuple[str, str], int] = {}
 
     for meetup in meetups:
-        if meetup.result is None or meetup.teams is None:
-            continue
-
-        score_a = meetup.result.score_a
-        score_b = meetup.result.score_b
-
-        for team in meetup.teams:
-            team_wins = (team.name == "A" and score_a > score_b) or (
-                team.name == "B" and score_b > score_a
-            )
-            team_draws = score_a == score_b
-
-            for player_id in team.players:
-                pid = str(player_id.value)
-                if pid not in player_data:
-                    player_data[pid] = _PlayerCounters()
-                player_data[pid].mp += 1
-                if team_wins:
-                    player_data[pid].w += 1
-                elif team_draws:
-                    player_data[pid].d += 1
-                else:
-                    player_data[pid].losses += 1
-
-            if team_wins:
-                for pid_a, pid_b in itertools.combinations(team.players, 2):
-                    a, b = sorted([str(pid_a.value), str(pid_b.value)])
-                    winning_counts[(a, b)] = winning_counts.get((a, b), 0) + 1
-
-        for event in meetup.result.events:
-            scorer_id = str(event.scorer_id.value)
-            if scorer_id not in player_data:
-                player_data[scorer_id] = _PlayerCounters()
-
-            if event.is_own_goal:
-                player_data[scorer_id].own_goals += 1
-            else:
-                player_data[scorer_id].goals += 1
-                if event.assistant_id is not None:
-                    assistant_id = str(event.assistant_id.value)
-                    if assistant_id not in player_data:
-                        player_data[assistant_id] = _PlayerCounters()
-                    player_data[assistant_id].assists += 1
-                    pair_chem = (scorer_id, assistant_id)
-                    chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
+        for match in meetup.matches:
+            _aggregate_match(match, player_data, chemistry_counts, winning_counts)
 
     if legacy_stats:
         for pid, data in player_data.items():
@@ -188,6 +145,72 @@ def _aggregate(
                     player_data[pid].assists = leg_assists
 
     return player_data, chemistry_counts, winning_counts
+
+
+def _aggregate_match(
+    match,
+    player_data: dict[str, _PlayerCounters],
+    chemistry_counts: dict[tuple[str, str], int],
+    winning_counts: dict[tuple[str, str], int],
+) -> None:
+    """Aggregate one match's per-team win/draw/loss and goal-event stats into the counters."""
+    if match.result is None:
+        return
+
+    score_a = match.result.score_a
+    score_b = match.result.score_b
+
+    for i, team in enumerate(match.teams_playing):
+        team_score = score_a if i == 0 else score_b
+        opponent_score = score_b if i == 0 else score_a
+        team_wins = team_score > opponent_score
+        team_draws = team_score == opponent_score
+
+        for player_id in team.players:
+            pid = str(player_id.value)
+            if pid not in player_data:
+                player_data[pid] = _PlayerCounters()
+            player_data[pid].mp += 1
+            if team_wins:
+                player_data[pid].w += 1
+            elif team_draws:
+                player_data[pid].d += 1
+            else:
+                player_data[pid].losses += 1
+
+        if team_wins:
+            for pid_a, pid_b in itertools.combinations(team.players, 2):
+                a, b = sorted([str(pid_a.value), str(pid_b.value)])
+                winning_counts[(a, b)] = winning_counts.get((a, b), 0) + 1
+
+    for event in match.result.events:
+        _aggregate_goal_event(event, player_data, chemistry_counts)
+
+
+def _aggregate_goal_event(
+    event,
+    player_data: dict[str, _PlayerCounters],
+    chemistry_counts: dict[tuple[str, str], int],
+) -> None:
+    """Aggregate a single goal event's scorer/assistant/chemistry stats into the counters."""
+    scorer_id = str(event.scorer_id.value)
+    if scorer_id not in player_data:
+        player_data[scorer_id] = _PlayerCounters()
+
+    if event.is_own_goal:
+        player_data[scorer_id].own_goals += 1
+        return
+
+    player_data[scorer_id].goals += 1
+    if event.assistant_id is None:
+        return
+
+    assistant_id = str(event.assistant_id.value)
+    if assistant_id not in player_data:
+        player_data[assistant_id] = _PlayerCounters()
+    player_data[assistant_id].assists += 1
+    pair_chem = (scorer_id, assistant_id)
+    chemistry_counts[pair_chem] = chemistry_counts.get(pair_chem, 0) + 1
 
 
 def _rank_from_prev(
@@ -347,7 +370,7 @@ class ComputeStats:
         today = date.today()
         season_start = _season_start(today)
 
-        finished = [m for m in all_meetups if m.result is not None]
+        finished = [m for m in all_meetups if m.matches and m.matches[-1].result is not None]
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
         latest_match_date: datetime | None = None

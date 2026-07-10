@@ -33,6 +33,7 @@ from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
+    escape_summary_for_telegram,
     format_main_message,
     format_subs_message,
 )
@@ -99,20 +100,23 @@ class TelegramMatchNotifier(MatchNotifier):
         try:
             await self._bot.send_message(
                 chat_id=self._settings.telegram.regulars.chat_id,
-                text=f"✏️ Resultado corregido\n\n{summary}",
+                text=f"✏️ Resultado corregido\n\n{escape_summary_for_telegram(summary)}",
                 message_thread_id=int(thread_id) if thread_id else None,
+                parse_mode=ParseMode.MARKDOWN_V2,
             )
             asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
         except Exception as error:  # pylint: disable=broad-except
             logger.error("Error sending corrected result message: %s", error)
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def refresh_callup_messages(
     bot: telegram.Bot,
     settings: "TelegramAppSettings",
     container: "Container",
     meetup: Meetup,
     include_keyboard: bool = True,
+    locked: bool = False,
 ) -> None:
     """Edit the existing callup messages to reflect the current meetup state.
 
@@ -122,6 +126,9 @@ async def refresh_callup_messages(
         container: DI container with repositories.
         meetup: Meetup to display.
         include_keyboard: Whether to include join/leave buttons (default True).
+        locked: When True, the regular message's keyboard is replaced by a
+            single "Desfijar partido" button, and the substitutes message's
+            keyboard is hidden, regardless of include_keyboard.
     """
     player_repo = container.player_repository
     all_players = player_repo.find_all()
@@ -139,12 +146,14 @@ async def refresh_callup_messages(
             team_colors=settings.pyball.team_colors,
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
+            legacy_stats=container.legacy_stats,
         )
-        kb = (
-            build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
-            if include_keyboard
-            else None
-        )
+        if locked:
+            kb = build_main_keyboard(meetup.date, locked=True)
+        elif include_keyboard:
+            kb = build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
+        else:
+            kb = None
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
@@ -168,7 +177,7 @@ async def refresh_callup_messages(
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
         )
-        kb = build_subs_keyboard(meetup.date) if include_keyboard else None
+        kb = build_subs_keyboard(meetup.date) if (include_keyboard and not locked) else None
         try:
             await bot.edit_message_text(
                 chat_id=sub_tracking.chat_id,

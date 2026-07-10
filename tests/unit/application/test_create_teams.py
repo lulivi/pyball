@@ -13,7 +13,9 @@ from pyball.domain.meetup.models import Meetup, PlayerId
 class StubAlgorithm:
     """Stub that splits players in half deterministically."""
 
-    def assign(self, players, _finished_meetups, _season_meetups, _season_start):
+    def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, players, _finished_meetups, _season_meetups, _season_start, _team_count=2
+    ):
         """Split players in half and return two groups."""
         mid = len(players) // 2
         return players[:mid], players[mid:]
@@ -69,7 +71,7 @@ class TestCreateTeams:
 
         CreateTeams(repo, algorithm).execute(datetime(2026, 5, 6, 20, 0))
 
-        _, _, _, season_start = algorithm.assign.call_args.args
+        _, _, _, season_start, _ = algorithm.assign.call_args.args
         assert isinstance(season_start, datetime)
 
     def test_saves_meetup_after_assigning_teams(self):
@@ -87,3 +89,19 @@ class TestCreateTeams:
         use_case.execute(datetime(2026, 5, 6, 20, 0))
 
         repo.save.assert_called_once()
+
+    def test_creates_first_pending_match_after_assigning_teams(self):
+        """execute() auto-starts the first match, so /match works without a separate step."""
+        players = [PlayerId.generate() for _ in range(4)]
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        for p in players:
+            meetup.add_player(p)
+
+        repo = MagicMock()
+        repo.find_by_datetime.return_value = meetup
+        repo.find_all.return_value = []
+
+        result = CreateTeams(repo, StubAlgorithm()).execute(datetime(2026, 5, 6, 20, 0))
+
+        assert result.current_match() is not None
+        assert set(result.current_match().teams_playing) == set(result.teams)
