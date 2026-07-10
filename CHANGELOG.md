@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.15.0 (2026-07-10)
+
+### Features
+
+- **GL-60..GL-87**: Add triangular (3-team) tournament support
+  ([`9e5a46b`](https://gitlab.com/lulivi/pyball/-/commit/9e5a46b09c14822b16e1f33fa15e7e2adc8aed7c))
+
+
 ## v4.14.0 (2026-07-06)
 
 ### Features
