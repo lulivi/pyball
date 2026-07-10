@@ -45,7 +45,6 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
                 "/",
                 "/favicon.ico",
                 "/sw.js",
-                "/qrcode.js",
                 "/manifest-match.json",
                 "/manifest-manage.json",
             ]

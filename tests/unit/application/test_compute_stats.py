@@ -4,7 +4,7 @@ from datetime import datetime, time
 from unittest.mock import MagicMock
 
 from pyball.application.meetup.compute_stats import ComputeStats, StatsReport
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
 from pyball.infrastructure.persistence import LegacyStats
 
@@ -26,8 +26,15 @@ def make_meetup(  # pylint: disable=too-many-arguments,too-many-positional-argum
     meetup = Meetup.create(date=date_, location="Test Park")
     for pid in team_a + team_b:
         meetup.add_player(pid)
-    meetup.teams = [Team.create("A", team_a), Team.create("B", team_b)]
-    meetup.set_result(MatchResult(score_a=score_a, score_b=score_b, events=tuple(events or [])))
+    team_a_obj = Team.create("A", team_a)
+    team_b_obj = Team.create("B", team_b)
+    meetup.teams = [team_a_obj, team_b_obj]
+    meetup.add_match(
+        Match(
+            teams_playing=(team_a_obj, team_b_obj),
+            result=MatchResult(score_a=score_a, score_b=score_b, events=tuple(events or [])),
+        )
+    )
     return meetup
 
 
@@ -746,3 +753,31 @@ class TestComputeStatsOwnGoals:
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
         assert alice_stats.own_goals == 0
         assert alice_stats.goals == 1
+
+
+class TestComputeStatsTriangular:
+    """Triangular tournament: each round is an independent match."""
+
+    def test_triangular_each_round_counts_as_an_independent_match(self):
+        """A 3-team meetup with 2 rounds gives each player credit per round played, not meetup."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        charlie = make_player("Charlie")
+        team_a = Team.create("A", [alice.id])
+        team_b = Team.create("B", [bob.id])
+        team_c = Team.create("C", [charlie.id])
+
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        meetup.teams = [team_a, team_b, team_c]
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+        meetup.add_match(Match(teams_playing=(team_a, team_c), result=MatchResult(0, 1, ())))
+
+        meetup_repo, player_repo = make_repos([meetup], [alice, bob, charlie])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        by_name = {p.player_name: p for p in report.all_time.players}
+
+        assert by_name["Alice"].matches_played == 2  # played both rounds
+        assert by_name["Alice"].wins == 1
+        assert by_name["Alice"].losses == 1
+        assert by_name["Bob"].matches_played == 1  # only round 1
+        assert by_name["Charlie"].matches_played == 1  # only round 2

@@ -40,9 +40,9 @@ class TestCancelMeetup:
         repo.delete.assert_not_called()
 
     def test_raises_when_only_closed_meetups_exist(self):
-        """MeetupNotFoundError raised when every meetup already has a result."""
+        """MeetupNotFoundError raised when every meetup is already closed."""
         closed = MagicMock()
-        closed.result = MagicMock()  # non-None result = closed meetup
+        closed.closed = True
         repo = MagicMock()
         repo.find_all.return_value = [closed]
 

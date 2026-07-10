@@ -69,9 +69,27 @@ def register_meetup_routes(
         await notifier.on_meetup_cancelled(meetup)
         return {"status": "cancelled", "date": meetup.date.strftime("%Y-%m-%dT%H:%M")}
 
+    @app.post("/api/meetup/close")
+    async def close_meetup_endpoint():
+        """Close the active meetup, or 404/409 if none exists or it's already closed.
+
+        Mainly for ending a triangular session — a classic meetup closes itself
+        automatically once its one match gets a result.
+        """
+        try:
+            meetup = container.get_active_meetup().execute()
+        except MeetupNotFoundError as exc:
+            raise HTTPException(404, "No active meetup to close") from exc
+        try:
+            closed = container.close_meetup().execute(meetup.date)
+        except MeetupAlreadyClosedError as exc:
+            raise HTTPException(409, "Meetup already closed") from exc
+        await notifier.on_match_closed(closed)
+        return {"status": "closed", "date": closed.date.strftime("%Y-%m-%dT%H:%M")}
+
     @app.post("/api/meetup/parse-callup")
     async def parse_callup(body: ParseCallupInput):
-        """Parse a WhatsApp callup text and fuzzy-match player names."""
+        """Parse a callup text and fuzzy-match player names."""
         outcome = container.parse_callup().execute(body.text)
         return {
             "titulars": [serialise_callup_match(m) for m in outcome.titulars],
@@ -102,7 +120,7 @@ def register_meetup_routes(
 
         try:
             meetup = container.assign_teams_by_id().execute(
-                meetup_date, body.team_a_ids, body.team_b_ids
+                meetup_date, body.team_a_ids, body.team_b_ids, body.team_c_ids
             )
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -166,7 +184,7 @@ async def _handle_generate_teams(
         raise HTTPException(409, "Match already finished, cannot regenerate teams")
 
     try:
-        meetup = container.create_teams(body.algorithm).execute(meetup_date)
+        meetup = container.create_teams(body.algorithm).execute(meetup_date, body.team_count)
     except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 

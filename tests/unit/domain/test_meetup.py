@@ -4,7 +4,7 @@ from datetime import datetime, time
 
 import pytest
 
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 
 
@@ -114,12 +114,6 @@ class TestSetTeams:
         meetup.set_teams(teams)
         assert meetup.teams == teams
 
-    def test_set_teams_requires_exactly_two(self):
-        """set_teams raises ValueError when not given exactly two teams."""
-        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
-        with pytest.raises(ValueError, match="Exactly two teams required"):
-            meetup.set_teams([Team.create("A", [])])
-
 
 class TestClearTeams:
     """Tests for Meetup.clear_teams."""
@@ -136,14 +130,13 @@ class TestClearTeams:
         assert meetup.teams is None
 
 
-class TestMeetupResult:
-    """Tests for Meetup.set_result and is_closed."""
+class TestMatches:
+    """Tests for Meetup.matches / current_match / record_result / close."""
 
-    def _meetup_with_teams(self):
+    def _meetup_with_teams(self, count=2):
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        p1 = PlayerId.generate()
-        p2 = PlayerId.generate()
-        meetup.teams = [Team.create("A", [p1]), Team.create("B", [p2])]
+        names = ["A", "B", "C"][:count]
+        meetup.teams = [Team.create(n, [PlayerId.generate()]) for n in names]
         return meetup
 
     def test_is_closed_false_by_default(self):
@@ -151,20 +144,97 @@ class TestMeetupResult:
         meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
         assert not meetup.is_closed()
 
-    def test_set_result_closes_meetup(self):
-        """Setting a result marks the meetup as closed."""
+    def test_add_match_appends_to_matches(self):
+        """add_match appends the given match to the matches list."""
         meetup = self._meetup_with_teams()
-        result = MatchResult(score_a=3, score_b=2, events=())
-        meetup.set_result(result)
-        assert meetup.is_closed()
-        assert meetup.result == result
+        match = Match(teams_playing=(meetup.teams[0], meetup.teams[1]))
+        meetup.add_match(match)
+        assert meetup.matches == [match]
 
-    def test_set_result_requires_teams(self):
-        """set_result raises ValueError if teams have not been created."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        result = MatchResult(score_a=1, score_b=0, events=())
-        with pytest.raises(ValueError, match="Cannot set result without teams"):
-            meetup.set_result(result)
+    def test_current_match_returns_pending_match(self):
+        """current_match returns the last match when it has no result."""
+        meetup = self._meetup_with_teams()
+        match = Match(teams_playing=(meetup.teams[0], meetup.teams[1]))
+        meetup.add_match(match)
+        assert meetup.current_match() is match
+
+    def test_current_match_returns_none_when_last_match_has_result(self):
+        """current_match returns None when the last match already has a result."""
+        meetup = self._meetup_with_teams()
+        match = Match(
+            teams_playing=(meetup.teams[0], meetup.teams[1]),
+            result=MatchResult(score_a=1, score_b=0, events=()),
+        )
+        meetup.add_match(match)
+        assert meetup.current_match() is None
+
+    def test_current_match_returns_none_when_no_matches(self):
+        """current_match returns None when there are no matches yet."""
+        meetup = self._meetup_with_teams()
+        assert meetup.current_match() is None
+
+    def test_record_result_sets_result_on_current_match(self):
+        """record_result attaches the result to the current pending match."""
+        meetup = self._meetup_with_teams()
+        match = Match(teams_playing=(meetup.teams[0], meetup.teams[1]))
+        meetup.add_match(match)
+        result = MatchResult(score_a=2, score_b=1, events=())
+        meetup.record_result(result)
+        assert meetup.matches[0].result == result
+
+    def test_record_result_raises_without_pending_match(self):
+        """record_result raises ValueError when there is no pending match."""
+        meetup = self._meetup_with_teams()
+        with pytest.raises(ValueError, match="No pending match"):
+            meetup.record_result(MatchResult(score_a=1, score_b=0, events=()))
+
+    def test_close_marks_meetup_closed(self):
+        """close marks the meetup as closed."""
+        meetup = self._meetup_with_teams()
+        meetup.close()
+        assert meetup.is_closed()
+
+
+class TestSetTeamsThreeWay:
+    """Tests for Meetup.set_teams accepting 3 teams (triangular)."""
+
+    def test_set_teams_accepts_three_teams(self):
+        """set_teams stores three teams on the meetup."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        teams = [Team.create(n, [PlayerId.generate()]) for n in ("A", "B", "C")]
+        meetup.set_teams(teams)
+        assert meetup.teams == teams
+
+    def test_set_teams_rejects_one_team(self):
+        """set_teams raises ValueError when given only one team."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        with pytest.raises(ValueError, match="Two or three teams required"):
+            meetup.set_teams([Team.create("A", [])])
+
+    def test_set_teams_rejects_four_teams(self):
+        """set_teams raises ValueError when given four teams."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        teams = [Team.create(n, []) for n in ("A", "B", "C", "D")]
+        with pytest.raises(ValueError, match="Two or three teams required"):
+            meetup.set_teams(teams)
+
+
+class TestClearTeamsResetsMatches:
+    """clear_teams must also wipe matches/closed — they reference the old teams."""
+
+    def test_clear_teams_resets_matches_and_closed(self):
+        """clear_teams resets matches to empty and closed to False."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        teams = [Team.create("A", []), Team.create("B", [])]
+        meetup.set_teams(teams)
+        meetup.add_match(Match(teams_playing=(teams[0], teams[1])))
+        meetup.close()
+
+        meetup.clear_teams()
+
+        assert meetup.teams is None
+        assert not meetup.matches
+        assert not meetup.is_closed()
 
 
 class TestGoalEventOwnGoal:

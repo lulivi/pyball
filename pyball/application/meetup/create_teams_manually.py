@@ -24,6 +24,7 @@ from datetime import datetime
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
+from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
 
@@ -114,5 +115,6 @@ class CreateTeamsManually:
             )
 
         meetup.set_teams([Team.create("A", team_a_ids), Team.create("B", team_b_ids)])
+        ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
         return meetup

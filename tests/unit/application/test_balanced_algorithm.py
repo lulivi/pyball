@@ -7,13 +7,14 @@ import pytest
 from pyball.application.meetup.create_teams_algorithms.balanced import (
     BalancedAlgorithm,
     _player_role,
+    _snake_draft,
     _team_score,
     compute_player_scores,
     extract_winning_counts,
     optimize_teams,
 )
 from pyball.domain.meetup.errors import UnknownAlgorithmError
-from pyball.domain.meetup.models import GoalEvent, MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
 
 
 def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -28,8 +29,14 @@ def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-
     m = Meetup.create(datetime.strptime(date_str, "%Y-%m-%d %H:%M"), "Campo")
     for pid in team_a + team_b:
         m.add_player(pid)
-    m.set_teams([Team.create("A", team_a), Team.create("B", team_b)])
-    m.set_result(MatchResult(score_a=score_a, score_b=score_b, events=events))
+    team_a_obj, team_b_obj = Team.create("A", team_a), Team.create("B", team_b)
+    m.set_teams([team_a_obj, team_b_obj])
+    m.add_match(
+        Match(
+            teams_playing=(team_a_obj, team_b_obj),
+            result=MatchResult(score_a=score_a, score_b=score_b, events=events),
+        )
+    )
     return m
 
 
@@ -226,9 +233,10 @@ class TestPlayerRole:
         p1 = PlayerId.generate()
         meetups = []
         for i in range(3):
+            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
             m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            m.set_teams([team_a, team_b])
             events = [
                 GoalEvent(
                     scorer_id=PlayerId.generate(),
@@ -246,7 +254,12 @@ class TestPlayerRole:
                     timestamp=time(20, 15),
                 )
             )
-            m.set_result(MatchResult(score_a=3, score_b=0, events=tuple(events)))
+            m.add_match(
+                Match(
+                    teams_playing=(team_a, team_b),
+                    result=MatchResult(score_a=3, score_b=0, events=tuple(events)),
+                )
+            )
             meetups.append(m)
 
         role = _player_role(p1, meetups)
@@ -257,9 +270,10 @@ class TestPlayerRole:
         p1 = PlayerId.generate()
         season = []
         for i in range(2):
+            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
             m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            m.set_teams([team_a, team_b])
             events = (
                 GoalEvent(
                     scorer_id=p1,
@@ -268,13 +282,14 @@ class TestPlayerRole:
                     timestamp=time(20, 10),
                 ),
             )
-            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            m.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
             season.append(m)
         history = []
         for i in range(3):
+            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
             m = Meetup.create(datetime(2024, 10, i + 1, 20, 0), "Campo")
             m.add_player(p1)
-            m.set_teams([Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])])
+            m.set_teams([team_a, team_b])
             events = (
                 GoalEvent(
                     scorer_id=PlayerId.generate(),
@@ -283,7 +298,7 @@ class TestPlayerRole:
                     timestamp=time(20, 10),
                 ),
             )
-            m.set_result(MatchResult(score_a=1, score_b=0, events=events))
+            m.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
             history.append(m)
 
         role = _player_role(p1, season, history)
@@ -307,6 +322,84 @@ class TestBalancedAlgorithmAssign:
         algo = BalancedAlgorithm()
         team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
         assert abs(len(team_a) - len(team_b)) <= 1
+
+    def test_three_teams_vary_across_repeated_calls_with_tied_scores(self):
+        """Regression test: /manage's "Regenerar 3 equipos" always returned the
+        same teams when players have no match history (all tied at the 0.5
+        default score), because the 3-team snake draft had no randomness at all.
+        """
+        players = [PlayerId.generate() for _ in range(15)]
+        algo = BalancedAlgorithm()
+        results = {
+            tuple(
+                frozenset(team) for team in algo.assign(players, [], [], datetime(2025, 9, 1), 3)
+            )
+            for _ in range(20)
+        }
+        assert len(results) > 1
+
+
+class TestSnakeDraft:
+    """Tests for _snake_draft (3-team balanced distribution)."""
+
+    def test_assigns_all_players_across_three_teams(self):
+        """Every player ends up in exactly one of the three teams."""
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: 0.5 for pid in players}
+
+        teams = _snake_draft(players, scores, 3)
+
+        assert len(teams) == 3
+        assert sum(len(team) for team in teams) == len(players)
+        assert set(players) == {pid for team in teams for pid in team}
+
+    def test_varies_across_repeated_calls_with_tied_scores(self):
+        """With all-equal scores, repeated calls must not always return the
+        identical grouping — this was the root cause of teams looking "stuck".
+        """
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: 0.5 for pid in players}
+
+        results = {
+            tuple(frozenset(team) for team in _snake_draft(players, scores, 3)) for _ in range(20)
+        }
+
+        assert len(results) > 1
+
+    def test_varies_across_repeated_calls_with_distinct_scores(self):
+        """This is the actual real-world bug: players with real match history
+        almost never tie exactly, so a fix that only randomized tie-breaking
+        (an earlier, insufficient version of this fix) left every real deployment
+        with 15 players and real history still getting the identical 3 teams
+        every time "Regenerar" was clicked.
+        """
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: i / 14 for i, pid in enumerate(players)}
+
+        results = {
+            tuple(frozenset(team) for team in _snake_draft(players, scores, 3)) for _ in range(20)
+        }
+
+        assert len(results) > 1
+
+    def test_keeps_balance_with_distinct_scores(self):
+        """The weighted lottery still favors balance over many draws, not just luck.
+
+        A single draw's balance is no longer a hard guarantee now that picks are
+        randomized (that's the point of this fix) — averaged over many draws it
+        must still clearly beat an unweighted random 3-way split of the same
+        players (empirically ~1.25 mean imbalance for this score distribution).
+        """
+        players = [PlayerId.generate() for _ in range(15)]
+        scores = {pid: i / 14 for i, pid in enumerate(players)}
+
+        imbalances = []
+        for _ in range(300):
+            teams = _snake_draft(players, scores, 3)
+            totals = [sum(scores[pid] for pid in team) for team in teams]
+            imbalances.append(max(totals) - min(totals))
+
+        assert sum(imbalances) / len(imbalances) < 1.2
 
 
 class TestUnknownAlgorithmError:

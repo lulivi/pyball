@@ -13,12 +13,12 @@ let expandedIdx = null;     // which chip is expanded
 let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:00"
 // state-driven page state (null = state 0; populated = state 1 or 2)
 let activeMatchData = null;
-let editTeamA = [];          // {id, name}[] — working copy of team A
-let editTeamB = [];          // {id, name}[] — working copy of team B
-let editReplacingPlayer = null; // {id, name, team: 'A'|'B'} | null
+let editTeams = { A: [], B: [], C: [] };  // {id, name}[] per team letter — working copies
+let editTeamLetters = ['A', 'B'];          // ['A','B'] or ['A','B','C'] — set when panel opens
+let editReplacingPlayer = null; // {id, name, team: 'A'|'B'|'C'} | null
 let rosterAddVisible = false;   // State 1: add-player search panel open?
 let rosterSearchQuery = '';     // State 1: current add-player search text
-let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | null — which column's add widget is open
+let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
 let repastePanelOpen = false;   // collapsed re-paste section open?
 
@@ -152,7 +152,10 @@ function renderState1(data) {
     <div id="roster-list">${buildRosterList(data.players)}</div>
     <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
     ${addPanel}
-    <button class="btn btn-green" onclick="generateFromActive()">⚽ Generar equipos equilibrados</button>
+    <div class="action-row">
+      <button class="btn btn-green" onclick="generateFromActive(2, this)">⚽ Generar 2 equipos</button>
+      <button class="btn btn-green" onclick="generateFromActive(3, this)">⚽ Generar 3 equipos</button>
+    </div>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
@@ -164,20 +167,22 @@ function renderState1(data) {
     }
 }
 
-async function generateFromActive() {
-    const btn = document.querySelector('#tab-equipos .btn-green');
-    if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
+async function generateFromActive(teamCount, btn) {
+    const buttons = document.querySelectorAll('#tab-equipos .action-row .btn');
+    const originalLabels = Array.from(buttons).map(b => b.textContent);
+    buttons.forEach(b => { b.disabled = true; });
+    if (btn) btn.textContent = 'Generando...';
     try {
-        activeMatchData = await _callGenerateTeams();
+        activeMatchData = await _callGenerateTeams(teamCount);
         if (!activeMatchData.teams) {
             alert('Error: el servidor no devolvió equipos.');
-            if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos equilibrados'; }
+            buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
             return;
         }
         renderState2(activeMatchData);
     } catch (e) {
         alert('Error: ' + e.message);
-        if (btn) { btn.disabled = false; btn.textContent = '⚽ Generar equipos equilibrados'; }
+        buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
     }
 }
 
@@ -233,46 +238,45 @@ async function createAndAddPlayer(name) {
 // ── STATE 2: match with teams ─────────────────────────────────────────────
 function renderState2(data) {
     const t = data.teams;
-    const teamsText = `${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}\n\n${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`;
+    const blocks = [`${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}`, `${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`];
+    if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${t.teamC.join('\n')}`);
+    const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar para WhatsApp</button>
+    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     <div class="regen-row">
+      <button class="btn-sm green" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar (2)</button>
+      <button class="btn-sm green" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar (3)</button>
       <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
-      <button class="btn-sm green" onclick="regenerateCurrentTeams()">↺ Regenerar</button>
     </div>
+    ${t.teamC ? '<button class="btn-sm amber" style="width:100%;margin-top:6px;" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     <div id="edit-panel-container"></div>
-    <hr class="divider">
-    <div class="step-label">Abre el marcador en otro móvil</div>
-    <div class="qr-box">
-      <canvas id="qr-canvas"></canvas>
-      <a class="qr-hint" id="qr-hint" href="${escHtml(t.matchUrl)}" target="_blank" rel="noopener">Link del partido</a>
-    </div>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
-    _renderQR(t.matchUrl, document.getElementById('qr-canvas'));
 }
 
 function copyTeams() {
     _copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
-async function regenerateCurrentTeams() {
-    const btn = document.querySelector('.regen-row .btn-sm.green');
-    if (btn) { btn.textContent = 'Regenerando...'; btn.disabled = true; }
+async function regenerateCurrentTeams(teamCount, btn) {
+    const buttons = document.querySelectorAll('.regen-row .btn-sm.green');
+    const originalLabels = Array.from(buttons).map(b => b.textContent);
+    buttons.forEach(b => { b.disabled = true; });
+    if (btn) btn.textContent = 'Regenerando...';
     try {
-        activeMatchData = await _callGenerateTeams();
+        activeMatchData = await _callGenerateTeams(teamCount);
         if (!activeMatchData.teams) {
             alert('Error: el servidor no devolvió equipos.');
-            if (btn) { btn.disabled = false; btn.textContent = '↺ Regenerar'; }
+            buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
             return;
         }
         renderState2(activeMatchData);
     } catch (e) {
         alert('Error: ' + e.message);
-        if (btn) { btn.textContent = '↺ Regenerar'; btn.disabled = false; }
+        buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
     }
 }
 
@@ -280,24 +284,30 @@ async function regenerateCurrentTeams() {
 async function toggleTeamsEditPanel() {
     const container = document.getElementById('edit-panel-container');
     if (container.innerHTML) {
-        editTeamA = [];
-        editTeamB = [];
+        editTeamLetters.forEach(letter => { editTeams[letter] = []; });
         editReplacingPlayer = null;
         editAddOpenTeam = null;
         editAddQuery = '';
         container.innerHTML = '';
+        const teamsBox = document.getElementById('teams-text');
+        if (teamsBox) teamsBox.style.display = '';
         return;
     }
     const open = () => {
         const t = activeMatchData.teams;
         const byName = {};
         activeMatchData.players.forEach(p => { byName[p.name] = p; });
-        editTeamA = t.teamA.map(name => byName[name] || { id: null, name });
-        editTeamB = t.teamB.map(name => byName[name] || { id: null, name });
-        const missing = [...editTeamA, ...editTeamB].filter(p => !p.id).map(p => p.name);
+        editTeamLetters = t.teamC ? ['A', 'B', 'C'] : ['A', 'B'];
+        const namesByLetter = { A: t.teamA, B: t.teamB, C: t.teamC };
+        editTeamLetters.forEach(letter => {
+            editTeams[letter] = namesByLetter[letter].map(name => byName[name] || { id: null, name });
+        });
+        const missing = editTeamLetters
+            .flatMap(letter => editTeams[letter])
+            .filter(p => !p.id)
+            .map(p => p.name);
         if (missing.length) {
-            editTeamA = [];
-            editTeamB = [];
+            editTeamLetters.forEach(letter => { editTeams[letter] = []; });
             alert('No se encontró ID para: ' + missing.join(', ') + '. Recarga la página e inténtalo de nuevo.');
             return;
         }
@@ -314,19 +324,17 @@ async function toggleTeamsEditPanel() {
     open();
 }
 
-function moveToOtherTeam(id, fromTeam) {
-    const fromArr = fromTeam === 'A' ? editTeamA : editTeamB;
-    const toArr = fromTeam === 'A' ? editTeamB : editTeamA;
+function moveToOtherTeam(id, fromTeam, toTeam) {
+    const fromArr = editTeams[fromTeam];
     const idx = fromArr.findIndex(p => p.id === id);
     if (idx === -1) return;
     const [player] = fromArr.splice(idx, 1);
-    toArr.push(player);
+    editTeams[toTeam].push(player);
     _renderTeamsEditPanel();
 }
 
 function startReplacePlayer(id, team) {
-    const arr = team === 'A' ? editTeamA : editTeamB;
-    const player = arr.find(p => p.id === id);
+    const player = editTeams[team].find(p => p.id === id);
     if (!player) return;
     editReplacingPlayer = { ...player, team };
     _renderTeamsEditPanel();
@@ -334,7 +342,7 @@ function startReplacePlayer(id, team) {
 
 function pickReplacement(id, name) {
     if (!editReplacingPlayer) return;
-    const arr = editReplacingPlayer.team === 'A' ? editTeamA : editTeamB;
+    const arr = editTeams[editReplacingPlayer.team];
     const idx = arr.findIndex(p => p.id === editReplacingPlayer.id);
     if (idx !== -1) arr[idx] = { id, name };
     editReplacingPlayer = null;
@@ -347,7 +355,7 @@ function cancelReplace() {
 }
 
 function removeFromEditTeam(id, team) {
-    const arr = team === 'A' ? editTeamA : editTeamB;
+    const arr = editTeams[team];
     const idx = arr.findIndex(p => p.id === id);
     if (idx !== -1) arr.splice(idx, 1);
     _renderTeamsEditPanel();
@@ -365,7 +373,7 @@ function searchEditAdd() {
     const resultsEl = document.getElementById('edit-add-results');
     if (!resultsEl) return;
     if (!editAddQuery) { resultsEl.innerHTML = ''; return; }
-    const usedIds = new Set([...editTeamA, ...editTeamB].map(p => p.id));
+    const usedIds = new Set(editTeamLetters.flatMap(letter => editTeams[letter]).map(p => p.id));
     const q = editAddQuery.toLowerCase();
     const matches = allPlayers
         .filter(p => p.name.toLowerCase().includes(q) && !usedIds.has(p.id))
@@ -376,8 +384,7 @@ function searchEditAdd() {
 }
 
 function pickEditAdd(id, name, team) {
-    const arr = team === 'A' ? editTeamA : editTeamB;
-    arr.push({ id, name });
+    editTeams[team].push({ id, name });
     editAddOpenTeam = null;
     editAddQuery = '';
     _renderTeamsEditPanel();
@@ -399,7 +406,7 @@ function renderReplaceSearchResults() {
     const query = document.getElementById('replace-search').value.toLowerCase();
     const resultsEl = document.getElementById('replace-results');
     if (!query) { resultsEl.innerHTML = ''; return; }
-    const editIds = new Set([...editTeamA, ...editTeamB].map(p => p.id));
+    const editIds = new Set(editTeamLetters.flatMap(letter => editTeams[letter]).map(p => p.id));
     const matches = allPlayers
         .filter(p => p.name.toLowerCase().includes(query) && !editIds.has(p.id))
         .slice(0, 6);
@@ -411,21 +418,24 @@ function renderReplaceSearchResults() {
 async function saveTeams() {
     const saveBtn = document.querySelector('#teams-edit-panel .btn-green');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando...'; }
+    const body = {
+        date: activeMatchData.date,
+        team_a_ids: editTeams.A.map(p => p.id),
+        team_b_ids: editTeams.B.map(p => p.id),
+    };
+    if (editTeamLetters.includes('C')) {
+        body.team_c_ids = editTeams.C.map(p => p.id);
+    }
     let data;
     try {
-        data = await post('/api/meetup/assign-teams', {
-            date: activeMatchData.date,
-            team_a_ids: editTeamA.map(p => p.id),
-            team_b_ids: editTeamB.map(p => p.id),
-        });
+        data = await post('/api/meetup/assign-teams', body);
     } catch (err) {
         alert('Error: ' + (err.detail || err.message));
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar equipos'; }
         return;
     }
     activeMatchData = data;
-    editTeamA = [];
-    editTeamB = [];
+    editTeamLetters.forEach(letter => { editTeams[letter] = []; });
     editReplacingPlayer = null;
     editAddOpenTeam = null;
     editAddQuery = '';
@@ -501,6 +511,21 @@ async function cancelMeetup() {
     if (!confirm('¿Seguro que quieres cancelar el partido? Esta acción no se puede deshacer.')) return;
     try {
         await del('/api/meetup/active');
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = null;
+    repastePanelOpen = false;
+    rosterAddVisible = false;
+    _buildFreshFlowHTML();
+    showStep('paste');
+}
+
+async function closeMeetup() {
+    if (!confirm('¿Seguro que quieres cerrar el triangular? Esta acción no se puede deshacer.')) return;
+    try {
+        await post('/api/meetup/close');
     } catch (err) {
         alert('Error: ' + (err.detail || err.message));
         return;
@@ -654,34 +679,11 @@ async function bootstrap() {
 }
 
 // ── PRIVATE HELPERS ───────────────────────────────────────────────────────────
-function _renderQR(url, canvas) {
+async function _callGenerateTeams(teamCount) {
     try {
-        const qr = qrcode(0, 'M');
-        qr.addData(url);
-        qr.make();
-        const cells = qr.getModuleCount();
-        const margin = 4;
-        const scale = Math.max(4, Math.floor(220 / cells));
-        const size = (cells + margin * 2) * scale;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, size, size);
-        for (let r = 0; r < cells; r++) {
-            for (let c = 0; c < cells; c++) {
-                ctx.fillStyle = qr.isDark(r, c) ? '#000000' : '#ffffff';
-                ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
-            }
-        }
-    } catch (e) {
-        canvas.style.display = 'none';
-    }
-}
-
-async function _callGenerateTeams() {
-    try {
-        return await post('/api/meetup/generate-teams', { date: activeMatchData.date, algorithm: 'balanceado' });
+        return await post('/api/meetup/generate-teams', {
+            date: activeMatchData.date, algorithm: 'balanceado', team_count: teamCount,
+        });
     } catch (err) {
         throw new Error(err.detail || err.message);
     }
@@ -711,24 +713,27 @@ function _rerenderActiveState() {
 }
 
 function _renderTeamsEditPanel() {
-    const tooUneven = Math.abs(editTeamA.length - editTeamB.length) > 1;
+    const teamsBox = document.getElementById('teams-text');
+    if (teamsBox) teamsBox.style.display = 'none';
+    const sizes = editTeamLetters.map(letter => editTeams[letter].length);
+    const tooUneven = Math.max(...sizes) - Math.min(...sizes) > 1;
     const t = activeMatchData.teams;
+    const nameByLetter = { A: t.nameA, B: t.nameB, C: t.nameC };
+    const emojiByLetter = { A: t.emojiA, B: t.emojiB, C: t.emojiC };
 
     const row = (p, team) => {
         const hl = editReplacingPlayer && editReplacingPlayer.id === p.id
             ? 'background:#431407;border-color:#ef4444;' : '';
         const nameBtn = `<span style="color:#38bdf8;text-decoration:underline;cursor:pointer;flex:1;"
       onclick="startReplacePlayer('${escAttr(p.id)}','${team}')">${escHtml(p.name)}</span>`;
-        const arrow = team === 'A'
-            ? `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
-           onclick="moveToOtherTeam('${escAttr(p.id)}','A')">➡️</button>`
-            : `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
-           onclick="moveToOtherTeam('${escAttr(p.id)}','B')">⬅️</button>`;
+        const moveButtons = editTeamLetters
+            .filter(letter => letter !== team)
+            .map(letter => `<button class="btn-sm gray" style="padding:3px 8px;font-size:0.85rem;"
+           onclick="moveToOtherTeam('${escAttr(p.id)}','${team}','${letter}')">→ ${escHtml(nameByLetter[letter])}</button>`)
+            .join('');
         const removeBtn = `<button class="remove-btn"
       onclick="removeFromEditTeam('${escAttr(p.id)}','${team}')">✕</button>`;
-        const order = team === 'A'
-            ? `${nameBtn}${arrow}${removeBtn}` : `${removeBtn}${arrow}${nameBtn}`;
-        return `<div class="edit-chip" style="${hl}">${order}</div>`;
+        return `<div class="edit-chip" style="${hl}">${nameBtn}${moveButtons}${removeBtn}</div>`;
     };
 
     const addBtn = (team) => `<button class="btn-sm gray"
@@ -738,7 +743,7 @@ function _renderTeamsEditPanel() {
     const addPanel = editAddOpenTeam ? `
     <div style="margin-bottom:8px;">
       <div class="step-label" style="font-size:0.65rem;">
-        ＋ Añadir a ${editAddOpenTeam === 'A' ? escHtml(t.nameA) : escHtml(t.nameB)}</div>
+        ＋ Añadir a ${escHtml(nameByLetter[editAddOpenTeam])}</div>
       ${buildAddPlayerPanel('edit-add', 'searchEditAdd()')}
     </div>` : '';
 
@@ -758,6 +763,15 @@ function _renderTeamsEditPanel() {
         : `<button class="btn btn-green" style="margin-top:4px;"
          onclick="saveTeams()">💾 Guardar equipos</button>`;
 
+    const teamBlock = (letter) => `
+        <div style="margin-bottom:10px;">
+          <div class="step-label" style="font-size:0.65rem;">${escHtml(emojiByLetter[letter])} ${escHtml(nameByLetter[letter])} (${editTeams[letter].length})</div>
+          ${editTeams[letter].map(p => row(p, letter)).join('')}
+          ${addBtn(letter)}
+        </div>`;
+
+    const teamsSection = `<div style="margin-bottom:8px;">${editTeamLetters.map(teamBlock).join('')}</div>`;
+
     document.getElementById('edit-panel-container').innerHTML = `
     <div class="edit-panel" id="teams-edit-panel">
       <div class="edit-panel-header">
@@ -765,18 +779,7 @@ function _renderTeamsEditPanel() {
         <button class="close-x" onclick="toggleTeamsEditPanel()">✕</button>
       </div>
       ${replaceSearch}
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <div style="flex:1;">
-          <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiA)} ${escHtml(t.nameA)} (${editTeamA.length})</div>
-          ${editTeamA.map(p => row(p, 'A')).join('')}
-          ${addBtn('A')}
-        </div>
-        <div style="flex:1;">
-          <div class="step-label" style="font-size:0.65rem;">${escHtml(t.emojiB)} ${escHtml(t.nameB)} (${editTeamB.length})</div>
-          ${editTeamB.map(p => row(p, 'B')).join('')}
-          ${addBtn('B')}
-        </div>
-      </div>
+      ${teamsSection}
       ${addPanel}
       ${tooUneven ? '<div class="load-warning">⚠ Los equipos no pueden diferir en más de 1 jugador</div>' : ''}
       ${saveBtn}
@@ -833,6 +836,7 @@ Object.assign(window, {
     parseRepaste,
     confirmRepaste,
     cancelMeetup,
+    closeMeetup,
     copySummary,
     downloadStats,
     shareStats,

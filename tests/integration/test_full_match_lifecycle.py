@@ -12,7 +12,6 @@ from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     add_player_handler,
     create_teams_handler,
-    match_qr_handler,
     new_meetup_handler,
     remove_player_handler,
     search_handler,
@@ -46,7 +45,6 @@ class TestFullMatchLifecycle:
         await self._remove_player(bot_update, bot_context, real_container)
         await self._generate_teams_twice(bot_update, bot_context, real_container)
         await self._search_substitutes(bot_update, bot_context)
-        await self._start_match(bot_update, bot_context)
         await self._finish_match(real_container)
         await self._verify_stats(bot_update, bot_context, real_container, monkeypatch)
 
@@ -102,6 +100,7 @@ class TestFullMatchLifecycle:
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.teams is not None
+        assert meetup.current_match() is not None
         bot_context.bot.set_message_reaction.assert_called()
         bot_update.message.reply_text.assert_not_called()
 
@@ -114,17 +113,6 @@ class TestFullMatchLifecycle:
         bot_context.bot.send_message.assert_called_once()
         bot_context.bot.set_message_reaction.assert_called()
         bot_update.message.reply_text.assert_not_called()
-
-    async def _start_match(self, bot_update, bot_context):
-        bot_update.message.reply_text.reset_mock()
-        bot_context.bot.send_photo.reset_mock()
-        bot_context.args = _DATE_ARGS
-        await match_qr_handler(bot_update, bot_context)
-
-        bot_context.bot.send_photo.assert_called_once()
-        call_kwargs = bot_context.bot.send_photo.call_args.kwargs
-        assert call_kwargs.get("chat_id") == 99999
-        assert "/match" in call_kwargs.get("caption", "")
 
     async def _finish_match(self, real_container):
         events = [
@@ -152,9 +140,10 @@ class TestFullMatchLifecycle:
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.is_closed()
-        assert meetup.result.score_a == 2
-        assert meetup.result.score_b == 1
-        assert len(meetup.result.events) == 3
+        result = meetup.matches[-1].result
+        assert result.score_a == 2
+        assert result.score_b == 1
+        assert len(result.events) == 3
 
     async def _verify_stats(self, bot_update, bot_context, _real_container, monkeypatch):
         fake_png = b"\x89PNG\r\n\x1a\n"
@@ -277,26 +266,6 @@ class TestFullMatchLifecycle:
         call = bot_update.message.reply_text.call_args
         text = call.kwargs.get("text") or (call.args[0] if call.args else "")
         assert "Ya existe" in text
-
-    @pytest.mark.asyncio
-    async def test_match_qr_without_teams(self, bot_update, bot_context):
-        """match_qr_handler without teams replies with a no-teams error."""
-        bot_context.args = ["Regular_01,", "regular"]
-        await new_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
-        bot_context.args = [*_DATE_ARGS, "Regular_01"]
-        await add_player_handler(bot_update, bot_context)
-
-        bot_update.message.reply_text.reset_mock()
-        bot_context.bot.send_photo.reset_mock()
-        bot_context.args = _DATE_ARGS
-        await match_qr_handler(bot_update, bot_context)
-
-        bot_context.bot.send_photo.assert_not_called()
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "equipos" in text.lower()
 
     @pytest.mark.asyncio
     async def test_finish_already_closed_match(self, bot_update, bot_context, real_container):

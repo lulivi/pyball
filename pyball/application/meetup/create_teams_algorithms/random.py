@@ -30,15 +30,15 @@ from pyball.domain.meetup.models import Meetup, PlayerId
 class RandomAlgorithm:
     """Assigns players to teams by random shuffle."""
 
-    def assign(
+    def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         players: list[PlayerId],
         finished_meetups: list[Meetup],  # pylint: disable=unused-argument
         season_meetups: list[Meetup],  # pylint: disable=unused-argument
         season_start: datetime,  # pylint: disable=unused-argument
-    ) -> tuple[list[PlayerId], list[PlayerId]]:
-        """Shuffle players and split in half, ignoring all history."""
+        team_count: int = 2,
+    ) -> tuple[list[PlayerId], ...]:
+        """Shuffle players and split into team_count roughly-even groups, ignoring history."""
         shuffled = list(players)
         random.shuffle(shuffled)
-        mid = len(shuffled) // 2
-        return shuffled[:mid], shuffled[mid:]
+        return tuple(shuffled[i::team_count] for i in range(team_count))

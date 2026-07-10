@@ -79,6 +79,54 @@ async def test_on_match_closed_edits_without_keyboard(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_refresh_callup_messages_locked_shows_single_unlock_button(tmp_path):
+    """locked=True replaces the regular message's keyboard with one unlock button."""
+    bot = AsyncMock()
+    settings = MagicMock()
+    settings.paths.data_dir = tmp_path
+    settings.pyball.team_colors = ("blanco", "negro")
+    settings.pyball.team_emojis = ("⚪", "⚫")
+    settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "regular", MessageTracking(chat_id=-100, message_id=42)
+    )
+
+    await notifications.refresh_callup_messages(bot, settings, container, meetup, locked=True)
+
+    kb = bot.edit_message_text.call_args.kwargs["reply_markup"]
+    assert len(kb.inline_keyboard) == 1
+    assert len(kb.inline_keyboard[0]) == 1
+    assert kb.inline_keyboard[0][0].text == "🔓 Desfijar partido"
+
+
+@pytest.mark.asyncio
+async def test_refresh_callup_messages_locked_hides_subs_keyboard(tmp_path):
+    """locked=True also removes the substitutes message's keyboard."""
+    bot = AsyncMock()
+    settings = MagicMock()
+    settings.paths.data_dir = tmp_path
+    settings.pyball.team_colors = ("blanco", "negro")
+    settings.pyball.team_emojis = ("⚪", "⚫")
+    settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        datetime(2026, 4, 30, 20, 0), "substitute", MessageTracking(chat_id=-200, message_id=99)
+    )
+
+    await notifications.refresh_callup_messages(bot, settings, container, meetup, locked=True)
+
+    kwargs = bot.edit_message_text.call_args.kwargs
+    assert kwargs["reply_markup"] is None
+
+
+@pytest.mark.asyncio
 async def test_on_match_closed_deletes_tracking_entries(tmp_path):
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")

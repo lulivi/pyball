@@ -58,6 +58,7 @@ class AssignTeamsInput(BaseModel):
     date: str
     team_a_ids: list[str]
     team_b_ids: list[str]
+    team_c_ids: list[str] | None = None
 
 
 class CreateMeetupInput(BaseModel):
@@ -72,6 +73,7 @@ class GenerateTeamsInput(BaseModel):
 
     date: str
     algorithm: str = "balanceado"
+    team_count: int = 2
 
 
 class CreatePlayerInput(BaseModel):

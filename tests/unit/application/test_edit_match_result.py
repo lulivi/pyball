@@ -6,7 +6,7 @@ import pytest
 
 from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
 
 
@@ -49,8 +49,12 @@ def _meetup_with_teams_and_result():
     meetup = Meetup.create(datetime(2026, 5, 28, 20, 0), "Campo Norte")
     p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
     p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
-    meetup.teams = [Team.create("A", [p1.id]), Team.create("B", [p2.id])]
-    meetup.set_result(MatchResult(score_a=1, score_b=0, events=()))
+    team_a, team_b = Team.create("A", [p1.id]), Team.create("B", [p2.id])
+    meetup.teams = [team_a, team_b]
+    meetup.add_match(
+        Match(teams_playing=(team_a, team_b), result=MatchResult(score_a=1, score_b=0, events=()))
+    )
+    meetup.close()
     return meetup, p1, p2
 
 
@@ -74,11 +78,11 @@ class TestEditMatchResult:
         result_meetup = self.use_case.execute("2026-05-28T20:00", events, {"A": 1, "B": 0})
 
         assert result_meetup.is_closed()
-        assert result_meetup.result.score_a == 1
-        assert result_meetup.result.score_b == 0
-        assert len(result_meetup.result.events) == 1
-        assert result_meetup.result.events[0].scorer_id == p1.id
-        assert result_meetup.result.events[0].assistant_id == p2.id
+        assert result_meetup.matches[-1].result.score_a == 1
+        assert result_meetup.matches[-1].result.score_b == 0
+        assert len(result_meetup.matches[-1].result.events) == 1
+        assert result_meetup.matches[-1].result.events[0].scorer_id == p1.id
+        assert result_meetup.matches[-1].result.events[0].assistant_id == p2.id
 
     def test_replaces_result_without_assistant(self):
         """An event with assistant=None is stored with assistant_id=None."""
@@ -89,7 +93,7 @@ class TestEditMatchResult:
         events = [{"scorer": "Dani", "assistant": None, "team": "A", "timestamp": "20:05"}]
         result_meetup = self.use_case.execute("2026-05-28T20:00", events, {"A": 1, "B": 0})
 
-        assert result_meetup.result.events[0].assistant_id is None
+        assert result_meetup.matches[-1].result.events[0].assistant_id is None
 
     def test_raises_if_meetup_not_found(self):
         """EditMatchResult raises MeetupNotFoundError when no meetup exists on that date."""
@@ -122,9 +126,9 @@ class TestEditMatchResult:
 
         result_meetup = self.use_case.execute("2026-05-28T20:00", [], {"A": 0, "B": 0})
 
-        assert len(result_meetup.result.events) == 0
-        assert result_meetup.result.score_a == 0
-        assert result_meetup.result.score_b == 0
+        assert len(result_meetup.matches[-1].result.events) == 0
+        assert result_meetup.matches[-1].result.score_a == 0
+        assert result_meetup.matches[-1].result.score_b == 0
 
     def test_own_goal_stored_with_flag(self):
         """An event with is_own_goal=True is stored with is_own_goal=True and no assistant."""
@@ -143,7 +147,7 @@ class TestEditMatchResult:
         ]
         result_meetup = self.use_case.execute("2026-05-28T20:00", events, {"A": 0, "B": 1})
 
-        ev = result_meetup.result.events[0]
+        ev = result_meetup.matches[-1].result.events[0]
         assert ev.is_own_goal is True
         assert ev.assistant_id is None
         assert ev.scorer_id == p1.id
@@ -165,3 +169,33 @@ class TestEditMatchResult:
         ]
         with pytest.raises(ValueError, match="own goal"):
             self.use_case.execute("2026-05-28T20:00", events, {"A": 0, "B": 1})
+
+    def test_edit_match_result_edits_the_last_match_by_default(self):
+        """With no match_index given, EditMatchResult edits the most recently closed match."""
+        meetup = Meetup.create(datetime(2026, 5, 28, 20, 0), "Campo Norte")
+        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
+        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
+        p3 = Player(id=PlayerId.generate(), name="Nico", group="regular")
+        team_a = Team.create("A", [p1.id])
+        team_b = Team.create("B", [p2.id])
+        team_c = Team.create("C", [p3.id])
+        meetup.teams = [team_a, team_b, team_c]
+        first_result = MatchResult(score_a=1, score_b=0, events=())
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=first_result))
+        meetup.add_match(
+            Match(
+                teams_playing=(team_b, team_c), result=MatchResult(score_a=2, score_b=1, events=())
+            )
+        )
+        meetup.close()
+        self.meetup_repo.meetups = [meetup]
+        self.player_repo.players = [p1, p2, p3]
+
+        events = [{"scorer": "Nico", "assistant": None, "team": "B", "timestamp": "20:20"}]
+        result_meetup = self.use_case.execute("2026-05-28T20:00", events, {"A": 3, "B": 1})
+
+        assert result_meetup.matches[0].result == first_result
+        assert result_meetup.matches[1].result.score_a == 3
+        assert result_meetup.matches[1].result.score_b == 1
+        assert len(result_meetup.matches[1].result.events) == 1
+        assert result_meetup.matches[1].result.events[0].scorer_id == p3.id
