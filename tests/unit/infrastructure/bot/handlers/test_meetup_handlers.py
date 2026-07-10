@@ -148,6 +148,56 @@ async def test_show_meetup_handler_no_args_uses_active_meetup(mock_update, mock_
 
 
 @pytest.mark.asyncio
+async def test_show_meetup_handler_active_meetup_includes_keyboard(mock_update, mock_context):
+    """show_meetup shows the main keyboard when the meetup is still active."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = False
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    kwargs = mock_update.message.reply_text.call_args.kwargs
+    assert kwargs.get("reply_markup") is not None
+
+
+@pytest.mark.asyncio
+async def test_show_meetup_handler_closed_meetup_has_no_keyboard(mock_update, mock_context):
+    """show_meetup shows no keyboard once the meetup is closed."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 6, 4, 20, 0)
+    meetup.players = []
+    meetup.teams = None
+    meetup.is_closed.return_value = True
+
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    container.player_repository.find_all.return_value = []
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    with patch(
+        "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+        return_value="mensaje",
+    ):
+        await show_meetup_handler(mock_update, mock_context)
+
+    kwargs = mock_update.message.reply_text.call_args.kwargs
+    assert kwargs.get("reply_markup") is None
+
+
+@pytest.mark.asyncio
 async def test_show_meetup_handler_no_args_no_active_meetup_replies_error(
     mock_update, mock_context
 ):
