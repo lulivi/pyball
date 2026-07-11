@@ -79,6 +79,12 @@ def build_main_keyboard(
         ],
         [
             InlineKeyboardButton(
+                text="────────────────────",
+                callback_data=build_callback_data("noop", meetup_date),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text="🔀 Crear 2 equipos",
                 callback_data=build_callback_data("create_teams", meetup_date),
             ),
@@ -88,6 +94,15 @@ def build_main_keyboard(
             ),
         ],
     ]
+    if not has_teams:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="🔎 Buscar jugadores",
+                    callback_data=build_callback_data("search", meetup_date),
+                ),
+            ]
+        )
     if has_teams:
         rows.append(
             [
@@ -152,12 +167,7 @@ def format_main_message(  # pylint: disable=too-many-arguments,too-many-position
         return escape_summary_for_telegram(summary)
 
     date_str = format_display(meetup.date, date_fmt)
-    header = f"📅 *Convocatoria:* `{date_str}`"
-    lines = [header]
-
-    if meetup.location:
-        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
-
+    lines = _build_convocatoria_header(meetup, date_str)
     lines.append("")
 
     if meetup.teams is None:
@@ -243,7 +253,8 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
                 subs_by_team[team_idx] = []
             subs_by_team[team_idx].append(name)
 
-        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+        lines = _build_convocatoria_header(meetup, date_str)
+        lines.append("")
         lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
         lines.append("")
 
@@ -263,7 +274,8 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
         [f"`{name}`" for _, name in suplentes], key=functools.cmp_to_key(locale.strcoll)
     )
 
-    lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+    lines = _build_convocatoria_header(meetup, date_str)
+    lines.append("")
     lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
     lines.append("")
 
@@ -305,9 +317,19 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
         "create_teams_3",
         "lock",
         "unlock",
+        "search",
+        "noop",
     ):
         return None
     return action, date_str
+
+
+def _build_convocatoria_header(meetup: Meetup, date_str: str) -> list[str]:
+    """Build the shared 📅 Convocatoria / 📍 Lugar header lines."""
+    lines = [f"📅 *Convocatoria:* `{date_str}`"]
+    if meetup.location:
+        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
+    return lines
 
 
 def _escape_mdv2(text: str) -> str:

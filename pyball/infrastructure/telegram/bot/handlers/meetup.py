@@ -412,35 +412,8 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if meetup is None:
         return
 
-    player_repo = container.player_repository
-    player_names = _get_player_names(player_repo)
-    player_groups = {str(p.id.value): p.group for p in player_repo.find_all()}
-    text = format_subs_message(
-        meetup,
-        player_names,
-        player_groups,
-        team_colors=settings.pyball.team_colors,
-        team_emojis=settings.pyball.team_emojis,
-        date_fmt=settings.pyball.display_date_format,
-    )
-    keyboard = build_subs_keyboard(meetup.date)
-
     try:
-        msg = await context.bot.send_message(
-            chat_id=settings.telegram.substitutes.chat_id,
-            text=text,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
-        store.save_message(
-            meetup.date,
-            "substitute",
-            MessageTracking(
-                chat_id=settings.telegram.substitutes.chat_id,
-                message_id=msg.message_id,
-            ),
-        )
+        await _do_search(meetup, container, context.bot, settings)
         await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
         logger.error("Telegram error sending substitutes message: %s", error)
@@ -690,6 +663,43 @@ async def _do_create_teams(  # pylint: disable=too-many-arguments,too-many-posit
     meetup = container.create_teams(algo_name).execute(meetup_date, team_count)
     await refresh_callup_messages(bot, settings, container, meetup)
     return meetup
+
+
+async def _do_search(
+    meetup: Meetup,
+    container: Container,
+    bot: telegram.Bot,
+    settings: TelegramAppSettings,
+) -> None:
+    """Send the substitutes message to the substitutes chat and track it."""
+    player_repo = container.player_repository
+    player_names = _get_player_names(player_repo)
+    player_groups = {str(p.id.value): p.group for p in player_repo.find_all()}
+    text = format_subs_message(
+        meetup,
+        player_names,
+        player_groups,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
+        date_fmt=settings.pyball.display_date_format,
+    )
+    keyboard = build_subs_keyboard(meetup.date)
+
+    msg = await bot.send_message(
+        chat_id=settings.telegram.substitutes.chat_id,
+        text=text,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    store.save_message(
+        meetup.date,
+        "substitute",
+        MessageTracking(
+            chat_id=settings.telegram.substitutes.chat_id,
+            message_id=msg.message_id,
+        ),
+    )
 
 
 async def _create_meetup_and_send(

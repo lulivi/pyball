@@ -140,6 +140,34 @@ def test_format_subs_message():
     assert "Pedro" in text
 
 
+def test_format_subs_message_header_matches_main_message_style():
+    """Subs header uses the same 📅 Convocatoria style as titulares, no '- Suplentes'."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+
+    player_names = {str(p1.value): "Pedro"}
+    player_groups = {str(p1.value): "substitute"}
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "📅 *Convocatoria:*" in text
+    assert "- Suplentes" not in text
+    assert r"\- Suplentes" not in text
+
+
+def test_format_subs_message_shows_location():
+    """Subs header includes 📍 Lugar line when the meetup has a location."""
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    p1 = PlayerId.generate()
+    meetup.add_player(p1)
+
+    player_names = {str(p1.value): "Pedro"}
+    player_groups = {str(p1.value): "substitute"}
+    text = format_subs_message(meetup, player_names, player_groups)
+
+    assert "📍 *Lugar:* Parque Central" in text
+
+
 def test_format_main_message_all_unmasked():
     meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
     p_regular = PlayerId.generate()
