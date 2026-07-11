@@ -79,6 +79,12 @@ def build_main_keyboard(
         ],
         [
             InlineKeyboardButton(
+                text="────────────────────",
+                callback_data=build_callback_data("noop", meetup_date),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text="🔀 Crear 2 equipos",
                 callback_data=build_callback_data("create_teams", meetup_date),
             ),
@@ -312,6 +318,7 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
         "lock",
         "unlock",
         "search",
+        "noop",
     ):
         return None
     return action, date_str
