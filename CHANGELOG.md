@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.16.0 (2026-07-11)
+
+### Features
+
+- **GL-88,GL-89,GL-90**: Unify Telegram subs header, add search + separator keyboard buttons
+  ([`85dfca7`](https://gitlab.com/lulivi/pyball/-/commit/85dfca71cedc34ee5577f8d030a02f0b1c10ab88))
+
+
 ## v4.15.0 (2026-07-10)
 
 ### Features
