@@ -152,12 +152,7 @@ def format_main_message(  # pylint: disable=too-many-arguments,too-many-position
         return escape_summary_for_telegram(summary)
 
     date_str = format_display(meetup.date, date_fmt)
-    header = f"📅 *Convocatoria:* `{date_str}`"
-    lines = [header]
-
-    if meetup.location:
-        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
-
+    lines = _build_convocatoria_header(meetup, date_str)
     lines.append("")
 
     if meetup.teams is None:
@@ -243,7 +238,8 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
                 subs_by_team[team_idx] = []
             subs_by_team[team_idx].append(name)
 
-        lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+        lines = _build_convocatoria_header(meetup, date_str)
+        lines.append("")
         lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
         lines.append("")
 
@@ -263,7 +259,8 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
         [f"`{name}`" for _, name in suplentes], key=functools.cmp_to_key(locale.strcoll)
     )
 
-    lines = [rf"*Convocatoria* `{date_str}` \- Suplentes"]
+    lines = _build_convocatoria_header(meetup, date_str)
+    lines.append("")
     lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
     lines.append("")
 
@@ -275,6 +272,14 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
         lines.append("*No hay suplentes*")
 
     return "\n".join(lines)
+
+
+def _build_convocatoria_header(meetup: Meetup, date_str: str) -> list[str]:
+    """Build the shared 📅 Convocatoria / 📍 Lugar header lines."""
+    lines = [f"📅 *Convocatoria:* `{date_str}`"]
+    if meetup.location:
+        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
+    return lines
 
 
 def escape_summary_for_telegram(summary: str) -> str:
