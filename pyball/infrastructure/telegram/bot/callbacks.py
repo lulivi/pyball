@@ -106,6 +106,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_search_callback(
             meetup, query, container, context.bot, settings, from_user.id
         )
+    elif action == "noop":
+        await query.answer()
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments

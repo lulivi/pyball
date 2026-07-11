@@ -427,3 +427,17 @@ async def test_search_callback_no_substitutes_chat_answers_alert(
     assert call_kwargs[1].get("show_alert") is True
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
     assert "no está configurado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_noop_callback_answers_silently(
+    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
+):
+    """Pressing the separator button answers with no text and no alert."""
+    callback_update.callback_query.data = "noop:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    callback_update.callback_query.answer.assert_called_once_with()
+    bot_context.bot.send_message.assert_not_called()
+    bot_context.bot.edit_message_text.assert_not_called()
