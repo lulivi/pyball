@@ -88,6 +88,15 @@ def build_main_keyboard(
             ),
         ],
     ]
+    if not has_teams:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="🔎 Buscar jugadores",
+                    callback_data=build_callback_data("search", meetup_date),
+                ),
+            ]
+        )
     if has_teams:
         rows.append(
             [
@@ -310,6 +319,7 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
         "create_teams_3",
         "lock",
         "unlock",
+        "search",
     ):
         return None
     return action, date_str
