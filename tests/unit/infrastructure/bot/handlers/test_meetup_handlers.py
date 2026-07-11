@@ -18,6 +18,7 @@ from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.bot.handlers.meetup import (
     _date_usage_msg,
+    _do_search,
     add_player_handler,
     close_triangular_handler,
     create_teams_handler,
@@ -939,6 +940,42 @@ async def test_add_player_handler_partial_failure_replies_failures_only(mock_upd
     assert "Pedro" in text
     assert "Añadidos" not in text
     mock_context.bot.set_message_reaction.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_do_search_sends_message_and_tracks_it(mock_context):
+    """_do_search sends the substitutes message and stores tracking info."""
+    meetup = MagicMock()
+    meetup.date = datetime(2026, 4, 25, 20, 0)
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    settings = mock_context.bot_data["settings"]
+    settings.telegram.substitutes.chat_id = -1001234567
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=7))
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_subs_message",
+            return_value="msg",
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.build_subs_keyboard",
+            return_value=None,
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"
+        ) as mock_store_cls,
+    ):
+        await _do_search(meetup, container, bot, settings)
+
+    bot.send_message.assert_called_once_with(
+        chat_id=-1001234567,
+        text="msg",
+        reply_markup=None,
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    mock_store_cls.return_value.save_message.assert_called_once()
 
 
 @pytest.mark.asyncio

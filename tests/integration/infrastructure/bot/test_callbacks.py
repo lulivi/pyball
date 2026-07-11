@@ -376,3 +376,68 @@ async def test_unlock_callback_unauthorized_answers_admin_alert(
     assert call_kwargs[1].get("show_alert") is True
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
     assert "administrador" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_search_callback_authorized_sends_message(
+    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
+):
+    """Admin pressing search sends the substitutes message and answers with a toast."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
+    callback_update.callback_query.data = "search:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    bot_context.bot.send_message.assert_called_once()
+    call_kwargs = bot_context.bot.send_message.call_args.kwargs
+    assert call_kwargs["chat_id"] == -100222
+    callback_update.callback_query.answer.assert_called_once_with("Mensaje enviado a suplentes.")
+
+
+@pytest.mark.asyncio
+async def test_search_callback_unauthorized_answers_admin_alert(
+    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
+):
+    """Non-admin pressing search receives an admin-only alert and nothing is sent."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
+    callback_update.callback_query.data = "search:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    bot_context.bot.send_message.assert_not_called()
+    call_kwargs = callback_update.callback_query.answer.call_args
+    assert call_kwargs[1].get("show_alert") is True
+    text = call_kwargs[1].get("text") or call_kwargs[0][0]
+    assert "administrador" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_search_callback_no_substitutes_chat_answers_alert(
+    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
+):
+    """Search callback alerts when no substitutes chat is configured."""
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
+    bot_context.bot_data["settings"].telegram.substitutes.chat_id = None
+    callback_update.callback_query.data = "search:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    bot_context.bot.send_message.assert_not_called()
+    call_kwargs = callback_update.callback_query.answer.call_args
+    assert call_kwargs[1].get("show_alert") is True
+    text = call_kwargs[1].get("text") or call_kwargs[0][0]
+    assert "no está configurado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_noop_callback_answers_silently(
+    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
+):
+    """Pressing the separator button answers with no text and no alert."""
+    callback_update.callback_query.data = "noop:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    callback_update.callback_query.answer.assert_called_once_with()
+    bot_context.bot.send_message.assert_not_called()
+    bot_context.bot.edit_message_text.assert_not_called()
