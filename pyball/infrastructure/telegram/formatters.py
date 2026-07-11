@@ -283,14 +283,6 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     return "\n".join(lines)
 
 
-def _build_convocatoria_header(meetup: Meetup, date_str: str) -> list[str]:
-    """Build the shared 📅 Convocatoria / 📍 Lugar header lines."""
-    lines = [f"📅 *Convocatoria:* `{date_str}`"]
-    if meetup.location:
-        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
-    return lines
-
-
 def escape_summary_for_telegram(summary: str) -> str:
     """Escape a FormatMatchSummary block for Telegram MarkdownV2.
 
@@ -323,6 +315,14 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     ):
         return None
     return action, date_str
+
+
+def _build_convocatoria_header(meetup: Meetup, date_str: str) -> list[str]:
+    """Build the shared 📅 Convocatoria / 📍 Lugar header lines."""
+    lines = [f"📅 *Convocatoria:* `{date_str}`"]
+    if meetup.location:
+        lines.append(f"📍 *Lugar:* {_escape_mdv2(meetup.location)}")
+    return lines
 
 
 def _escape_mdv2(text: str) -> str:
