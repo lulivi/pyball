@@ -27,7 +27,6 @@ from uuid import UUID, uuid4
 from pyball.domain.base import Entity, ValueObject
 from pyball.domain.player.errors import InvalidPlayerIdError
 
-
 VALID_POSITIONS = ("portero", "defensa", "centrocampista", "delantero")
 
 
