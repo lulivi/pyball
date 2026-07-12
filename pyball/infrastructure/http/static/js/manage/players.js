@@ -56,9 +56,9 @@ function buildRow(p) {
     <div class="edit-chip">
       <span style="flex:1;">${escHtml(p.name)}</span>
       <span class="cand-score">${groupLabel} · ${posLabel}</span>
-      <button class="btn-sm gray" style="padding:3px 8px;" data-pid="${escAttr(p.id)}"
+      <button class="btn-sm gray" style="padding:3px 8px;" data-pid="${escHtml(p.id)}"
         onclick="togglePlayerEdit(this.dataset.pid)">✏️</button>
-      <button class="remove-btn" data-pid="${escAttr(p.id)}"
+      <button class="remove-btn" data-pid="${escHtml(p.id)}"
         onclick="deletePlayerRow(this.dataset.pid)">✕</button>
     </div>`;
 }
@@ -72,7 +72,7 @@ function buildFieldsForm(idPrefix, values) {
         onclick="selectField('${idPrefix}-position', this)">${label}</div>`;
     return `
     <input class="search-box" id="${idPrefix}-name" type="text" placeholder="Nombre"
-      value="${escAttr(values.name || '')}">
+      value="${escHtml(values.name || '')}">
     <div class="field-label">Grupo</div>
     <div class="pill-row" id="${idPrefix}-group" data-selected="${values.group}">
       ${groupPill('regular', 'Regular')}${groupPill('substitute', 'Suplente')}
@@ -97,7 +97,7 @@ function buildEditRow(p) {
     <div class="edit-panel">
       ${buildFieldsForm('edit', p)}
       <div class="edit-actions" style="margin-top:8px;">
-        <button class="btn-sm green" data-pid="${escAttr(p.id)}"
+        <button class="btn-sm green" data-pid="${escHtml(p.id)}"
           onclick="savePlayerEdit(this.dataset.pid)">Guardar</button>
         <button class="btn-sm gray" onclick="togglePlayerEdit(null)">Cancelar</button>
       </div>
