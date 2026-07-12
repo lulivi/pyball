@@ -9,6 +9,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     _player_role,
     _snake_draft,
     _team_score,
+    compute_goalkeeper_scores,
     compute_player_scores,
     extract_winning_counts,
     optimize_teams,
@@ -35,6 +36,31 @@ def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-
         Match(
             teams_playing=(team_a_obj, team_b_obj),
             result=MatchResult(score_a=score_a, score_b=score_b, events=events),
+        )
+    )
+    return m
+
+
+def _finished_meetup_with_gk(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    date_str: str,
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    score_a: int,
+    score_b: int,
+    gk_a: PlayerId | None = None,
+    gk_b: PlayerId | None = None,
+) -> Meetup:
+    """Build a finished Meetup with explicit per-team goalkeepers for testing."""
+    m = Meetup.create(datetime.strptime(date_str, "%Y-%m-%d %H:%M"), "Campo")
+    for pid in team_a + team_b:
+        m.add_player(pid)
+    team_a_obj = Team.create("A", team_a, goalkeeper=gk_a)
+    team_b_obj = Team.create("B", team_b, goalkeeper=gk_b)
+    m.set_teams([team_a_obj, team_b_obj])
+    m.add_match(
+        Match(
+            teams_playing=(team_a_obj, team_b_obj),
+            result=MatchResult(score_a=score_a, score_b=score_b, events=()),
         )
     )
     return m
@@ -93,6 +119,72 @@ class TestComputePlayerScores:
         scores = compute_player_scores(players, [], [])
         for score in scores.values():
             assert score == pytest.approx(0.5)
+
+
+class TestComputeGoalkeeperScores:
+    """Tests for compute_goalkeeper_scores."""
+
+    def test_fewer_conceded_scores_higher(self):
+        """A goalkeeper who concedes fewer goals per match scores higher."""
+        gk1, gk2 = PlayerId.generate(), PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(2)]
+        meetups = [
+            _finished_meetup_with_gk(
+                f"2025-10-0{i} 20:00", [gk1, outfield[0]], [gk2, outfield[1]], 3, 0, gk1, gk2
+            )
+            for i in range(1, 4)
+        ]
+        scores = compute_goalkeeper_scores([gk1, gk2], meetups, meetups)
+        assert scores[gk1] > scores[gk2]
+
+    def test_no_history_candidate_gets_group_mean(self):
+        """A candidate goalkeeper with no history gets the mean of known scores."""
+        gk1, gk2, gk_new = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(2)]
+        meetups = [
+            _finished_meetup_with_gk(
+                f"2025-10-0{i} 20:00", [gk1, outfield[0]], [gk2, outfield[1]], 1, 1, gk1, gk2
+            )
+            for i in range(1, 4)
+        ]
+        scores = compute_goalkeeper_scores([gk1, gk2, gk_new], meetups, meetups)
+        expected_mean = (scores[gk1] + scores[gk2]) / 2
+        assert abs(scores[gk_new] - expected_mean) < 1e-9
+
+    def test_all_no_history_returns_half(self):
+        """When no candidate has goalkeeper history, everyone gets 0.5."""
+        candidates = [PlayerId.generate() for _ in range(3)]
+        scores = compute_goalkeeper_scores(candidates, [], [])
+        for score in scores.values():
+            assert score == pytest.approx(0.5)
+
+    def test_all_scores_in_unit_interval(self):
+        """Every returned score is in [0.0, 1.0]."""
+        gk1, gk2 = PlayerId.generate(), PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(2)]
+        meetups = [
+            _finished_meetup_with_gk(
+                "2025-10-01 20:00", [gk1, outfield[0]], [gk2, outfield[1]], 2, 0, gk1, gk2
+            ),
+            _finished_meetup_with_gk(
+                "2025-10-08 20:00", [gk2, outfield[1]], [gk1, outfield[0]], 1, 1, gk2, gk1
+            ),
+        ]
+        scores = compute_goalkeeper_scores([gk1, gk2], meetups, meetups)
+        for pid, score in scores.items():
+            assert 0.0 <= score <= 1.0, f"Score out of range for {pid}: {score}"
+
+    def test_ignores_matches_where_not_the_designated_goalkeeper(self):
+        """Only matches where the candidate is the team's set goalkeeper count."""
+        gk1 = PlayerId.generate()
+        outfield = PlayerId.generate()
+        # gk1 plays as an outfield player here (no team has gk1 as goalkeeper) —
+        # conceded goals in this match must not count toward gk1's score.
+        meetup = _finished_meetup_with_gk(
+            "2025-10-01 20:00", [gk1, outfield], [PlayerId.generate()], 0, 5, None, None
+        )
+        scores = compute_goalkeeper_scores([gk1], [meetup], [meetup])
+        assert scores[gk1] == pytest.approx(0.5)  # no goalkeeper history at all -> neutral
 
 
 class TestExtractWinningCounts:

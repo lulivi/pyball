@@ -216,6 +216,40 @@ def compute_player_roles(
     }
 
 
+def compute_goalkeeper_scores(
+    candidate_ids: list[PlayerId],
+    season_meetups: list[Meetup],
+    all_meetups: list[Meetup],
+) -> dict[PlayerId, float]:
+    """Return a normalized [0, 1] defensive score per candidate goalkeeper.
+
+    Only counts matches where the candidate was that team's designated
+    ``Team.goalkeeper`` for the whole meetup. Fewer goals conceded per match
+    scores higher. Uses season data when a candidate has >= _SEASON_MIN_MATCHES
+    there, otherwise falls back to full history. Candidates with no such history
+    receive the group mean; if nobody has history, everyone gets 0.5.
+    """
+    averages: dict[PlayerId, float | None] = {}
+    for pid in candidate_ids:
+        mp_s, conceded_s = _goalkeeper_stats(pid, season_meetups)
+        if mp_s >= _SEASON_MIN_MATCHES:
+            averages[pid] = conceded_s / mp_s
+        else:
+            mp_a, conceded_a = _goalkeeper_stats(pid, all_meetups)
+            averages[pid] = (conceded_a / mp_a) if mp_a > 0 else None
+
+    known = [(pid, avg) for pid, avg in averages.items() if avg is not None]
+    if not known:
+        return {pid: 0.5 for pid in candidate_ids}
+
+    known_pids = [pid for pid, _ in known]
+    normalized = _normalize([avg for _, avg in known])
+    known_scores = {pid: 1.0 - normalized[i] for i, pid in enumerate(known_pids)}
+
+    mean_score = sum(known_scores.values()) / len(known_scores)
+    return {pid: known_scores.get(pid, mean_score) for pid in candidate_ids}
+
+
 def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
     """Return sorted (pid_a, pid_b) -> shared win count for all player pairs."""
     counts: dict[tuple[str, str], int] = {}
@@ -481,6 +515,24 @@ def _player_stats(
     if mp == 0:
         return 0, 0.0, 0.0, 0.0
     return mp, goals / mp, assists / mp, wins / mp
+
+
+def _goalkeeper_stats(player_id: PlayerId, meetups: list[Meetup]) -> tuple[int, int]:
+    """Return (matches played as designated goalkeeper, goals conceded in them)."""
+    matches = conceded = 0
+    for meetup in meetups:
+        if meetup.teams is None:
+            continue
+        team = next((t for t in meetup.teams if t.goalkeeper == player_id), None)
+        if team is None:
+            continue
+        for match in meetup.matches:
+            if match.result is None or team not in match.teams_playing:
+                continue
+            index = match.teams_playing.index(team)
+            conceded += match.result.score_b if index == 0 else match.result.score_a
+            matches += 1
+    return matches, conceded
 
 
 _DRAFT_PICK_TEMPERATURE = 1.5
