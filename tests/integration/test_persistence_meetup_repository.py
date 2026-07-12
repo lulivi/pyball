@@ -266,8 +266,6 @@ class TestJsonMeetupRepositoryResult:
 
     def test_missing_is_own_goal_defaults_to_false(self):
         """Old JSON files without is_own_goal field load with is_own_goal=False."""
-        import json  # pylint: disable=import-outside-toplevel
-
         meetup = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()
