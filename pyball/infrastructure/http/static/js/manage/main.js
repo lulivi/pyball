@@ -29,6 +29,7 @@ function switchTab(name, btn) {
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
     if (name === 'resumen') loadResumen();
+    if (name === 'jugadores') window.loadJugadores();
 }
 
 // ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
