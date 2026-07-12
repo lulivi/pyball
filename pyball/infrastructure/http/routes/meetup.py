@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Meetup route registrar and handlers."""
+
 from __future__ import annotations
 
 import functools
@@ -120,7 +121,13 @@ def register_meetup_routes(
 
         try:
             meetup = container.assign_teams_by_id().execute(
-                meetup_date, body.team_a_ids, body.team_b_ids, body.team_c_ids
+                meetup_date,
+                body.team_a_ids,
+                body.team_b_ids,
+                body.team_c_ids,
+                body.team_a_goalkeeper_id,
+                body.team_b_goalkeeper_id,
+                body.team_c_goalkeeper_id,
             )
         except (ValueError, InvalidPlayerIdError) as exc:
             raise HTTPException(422, str(exc)) from exc

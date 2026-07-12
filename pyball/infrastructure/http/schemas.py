@@ -60,6 +60,9 @@ class AssignTeamsInput(BaseModel):
     team_a_ids: list[str]
     team_b_ids: list[str]
     team_c_ids: list[str] | None = None
+    team_a_goalkeeper_id: str | None = None
+    team_b_goalkeeper_id: str | None = None
+    team_c_goalkeeper_id: str | None = None
 
 
 class CreateMeetupInput(BaseModel):

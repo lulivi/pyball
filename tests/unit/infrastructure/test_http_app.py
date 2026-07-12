@@ -1799,7 +1799,7 @@ class TestMeetupRouteNotifierCalls:
 
         assert resp.status_code == 200
         container.assign_teams_by_id.return_value.execute.assert_called_once_with(
-            datetime(2026, 6, 8, 20, 0), ["id-a"], ["id-b"], ["id-c"]
+            datetime(2026, 6, 8, 20, 0), ["id-a"], ["id-b"], ["id-c"], None, None, None
         )
 
     @pytest.mark.asyncio
@@ -1828,7 +1828,41 @@ class TestMeetupRouteNotifierCalls:
 
         assert resp.status_code == 200
         container.assign_teams_by_id.return_value.execute.assert_called_once_with(
-            datetime(2026, 6, 8, 20, 0), [], [], None
+            datetime(2026, 6, 8, 20, 0), [], [], None, None, None, None
+        )
+
+    @pytest.mark.asyncio
+    async def test_assign_teams_passes_goalkeeper_ids_through(self):
+        """POST /api/meetup/assign-teams forwards goalkeeper_*_id to the use case."""
+        from unittest.mock import patch
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        existing = MagicMock()
+        existing.is_closed.return_value = False
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.assign_teams_by_id.return_value.execute.return_value = meetup
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value={"date": "2026-06-08T20:00", "players": [], "teams": None},
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(
+                    "/api/meetup/assign-teams",
+                    json={
+                        "date": "2026-06-08T20:00",
+                        "team_a_ids": ["id-a"],
+                        "team_b_ids": ["id-b"],
+                        "team_a_goalkeeper_id": "id-a",
+                    },
+                )
+
+        assert resp.status_code == 200
+        container.assign_teams_by_id.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0), ["id-a"], ["id-b"], None, "id-a", None, None
         )
 
     @pytest.mark.asyncio
