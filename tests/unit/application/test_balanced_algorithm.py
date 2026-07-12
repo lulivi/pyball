@@ -1,13 +1,13 @@
 """Tests for BalancedAlgorithm and its internal scoring helpers."""
 
-from datetime import datetime, time
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
 
 from pyball.application.meetup.create_teams_algorithms.balanced import (
     BalancedAlgorithm,
-    _player_role,
+    _position_imbalance_penalty,
     _snake_draft,
     _team_score,
     compute_goalkeeper_scores,
@@ -16,7 +16,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     optimize_teams,
 )
 from pyball.domain.meetup.errors import UnknownAlgorithmError
-from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
 
 
@@ -288,115 +288,46 @@ class TestTeamScore:
         assert result == pytest.approx(1.0)
 
 
-class TestPlayerRole:
-    """Tests for _player_role."""
+class TestPositionImbalancePenalty:
+    """Tests for _position_imbalance_penalty."""
 
-    def test_scorer_when_more_goals_than_assists(self):
-        """Player with more goals than assists is classified as 'scorer'."""
-        p = PlayerId.generate()
-        scorer_id = p
-        meetups = [
-            _finished_meetup(
-                f"2025-10-0{i} 20:00",
-                [p],
-                [],
-                2,
-                0,
-                events=(
-                    GoalEvent(
-                        scorer_id=scorer_id, assistant_id=None, team="A", timestamp=time(20, i)
-                    ),
-                    GoalEvent(
-                        scorer_id=scorer_id, assistant_id=None, team="A", timestamp=time(20, i + 1)
-                    ),
-                ),
-            )
-            for i in range(1, 4)
-        ]
-        role = _player_role(p, meetups)
-        assert role == "scorer"
+    def test_zero_when_no_positions_tagged(self):
+        """No penalty when neither team has any tagged outfield position."""
+        p1, p2, p3, p4 = [PlayerId.generate() for _ in range(4)]
+        penalty = _position_imbalance_penalty([p1, p2], [p3, p4], {})
+        assert penalty == 0.0
 
-    def test_neutral_when_no_history(self):
-        """Player with no history gets 'neutral' role."""
-        p = PlayerId.generate()
-        role = _player_role(p, [])
-        assert role == "neutral"
+    def test_zero_when_evenly_split(self):
+        """No penalty when both teams have the same count of each position."""
+        d1, d2, f1, f2 = [PlayerId.generate() for _ in range(4)]
+        positions = {d1: "defensa", d2: "defensa", f1: "delantero", f2: "delantero"}
+        penalty = _position_imbalance_penalty([d1, f1], [d2, f2], positions)
+        assert penalty == 0.0
 
-    def test_assister_when_assists_greater_than_goals(self):
-        """Player with more assists than goals is classified as assister."""
-        p1 = PlayerId.generate()
-        meetups = []
-        for i in range(3):
-            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
-            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
-            m.add_player(p1)
-            m.set_teams([team_a, team_b])
-            events = [
-                GoalEvent(
-                    scorer_id=PlayerId.generate(),
-                    assistant_id=p1,
-                    team="B",
-                    timestamp=time(20, 10),
-                )
-                for _ in range(2)
-            ]
-            events.append(
-                GoalEvent(
-                    scorer_id=p1,
-                    assistant_id=PlayerId.generate(),
-                    team="A",
-                    timestamp=time(20, 15),
-                )
-            )
-            m.add_match(
-                Match(
-                    teams_playing=(team_a, team_b),
-                    result=MatchResult(score_a=3, score_b=0, events=tuple(events)),
-                )
-            )
-            meetups.append(m)
+    def test_positive_when_lopsided(self):
+        """A penalty is charged when one team hoards all of a position."""
+        d1, d2, f1 = [PlayerId.generate() for _ in range(3)]
+        positions = {d1: "defensa", d2: "defensa", f1: "delantero"}
+        penalty = _position_imbalance_penalty([d1, d2], [f1], positions)
+        assert penalty > 0.0
 
-        role = _player_role(p1, meetups)
-        assert role == "assister"
 
-    def test_falls_back_to_season_then_history(self):
-        """Uses season first (<3 matches), then full history if available."""
-        p1 = PlayerId.generate()
-        season = []
-        for i in range(2):
-            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
-            m = Meetup.create(datetime(2025, 10, i + 1, 20, 0), "Campo")
-            m.add_player(p1)
-            m.set_teams([team_a, team_b])
-            events = (
-                GoalEvent(
-                    scorer_id=p1,
-                    assistant_id=PlayerId.generate(),
-                    team="A",
-                    timestamp=time(20, 10),
-                ),
-            )
-            m.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
-            season.append(m)
-        history = []
-        for i in range(3):
-            team_a, team_b = Team.create("A", [p1]), Team.create("B", [PlayerId.generate()])
-            m = Meetup.create(datetime(2024, 10, i + 1, 20, 0), "Campo")
-            m.add_player(p1)
-            m.set_teams([team_a, team_b])
-            events = (
-                GoalEvent(
-                    scorer_id=PlayerId.generate(),
-                    assistant_id=p1,
-                    team="B",
-                    timestamp=time(20, 10),
-                ),
-            )
-            m.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(1, 0, events)))
-            history.append(m)
+class TestOptimizeTeamsPositionBalance:
+    """Tests for position-aware optimize_teams behavior."""
 
-        role = _player_role(p1, season, history)
-        assert role == "assister"
+    def test_spreads_a_dominant_position_across_teams(self):
+        """Four defenders and no other tagged position are split, not stacked."""
+        defenders = [PlayerId.generate() for _ in range(4)]
+        scores = {pid: 0.5 for pid in defenders}
+        positions = {pid: "defensa" for pid in defenders}
+
+        same_team_counts = []
+        for _ in range(50):
+            team_a, team_b = optimize_teams(defenders, scores, {}, positions)
+            same_team_counts.append(abs(len(team_a) - len(team_b)))
+
+        # 2-2 splits dominate; 4-0 splits are the never-happens case this guards.
+        assert max(same_team_counts) <= 2
 
 
 class TestBalancedAlgorithmAssign:

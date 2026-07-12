@@ -34,9 +34,10 @@ reason about:
   enough sample size, and falls back to all-time history otherwise. The score
   is a weighted combination of goals per match, assists per match, and win
   rate.
-- ``compute_player_roles()`` classifies each player as ``scorer``,
-  ``assister``, or ``neutral``. This is a lightweight extra signal used only
-  to avoid highly lopsided compositions.
+- ``_position_imbalance_penalty()`` measures how unevenly the three outfield
+  positions (defensa/centrocampista/delantero) are split between two teams. This
+  is a lightweight extra signal, alongside the pair-repeat penalty, that nudges
+  the optimizer away from stacking one team with e.g. every tagged defender.
 - ``extract_winning_counts()`` measures how often pairs of players have won
   together in the past. Those counts are later used as a diversity penalty so
   the algorithm does not keep recreating the same successful pairings.
@@ -49,7 +50,7 @@ partitions:
   switches to sampled random partitions instead.
 - Each partition is scored with ``_assignment_cost()``. The cost has three
   components: strength imbalance between both teams, repeated winning-pair
-  penalty, and role imbalance penalty.
+  penalty, and position imbalance penalty.
 - Candidates are sorted by total cost, and ``_selection_pool()`` keeps a broad
   pool of near-best options rather than only the single optimum. This is the
   key design choice that improves variety between runs.
@@ -75,7 +76,8 @@ from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _SEASON_MIN_MATCHES = 3
-_ROLE_WEIGHT = 0.15
+_POSITION_WEIGHT = 0.15
+_OUTFIELD_POSITIONS = ("defensa", "centrocampista", "delantero")
 _W_GOALS = 0.40
 _W_ASSISTS = 0.30
 _W_WINS = 0.30
@@ -91,7 +93,7 @@ _DRAFT_PICK_TEMPERATURE = 1.5
 
 
 class BalancedAlgorithm:
-    """History-aware team assignment using score optimization and role balancing."""
+    """History-aware team assignment using score optimization and position balancing."""
 
     def __init__(
         self,
@@ -158,7 +160,7 @@ def optimize_teams(
     player_ids: list[PlayerId],
     player_scores: dict[PlayerId, float],
     winning_counts: dict[tuple[str, str], int],
-    role_scores: dict[PlayerId, str] | None = None,
+    positions: dict[PlayerId, str | None] | None = None,
 ) -> tuple[list[PlayerId], list[PlayerId]]:
     """Assign players to two balanced teams using a broad good-candidate pool.
 
@@ -169,8 +171,8 @@ def optimize_teams(
     if len(player_ids) < 2:
         raise ValueError("Need at least 2 players to create teams")
 
-    if role_scores is None:
-        role_scores = {}
+    if positions is None:
+        positions = {}
 
     max_pair_wins = max(winning_counts.values(), default=0)
     if len(player_ids) <= _MAX_EXHAUSTIVE_PLAYERS:
@@ -182,7 +184,7 @@ def optimize_teams(
         player_scores,
         winning_counts,
         max_pair_wins,
-        role_scores,
+        positions,
     )
     candidates = [
         (
@@ -232,24 +234,6 @@ def compute_player_scores(
 
     mean_score = sum(known_scores.values()) / len(known_scores)
     return {pid: known_scores.get(pid, mean_score) for pid in player_ids}
-
-
-def compute_player_roles(
-    player_ids: list[PlayerId],
-    season_meetups: list[Meetup],
-    all_meetups: list[Meetup],
-    legacy_stats: LegacyStats | None = None,
-    from_date: datetime | None = None,
-) -> dict[PlayerId, str]:
-    """Return role classification ('scorer', 'assister', 'neutral') for each player.
-
-    Uses season data when player has >= 3 matches, otherwise falls back to
-    full history. Players with no history return 'neutral'.
-    """
-    return {
-        pid: _player_role(pid, season_meetups, all_meetups, legacy_stats, from_date)
-        for pid in player_ids
-    }
 
 
 def compute_goalkeeper_scores(
@@ -379,7 +363,7 @@ def _unique_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId],
 
 
 AssignmentCostConfig = tuple[
-    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str]
+    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str | None]
 ]
 
 
@@ -389,28 +373,13 @@ def _assignment_cost(
     config: AssignmentCostConfig,
 ) -> float:
     """Return total assignment cost: strength balance plus composition diversity."""
-    player_scores, winning_counts, max_pair_wins, role_scores = config
+    player_scores, winning_counts, max_pair_wins, positions = config
     balance_cost = abs(
         _team_strength(team_a, player_scores) - _team_strength(team_b, player_scores)
     )
     pair_cost = _pair_repeat_penalty(team_a, team_b, winning_counts, max_pair_wins)
-    role_cost = _role_imbalance_penalty(team_a, team_b, role_scores) if role_scores else 0.0
-    return balance_cost + (_PAIR_WEIGHT * pair_cost) + (_ROLE_WEIGHT * role_cost)
-
-
-def _role_imbalance_penalty(
-    team_a: list[PlayerId],
-    team_b: list[PlayerId],
-    role_scores: dict[PlayerId, str],
-) -> float:
-    """Return a normalized scorer-ratio imbalance penalty."""
-
-    def _scorer_ratio(team: list[PlayerId]) -> float:
-        if not team:
-            return 0.0
-        return sum(1 for pid in team if role_scores.get(pid) == "scorer") / len(team)
-
-    return abs(_scorer_ratio(team_a) - _scorer_ratio(team_b))
+    position_cost = _position_imbalance_penalty(team_a, team_b, positions) if positions else 0.0
+    return balance_cost + (_PAIR_WEIGHT * pair_cost) + (_POSITION_WEIGHT * position_cost)
 
 
 def _pair_repeat_penalty(
@@ -436,6 +405,25 @@ def _pair_repeat_penalty(
     if total_pairs == 0:
         return 0.0
     return repeated_strength / total_pairs
+
+
+def _position_imbalance_penalty(
+    team_a: list[PlayerId],
+    team_b: list[PlayerId],
+    positions: dict[PlayerId, str | None],
+) -> float:
+    """Return a normalized outfield-position-mix imbalance penalty between two teams."""
+
+    def _counts(team: list[PlayerId]) -> dict[str, int]:
+        return {
+            pos: sum(1 for pid in team if positions.get(pid) == pos) for pos in _OUTFIELD_POSITIONS
+        }
+
+    counts_a, counts_b = _counts(team_a), _counts(team_b)
+    total = sum(counts_a.values()) + sum(counts_b.values())
+    if total == 0:
+        return 0.0
+    return sum(abs(counts_a[pos] - counts_b[pos]) for pos in _OUTFIELD_POSITIONS) / total
 
 
 def _team_strength(team: list[PlayerId], player_scores: dict[PlayerId, float]) -> float:
@@ -469,55 +457,6 @@ def _normalize(values: list[float]) -> list[float]:
     if max_v == min_v:
         return [0.5] * len(values)
     return [(v - min_v) / (max_v - min_v) for v in values]
-
-
-def _player_role(
-    player_id: PlayerId,
-    season_meetups: list[Meetup],
-    all_meetups: list[Meetup] | None = None,
-    legacy_stats: LegacyStats | None = None,
-    from_date: datetime | None = None,
-) -> str:
-    """Classify player as 'scorer', 'assister', or 'neutral' based on goals vs assists.
-
-    Uses season data when player has >= 3 matches, otherwise falls back to
-    full history. If no history exists, returns 'neutral'.
-    """
-    if all_meetups is None:
-        all_meetups = []
-
-    def _count_events(meetups: list[Meetup]) -> tuple[int, int]:
-        goals = assists = 0
-        for meetup in meetups:
-            for match in meetup.matches:
-                if match.result is None:
-                    continue
-                for event in match.result.events:
-                    if event.scorer_id == player_id:
-                        goals += 1
-                    if event.assistant_id == player_id:
-                        assists += 1
-        return goals, assists
-
-    goals_s, assists_s = _count_events(season_meetups)
-    if sum((goals_s, assists_s)) > 0 and len(season_meetups) >= _SEASON_MIN_MATCHES:
-        goals, assists = goals_s, assists_s
-    else:
-        goals_h, assists_h = _count_events(all_meetups)
-        if goals_h + assists_h > 0:
-            goals, assists = goals_h, assists_h
-        else:
-            return "neutral"
-
-    if legacy_stats and from_date is not None:
-        pid_str = str(player_id.value)
-        assists += legacy_stats.get_assists(pid_str, from_date)
-
-    if goals > assists:
-        return "scorer"
-    if assists > goals:
-        return "assister"
-    return "neutral"
 
 
 def _player_stats(
