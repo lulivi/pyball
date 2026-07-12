@@ -7,6 +7,7 @@ import pytest
 
 from pyball.application.meetup.create_teams_algorithms.balanced import (
     BalancedAlgorithm,
+    _apply_position_fit_boost,
     _position_imbalance_penalty,
     _snake_draft,
     _team_score,
@@ -474,6 +475,66 @@ class TestSnakeDraft:
             imbalances.append(max(totals) - min(totals))
 
         assert sum(imbalances) / len(imbalances) < 1.2
+
+
+class TestApplyPositionFitBoost:
+    """Tests for _apply_position_fit_boost."""
+
+    def test_no_change_when_positions_empty(self):
+        """Weights pass through unchanged when no positions are known."""
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        weights = [1.0, 1.0]
+        boosted = _apply_position_fit_boost(weights, [p1, p2], [], {})
+        assert boosted == weights
+
+    def test_boosts_a_position_the_team_lacks(self):
+        """A candidate whose position the picking team has none of gets boosted."""
+        defender, forward, teammate = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
+        positions = {defender: "defensa", forward: "delantero", teammate: "delantero"}
+        weights = [1.0, 1.0]
+        boosted = _apply_position_fit_boost(weights, [defender, forward], [teammate], positions)
+        assert boosted[0] > boosted[1]  # defensa boosted, delantero (already present) not
+
+
+class TestSnakeDraftPositionBalance:
+    """Tests for position-aware _snake_draft behavior."""
+
+    def test_still_assigns_every_player_with_positions_supplied(self):
+        """Adding positions doesn't drop or duplicate any player."""
+        players = [PlayerId.generate() for _ in range(9)]
+        scores = {pid: 0.5 for pid in players}
+        positions = {pid: "defensa" for pid in players[:3]}
+
+        teams = _snake_draft(players, scores, 3, positions)
+
+        assert sum(len(team) for team in teams) == len(players)
+        assert set(players) == {pid for team in teams for pid in team}
+
+    def test_spreads_a_tagged_position_across_teams(self):
+        """Three defenders tend to land on three different teams, not stacked.
+
+        Empirically, the boosted stacked-rate for this exact setup is ~49.6% (vs.
+        ~60.4% unboosted) — a real, meaningful reduction, but too close to a raw
+        50% cutoff for a 100-trial sample to be a reliable pass/fail line (it flaked
+        roughly half the time). Using more trials and a threshold with headroom
+        above the true rate keeps the test deterministic-in-practice while still
+        catching a regression that removes the boost's effect entirely.
+        """
+        defenders = [PlayerId.generate() for _ in range(3)]
+        neutrals = [PlayerId.generate() for _ in range(6)]
+        players = defenders + neutrals
+        scores = {pid: 0.5 for pid in players}
+        positions = {pid: "defensa" for pid in defenders}
+
+        stacked_count = 0
+        trials = 1000
+        for _ in range(trials):
+            teams = _snake_draft(players, scores, 3, positions)
+            per_team_defenders = [sum(1 for pid in team if pid in defenders) for team in teams]
+            if max(per_team_defenders) > 1:
+                stacked_count += 1
+
+        assert stacked_count < trials * 0.55
 
 
 class TestUnknownAlgorithmError:

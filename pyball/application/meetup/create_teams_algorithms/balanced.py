@@ -90,6 +90,7 @@ _SELECTION_POOL_FRACTION = 0.15
 _COST_EPSILON = 0.20
 _WEIGHTED_PICK_TEMPERATURE = 0.08
 _DRAFT_PICK_TEMPERATURE = 1.5
+_POSITION_FIT_BOOST = 1.5
 
 
 class BalancedAlgorithm:
@@ -555,7 +556,7 @@ def _snake_draft(
     player_ids: list[PlayerId],
     player_scores: dict[PlayerId, float],
     team_count: int,
-    positions: dict[PlayerId, str | None] | None = None,  # pylint: disable=unused-argument
+    positions: dict[PlayerId, str | None] | None = None,
 ) -> tuple[list[PlayerId], ...]:
     """Distribute players into team_count groups via a weighted-lottery snake draft.
 
@@ -565,14 +566,18 @@ def _snake_draft(
     historical scores, not just when they're tied), the next player is drawn from
     a weighted lottery favoring higher-ranked remaining players — strong players
     are still likely to be spread across teams early, but which specific player is
-    picked, and thus the final grouping, varies between calls.
+    picked, and thus the final grouping, varies between calls. When positions are
+    known, a candidate whose outfield position the picking team doesn't have yet
+    gets its weight boosted, spreading tagged positions across teams too.
     """
+    positions = positions or {}
     remaining = sorted(player_ids, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
     teams: list[list[PlayerId]] = [[] for _ in range(team_count)]
     index = 0
     forward = True
     while remaining:
         weights = [1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining))]
+        weights = _apply_position_fit_boost(weights, remaining, teams[index], positions)
         pid = random.choices(remaining, weights=weights, k=1)[0]
         remaining.remove(pid)
         teams[index].append(pid)
@@ -587,3 +592,24 @@ def _snake_draft(
                 index = 0
                 forward = True
     return tuple(teams)
+
+
+def _apply_position_fit_boost(
+    weights: list[float],
+    remaining: list[PlayerId],
+    team_so_far: list[PlayerId],
+    positions: dict[PlayerId, str | None],
+) -> list[float]:
+    """Boost the weight of candidates whose outfield position the picking team lacks."""
+    if not positions:
+        return weights
+    team_positions = {positions.get(pid) for pid in team_so_far}
+
+    def _lacks_position(pid: PlayerId) -> bool:
+        position = positions.get(pid)
+        return position in _OUTFIELD_POSITIONS and position not in team_positions
+
+    return [
+        w * _POSITION_FIT_BOOST if _lacks_position(pid) else w
+        for w, pid in zip(weights, remaining)
+    ]
