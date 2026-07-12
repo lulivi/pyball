@@ -1204,6 +1204,27 @@ async def test_meetup_active_with_teams_response_shape():
 
 
 @pytest.mark.asyncio
+async def test_meetup_active_response_includes_goalkeeper_ids():
+    """GET /api/meetup/active exposes each team's goalkeeper as a player id."""
+    container = _container_for_responses()
+    ana, bea = Player.create("Ana"), Player.create("Bea")
+    container.player_repository.find_all.return_value = [ana, bea]
+    meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="X")
+    meetup.add_player(ana.id)
+    meetup.add_player(bea.id)
+    meetup.set_teams([Team.create("A", [ana.id], goalkeeper=ana.id), Team.create("B", [bea.id])])
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/meetup/active")
+
+    teams = response.json()["teams"]
+    assert teams["goalkeeperA"] == str(ana.id.value)
+    assert teams["goalkeeperB"] is None
+
+
+@pytest.mark.asyncio
 async def test_active_match_response_reflects_the_current_pending_round():
     """For a triangular with 2 finished rounds, /api/match/active shows round 3's pairing."""
     container = _container_for_responses()
