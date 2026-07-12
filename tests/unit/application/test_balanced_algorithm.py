@@ -608,10 +608,18 @@ class TestSnakeDraftPositionBalance:
     def test_spreads_a_tagged_position_across_teams(self):
         """Three defenders tend to land on three different teams, not stacked.
 
-        With _POSITION_FIT_BOOST=3.0, the stacked rate measures ~31% (1555/5000 trials).
-        The 33% threshold provides ~4 standard errors of margin while still catching
-        regressions: the old boost=1.5 measured ~49% (2445/5000 trials) and would
-        clearly fail this threshold.
+        _snake_draft's picking order isn't a fixed zig-zag: each pick goes to
+        whichever team currently has the fewest total members (to keep team
+        sizes balanced), with the position-fit boost then weighting *which*
+        candidate that team picks. With _POSITION_FIT_BOOST=3.0, this measures
+        a true stacked rate of ~32.3% (100k-trial sample: 32306/100000). At
+        trials=5000, that gives a mean of ~1615.5 stacked draws with a standard
+        deviation of ~33.1; the 0.37 threshold (1850) sits ~7.1 standard
+        deviations above that mean, so a false failure from sampling noise
+        alone is effectively impossible. It's still a tight enough threshold
+        to catch a regression to no-boosting-effect: the unboosted rate is
+        ~61.6% (mean ~3081 stacked draws at trials=5000), ~35.8 standard
+        deviations above the 0.37 threshold.
         """
         defenders = [PlayerId.generate() for _ in range(3)]
         neutrals = [PlayerId.generate() for _ in range(6)]
@@ -627,7 +635,7 @@ class TestSnakeDraftPositionBalance:
             if max(per_team_defenders) > 1:
                 stacked_count += 1
 
-        assert stacked_count < trials * 0.33
+        assert stacked_count < trials * 0.37
 
 
 class TestUnknownAlgorithmError:
