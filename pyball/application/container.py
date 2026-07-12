@@ -45,7 +45,7 @@ from pyball.application.meetup.create_teams_algorithms import (
     RandomAlgorithm,
     TeamAssignmentAlgorithm,
 )
-from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer
+from pyball.application.player import CreatePlayer, DeletePlayer, RenamePlayer, SetPlayerPosition
 from pyball.application.player.change_group import ChangePlayerGroup
 from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.repository import MeetupRepository
@@ -88,6 +88,10 @@ class Container:  # pylint: disable=too-many-public-methods
     def change_player_group(self) -> ChangePlayerGroup:
         """Create a new ChangePlayerGroup use case."""
         return ChangePlayerGroup(self.player_repository)
+
+    def set_player_position(self) -> SetPlayerPosition:
+        """Create a new SetPlayerPosition use case."""
+        return SetPlayerPosition(self.player_repository)
 
     def add_player_to_meetup(self) -> AddPlayerToMeetup:
         """Create a new AddPlayerToMeetup use case."""

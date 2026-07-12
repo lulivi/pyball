@@ -55,3 +55,24 @@ class TestCreatePlayer:
         assert player.name == "Luis"
         assert player.group == "regular"
         repo.save.assert_called_once()
+
+    def test_create_player_with_position(self):
+        """Creating a player with a position assigns it correctly."""
+        repo = MagicMock()
+        repo.find_all.return_value = []
+        use_case = CreatePlayer(repo)
+
+        player = use_case.execute(name="Iker", group="regular", position="portero")
+
+        assert player.position == "portero"
+        repo.save.assert_called_once()
+
+    def test_create_player_without_position_defaults_to_none(self):
+        """Creating a player without a position leaves it unset."""
+        repo = MagicMock()
+        repo.find_all.return_value = []
+        use_case = CreatePlayer(repo)
+
+        player = use_case.execute(name="Iker", group="regular")
+
+        assert player.position is None
