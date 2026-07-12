@@ -1,6 +1,7 @@
 """Tests for BalancedAlgorithm and its internal scoring helpers."""
 
 from datetime import datetime, time
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -16,6 +17,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
 )
 from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
+from pyball.domain.player.models import Player
 
 
 def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -404,7 +406,8 @@ class TestBalancedAlgorithmAssign:
         """assign() returns two groups covering all input players with no duplicates."""
         players = [PlayerId.generate() for _ in range(6)]
         algo = BalancedAlgorithm()
-        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        team_a, team_b = assignments[0].players, assignments[1].players
         assert set(team_a + team_b) == set(players)
         assert len(team_a) + len(team_b) == len(players)
 
@@ -412,7 +415,8 @@ class TestBalancedAlgorithmAssign:
         """Teams produced by assign() are roughly even in size."""
         players = [PlayerId.generate() for _ in range(7)]
         algo = BalancedAlgorithm()
-        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        team_a, team_b = assignments[0].players, assignments[1].players
         assert abs(len(team_a) - len(team_b)) <= 1
 
     def test_three_teams_vary_across_repeated_calls_with_tied_scores(self):
@@ -424,11 +428,58 @@ class TestBalancedAlgorithmAssign:
         algo = BalancedAlgorithm()
         results = {
             tuple(
-                frozenset(team) for team in algo.assign(players, [], [], datetime(2025, 9, 1), 3)
+                frozenset(a.players) for a in algo.assign(players, [], [], datetime(2025, 9, 1), 3)
             )
             for _ in range(20)
         }
         assert len(results) > 1
+
+    def test_no_player_repository_means_no_goalkeeper_preassignment(self):
+        """Without an injected PlayerRepository, no team ever gets a goalkeeper."""
+        players = [PlayerId.generate() for _ in range(6)]
+        algo = BalancedAlgorithm()
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assert all(a.goalkeeper is None for a in assignments)
+
+    def test_goalkeepers_are_preassigned_one_per_team(self):
+        """With enough portero-tagged players, every team gets a distinct goalkeeper."""
+        gk1, gk2 = PlayerId.generate(), PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(4)]
+        players = [gk1, gk2, *outfield]
+
+        repo = MagicMock()
+        repo.find_all.return_value = [
+            Player(id=gk1, name="GK1", group="regular", position="portero"),
+            Player(id=gk2, name="GK2", group="regular", position="portero"),
+            *(Player(id=pid, name="P", group="regular") for pid in outfield),
+        ]
+        algo = BalancedAlgorithm(player_repository=repo)
+
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+
+        goalkeepers = {a.goalkeeper for a in assignments}
+        assert goalkeepers == {gk1, gk2}
+
+    def test_surplus_goalkeepers_fall_back_to_the_general_pool(self):
+        """A third portero with only 2 teams available still ends up on a team as a
+        regular player, and every input player is still assigned exactly once."""
+        gks = [PlayerId.generate() for _ in range(3)]
+        outfield = [PlayerId.generate() for _ in range(3)]
+        players = [*gks, *outfield]
+
+        repo = MagicMock()
+        repo.find_all.return_value = [
+            *(Player(id=pid, name="GK", group="regular", position="portero") for pid in gks),
+            *(Player(id=pid, name="P", group="regular") for pid in outfield),
+        ]
+        algo = BalancedAlgorithm(player_repository=repo)
+
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+
+        all_assigned = {pid for a in assignments for pid in a.players}
+        assert all_assigned == set(players)
+        assigned_goalkeepers = {a.goalkeeper for a in assignments if a.goalkeeper is not None}
+        assert len(assigned_goalkeepers) == 2
 
 
 class TestSnakeDraft:

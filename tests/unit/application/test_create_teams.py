@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pyball.application.meetup.create_teams import CreateTeams
+from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
 from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, PlayerId
 
@@ -18,7 +19,7 @@ class StubAlgorithm:
     ):
         """Split players in half and return two groups."""
         mid = len(players) // 2
-        return players[:mid], players[mid:]
+        return (TeamAssignment(players=players[:mid]), TeamAssignment(players=players[mid:]))
 
 
 class TestCreateTeams:
@@ -45,7 +46,10 @@ class TestCreateTeams:
         repo.find_all.return_value = []
 
         algorithm = MagicMock()
-        algorithm.assign.return_value = (players[:2], players[2:])
+        algorithm.assign.return_value = (
+            TeamAssignment(players=players[:2]),
+            TeamAssignment(players=players[2:]),
+        )
 
         use_case = CreateTeams(repo, algorithm)
         result = use_case.execute(datetime(2026, 5, 6, 20, 0))
@@ -67,7 +71,10 @@ class TestCreateTeams:
         repo.find_all.return_value = []
 
         algorithm = MagicMock()
-        algorithm.assign.return_value = (players[:1], players[1:])
+        algorithm.assign.return_value = (
+            TeamAssignment(players=players[:1]),
+            TeamAssignment(players=players[1:]),
+        )
 
         CreateTeams(repo, algorithm).execute(datetime(2026, 5, 6, 20, 0))
 

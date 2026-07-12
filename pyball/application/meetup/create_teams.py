@@ -58,12 +58,17 @@ class CreateTeams:
         season_start_dt = datetime.combine(season_start, datetime.min.time())
         season_meetups = [m for m in finished if m.date.date() >= season_start]
 
-        groups = self.algorithm.assign(
+        assignments = self.algorithm.assign(
             meetup.players, finished, season_meetups, season_start_dt, team_count
         )
 
         names = ["A", "B", "C"][:team_count]
-        meetup.set_teams([Team.create(name, group) for name, group in zip(names, groups)])
+        meetup.set_teams(
+            [
+                Team.create(name, assignment.players, goalkeeper=assignment.goalkeeper)
+                for name, assignment in zip(names, assignments)
+            ]
+        )
         ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
         return meetup

@@ -69,7 +69,9 @@ import itertools
 import random
 from datetime import datetime
 
+from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
 from pyball.domain.meetup.models import Meetup, PlayerId
+from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 _SEASON_MIN_MATCHES = 3
@@ -85,14 +87,20 @@ _MAX_SELECTION_POOL = 24
 _SELECTION_POOL_FRACTION = 0.15
 _COST_EPSILON = 0.20
 _WEIGHTED_PICK_TEMPERATURE = 0.08
+_DRAFT_PICK_TEMPERATURE = 1.5
 
 
 class BalancedAlgorithm:
     """History-aware team assignment using score optimization and role balancing."""
 
-    def __init__(self, legacy_stats: LegacyStats | None = None) -> None:
-        """Initialize with optional legacy stats for pre-app historical data."""
+    def __init__(
+        self,
+        legacy_stats: LegacyStats | None = None,
+        player_repository: PlayerRepository | None = None,
+    ) -> None:
+        """Initialize with optional legacy stats and a player repository for positions."""
         self.legacy_stats = legacy_stats
+        self.player_repository = player_repository
 
     def assign(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
@@ -101,21 +109,49 @@ class BalancedAlgorithm:
         season_meetups: list[Meetup],
         season_start: datetime,
         team_count: int = 2,
-    ) -> tuple[list[PlayerId], ...]:
+    ) -> tuple[TeamAssignment, ...]:
         """Assign players to team_count balanced groups using historical performance data."""
         if team_count not in (2, 3):
             raise ValueError("team_count must be 2 or 3")
+
+        positions = self._player_positions(players)
+        goalkeeper_candidates = [pid for pid in players if positions.get(pid) == "portero"]
+        gk_scores = compute_goalkeeper_scores(
+            goalkeeper_candidates, season_meetups, finished_meetups
+        )
+        goalkeeper_per_team, remaining_players = _assign_goalkeepers(
+            players, positions, gk_scores, team_count
+        )
+
         player_scores = compute_player_scores(
-            players, season_meetups, finished_meetups, self.legacy_stats, season_start
+            remaining_players, season_meetups, finished_meetups, self.legacy_stats, season_start
         )
         if team_count == 2:
-            player_roles = compute_player_roles(
-                players, season_meetups, finished_meetups, self.legacy_stats, season_start
-            )
             winning_counts = extract_winning_counts(finished_meetups)
-            team_a, team_b = optimize_teams(players, player_scores, winning_counts, player_roles)
-            return (team_a, team_b)
-        return _snake_draft(players, player_scores, team_count)
+            team_a, team_b = optimize_teams(
+                remaining_players,
+                player_scores,
+                winning_counts,
+                positions,  # type: ignore[arg-type]
+            )
+            groups = [team_a, team_b]
+        else:
+            groups = list(_snake_draft(remaining_players, player_scores, team_count, positions))
+
+        return tuple(
+            TeamAssignment(
+                players=_with_goalkeeper(group, goalkeeper_per_team[i]),
+                goalkeeper=goalkeeper_per_team[i],
+            )
+            for i, group in enumerate(groups)
+        )
+
+    def _player_positions(self, players: list[PlayerId]) -> dict[PlayerId, str | None]:
+        """Return each player's stored position, or {} if no repository was injected."""
+        if self.player_repository is None:
+            return {}
+        all_players = {p.id: p for p in self.player_repository.find_all()}
+        return {pid: all_players[pid].position if pid in all_players else None for pid in players}
 
 
 def optimize_teams(
@@ -535,13 +571,52 @@ def _goalkeeper_stats(player_id: PlayerId, meetups: list[Meetup]) -> tuple[int, 
     return matches, conceded
 
 
-_DRAFT_PICK_TEMPERATURE = 1.5
+def _with_goalkeeper(group: list[PlayerId], goalkeeper: PlayerId | None) -> list[PlayerId]:
+    """Return group with its pre-assigned goalkeeper included as a team member."""
+    if goalkeeper is None:
+        return group
+    return [goalkeeper, *group]
+
+
+def _assign_goalkeepers(
+    players: list[PlayerId],
+    positions: dict[PlayerId, str | None],
+    gk_scores: dict[PlayerId, float],
+    team_count: int,
+) -> tuple[list[PlayerId | None], list[PlayerId]]:
+    """Distribute portero-tagged players one per team via a score-weighted lottery.
+
+    Returns (goalkeeper_per_team, remaining_players): goalkeeper_per_team has
+    team_count entries (None for a team that got no goalkeeper); remaining_players
+    is every input player not assigned as a goalkeeper, for the rest of the
+    balancing to treat as ordinary players.
+    """
+    remaining_candidates = sorted(
+        (pid for pid in players if positions.get(pid) == "portero"),
+        key=lambda pid: gk_scores.get(pid, 0.5),
+        reverse=True,
+    )
+    goalkeeper_per_team: list[PlayerId | None] = [None] * team_count
+    for team_index in range(team_count):
+        if not remaining_candidates:
+            break
+        weights = [
+            1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining_candidates))
+        ]
+        pid = random.choices(remaining_candidates, weights=weights, k=1)[0]
+        remaining_candidates.remove(pid)
+        goalkeeper_per_team[team_index] = pid
+
+    assigned = {pid for pid in goalkeeper_per_team if pid is not None}
+    remaining_players = [pid for pid in players if pid not in assigned]
+    return goalkeeper_per_team, remaining_players
 
 
 def _snake_draft(
     player_ids: list[PlayerId],
     player_scores: dict[PlayerId, float],
     team_count: int,
+    positions: dict[PlayerId, str | None] | None = None,  # pylint: disable=unused-argument
 ) -> tuple[list[PlayerId], ...]:
     """Distribute players into team_count groups via a weighted-lottery snake draft.
 

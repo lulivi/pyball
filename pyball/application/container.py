@@ -239,6 +239,6 @@ class Container:  # pylint: disable=too-many-public-methods
     def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
         """Build the algorithm registry with all available algorithms."""
         return {
-            "balanceado": BalancedAlgorithm(self.legacy_stats),
+            "balanceado": BalancedAlgorithm(self.legacy_stats, self.player_repository),
             "random": RandomAlgorithm(),
         }
