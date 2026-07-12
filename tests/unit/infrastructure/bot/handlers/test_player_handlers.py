@@ -6,6 +6,7 @@ from telegram.constants import ReactionEmoji
 from pyball.domain.player.errors import NameAlreadyTakenError, PlayerAlreadyExistsError
 from pyball.infrastructure.telegram.bot.handlers.player import (
     change_group_handler,
+    change_position_handler,
     delete_player_handler,
     link_player_handler,
     list_players_handler,
@@ -444,7 +445,7 @@ async def test_new_player_handler_multiword_name(mock_update, mock_context):
 
     await new_player_handler(mock_update, mock_context)
 
-    container.create_player().execute.assert_called_with("David Quesada", "regular")
+    container.create_player().execute.assert_called_with("David Quesada", "regular", None)
 
 
 @pytest.mark.asyncio
@@ -457,3 +458,100 @@ async def test_new_player_handler_missing_comma_shows_usage(mock_update, mock_co
     call = mock_update.message.reply_text.call_args
     text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "Usage" in text
+
+
+@pytest.mark.asyncio
+async def test_new_player_handler_with_position(mock_update, mock_context):
+    mock_context.args = ["Iker,", "regular,", "portero"]
+
+    container = MagicMock()
+    container.create_player().execute.return_value = MagicMock()
+    mock_context.bot_data["container"] = container
+
+    await new_player_handler(mock_update, mock_context)
+
+    container.create_player().execute.assert_called_with("Iker", "regular", "portero")
+
+
+@pytest.mark.asyncio
+async def test_new_player_handler_without_position_passes_none(mock_update, mock_context):
+    mock_context.args = ["Luis,", "regular"]
+
+    container = MagicMock()
+    container.create_player().execute.return_value = MagicMock()
+    mock_context.bot_data["container"] = container
+
+    await new_player_handler(mock_update, mock_context)
+
+    container.create_player().execute.assert_called_with("Luis", "regular", None)
+
+
+@pytest.mark.asyncio
+async def test_new_player_handler_invalid_position(mock_update, mock_context):
+    mock_context.args = ["Luis,", "regular,", "lateral"]
+    mock_context.bot_data["container"] = MagicMock()
+
+    await new_player_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "posición" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_change_position_handler_success(mock_update, mock_context):
+    from pyball.domain.player.models import PlayerId
+
+    player_id = PlayerId.generate()
+    mock_player = MagicMock()
+    mock_player.name = "Luis"
+    mock_player.id = player_id
+
+    mock_context.args = ["Luis,", "portero"]
+
+    container = MagicMock()
+    container.player_repository.find_all.return_value = [mock_player]
+    mock_context.bot_data["container"] = container
+
+    await change_position_handler(mock_update, mock_context)
+
+    container.set_player_position().execute.assert_called_once_with(
+        str(player_id.value), "portero"
+    )
+    mock_context.bot.set_message_reaction.assert_called_once_with(
+        chat_id=mock_update.message.chat_id,
+        message_id=mock_update.message.message_id,
+        reaction=ReactionEmoji.OK_HAND_SIGN,
+    )
+
+
+@pytest.mark.asyncio
+async def test_change_position_handler_ninguna_sets_none(mock_update, mock_context):
+    from pyball.domain.player.models import PlayerId
+
+    player_id = PlayerId.generate()
+    mock_player = MagicMock()
+    mock_player.name = "Luis"
+    mock_player.id = player_id
+
+    mock_context.args = ["Luis,", "ninguna"]
+
+    container = MagicMock()
+    container.player_repository.find_all.return_value = [mock_player]
+    mock_context.bot_data["container"] = container
+
+    await change_position_handler(mock_update, mock_context)
+
+    container.set_player_position().execute.assert_called_once_with(str(player_id.value), None)
+
+
+@pytest.mark.asyncio
+async def test_change_position_handler_invalid_position(mock_update, mock_context):
+    mock_context.args = ["Luis,", "lateral"]
+    mock_context.bot_data["container"] = MagicMock()
+
+    await change_position_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "posición" in text.lower()
