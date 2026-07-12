@@ -460,6 +460,22 @@ class TestGoalkeeperPreassignmentPreservesTeamSizeBalance:
             sizes = sorted(len(a.players) for a in assignments)
             assert sizes[-1] - sizes[0] <= 1
 
+    def test_classic_three_players_one_goalkeeper_does_not_crash(self):
+        """A 3-player classic match with 1 tagged keeper must not raise IndexError."""
+        gk = PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(2)]
+        players = [gk, *outfield]
+        repo = MagicMock()
+        repo.find_all.return_value = [
+            Player(id=gk, name="GK", group="regular", position="portero"),
+            *(Player(id=pid, name="P", group="regular") for pid in outfield),
+        ]
+        algo = BalancedAlgorithm(player_repository=repo)
+        for _ in range(50):
+            assignments = algo.assign(players, [], [], datetime(2025, 9, 1), 2)
+            sizes = sorted(len(a.players) for a in assignments)
+            assert sizes[-1] - sizes[0] <= 1
+
     def test_goalkeeper_lands_on_different_teams_across_repeated_calls(self):
         """A single goalkeeper isn't always pre-assigned to the same team index."""
         gk = PlayerId.generate()

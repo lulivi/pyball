@@ -360,7 +360,8 @@ def _balanced_team_a_size(remaining_count: int, initial_sizes: tuple[int, int]) 
     total = remaining_count + initial_sizes[0] + initial_sizes[1]
     target_a_total = total // 2
     team_a_size = target_a_total - initial_sizes[0]
-    return max(0, min(remaining_count, team_a_size))
+    lower_bound = 1 if remaining_count else 0
+    return max(lower_bound, min(remaining_count, team_a_size))
 
 
 def _unique_partitions(
