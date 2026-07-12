@@ -9,7 +9,12 @@ from httpx import ASGITransport, AsyncClient
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
-from pyball.domain.player.errors import InvalidPlayerIdError, PlayerAlreadyExistsError
+from pyball.domain.player.errors import (
+    InvalidPlayerIdError,
+    NameAlreadyTakenError,
+    PlayerAlreadyExistsError,
+    PlayerNotFoundError,
+)
 from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
 
@@ -1435,6 +1440,111 @@ class TestCreatePlayerEndpoint:
 
         assert resp.status_code == 422
         container.create_player.assert_not_called()
+
+
+class TestEditPlayerEndpoint:
+    """Tests for POST /api/players/{id}/edit."""
+
+    @pytest.mark.asyncio
+    async def test_edit_player_returns_updated_shape(self):
+        """Editing a player renames it, changes group and position, and returns the result."""
+        container = MagicMock()
+        player = Player.create("Nuevo Nombre", group="regular", position="defensa")
+        container.rename_player.return_value.execute.return_value = player
+        container.change_player_group.return_value.execute.return_value = player
+        container.set_player_position.return_value.execute.return_value = player
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                f"/api/players/{player.id.value}/edit",
+                json={"name": "Nuevo Nombre", "group": "regular", "position": "defensa"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "id": str(player.id.value),
+            "name": "Nuevo Nombre",
+            "group": "regular",
+            "position": "defensa",
+        }
+        container.rename_player.return_value.execute.assert_called_once_with(
+            str(player.id.value), "Nuevo Nombre"
+        )
+        container.change_player_group.return_value.execute.assert_called_once_with(
+            str(player.id.value), "regular"
+        )
+        container.set_player_position.return_value.execute.assert_called_once_with(
+            str(player.id.value), "defensa"
+        )
+
+    @pytest.mark.asyncio
+    async def test_edit_player_404_when_not_found(self):
+        """Editing a nonexistent player returns 404."""
+        container = MagicMock()
+        container.rename_player.return_value.execute.side_effect = PlayerNotFoundError("bad-id")
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/players/bad-id/edit",
+                json={"name": "X", "group": "regular"},
+            )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_edit_player_409_on_name_taken(self):
+        """Editing a player to a name already used by someone else returns 409."""
+        container = MagicMock()
+        container.rename_player.return_value.execute.side_effect = NameAlreadyTakenError("X")
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/players/11111111-1111-4111-8111-111111111111/edit",
+                json={"name": "X", "group": "regular"},
+            )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_edit_player_422_on_invalid_position(self):
+        """Editing a player with an unrecognized position returns 422."""
+        container = MagicMock()
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/players/11111111-1111-4111-8111-111111111111/edit",
+                json={"name": "X", "group": "regular", "position": "lateral"},
+            )
+        assert resp.status_code == 422
+        container.rename_player.assert_not_called()
+
+
+class TestDeletePlayerEndpoint:
+    """Tests for DELETE /api/players/{id}."""
+
+    @pytest.mark.asyncio
+    async def test_delete_player_returns_200(self):
+        """Deleting an existing player returns a status confirmation."""
+        container = MagicMock()
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/players/11111111-1111-4111-8111-111111111111")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "deleted"
+        container.delete_player.return_value.execute.assert_called_once_with(
+            "11111111-1111-4111-8111-111111111111"
+        )
+
+    @pytest.mark.asyncio
+    async def test_delete_player_404_when_not_found(self):
+        """Deleting a nonexistent player returns 404."""
+        container = MagicMock()
+        container.delete_player.return_value.execute.side_effect = PlayerNotFoundError("bad-id")
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/players/bad-id")
+        assert resp.status_code == 404
 
 
 class TestCancelMeetupEndpoint:

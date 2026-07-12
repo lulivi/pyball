@@ -83,3 +83,11 @@ class CreatePlayerInput(BaseModel):
     name: str
     group: str = "substitute"
     position: str | None = None
+
+
+class EditPlayerInput(BaseModel):
+    """Request body for POST /api/players/{id}/edit."""
+
+    name: str
+    group: str
+    position: str | None = None
