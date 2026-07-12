@@ -125,6 +125,7 @@ class BalancedAlgorithm:
         goalkeeper_per_team, remaining_players = _assign_goalkeepers(
             players, positions, gk_scores, team_count
         )
+        initial_sizes = [1 if gk is not None else 0 for gk in goalkeeper_per_team]
 
         player_scores = compute_player_scores(
             remaining_players, season_meetups, finished_meetups, self.legacy_stats, season_start
@@ -136,10 +137,19 @@ class BalancedAlgorithm:
                 player_scores,
                 winning_counts,
                 positions,  # type: ignore[arg-type]
+                initial_sizes=(initial_sizes[0], initial_sizes[1]),
             )
             groups = [team_a, team_b]
         else:
-            groups = list(_snake_draft(remaining_players, player_scores, team_count, positions))
+            groups = list(
+                _snake_draft(
+                    remaining_players,
+                    player_scores,
+                    team_count,
+                    positions,
+                    initial_sizes=initial_sizes,
+                )
+            )
 
         return tuple(
             TeamAssignment(
@@ -162,12 +172,16 @@ def optimize_teams(
     player_scores: dict[PlayerId, float],
     winning_counts: dict[tuple[str, str], int],
     positions: dict[PlayerId, str | None] | None = None,
+    initial_sizes: tuple[int, int] = (0, 0),
 ) -> tuple[list[PlayerId], list[PlayerId]]:
     """Assign players to two balanced teams using a broad good-candidate pool.
 
     For normal meetup sizes, every unique partition is scored. The final assignment
     is picked from a weighted pool of good options, so repeated calls preserve
-    balance while avoiding the same few local optima every time.
+    balance while avoiding the same few local optima every time. ``initial_sizes``
+    accounts for members a team already has before this split (e.g. a pre-assigned
+    goalkeeper), so the two teams' FINAL sizes (this split plus the handicap)
+    differ by at most 1, not just the split itself.
     """
     if len(player_ids) < 2:
         raise ValueError("Need at least 2 players to create teams")
@@ -177,9 +191,9 @@ def optimize_teams(
 
     max_pair_wins = max(winning_counts.values(), default=0)
     if len(player_ids) <= _MAX_EXHAUSTIVE_PLAYERS:
-        partitions = _unique_partitions(player_ids)
+        partitions = _unique_partitions(player_ids, initial_sizes)
     else:
-        partitions = _sampled_partitions(player_ids)
+        partitions = _sampled_partitions(player_ids, initial_sizes)
 
     cost_config: AssignmentCostConfig = (
         player_scores,
@@ -318,11 +332,13 @@ def _weighted_choice(
     return list(team_a), list(team_b)
 
 
-def _sampled_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
+def _sampled_partitions(
+    player_ids: list[PlayerId], initial_sizes: tuple[int, int] = (0, 0)
+) -> list[tuple[list[PlayerId], list[PlayerId]]]:
     """Return random unique-ish partitions for player counts too large to exhaustively search."""
     partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
     seen: set[frozenset[PlayerId]] = set()
-    team_a_size = len(player_ids) // 2
+    team_a_size = _balanced_team_a_size(len(player_ids), initial_sizes)
 
     while len(partitions) < _SAMPLED_CANDIDATES:
         players = list(player_ids)
@@ -339,9 +355,24 @@ def _sampled_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId]
     return partitions
 
 
-def _unique_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId], list[PlayerId]]]:
-    """Return unique two-team partitions, avoiding mirrored duplicates."""
-    team_a_size = len(player_ids) // 2
+def _balanced_team_a_size(remaining_count: int, initial_sizes: tuple[int, int]) -> int:
+    """Return team A's split size so final sizes (split size + handicap) differ by <=1."""
+    total = remaining_count + initial_sizes[0] + initial_sizes[1]
+    target_a_total = total // 2
+    team_a_size = target_a_total - initial_sizes[0]
+    return max(0, min(remaining_count, team_a_size))
+
+
+def _unique_partitions(
+    player_ids: list[PlayerId], initial_sizes: tuple[int, int] = (0, 0)
+) -> list[tuple[list[PlayerId], list[PlayerId]]]:
+    """Return unique two-team partitions, avoiding mirrored duplicates.
+
+    ``initial_sizes`` is each team's existing member count (e.g. a pre-assigned
+    goalkeeper); team A's split size is chosen so the FINAL sizes (split size
+    plus handicap) differ by at most 1.
+    """
+    team_a_size = _balanced_team_a_size(len(player_ids), initial_sizes)
     if team_a_size == 0:
         return []
 
@@ -352,7 +383,7 @@ def _unique_partitions(player_ids: list[PlayerId]) -> list[tuple[list[PlayerId],
         team_b = [pid for pid in player_ids if pid not in team_a_set]
         partitions.append((team_a, team_b))
 
-    if len(player_ids) % 2 == 0:
+    if team_a_size == len(player_ids) - team_a_size:
         anchor = player_ids[0]
         for rest in itertools.combinations(player_ids[1:], team_a_size - 1):
             _append_partition([anchor, *rest])
@@ -529,15 +560,19 @@ def _assign_goalkeepers(
     Returns (goalkeeper_per_team, remaining_players): goalkeeper_per_team has
     team_count entries (None for a team that got no goalkeeper); remaining_players
     is every input player not assigned as a goalkeeper, for the rest of the
-    balancing to treat as ordinary players.
+    balancing to treat as ordinary players. The order in which teams are
+    considered is shuffled, so which team gets a goalkeeper first is randomized
+    too, not always team index 0.
     """
     remaining_candidates = sorted(
         (pid for pid in players if positions.get(pid) == "portero"),
         key=lambda pid: gk_scores.get(pid, 0.5),
         reverse=True,
     )
+    team_indices = list(range(team_count))
+    random.shuffle(team_indices)
     goalkeeper_per_team: list[PlayerId | None] = [None] * team_count
-    for team_index in range(team_count):
+    for team_index in team_indices:
         if not remaining_candidates:
             break
         weights = [
@@ -557,40 +592,37 @@ def _snake_draft(
     player_scores: dict[PlayerId, float],
     team_count: int,
     positions: dict[PlayerId, str | None] | None = None,
+    initial_sizes: list[int] | None = None,
 ) -> tuple[list[PlayerId], ...]:
-    """Distribute players into team_count groups via a weighted-lottery snake draft.
+    """Distribute players into team_count groups via a weighted-lottery draft.
 
-    Dealt out in a 0,1,2,2,1,0,0,1,2,... zig-zag order. At each pick, instead of
-    deterministically taking the single highest-scored remaining player (which
-    reproduces the exact same grouping every time whenever players have distinct
-    historical scores, not just when they're tied), the next player is drawn from
-    a weighted lottery favoring higher-ranked remaining players — strong players
-    are still likely to be spread across teams early, but which specific player is
-    picked, and thus the final grouping, varies between calls. When positions are
-    known, a candidate whose outfield position the picking team doesn't have yet
-    gets its weight boosted, spreading tagged positions across teams too.
+    At each pick, the team with the fewest total members so far -- counting any
+    ``initial_sizes`` handicap, e.g. a pre-assigned goalkeeper already on that
+    team -- gets the next player, with ties broken at random, so final team
+    sizes stay balanced (differ by at most 1) regardless of how many teams
+    already have a head start. Instead of deterministically taking the single
+    highest-scored remaining player (which reproduces the exact same grouping
+    every time whenever players have distinct historical scores, not just when
+    they're tied), the next player is drawn from a weighted lottery favoring
+    higher-ranked remaining players -- strong players are still likely to be
+    spread across teams early, but which specific player is picked, and thus
+    the final grouping, varies between calls. When positions are known, a
+    candidate whose outfield position the picking team doesn't have yet gets
+    its weight boosted, spreading tagged positions across teams too.
     """
     positions = positions or {}
+    initial_sizes = initial_sizes or [0] * team_count
     remaining = sorted(player_ids, key=lambda pid: player_scores.get(pid, 0.5), reverse=True)
     teams: list[list[PlayerId]] = [[] for _ in range(team_count)]
-    index = 0
-    forward = True
     while remaining:
+        totals = [len(teams[i]) + initial_sizes[i] for i in range(team_count)]
+        smallest = min(totals)
+        index = random.choice([i for i, total in enumerate(totals) if total == smallest])
         weights = [1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining))]
         weights = _apply_position_fit_boost(weights, remaining, teams[index], positions)
         pid = random.choices(remaining, weights=weights, k=1)[0]
         remaining.remove(pid)
         teams[index].append(pid)
-        if forward:
-            index += 1
-            if index == team_count:
-                index = team_count - 1
-                forward = False
-        else:
-            index -= 1
-            if index < 0:
-                index = 0
-                forward = True
     return tuple(teams)
 
 

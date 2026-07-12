@@ -278,6 +278,17 @@ class TestOptimizeTeams:
         assert same_team_count < trials * 0.5
 
 
+class TestOptimizeTeamsInitialSizes:
+    """Tests for optimize_teams's initial_sizes handicap."""
+
+    def test_compensates_for_a_teams_head_start(self):
+        """A team that already has a member (e.g. a goalkeeper) gets a smaller split."""
+        players = [PlayerId.generate() for _ in range(7)]
+        scores = {pid: 0.5 for pid in players}
+        team_a, team_b = optimize_teams(players, scores, {}, initial_sizes=(1, 0))
+        assert len(team_a) + 1 - len(team_b) in (-1, 0, 1)
+
+
 class TestTeamScore:
     """Tests for _team_score."""
 
@@ -414,6 +425,61 @@ class TestBalancedAlgorithmAssign:
         assert len(assigned_goalkeepers) == 2
 
 
+class TestGoalkeeperPreassignmentPreservesTeamSizeBalance:
+    """Regression tests: goalkeeper pre-assignment must not break team-size balance."""
+
+    def test_triangular_sizes_differ_by_at_most_one_with_one_goalkeeper(self):
+        """A 3-team triangular with one tagged keeper still splits sizes within 1."""
+        gk = PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(7)]
+        players = [gk, *outfield]
+        repo = MagicMock()
+        repo.find_all.return_value = [
+            Player(id=gk, name="GK", group="regular", position="portero"),
+            *(Player(id=pid, name="P", group="regular") for pid in outfield),
+        ]
+        algo = BalancedAlgorithm(player_repository=repo)
+        for _ in range(50):
+            assignments = algo.assign(players, [], [], datetime(2025, 9, 1), 3)
+            sizes = sorted(len(a.players) for a in assignments)
+            assert sizes[-1] - sizes[0] <= 1
+
+    def test_classic_sizes_differ_by_at_most_one_with_one_goalkeeper(self):
+        """A classic 2-team match with one tagged keeper still splits sizes within 1."""
+        gk = PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(7)]
+        players = [gk, *outfield]
+        repo = MagicMock()
+        repo.find_all.return_value = [
+            Player(id=gk, name="GK", group="regular", position="portero"),
+            *(Player(id=pid, name="P", group="regular") for pid in outfield),
+        ]
+        algo = BalancedAlgorithm(player_repository=repo)
+        for _ in range(50):
+            assignments = algo.assign(players, [], [], datetime(2025, 9, 1), 2)
+            sizes = sorted(len(a.players) for a in assignments)
+            assert sizes[-1] - sizes[0] <= 1
+
+    def test_goalkeeper_lands_on_different_teams_across_repeated_calls(self):
+        """A single goalkeeper isn't always pre-assigned to the same team index."""
+        gk = PlayerId.generate()
+        outfield = [PlayerId.generate() for _ in range(5)]
+        players = [gk, *outfield]
+        repo = MagicMock()
+        repo.find_all.return_value = [
+            Player(id=gk, name="GK", group="regular", position="portero"),
+            *(Player(id=pid, name="P", group="regular") for pid in outfield),
+        ]
+        algo = BalancedAlgorithm(player_repository=repo)
+        gk_team_indices = set()
+        for _ in range(50):
+            assignments = algo.assign(players, [], [], datetime(2025, 9, 1), 3)
+            for i, assignment in enumerate(assignments):
+                if assignment.goalkeeper == gk:
+                    gk_team_indices.add(i)
+        assert len(gk_team_indices) > 1
+
+
 class TestSnakeDraft:
     """Tests for _snake_draft (3-team balanced distribution)."""
 
@@ -475,6 +541,19 @@ class TestSnakeDraft:
             imbalances.append(max(totals) - min(totals))
 
         assert sum(imbalances) / len(imbalances) < 1.2
+
+
+class TestSnakeDraftInitialSizes:
+    """Tests for _snake_draft's initial_sizes handicap."""
+
+    def test_compensates_for_a_teams_head_start(self):
+        """A team that already has a member (e.g. a goalkeeper) gets fewer picks."""
+        players = [PlayerId.generate() for _ in range(7)]
+        scores = {pid: 0.5 for pid in players}
+        teams = _snake_draft(players, scores, 3, initial_sizes=[1, 0, 0])
+        sizes = [len(team) for team in teams]
+        final_sizes = [sizes[0] + 1, sizes[1], sizes[2]]
+        assert max(final_sizes) - min(final_sizes) <= 1
 
 
 class TestApplyPositionFitBoost:
