@@ -555,3 +555,26 @@ async def test_change_position_handler_invalid_position(mock_update, mock_contex
     call = mock_update.message.reply_text.call_args
     text = call.kwargs.get("text") or (call.args[0] if call.args else "")
     assert "posición" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_list_players_handler_shows_position(mock_update, mock_context):
+    container = MagicMock()
+    mock_player1 = MagicMock()
+    mock_player1.name = "Iker"
+    mock_player1.group = "regular"
+    mock_player1.position = "portero"
+    mock_player2 = MagicMock()
+    mock_player2.name = "Pedro"
+    mock_player2.group = "substitute"
+    mock_player2.position = None
+
+    container.player_repository.find_all.return_value = [mock_player1, mock_player2]
+    mock_context.bot_data["container"] = container
+
+    await list_players_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.kwargs.get("text") or (call.args[0] if call.args else "")
+    assert "Iker" in text and "portero" in text.lower()
+    assert r"- `Pedro`" in text

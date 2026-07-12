@@ -210,23 +210,24 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     regulares = []
     suplentes = []
     for p in players:
+        label = rf"\- `{p.name}`" + (rf" _{p.position}_" if p.position else "")
         if p.group == "regular":
-            regulares.append(p.name)
+            regulares.append((p.name, label))
         else:
-            suplentes.append(p.name)
+            suplentes.append((p.name, label))
 
-    sorted_regulars = sorted(regulares, key=functools.cmp_to_key(locale.strcoll))
-    sorted_substitutes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
+    sorted_regulars = sorted(regulares, key=lambda t: functools.cmp_to_key(locale.strcoll)(t[0]))
+    sorted_substitutes = sorted(
+        suplentes, key=lambda t: functools.cmp_to_key(locale.strcoll)(t[0])
+    )
 
     lines = ["*Jugadores:*", ""]
     if sorted_regulars:
         lines.append(rf"*Titulares \({len(sorted_regulars)}\):*")
-        for name in sorted_regulars:
-            lines.append(rf"\- `{name}`")
+        lines.extend(label for _, label in sorted_regulars)
     if sorted_substitutes:
         lines.append(rf"*Suplentes \({len(sorted_substitutes)}\):*")
-        for name in sorted_substitutes:
-            lines.append(rf"\- `{name}`")
+        lines.extend(label for _, label in sorted_substitutes)
 
     await message.reply_text(
         text="\n".join(lines),
