@@ -64,6 +64,16 @@ This is where you choose the match format:
 As soon as teams are assigned, the first match is ready to track — no separate "start"
 step needed.
 
+Goalkeepers and outfield positions (see
+[docs/data-directory.md](data-directory.md#dataplayersjson)) are handled automatically
+by the balanced algorithm: a player positioned as `portero` is a candidate to become
+their team's designated goalkeeper for the session — weighted by a historical
+goals-conceded score, so a team is never guaranteed one but the strongest available
+keepers tend to end up on different teams. The other three positions
+(`defensa`/`centrocampista`/`delantero`) are used as a softer signal to avoid stacking
+one team with every player of the same position. You can always see or override which
+player is a team's goalkeeper from "✏️ Editar equipos".
+
 ## 4. Track the match
 
 Open `/match` on whatever device is scoring the game (phone, tablet). It automatically

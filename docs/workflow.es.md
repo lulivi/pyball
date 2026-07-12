@@ -71,6 +71,17 @@ Aquí es donde eliges el formato del partido:
 En cuanto se asignan los equipos, el primer partido ya está listo para seguir — no hace
 falta ningún paso extra de "arrancar".
 
+Los porteros y las posiciones de campo (ver
+[docs/data-directory.es.md](data-directory.es.md#dataplayersjson)) se gestionan
+automáticamente en el algoritmo equilibrado: un jugador marcado como `portero` es
+candidato a convertirse en el portero designado de su equipo para la sesión —
+ponderado por un dato histórico de goles encajados, así que ningún equipo tiene uno
+garantizado, pero los mejores porteros disponibles tienden a acabar en equipos
+distintos. El resto de posiciones (`defensa`/`centrocampista`/`delantero`) se usan como
+una señal más suave para evitar amontonar en un mismo equipo a todos los jugadores de
+una misma posición. Siempre puedes ver o cambiar quién es el portero de un equipo desde
+"✏️ Editar equipos".
+
 ## 4. Seguir el partido
 
 Abre `/match` en el dispositivo que vaya a llevar el marcador (móvil, tablet). Muestra
