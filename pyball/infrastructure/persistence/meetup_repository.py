@@ -45,7 +45,11 @@ class JsonMeetupRepository(MeetupRepository):
         teams = None
         if data.get("teams"):
             teams = [
-                Team.create(t["name"], [PlayerId(UUID(p)) for p in t["players"]])
+                Team.create(
+                    t["name"],
+                    [PlayerId(UUID(p)) for p in t["players"]],
+                    goalkeeper=PlayerId(UUID(t["goalkeeper"])) if t.get("goalkeeper") else None,
+                )
                 for t in data["teams"]
             ]
         teams_by_name = {t.name: t for t in teams} if teams else {}
@@ -74,7 +78,11 @@ class JsonMeetupRepository(MeetupRepository):
         teams_data = None
         if meetup.teams:
             teams_data = [
-                {"name": t.name, "players": [str(p.value) for p in t.players]}
+                {
+                    "name": t.name,
+                    "players": [str(p.value) for p in t.players],
+                    "goalkeeper": str(t.goalkeeper.value) if t.goalkeeper else None,
+                }
                 for t in meetup.teams
             ]
         matches_data = [
