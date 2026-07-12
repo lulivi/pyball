@@ -213,27 +213,13 @@ async function searchRosterAdd() {
     const matches = allPlayers
         .filter(p => p.name.toLowerCase().includes(q) && !rosterIds.has(p.id))
         .slice(0, 6);
-    resultsEl.innerHTML = buildAddResults(rosterSearchQuery, matches, matches.length === 0, {
-        pickFn: 'pickRosterAdd', createFn: 'createAndAddPlayer',
-    });
+    resultsEl.innerHTML = buildAddResults(matches, { pickFn: 'pickRosterAdd' });
 }
 
 async function pickRosterAdd(id) {
     const ids = activeMatchData.players.map(p => p.id);
     ids.push(id);
     await _saveRoster(ids);
-}
-
-async function createAndAddPlayer(name) {
-    let created;
-    try {
-        created = await post('/api/players', { name });
-    } catch (err) {
-        alert('Error al crear jugador: ' + (err.detail || err.message));
-        return;
-    }
-    allPlayers.push({ id: created.id, name: created.name });
-    await pickRosterAdd(created.id);
 }
 
 // ── STATE 2: match with teams ─────────────────────────────────────────────
@@ -379,9 +365,7 @@ function searchEditAdd() {
     const matches = allPlayers
         .filter(p => p.name.toLowerCase().includes(q) && !usedIds.has(p.id))
         .slice(0, 6);
-    resultsEl.innerHTML = buildAddResults(editAddQuery, matches, matches.length === 0, {
-        pickFn: 'pickEditAdd', createFn: 'createAndAddToTeam', team: editAddOpenTeam,
-    });
+    resultsEl.innerHTML = buildAddResults(matches, { pickFn: 'pickEditAdd', team: editAddOpenTeam });
 }
 
 function pickEditAdd(id, name, team) {
@@ -389,18 +373,6 @@ function pickEditAdd(id, name, team) {
     editAddOpenTeam = null;
     editAddQuery = '';
     _renderTeamsEditPanel();
-}
-
-async function createAndAddToTeam(name, team) {
-    let created;
-    try {
-        created = await post('/api/players', { name });
-    } catch (err) {
-        alert('Error al crear jugador: ' + (err.detail || err.message));
-        return;
-    }
-    allPlayers.push({ id: created.id, name: created.name });
-    pickEditAdd(created.id, created.name, team);
 }
 
 function renderReplaceSearchResults() {
@@ -831,7 +803,6 @@ Object.assign(window, {
     toggleEditAdd,
     searchEditAdd,
     pickEditAdd,
-    createAndAddToTeam,
     saveTeams,
     toggleRepaste,
     parseRepaste,
@@ -855,7 +826,6 @@ Object.assign(window, {
     toggleRosterAdd,
     searchRosterAdd,
     pickRosterAdd,
-    createAndAddPlayer,
 });
 
 if ('serviceWorker' in navigator) {
