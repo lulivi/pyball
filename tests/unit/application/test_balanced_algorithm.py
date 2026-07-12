@@ -513,11 +513,10 @@ class TestSnakeDraftPositionBalance:
     def test_spreads_a_tagged_position_across_teams(self):
         """Three defenders tend to land on three different teams, not stacked.
 
-        Empirically with _POSITION_FIT_BOOST=3.0, the stacked rate for this setup
-        is ~31.1% (2445/5000 trials vs. ~48.9% unboosted at boost=1.5). A threshold
-        of 33% provides comfortable statistical margin (±2 std_errors) while still
-        catching a complete regression if the boost is removed. Unboosted code at
-        ~49% will clearly fail this threshold.
+        With _POSITION_FIT_BOOST=3.0, the stacked rate measures ~31% (1555/5000 trials).
+        The 33% threshold provides ~4 standard errors of margin while still catching
+        regressions: the old boost=1.5 measured ~49% (2445/5000 trials) and would
+        clearly fail this threshold.
         """
         defenders = [PlayerId.generate() for _ in range(3)]
         neutrals = [PlayerId.generate() for _ in range(6)]
