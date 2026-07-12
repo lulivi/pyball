@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Pydantic request/response models for the HTTP API."""
+
 from pydantic import BaseModel
 
 
@@ -80,3 +81,5 @@ class CreatePlayerInput(BaseModel):
     """Request body for POST /api/players."""
 
     name: str
+    group: str = "substitute"
+    position: str | None = None

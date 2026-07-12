@@ -1161,14 +1161,16 @@ async def test_match_latest_404_when_nothing_finished():
 
 @pytest.mark.asyncio
 async def test_players_endpoint_serialises_players():
-    """GET /api/players returns a list of player objects."""
+    """GET /api/players returns id, name, group, and position for each player."""
     container = _container_for_responses()
-    player = Player.create("Luis")
+    player = Player.create("Luis", group="regular", position="portero")
     container.player_repository.find_all.return_value = [player]
     app, _ = _make_app(container)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/players")
-    assert response.json() == [{"id": str(player.id.value), "name": "Luis"}]
+    assert response.json() == [
+        {"id": str(player.id.value), "name": "Luis", "group": "regular", "position": "portero"}
+    ]
 
 
 @pytest.mark.asyncio
@@ -1349,8 +1351,8 @@ class TestCreatePlayerEndpoint:
     """Tests for POST /api/players."""
 
     @pytest.mark.asyncio
-    async def test_create_player_returns_201_with_id_and_name(self):
-        """POST /api/players creates a substitute player and returns id + name."""
+    async def test_create_player_returns_201_with_full_shape(self):
+        """POST /api/players with only a name defaults group to substitute, no position."""
         container = MagicMock()
         player = Player.create("Nuevo Fichaje", group="substitute")
         container.create_player.return_value.execute.return_value = player
@@ -1360,10 +1362,53 @@ class TestCreatePlayerEndpoint:
             resp = await c.post("/api/players", json={"name": "Nuevo Fichaje"})
 
         assert resp.status_code == 201
-        assert resp.json() == {"id": str(player.id.value), "name": "Nuevo Fichaje"}
+        assert resp.json() == {
+            "id": str(player.id.value),
+            "name": "Nuevo Fichaje",
+            "group": "substitute",
+            "position": None,
+        }
         container.create_player.return_value.execute.assert_called_once_with(
-            name="Nuevo Fichaje", group="substitute"
+            name="Nuevo Fichaje", group="substitute", position=None
         )
+
+    @pytest.mark.asyncio
+    async def test_create_player_with_group_and_position(self):
+        """POST /api/players passes explicit group and position through."""
+        container = MagicMock()
+        player = Player.create("Iker", group="regular", position="portero")
+        container.create_player.return_value.execute.return_value = player
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/players",
+                json={"name": "Iker", "group": "regular", "position": "portero"},
+            )
+
+        assert resp.status_code == 201
+        assert resp.json()["position"] == "portero"
+        container.create_player.return_value.execute.assert_called_once_with(
+            name="Iker", group="regular", position="portero"
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_player_422_on_invalid_position(self):
+        """POST /api/players returns 422 for an unrecognized position value."""
+        container = MagicMock()
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "Iker", "position": "lateral"})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_player_422_on_invalid_group(self):
+        """POST /api/players returns 422 for an unrecognized group value."""
+        container = MagicMock()
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/players", json={"name": "Iker", "group": "vip"})
+        assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_create_player_409_on_duplicate_name(self):
