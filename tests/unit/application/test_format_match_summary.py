@@ -220,6 +220,33 @@ class TestFormatMatchSummary:
 
         assert "  - 🥅 20' Juande (en propia)" in msg
 
+    def test_classic_match_prefixes_goalkeeper_line(self):
+        """The team's designated goalkeeper's roster line starts with 🧤."""
+        a1 = PlayerId.from_string(self.pid_a1)
+        a2 = PlayerId.from_string(self.pid_a2)
+        b1 = PlayerId.from_string(self.pid_b1)
+        b2 = PlayerId.from_string(self.pid_b2)
+        team_a = Team.create("A", [a1, a2], goalkeeper=a1)
+        team_b = Team.create("B", [b1, b2])
+        result = MatchResult(score_a=1, score_b=2, events=())
+        meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
+        meetup.set_teams([team_a, team_b])
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=result))
+
+        msg = self.use_case.execute(meetup, self.player_names)
+
+        lines = msg.splitlines()
+        gk_line = next(line for line in lines if "Juande" in line)
+        assert gk_line.startswith("🧤 Juande")
+        non_gk_line = next(line for line in lines if "Luvo" in line)
+        assert not non_gk_line.startswith("🧤")
+
+    def test_no_goalkeeper_line_unchanged(self):
+        """A team with no designated goalkeeper shows every roster line as before."""
+        msg = self.use_case.execute(self.meetup, self.player_names)
+        lines = msg.splitlines()
+        assert not any(line.startswith("🧤") for line in lines)
+
 
 class TestFormatMatchSummaryWithLegacy:
     """FormatMatchSummary overlays assists from LegacyStats when events have none."""

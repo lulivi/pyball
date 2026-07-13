@@ -1,5 +1,6 @@
 """Integration tests for JsonPlayerRepository (persistence)."""
 
+import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -85,3 +86,36 @@ class TestJsonPlayerRepository:
 
         found = self.repo.find_by_id(player.id)
         assert found.group == "substitute"
+
+    def test_save_and_find_by_id_with_position(self):
+        """Saving a player with a position persists and reloads it."""
+        player = Player.create("Iker", "regular", position="portero")
+        self.repo.save(player)
+
+        found = self.repo.find_by_id(player.id)
+
+        assert found is not None
+        assert found.position == "portero"
+
+    def test_find_all_defaults_position_to_none_for_legacy_file(self):
+        """Players saved before this field existed load with position=None."""
+        player = Player.create("Legacy", "regular")
+        self.repo.save(player)
+        data = json.loads(self.file_path.read_text(encoding="utf-8"))
+        del data["players"][0]["position"]
+        self.file_path.write_text(json.dumps(data), encoding="utf-8")
+
+        found = self.repo.find_by_id(player.id)
+
+        assert found.position is None
+
+    def test_update_player_position(self):
+        """Re-saving a player after set_position persists the new position."""
+        player = Player.create("Original", "regular")
+        self.repo.save(player)
+
+        player.set_position("delantero")
+        self.repo.save(player)
+
+        found = self.repo.find_by_id(player.id)
+        assert found.position == "delantero"

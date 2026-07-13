@@ -41,8 +41,8 @@ independientemente de cualquier partido:
 ```json
 {
   "players": [
-    { "id": "11111111-1111-4111-8111-111111111111", "name": "Juan Pérez", "group": "regular" },
-    { "id": "22222222-2222-4222-8222-222222222222", "name": "Manu García", "group": "substitute" }
+    { "id": "11111111-1111-4111-8111-111111111111", "name": "Juan Pérez", "group": "regular", "position": "defensa" },
+    { "id": "22222222-2222-4222-8222-222222222222", "name": "Manu García", "group": "substitute", "position": null }
   ]
 }
 ```
@@ -52,6 +52,10 @@ independientemente de cualquier partido:
   coincidencia difusa de la convocatoria).
 - `group` — `"regular"` o `"substitute"`, el grupo por defecto usado al parsear una
   convocatoria.
+- `position` — `"portero"`, `"defensa"`, `"centrocampista"`, `"delantero"`, o `null` si
+  no se ha fijado. Una posición orientativa, no una asignación rígida — solo se usa como
+  señal por el algoritmo de generación de equipos equilibrados (ver
+  [docs/workflow.es.md](workflow.es.md#3-generar-equipos)).
 
 ## `data/meetups/<fecha>.json`
 
@@ -70,9 +74,9 @@ Un partido **triangular** (3 equipos) terminado, tras 3 rondas y cerrado:
   "location": "Parque Central",
   "players": ["11111111-...", "22222222-...", "..."],
   "teams": [
-    { "name": "A", "players": ["11111111-...", "22222222-...", "33333333-..."] },
-    { "name": "B", "players": ["44444444-...", "55555555-...", "66666666-..."] },
-    { "name": "C", "players": ["77777777-...", "88888888-...", "99999999-..."] }
+    { "name": "A", "players": ["11111111-...", "22222222-...", "33333333-..."], "goalkeeper": "11111111-..." },
+    { "name": "B", "players": ["44444444-...", "55555555-...", "66666666-..."], "goalkeeper": null },
+    { "name": "C", "players": ["77777777-...", "88888888-...", "99999999-..."], "goalkeeper": null }
   ],
   "matches": [
     {
@@ -105,7 +109,9 @@ Notas de los campos:
 - `teams` — `null` hasta que se generan los equipos. Una lista de 2 (clásico) o 3
   (triangular) equipos con nombre. Los nombres son siempre `"A"`, `"B"` y (en
   triangulares) `"C"` — son etiquetas posicionales, no los nombres de color visibles
-  configurados en `team_colors`.
+  configurados en `team_colors`. El `goalkeeper` de cada equipo es el id de su portero
+  designado para toda la sesión, o `null` si no se fijó ninguno — ver
+  [docs/workflow.es.md](workflow.es.md#3-generar-equipos).
 - `matches` — empieza como `[]`. Cada entrada es un partido jugado (o en curso) entre
   exactamente 2 de los equipos del meetup. `teams_playing` referencia los equipos por
   nombre, no por índice, así que reordenar `teams` nunca rompe las referencias de un

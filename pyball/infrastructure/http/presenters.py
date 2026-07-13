@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Serialisation of domain objects into HTTP response dicts."""
+
 from __future__ import annotations
 
 import functools
@@ -117,6 +118,12 @@ def build_meetup_active_response(container: Container) -> dict:
         "colorB": hex_bg[1],
         "colorTextA": hex_text[0],
         "colorTextB": hex_text[1],
+        "goalkeeperA": (
+            str(meetup.teams[0].goalkeeper.value) if meetup.teams[0].goalkeeper else None
+        ),
+        "goalkeeperB": (
+            str(meetup.teams[1].goalkeeper.value) if meetup.teams[1].goalkeeper else None
+        ),
         "matchUrl": match_url,
     }
     if len(meetup.teams) == 3:
@@ -127,6 +134,9 @@ def build_meetup_active_response(container: Container) -> dict:
                 "emojiC": emojis[2],
                 "colorC": hex_bg[2],
                 "colorTextC": hex_text[2],
+                "goalkeeperC": (
+                    str(meetup.teams[2].goalkeeper.value) if meetup.teams[2].goalkeeper else None
+                ),
             }
         )
 
@@ -158,9 +168,11 @@ def build_match_events_response(container: Container, meetup: Meetup) -> dict:
     events = [
         {
             "scorer": player_names.get(str(ev.scorer_id.value), "(desconocido)"),
-            "assistant": player_names.get(str(ev.assistant_id.value), "(desconocido)")
-            if ev.assistant_id
-            else None,
+            "assistant": (
+                player_names.get(str(ev.assistant_id.value), "(desconocido)")
+                if ev.assistant_id
+                else None
+            ),
             "team": ev.team,
             "timestamp": ev.timestamp.strftime("%H:%M"),
             "is_own_goal": ev.is_own_goal,

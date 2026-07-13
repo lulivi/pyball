@@ -271,3 +271,69 @@ class TestAssignTeamsById:
         )
 
         assert list(result.players) == [p1.id, p2.id, p3.id]
+
+    def test_assigns_goalkeeper_to_team_a(self):
+        """A goalkeeper_a_id that's one of team A's players is set on the resulting team."""
+        p1, p2 = _player("Juan"), _player("Pedro")
+        meetup = _meetup(p1, p2)
+        uc, _ = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value)],
+            [str(p2.id.value)],
+            goalkeeper_a_id=str(p1.id.value),
+        )
+
+        assert result.teams[0].goalkeeper == p1.id
+        assert result.teams[1].goalkeeper is None
+
+    def test_goalkeeper_not_in_its_team_raises(self):
+        """A goalkeeper_a_id that isn't one of team A's players raises ValueError."""
+        p1, p2 = _player("Juan"), _player("Pedro")
+        meetup = _meetup(p1, p2)
+        uc, _ = _use_case(meetup)
+
+        with pytest.raises(ValueError):
+            uc.execute(
+                datetime(2026, 5, 6, 20, 0),
+                [str(p1.id.value)],
+                [str(p2.id.value)],
+                goalkeeper_a_id=str(p2.id.value),
+            )
+
+    def test_clearing_goalkeeper_with_none_is_the_default(self):
+        """Omitting goalkeeper_a_id leaves that team without a goalkeeper."""
+        p1, p2 = _player("Juan"), _player("Pedro")
+        meetup = _meetup(p1, p2)
+        uc, _ = _use_case(meetup)
+
+        result = uc.execute(datetime(2026, 5, 6, 20, 0), [str(p1.id.value)], [str(p2.id.value)])
+
+        assert result.teams[0].goalkeeper is None
+
+    def test_assigns_goalkeeper_to_team_b_and_c(self):
+        """goalkeeper_b_id/goalkeeper_c_id are validated and set independently per team."""
+        p1, p2, p3, p4, p5, p6 = (
+            _player("Juan"),
+            _player("Pedro"),
+            _player("Carlos"),
+            _player("Luis"),
+            _player("Ana"),
+            _player("Bea"),
+        )
+        meetup = _meetup(p1, p2, p3, p4, p5, p6)
+        uc, _ = _use_case(meetup)
+
+        result = uc.execute(
+            datetime(2026, 5, 6, 20, 0),
+            [str(p1.id.value), str(p2.id.value)],
+            [str(p3.id.value), str(p4.id.value)],
+            [str(p5.id.value), str(p6.id.value)],
+            goalkeeper_b_id=str(p3.id.value),
+            goalkeeper_c_id=str(p5.id.value),
+        )
+
+        assert result.teams[0].goalkeeper is None
+        assert result.teams[1].goalkeeper == p3.id
+        assert result.teams[2].goalkeeper == p5.id

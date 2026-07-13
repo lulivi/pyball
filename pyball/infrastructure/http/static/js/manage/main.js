@@ -15,6 +15,7 @@ let lastParsedDate = null;  // ISO date from callup header, e.g. "2026-05-25T20:
 let activeMatchData = null;
 let editTeams = { A: [], B: [], C: [] };  // {id, name}[] per team letter — working copies
 let editTeamLetters = ['A', 'B'];          // ['A','B'] or ['A','B','C'] — set when panel opens
+let editGoalkeepers = { A: null, B: null, C: null }; // playerId | null per team letter
 let editReplacingPlayer = null; // {id, name, team: 'A'|'B'|'C'} | null
 let rosterAddVisible = false;   // State 1: add-player search panel open?
 let rosterSearchQuery = '';     // State 1: current add-player search text
@@ -29,6 +30,7 @@ function switchTab(name, btn) {
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
     if (name === 'resumen') loadResumen();
+    if (name === 'jugadores') window.loadJugadores();
 }
 
 // ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
@@ -212,27 +214,13 @@ async function searchRosterAdd() {
     const matches = allPlayers
         .filter(p => p.name.toLowerCase().includes(q) && !rosterIds.has(p.id))
         .slice(0, 6);
-    resultsEl.innerHTML = buildAddResults(rosterSearchQuery, matches, matches.length === 0, {
-        pickFn: 'pickRosterAdd', createFn: 'createAndAddPlayer',
-    });
+    resultsEl.innerHTML = buildAddResults(matches, { pickFn: 'pickRosterAdd' });
 }
 
 async function pickRosterAdd(id) {
     const ids = activeMatchData.players.map(p => p.id);
     ids.push(id);
     await _saveRoster(ids);
-}
-
-async function createAndAddPlayer(name) {
-    let created;
-    try {
-        created = await post('/api/players', { name });
-    } catch (err) {
-        alert('Error al crear jugador: ' + (err.detail || err.message));
-        return;
-    }
-    allPlayers.push({ id: created.id, name: created.name });
-    await pickRosterAdd(created.id);
 }
 
 // ── STATE 2: match with teams ─────────────────────────────────────────────
@@ -284,7 +272,7 @@ async function regenerateCurrentTeams(teamCount, btn) {
 async function toggleTeamsEditPanel() {
     const container = document.getElementById('edit-panel-container');
     if (container.innerHTML) {
-        editTeamLetters.forEach(letter => { editTeams[letter] = []; });
+        editTeamLetters.forEach(letter => { editTeams[letter] = []; editGoalkeepers[letter] = null; });
         editReplacingPlayer = null;
         editAddOpenTeam = null;
         editAddQuery = '';
@@ -299,6 +287,8 @@ async function toggleTeamsEditPanel() {
         activeMatchData.players.forEach(p => { byName[p.name] = p; });
         editTeamLetters = t.teamC ? ['A', 'B', 'C'] : ['A', 'B'];
         const namesByLetter = { A: t.teamA, B: t.teamB, C: t.teamC };
+        const gkByLetter = { A: t.goalkeeperA, B: t.goalkeeperB, C: t.goalkeeperC };
+        editTeamLetters.forEach(letter => { editGoalkeepers[letter] = gkByLetter[letter] || null; });
         editTeamLetters.forEach(letter => {
             editTeams[letter] = namesByLetter[letter].map(name => byName[name] || { id: null, name });
         });
@@ -329,8 +319,13 @@ function moveToOtherTeam(id, fromTeam, toTeam) {
     const idx = fromArr.findIndex(p => p.id === id);
     if (idx === -1) return;
     const [player] = fromArr.splice(idx, 1);
+    if (editGoalkeepers[fromTeam] === id) editGoalkeepers[fromTeam] = null;
     editTeams[toTeam].push(player);
     _renderTeamsEditPanel();
+}
+
+function setEditGoalkeeper(team, playerId) {
+    editGoalkeepers[team] = playerId || null;
 }
 
 function startReplacePlayer(id, team) {
@@ -358,6 +353,7 @@ function removeFromEditTeam(id, team) {
     const arr = editTeams[team];
     const idx = arr.findIndex(p => p.id === id);
     if (idx !== -1) arr.splice(idx, 1);
+    if (editGoalkeepers[team] === id) editGoalkeepers[team] = null;
     _renderTeamsEditPanel();
 }
 
@@ -378,9 +374,7 @@ function searchEditAdd() {
     const matches = allPlayers
         .filter(p => p.name.toLowerCase().includes(q) && !usedIds.has(p.id))
         .slice(0, 6);
-    resultsEl.innerHTML = buildAddResults(editAddQuery, matches, matches.length === 0, {
-        pickFn: 'pickEditAdd', createFn: 'createAndAddToTeam', team: editAddOpenTeam,
-    });
+    resultsEl.innerHTML = buildAddResults(matches, { pickFn: 'pickEditAdd', team: editAddOpenTeam });
 }
 
 function pickEditAdd(id, name, team) {
@@ -388,18 +382,6 @@ function pickEditAdd(id, name, team) {
     editAddOpenTeam = null;
     editAddQuery = '';
     _renderTeamsEditPanel();
-}
-
-async function createAndAddToTeam(name, team) {
-    let created;
-    try {
-        created = await post('/api/players', { name });
-    } catch (err) {
-        alert('Error al crear jugador: ' + (err.detail || err.message));
-        return;
-    }
-    allPlayers.push({ id: created.id, name: created.name });
-    pickEditAdd(created.id, created.name, team);
 }
 
 function renderReplaceSearchResults() {
@@ -422,9 +404,12 @@ async function saveTeams() {
         date: activeMatchData.date,
         team_a_ids: editTeams.A.map(p => p.id),
         team_b_ids: editTeams.B.map(p => p.id),
+        team_a_goalkeeper_id: editGoalkeepers.A,
+        team_b_goalkeeper_id: editGoalkeepers.B,
     };
     if (editTeamLetters.includes('C')) {
         body.team_c_ids = editTeams.C.map(p => p.id);
+        body.team_c_goalkeeper_id = editGoalkeepers.C;
     }
     let data;
     try {
@@ -435,7 +420,7 @@ async function saveTeams() {
         return;
     }
     activeMatchData = data;
-    editTeamLetters.forEach(letter => { editTeams[letter] = []; });
+    editTeamLetters.forEach(letter => { editTeams[letter] = []; editGoalkeepers[letter] = null; });
     editReplacingPlayer = null;
     editAddOpenTeam = null;
     editAddQuery = '';
@@ -740,6 +725,20 @@ function _renderTeamsEditPanel() {
     style="width:100%;margin-top:4px;padding:4px;font-size:0.78rem;"
     onclick="toggleEditAdd('${team}')">${editAddOpenTeam === team ? '✕ Cerrar' : '＋ Añadir'}</button>`;
 
+    const gkSelector = (letter) => {
+        const options = editTeams[letter].map(p =>
+            `<option value="${escHtml(p.id)}" ${editGoalkeepers[letter] === p.id ? 'selected' : ''}>${escHtml(p.name)}</option>`
+        ).join('');
+        return `
+        <div class="gk-row" style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <span style="font-size:0.78rem;color:#94a3b8;white-space:nowrap;">🧤 Portero</span>
+          <select class="search-box" style="margin:0;" data-team="${letter}" onchange="setEditGoalkeeper('${letter}', this.value)">
+            <option value="">Ninguno</option>
+            ${options}
+          </select>
+        </div>`;
+    };
+
     const addPanel = editAddOpenTeam ? `
     <div style="margin-bottom:8px;">
       <div class="step-label" style="font-size:0.65rem;">
@@ -768,6 +767,7 @@ function _renderTeamsEditPanel() {
           <div class="step-label" style="font-size:0.65rem;">${escHtml(emojiByLetter[letter])} ${escHtml(nameByLetter[letter])} (${editTeams[letter].length})</div>
           ${editTeams[letter].map(p => row(p, letter)).join('')}
           ${addBtn(letter)}
+          ${gkSelector(letter)}
         </div>`;
 
     const teamsSection = `<div style="margin-bottom:8px;">${editTeamLetters.map(teamBlock).join('')}</div>`;
@@ -823,6 +823,7 @@ Object.assign(window, {
     regenerateCurrentTeams,
     toggleTeamsEditPanel,
     moveToOtherTeam,
+    setEditGoalkeeper,
     startReplacePlayer,
     pickReplacement,
     cancelReplace,
@@ -830,7 +831,6 @@ Object.assign(window, {
     toggleEditAdd,
     searchEditAdd,
     pickEditAdd,
-    createAndAddToTeam,
     saveTeams,
     toggleRepaste,
     parseRepaste,
@@ -854,7 +854,6 @@ Object.assign(window, {
     toggleRosterAdd,
     searchRosterAdd,
     pickRosterAdd,
-    createAndAddPlayer,
 });
 
 if ('serviceWorker' in navigator) {

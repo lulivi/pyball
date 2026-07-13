@@ -21,10 +21,19 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
 from pyball.domain.meetup.models import Meetup, PlayerId
+
+
+@dataclass(frozen=True)
+class TeamAssignment:
+    """One team's player list and its algorithm-assigned goalkeeper, if any."""
+
+    players: list[PlayerId] = field(default_factory=list)
+    goalkeeper: PlayerId | None = None
 
 
 class TeamAssignmentAlgorithm(Protocol):
@@ -37,5 +46,5 @@ class TeamAssignmentAlgorithm(Protocol):
         season_meetups: list[Meetup],
         season_start: datetime,
         team_count: int = 2,
-    ) -> tuple[list[PlayerId], ...]:
+    ) -> tuple[TeamAssignment, ...]:
         """Assign players to team_count groups and return them as a tuple."""

@@ -154,8 +154,10 @@ def _match_block(  # pylint: disable=too-many-arguments,too-many-positional-argu
         score = result.score_a if i == 0 else result.score_b
         lines.append(_team_score_header(team, all_teams, team_colors, team_emojis, score))
         team_ids = [str(pid.value) for pid in team.players]
+        goalkeeper_id = str(team.goalkeeper.value) if team.goalkeeper else None
         lines.extend(
-            _player_line(pid, player_names, goals, own_goals, assists) for pid in team_ids
+            _player_line(pid, player_names, goals, own_goals, assists, goalkeeper_id)
+            for pid in team_ids
         )
 
     if result.events:
@@ -220,8 +222,9 @@ def _team_standing_block(  # pylint: disable=too-many-arguments,too-many-positio
         team_ids = [str(pid.value) for pid in team.players]
         _apply_legacy_assists(assists, team_ids, legacy_stats, meetup_date)
 
+    goalkeeper_id = str(team.goalkeeper.value) if team.goalkeeper else None
     lines.extend(
-        _player_line(str(pid.value), player_names, goals, own_goals, assists)
+        _player_line(str(pid.value), player_names, goals, own_goals, assists, goalkeeper_id)
         for pid in team.players
     )
     return lines
@@ -311,13 +314,16 @@ def _apply_legacy_assists(
                 assists[pid] = legacy_count
 
 
-def _player_line(
+def _player_line(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     pid: str,
     player_names: dict[str, str],
     goals: dict[str, int],
     own_goals: dict[str, int],
     assists: dict[str, int],
+    goalkeeper_id: str | None = None,
 ) -> str:
+    """Return this player's roster line, prefixed with 🧤 if they're the goalkeeper."""
     name = player_names.get(pid, pid)
     stats = "⚽" * goals.get(pid, 0) + "🥅" * own_goals.get(pid, 0) + "🅰️" * assists.get(pid, 0)
-    return name + (" " + stats if stats else "")
+    prefix = "🧤 " if pid == goalkeeper_id else ""
+    return prefix + name + (" " + stats if stats else "")

@@ -31,6 +31,7 @@ from telegram.ext import ContextTypes
 from pyball.application.container import Container
 from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.player.errors import NameAlreadyTakenError, PlayerAlreadyExistsError
+from pyball.domain.player.models import VALID_POSITIONS
 from pyball.exceptions import PlayerError
 from pyball.infrastructure.telegram.bot.auth import authorized
 from pyball.infrastructure.telegram.bot.handlers.general import add_command
@@ -48,6 +49,7 @@ def setup_player_handlers(application):
     add_command(application, "player_delete", delete_player_handler)
     add_command(application, "player_list", list_players_handler)
     add_command(application, "player_change_group", change_group_handler)
+    add_command(application, "player_change_position", change_position_handler)
     add_command(application, "player_link", link_player_handler)
     add_command(application, "player_unlink", unlink_player_handler)
 
@@ -62,15 +64,15 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     container: Container = context.bot_data["container"]
 
-    name, _, group = " ".join(context.args or []).partition(",")
-    name = name.strip()
-    group = group.strip()
-    if not name or not group:
+    parts = [p.strip() for p in " ".join(context.args or []).split(",")]
+    if len(parts) not in (2, 3) or not parts[0] or not parts[1]:
         await message.reply_text(
-            text=r"Usage: `/player_new` `<name>, <regular|substitute>`",
+            text=r"Usage: `/player_new` `<name>, <regular|substitute>[, <posición>]`",
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         return
+    name, group = parts[0], parts[1]
+    position = parts[2] if len(parts) == 3 and parts[2] else None
 
     if group not in ("regular", "substitute"):
         await message.reply_text(
@@ -79,8 +81,14 @@ async def new_player_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
 
+    if position is not None and position not in VALID_POSITIONS:
+        await message.reply_text(
+            f"Posición no válida. Debe ser una de: {', '.join(VALID_POSITIONS)}."
+        )
+        return
+
     try:
-        container.create_player().execute(name, group)
+        container.create_player().execute(name, group, position)
         await react_ok(context.bot, message)
     except PlayerAlreadyExistsError as error:
         await message.reply_text(
@@ -202,23 +210,24 @@ async def list_players_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     regulares = []
     suplentes = []
     for p in players:
+        label = rf"\- `{p.name}`" + (rf" _{p.position}_" if p.position else "")
         if p.group == "regular":
-            regulares.append(p.name)
+            regulares.append((p.name, label))
         else:
-            suplentes.append(p.name)
+            suplentes.append((p.name, label))
 
-    sorted_regulars = sorted(regulares, key=functools.cmp_to_key(locale.strcoll))
-    sorted_substitutes = sorted(suplentes, key=functools.cmp_to_key(locale.strcoll))
+    sorted_regulars = sorted(regulares, key=lambda t: functools.cmp_to_key(locale.strcoll)(t[0]))
+    sorted_substitutes = sorted(
+        suplentes, key=lambda t: functools.cmp_to_key(locale.strcoll)(t[0])
+    )
 
     lines = ["*Jugadores:*", ""]
     if sorted_regulars:
         lines.append(rf"*Titulares \({len(sorted_regulars)}\):*")
-        for name in sorted_regulars:
-            lines.append(rf"\- `{name}`")
+        lines.extend(label for _, label in sorted_regulars)
     if sorted_substitutes:
         lines.append(rf"*Suplentes \({len(sorted_substitutes)}\):*")
-        for name in sorted_substitutes:
-            lines.append(rf"\- `{name}`")
+        lines.extend(label for _, label in sorted_substitutes)
 
     await message.reply_text(
         text="\n".join(lines),
@@ -271,6 +280,56 @@ async def change_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("Error al cambiar el grupo del jugador.")
     except Exception:
         logger.exception("Unexpected error changing player group")
+        await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
+
+
+@log_func
+@authorized
+async def change_position_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /player_change_position command."""
+    message = update.message
+    if message is None:
+        return
+
+    container: Container = context.bot_data["container"]
+
+    player_name, _, new_position_raw = " ".join(context.args or []).partition(",")
+    player_name = player_name.strip()
+    new_position_raw = new_position_raw.strip().lower()
+    if not player_name or not new_position_raw:
+        await message.reply_text(
+            text=r"Usage: `/player_change_position` `<player_name>, <posición|ninguna>`",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return
+
+    new_position = None if new_position_raw == "ninguna" else new_position_raw
+    if new_position is not None and new_position not in VALID_POSITIONS:
+        await message.reply_text(
+            f"Posición no válida. Debe ser una de: {', '.join(VALID_POSITIONS)}, o 'ninguna'."
+        )
+        return
+
+    player_repo = container.player_repository
+    all_players = player_repo.find_all()
+
+    try:
+        match = fuzzy_match_player(player_name, all_players)
+    except ValueError:
+        await message.reply_text("No se encontró ningún jugador con ese nombre.")
+        return
+
+    try:
+        container.set_player_position().execute(str(match.player_id.value), new_position)
+        await react_ok(context.bot, message)
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error changing player position: %s", error)
+        await message.reply_text("Error de Telegram al cambiar la posición.")
+    except PlayerError as error:
+        logger.error("Player error changing position: %s", error)
+        await message.reply_text("Error al cambiar la posición del jugador.")
+    except Exception:
+        logger.exception("Unexpected error changing player position")
         await message.reply_text("Ha ocurrido un error inesperado. Contacta con el administrador.")
 
 

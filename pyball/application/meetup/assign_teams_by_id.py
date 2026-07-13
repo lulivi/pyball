@@ -35,12 +35,15 @@ class AssignTeamsById:
         """Initialize with the meetup repository."""
         self.meetup_repository = meetup_repository
 
-    def execute(
+    def execute(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         meetup_date: datetime,
         team_a_ids: list[str],
         team_b_ids: list[str],
         team_c_ids: list[str] | None = None,
+        goalkeeper_a_id: str | None = None,
+        goalkeeper_b_id: str | None = None,
+        goalkeeper_c_id: str | None = None,
     ) -> Meetup:
         """Assign players to teams by ID, updating the meetup roster accordingly.
 
@@ -49,14 +52,18 @@ class AssignTeamsById:
             team_a_ids: UUID strings for team A players.
             team_b_ids: UUID strings for team B players.
             team_c_ids: UUID strings for team C players, or None for a 2-team meetup.
+            goalkeeper_a_id: UUID string for team A's designated goalkeeper, or None.
+            goalkeeper_b_id: UUID string for team B's designated goalkeeper, or None.
+            goalkeeper_c_id: UUID string for team C's designated goalkeeper, or None.
 
         Returns:
             The updated meetup with teams set.
 
         Raises:
             MeetupNotFoundError: No meetup at meetup_date.
-            ValueError: Any player ID appears in more than one team, or team sizes
-                differ by more than 1 across all provided teams.
+            ValueError: Any player ID appears in more than one team, team sizes
+                differ by more than 1 across all provided teams, or a goalkeeper ID
+                isn't one of its own team's players.
         """
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if meetup is None:
@@ -79,9 +86,20 @@ class AssignTeamsById:
                 f"({' vs '.join(str(s) for s in sizes)})"
             )
 
+        goalkeeper_ids = [goalkeeper_a_id, goalkeeper_b_id, goalkeeper_c_id][: len(groups)]
+        goalkeepers = [PlayerId.from_string(gk_id) if gk_id else None for gk_id in goalkeeper_ids]
+        for group, goalkeeper in zip(groups, goalkeepers):
+            if goalkeeper is not None and goalkeeper not in group:
+                raise ValueError("El portero debe ser uno de los jugadores de su equipo")
+
         meetup.players[:] = all_ids
         names = ["A", "B", "C"]
-        meetup.set_teams([Team.create(names[i], group) for i, group in enumerate(groups)])
+        meetup.set_teams(
+            [
+                Team.create(names[i], group, goalkeeper=goalkeepers[i])
+                for i, group in enumerate(groups)
+            ]
+        )
         ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
         return meetup

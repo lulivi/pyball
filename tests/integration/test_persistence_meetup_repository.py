@@ -1,5 +1,6 @@
 """Integration tests for JsonMeetupRepository (persistence)."""
 
+import json
 import shutil
 import tempfile
 from datetime import datetime, time
@@ -96,6 +97,37 @@ class TestJsonMeetupRepository:
         found = self.repo.find_by_id(meetup.id)
         assert found.teams is not None
         assert len(found.teams) == 2
+
+    def test_save_with_teams_round_trips_goalkeeper(self):
+        """Saving and reloading a meetup preserves each team's goalkeeper."""
+        meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Test Field")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.add_player(p1)
+        meetup.add_player(p2)
+        meetup.set_teams([Team.create("A", [p1], goalkeeper=p1), Team.create("B", [p2])])
+
+        self.repo.save(meetup)
+
+        found = self.repo.find_by_id(meetup.id)
+        assert found.teams[0].goalkeeper == p1
+        assert found.teams[1].goalkeeper is None
+
+    def test_loads_legacy_team_file_without_goalkeeper_key(self):
+        """A meetup file saved before this field existed loads with goalkeeper=None."""
+        meetup = Meetup.create(datetime(2024, 1, 16, 20, 0), "Test Field")
+        p1 = PlayerId.generate()
+        meetup.add_player(p1)
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [])])
+        self.repo.save(meetup)
+
+        file_path = self.repo._get_file_path(meetup)  # pylint: disable=protected-access
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+        for team in data["teams"]:
+            del team["goalkeeper"]
+        file_path.write_text(json.dumps(data), encoding="utf-8")
+
+        found = self.repo.find_by_id(meetup.id)
+        assert found.teams[0].goalkeeper is None
 
     def test_delete(self):
         """Deleting a meetup makes it unfindable by ID."""
@@ -234,8 +266,6 @@ class TestJsonMeetupRepositoryResult:
 
     def test_missing_is_own_goal_defaults_to_false(self):
         """Old JSON files without is_own_goal field load with is_own_goal=False."""
-        import json  # pylint: disable=import-outside-toplevel
-
         meetup = Meetup.create(datetime(2026, 6, 2, 20, 0), "Campo Norte")
         p1 = PlayerId.generate()
         p2 = PlayerId.generate()

@@ -142,11 +142,19 @@ class Team(ValueObject):
 
     name: str
     players: tuple[PlayerId, ...]
+    goalkeeper: PlayerId | None = None
+
+    def __post_init__(self) -> None:
+        """Validate that a set goalkeeper is one of the team's players."""
+        if self.goalkeeper is not None and self.goalkeeper not in self.players:
+            raise ValueError("Team goalkeeper must be one of the team's players")
 
     @classmethod
-    def create(cls, name: str, players: list[PlayerId]) -> "Team":
-        """Create a team with the given name and player list."""
-        return cls(name=name, players=tuple(players))
+    def create(
+        cls, name: str, players: list[PlayerId], goalkeeper: PlayerId | None = None
+    ) -> "Team":
+        """Create a team with the given name, player list, and optional goalkeeper."""
+        return cls(name=name, players=tuple(players), goalkeeper=goalkeeper)
 
 
 @dataclass(frozen=True)

@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Pydantic request/response models for the HTTP API."""
+
 from pydantic import BaseModel
 
 
@@ -59,6 +60,9 @@ class AssignTeamsInput(BaseModel):
     team_a_ids: list[str]
     team_b_ids: list[str]
     team_c_ids: list[str] | None = None
+    team_a_goalkeeper_id: str | None = None
+    team_b_goalkeeper_id: str | None = None
+    team_c_goalkeeper_id: str | None = None
 
 
 class CreateMeetupInput(BaseModel):
@@ -80,3 +84,13 @@ class CreatePlayerInput(BaseModel):
     """Request body for POST /api/players."""
 
     name: str
+    group: str = "substitute"
+    position: str | None = None
+
+
+class EditPlayerInput(BaseModel):
+    """Request body for POST /api/players/{id}/edit."""
+
+    name: str
+    group: str
+    position: str | None = None

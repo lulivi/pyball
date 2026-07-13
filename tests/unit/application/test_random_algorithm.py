@@ -13,7 +13,8 @@ class TestRandomAlgorithm:
         """Every input player appears in exactly one output team."""
         players = [PlayerId.generate() for _ in range(6)]
         algo = RandomAlgorithm()
-        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        team_a, team_b = assignments[0].players, assignments[1].players
         assert set(team_a + team_b) == set(players)
         assert len(team_a) + len(team_b) == len(players)
 
@@ -21,19 +22,28 @@ class TestRandomAlgorithm:
         """Teams differ by at most 1 player."""
         players = [PlayerId.generate() for _ in range(7)]
         algo = RandomAlgorithm()
-        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        team_a, team_b = assignments[0].players, assignments[1].players
         assert abs(len(team_a) - len(team_b)) <= 1
 
     def test_works_with_empty_history(self):
         """RandomAlgorithm does not raise when given empty meetup lists."""
         players = [PlayerId.generate() for _ in range(4)]
         algo = RandomAlgorithm()
-        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
-        assert len(team_a + team_b) == 4
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assert sum(len(a.players) for a in assignments) == 4
 
     def test_no_player_duplicated_across_teams(self):
         """No player appears in both teams."""
         players = [PlayerId.generate() for _ in range(8)]
         algo = RandomAlgorithm()
-        team_a, team_b = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        team_a, team_b = assignments[0].players, assignments[1].players
         assert not set(team_a) & set(team_b)
+
+    def test_random_algorithm_never_sets_a_goalkeeper(self):
+        """RandomAlgorithm always returns goalkeeper=None, regardless of position."""
+        players = [PlayerId.generate() for _ in range(4)]
+        algo = RandomAlgorithm()
+        assignments = algo.assign(players, [], [], datetime(2025, 9, 1))
+        assert all(a.goalkeeper is None for a in assignments)
