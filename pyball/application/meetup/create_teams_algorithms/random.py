@@ -24,6 +24,7 @@ from __future__ import annotations
 import random
 from datetime import datetime
 
+from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
 from pyball.domain.meetup.models import Meetup, PlayerId
 
 
@@ -37,8 +38,8 @@ class RandomAlgorithm:
         season_meetups: list[Meetup],  # pylint: disable=unused-argument
         season_start: datetime,  # pylint: disable=unused-argument
         team_count: int = 2,
-    ) -> tuple[list[PlayerId], ...]:
+    ) -> tuple[TeamAssignment, ...]:
         """Shuffle players and split into team_count roughly-even groups, ignoring history."""
         shuffled = list(players)
         random.shuffle(shuffled)
-        return tuple(shuffled[i::team_count] for i in range(team_count))
+        return tuple(TeamAssignment(players=shuffled[i::team_count]) for i in range(team_count))

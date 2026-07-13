@@ -52,18 +52,18 @@ class JsonPlayerRepository(PlayerRepository):
         """Save a player to the repository."""
         data = self._read()
         players = data.get("players", [])
+        entry = {
+            "id": str(player.id.value),
+            "name": player.name,
+            "group": player.group,
+            "position": player.position,
+        }
         for i, p in enumerate(players):
             if p["id"] == str(player.id.value):
-                players[i] = {
-                    "id": str(player.id.value),
-                    "name": player.name,
-                    "group": player.group,
-                }
+                players[i] = entry
                 break
         else:
-            players.append(
-                {"id": str(player.id.value), "name": player.name, "group": player.group}
-            )
+            players.append(entry)
         self._write({"players": players})
 
     def find_by_id(self, player_id: PlayerId) -> Player | None:
@@ -71,9 +71,7 @@ class JsonPlayerRepository(PlayerRepository):
         data = self._read()
         for p in data.get("players", []):
             if p["id"] == str(player_id.value):
-                return Player(
-                    id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular")
-                )
+                return _player_from_dict(p)
         return None
 
     def find_by_name(self, name: str) -> Player | None:
@@ -81,21 +79,26 @@ class JsonPlayerRepository(PlayerRepository):
         data = self._read()
         for p in data.get("players", []):
             if p["name"].lower() == name.lower():
-                return Player(
-                    id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular")
-                )
+                return _player_from_dict(p)
         return None
 
     def find_all(self) -> list[Player]:
         """Return all players."""
         data = self._read()
-        return [
-            Player(id=PlayerId(UUID(p["id"])), name=p["name"], group=p.get("group", "regular"))
-            for p in data.get("players", [])
-        ]
+        return [_player_from_dict(p) for p in data.get("players", [])]
 
     def delete(self, player_id: PlayerId) -> None:
         """Delete a player by their ID."""
         data = self._read()
         players = [p for p in data.get("players", []) if p["id"] != str(player_id.value)]
         self._write({"players": players})
+
+
+def _player_from_dict(p: dict) -> Player:
+    """Build a Player from its JSON dict representation."""
+    return Player(
+        id=PlayerId(UUID(p["id"])),
+        name=p["name"],
+        group=p.get("group", "regular"),
+        position=p.get("position"),
+    )

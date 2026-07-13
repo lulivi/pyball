@@ -275,3 +275,25 @@ class TestGoalEventOwnGoal:
         )
         with pytest.raises((AttributeError, TypeError)):
             event.is_own_goal = False  # type: ignore[misc]
+
+
+class TestTeam:
+    """Tests for the Team value object's goalkeeper field."""
+
+    def test_create_without_goalkeeper_defaults_to_none(self):
+        """A team created without a goalkeeper has goalkeeper=None."""
+        p1 = PlayerId.generate()
+        team = Team.create("A", [p1])
+        assert team.goalkeeper is None
+
+    def test_create_with_goalkeeper(self):
+        """A team created with a goalkeeper who is one of its players is accepted."""
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        team = Team.create("A", [p1, p2], goalkeeper=p1)
+        assert team.goalkeeper == p1
+
+    def test_create_with_goalkeeper_not_in_players_raises(self):
+        """A goalkeeper who isn't one of the team's players raises ValueError."""
+        p1, outsider = PlayerId.generate(), PlayerId.generate()
+        with pytest.raises(ValueError):
+            Team.create("A", [p1], goalkeeper=outsider)

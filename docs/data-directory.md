@@ -40,8 +40,8 @@ One shared file listing every player ever created, independent of any meetup:
 ```json
 {
   "players": [
-    { "id": "11111111-1111-4111-8111-111111111111", "name": "Juan Pérez", "group": "regular" },
-    { "id": "22222222-2222-4222-8222-222222222222", "name": "Manu García", "group": "substitute" }
+    { "id": "11111111-1111-4111-8111-111111111111", "name": "Juan Pérez", "group": "regular", "position": "defensa" },
+    { "id": "22222222-2222-4222-8222-222222222222", "name": "Manu García", "group": "substitute", "position": null }
   ]
 }
 ```
@@ -49,6 +49,10 @@ One shared file listing every player ever created, independent of any meetup:
 - `id` — a UUID, generated when the player is created.
 - `name` — display name, used everywhere (UI, Telegram messages, callup fuzzy-matching).
 - `group` — `"regular"` or `"substitute"`, the default group used when parsing a callup.
+- `position` — `"portero"`, `"defensa"`, `"centrocampista"`, `"delantero"`, or `null` if
+  unset. A loose, typical position, not a rigid assignment — used only as a signal by
+  the balanced team-generation algorithm (see
+  [docs/workflow.md](workflow.md#3-generate-teams)).
 
 ## `data/meetups/<date>.json`
 
@@ -66,9 +70,9 @@ A finished **triangular** (3-team) meetup, after 3 rounds and closed:
   "location": "Parque Central",
   "players": ["11111111-...", "22222222-...", "..."],
   "teams": [
-    { "name": "A", "players": ["11111111-...", "22222222-...", "33333333-..."] },
-    { "name": "B", "players": ["44444444-...", "55555555-...", "66666666-..."] },
-    { "name": "C", "players": ["77777777-...", "88888888-...", "99999999-..."] }
+    { "name": "A", "players": ["11111111-...", "22222222-...", "33333333-..."], "goalkeeper": "11111111-..." },
+    { "name": "B", "players": ["44444444-...", "55555555-...", "66666666-..."], "goalkeeper": null },
+    { "name": "C", "players": ["77777777-...", "88888888-...", "99999999-..."], "goalkeeper": null }
   ],
   "matches": [
     {
@@ -100,7 +104,10 @@ Field notes:
   a team (a substitute who was never assigned to a team still appears here).
 - `teams` — `null` until teams are generated. A list of 2 (classic) or 3 (triangular)
   named teams. Names are always `"A"`, `"B"`, and (for triangulars) `"C"` — these are
-  positional labels, not the display color names configured in `team_colors`.
+  positional labels, not the display color names configured in `team_colors`. Each
+  team's `goalkeeper` is the id of that team's designated goalkeeper for the whole
+  session, or `null` if none was set — see
+  [docs/workflow.md](workflow.md#3-generate-teams).
 - `matches` — starts as `[]`. Each entry is one played (or in-progress) match between
   exactly 2 of the meetup's teams. `teams_playing` references team names, not indices,
   so reordering `teams` never breaks a match's team references. `result` is `null` while

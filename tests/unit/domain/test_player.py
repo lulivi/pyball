@@ -53,3 +53,36 @@ class TestPlayer:
         player = Player.create(name="Mario", group="regular")
         player.set_group("substitute")
         assert player.group == "substitute"
+
+    def test_create_player_with_position(self):
+        """Creating a player with a position assigns it."""
+        player = Player.create(name="Mario", group="regular", position="portero")
+        assert player.position == "portero"
+
+    def test_create_player_defaults_to_no_position(self):
+        """A player created without a position has position=None."""
+        player = Player.create(name="Mario")
+        assert player.position is None
+
+    def test_create_player_invalid_position_raises(self):
+        """Creating a player with an unknown position raises ValueError."""
+        with pytest.raises(ValueError):
+            Player.create(name="Mario", position="lateral")
+
+    def test_set_position(self):
+        """Setting a player's position updates it in place."""
+        player = Player.create(name="Mario")
+        player.set_position("defensa")
+        assert player.position == "defensa"
+
+    def test_set_position_to_none_clears_it(self):
+        """Setting a player's position to None clears a previously set position."""
+        player = Player.create(name="Mario", position="delantero")
+        player.set_position(None)
+        assert player.position is None
+
+    def test_set_position_invalid_raises(self):
+        """Setting an unknown position raises ValueError."""
+        player = Player.create(name="Mario")
+        with pytest.raises(ValueError):
+            player.set_position("lateral")

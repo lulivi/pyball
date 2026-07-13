@@ -31,12 +31,12 @@ class CreatePlayer:
         """Initialize with a player repository."""
         self.player_repository = player_repository
 
-    def execute(self, name: str, group: str) -> Player:
-        """Create a new player with the given name and group."""
+    def execute(self, name: str, group: str, position: str | None = None) -> Player:
+        """Create a new player with the given name, group, and optional position."""
         existing = self.player_repository.find_all()
         if any(p.name.lower() == name.lower() for p in existing):
             raise PlayerAlreadyExistsError(name)
 
-        player = Player.create(name=name, group=group)
+        player = Player.create(name=name, group=group, position=position)
         self.player_repository.save(player)
         return player

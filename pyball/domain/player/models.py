@@ -27,6 +27,8 @@ from uuid import UUID, uuid4
 from pyball.domain.base import Entity, ValueObject
 from pyball.domain.player.errors import InvalidPlayerIdError
 
+VALID_POSITIONS = ("portero", "defensa", "centrocampista", "delantero")
+
 
 @dataclass
 class Player(Entity["PlayerId"]):
@@ -35,6 +37,7 @@ class Player(Entity["PlayerId"]):
     id: PlayerId
     name: str
     group: str
+    position: str | None = None
 
     def __post_init__(self):
         """Validate player attributes after initialization."""
@@ -42,11 +45,18 @@ class Player(Entity["PlayerId"]):
             raise ValueError("Player name cannot be empty")
         if self.group not in ("regular", "substitute"):
             raise ValueError("Player group must be 'regular' or 'substitute'")
+        if self.position is not None and self.position not in VALID_POSITIONS:
+            raise ValueError(f"Player position must be one of {VALID_POSITIONS} or None")
 
     @classmethod
-    def create(cls, name: str, group: str = "regular") -> "Player":
-        """Create a new player with the given name and group."""
-        return cls(id=PlayerId.generate(), name=name.strip() if name else "", group=group)
+    def create(cls, name: str, group: str = "regular", position: str | None = None) -> "Player":
+        """Create a new player with the given name, group, and optional position."""
+        return cls(
+            id=PlayerId.generate(),
+            name=name.strip() if name else "",
+            group=group,
+            position=position,
+        )
 
     def rename(self, new_name: str) -> None:
         """Rename the player to a new name."""
@@ -59,6 +69,12 @@ class Player(Entity["PlayerId"]):
         if new_group not in ("regular", "substitute"):
             raise ValueError("Player group must be 'regular' or 'substitute'")
         self.group = new_group
+
+    def set_position(self, new_position: str | None) -> None:
+        """Set the player's position, or clear it with None."""
+        if new_position is not None and new_position not in VALID_POSITIONS:
+            raise ValueError(f"Player position must be one of {VALID_POSITIONS} or None")
+        self.position = new_position
 
 
 @dataclass(frozen=True)

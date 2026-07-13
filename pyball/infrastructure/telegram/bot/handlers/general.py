@@ -32,6 +32,7 @@ COMMAND_DESCRIPTIONS: dict[str, str] = {
     "player_delete": "Delete a player",
     "player_list": "List all players",
     "player_change_group": "Change player group",
+    "player_change_position": "Change player position",
     "player_link": "Link Telegram ID to player",
     "player_unlink": "Unlink a player's Telegram ID",
     "meetup_new": "Create a new meetup",

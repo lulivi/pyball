@@ -125,19 +125,14 @@ function buildAddPlayerPanel(idPrefix, searchFn) {
     </div>`;
 }
 
-// Result rows for the add-player widget. opts: { pickFn, createFn, team? }.
-// pickFn is called as pickFn(id, name[, team]); createFn as createFn(name[, team]).
-function buildAddResults(query, results, showCreate, opts) {
+// Result rows for the add-player widget. opts: { pickFn, team? }.
+// pickFn is called as pickFn(id, name[, team]).
+function buildAddResults(results, opts) {
     const teamArg = opts.team ? `, '${opts.team}'` : '';
-    const items = results.map(p =>
+    return results.map(p =>
         `<div class="cand-item" data-pid="${escHtml(p.id)}" data-pname="${escHtml(p.name)}"
        onclick="${opts.pickFn}(this.dataset.pid, this.dataset.pname${teamArg})">${escHtml(p.name)}</div>`
     ).join('');
-    const create = showCreate
-        ? `<div class="create-player-item" data-pname="${escHtml(query)}"
-       onclick="${opts.createFn}(this.dataset.pname${teamArg})">➕ Crear "${escHtml(query)}" como nuevo jugador</div>`
-        : '';
-    return items + create;
 }
 
 function buildRepasteTrigger(open) {
