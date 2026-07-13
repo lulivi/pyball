@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.17.0 (2026-07-13)
+
+### Features
+
+- **GL-92..GL-102**: Add player positions and a per-team goalkeeper
+  ([`d49219c`](https://gitlab.com/lulivi/pyball/-/commit/d49219c393954efa79eb880fb4b1cafd67d53fe2))
+
+
 ## v4.16.0 (2026-07-11)
 
 ### Features
