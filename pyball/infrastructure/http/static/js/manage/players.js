@@ -5,6 +5,7 @@ import { escHtml, escAttr } from './views.js';
 let players = [];          // [{id, name, group, position}, ...]
 let createOpen = false;
 let editingId = null;      // id of the row currently in edit mode, or null
+let searchQuery = '';      // current search-box filter text
 
 const POSITION_LABELS = {
     portero: 'Portero',
@@ -27,26 +28,38 @@ async function loadJugadores() {
 }
 
 function render() {
-    const sorted = [...players].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    const rows = sorted.map(p => editingId === p.id ? buildEditRow(p) : buildRow(p)).join('');
     const createPanel = createOpen ? buildCreatePanel() : '';
     document.getElementById('tab-jugadores').innerHTML = `
-    <div class="step-label">Jugadores (${players.length})</div>
+    <div class="step-label" id="player-count-label">Jugadores (${players.length})</div>
     <input class="search-box" id="player-search" type="text" placeholder="Buscar jugador..."
-      oninput="filterPlayers()">
-    <div id="player-list">${rows}</div>
+      value="${escHtml(searchQuery)}" oninput="filterPlayers()">
+    <div id="player-list">${_visiblePlayersHtml()}</div>
     <button class="btn-sm gray" style="margin-top:6px;" onclick="togglePlayerCreate()">
       ${createOpen ? '✕ Cerrar' : '+ Nuevo jugador'}</button>
     ${createPanel}
   `;
 }
 
-function filterPlayers() {
-    const q = document.getElementById('player-search').value.trim().toLowerCase();
-    const rowsEl = document.getElementById('player-list');
+// Re-render only the player list (and its count), preserving the search box's
+// current text/focus and the create-panel state — used by row-level actions
+// (edit/save/delete) so they don't blow away an active search filter.
+function renderList() {
+    document.getElementById('player-list').innerHTML = _visiblePlayersHtml();
+    const countLabel = document.getElementById('player-count-label');
+    if (countLabel) countLabel.textContent = `Jugadores (${players.length})`;
+}
+
+function _visiblePlayersHtml() {
     const sorted = [...players].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    const visible = q ? sorted.filter(p => p.name.toLowerCase().includes(q)) : sorted;
-    rowsEl.innerHTML = visible.map(p => editingId === p.id ? buildEditRow(p) : buildRow(p)).join('');
+    const visible = searchQuery
+        ? sorted.filter(p => p.name.toLowerCase().includes(searchQuery))
+        : sorted;
+    return visible.map(p => editingId === p.id ? buildEditRow(p) : buildRow(p)).join('');
+}
+
+function filterPlayers() {
+    searchQuery = document.getElementById('player-search').value.trim().toLowerCase();
+    renderList();
 }
 
 function buildRow(p) {
@@ -118,7 +131,7 @@ async function togglePlayerCreate() {
 
 function togglePlayerEdit(id) {
     editingId = id;
-    render();
+    renderList();
 }
 
 async function createPlayer() {
@@ -151,7 +164,7 @@ async function savePlayerEdit(id) {
     }
     players = players.map(p => p.id === id ? updated : p);
     editingId = null;
-    render();
+    renderList();
 }
 
 async function deletePlayerRow(id) {
@@ -165,7 +178,7 @@ async function deletePlayerRow(id) {
         return;
     }
     players = players.filter(p => p.id !== id);
-    render();
+    renderList();
 }
 
 Object.assign(window, {
