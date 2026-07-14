@@ -63,6 +63,15 @@ def register_meetup_routes(
         """Return the current active meetup with or without teams, or 404."""
         return build_meetup_active_response(container)
 
+    @app.get("/api/meetup/history")
+    async def meetup_history():
+        """Return closed meetups (date, location), newest first."""
+        closed = [m for m in container.meetup_repository.find_all() if m.is_closed()]
+        closed.sort(key=lambda m: m.date, reverse=True)
+        return [
+            {"date": m.date.strftime("%Y-%m-%dT%H:%M"), "location": m.location} for m in closed
+        ]
+
     @app.delete("/api/meetup/active")
     async def cancel_meetup_endpoint():
         """Delete the active meetup, or 404 if none exists."""

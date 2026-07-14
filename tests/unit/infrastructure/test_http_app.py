@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
-from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
     NameAlreadyTakenError,
@@ -1393,6 +1393,58 @@ async def test_meetup_create_422_on_bad_date():
             "/api/meetup/create", json={"date": "not-a-date", "player_ids": []}
         )
     assert response.status_code == 422
+
+
+class TestMeetupHistory:
+    """Tests for GET /api/meetup/history."""
+
+    @pytest.mark.asyncio
+    async def test_returns_only_closed_meetups_newest_first(self):
+        """Only closed meetups are returned, sorted by date descending."""
+        open_meetup = Meetup.create(date=datetime(2026, 7, 20, 20, 0), location="Abierto")
+
+        p1 = PlayerId.generate()
+        closed_old = Meetup.create(date=datetime(2026, 6, 1, 20, 0), location="Viejo")
+        closed_old.add_player(p1)
+        team_a = Team.create("A", [p1])
+        team_b = Team.create("B", [])
+        closed_old.set_teams([team_a, team_b])
+        closed_old.add_match(Match(teams_playing=(team_a, team_b)))
+        closed_old.record_result(MatchResult(score_a=1, score_b=0, events=()))
+        closed_old.close()
+
+        closed_new = Meetup.create(date=datetime(2026, 7, 1, 20, 0), location="Nuevo")
+        closed_new.add_player(p1)
+        closed_new.set_teams([team_a, team_b])
+        closed_new.add_match(Match(teams_playing=(team_a, team_b)))
+        closed_new.record_result(MatchResult(score_a=2, score_b=2, events=()))
+        closed_new.close()
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [open_meetup, closed_old, closed_new]
+        app, _ = _make_app(container=container)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/meetup/history")
+
+        assert resp.status_code == 200
+        assert resp.json() == [
+            {"date": "2026-07-01T20:00", "location": "Nuevo"},
+            {"date": "2026-06-01T20:00", "location": "Viejo"},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_list_when_no_closed_meetups(self):
+        """Returns an empty list (not 404) when nothing is closed yet."""
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = []
+        app, _ = _make_app(container=container)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/meetup/history")
+
+        assert resp.status_code == 200
+        assert resp.json() == []
 
 
 @pytest.mark.asyncio
