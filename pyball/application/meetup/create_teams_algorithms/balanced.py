@@ -200,7 +200,8 @@ def compute_player_scores(
         if mp_s >= _SEASON_MIN_MATCHES:
             components[pid] = (gpm_s, apm_s, wr_s)
         else:
-            mp_a, gpm_a, apm_a, wr_a = _player_stats(pid, all_meetups, legacy_stats, from_date)
+            # All-time fallback: legacy assists must span all time too, not the season.
+            mp_a, gpm_a, apm_a, wr_a = _player_stats(pid, all_meetups, legacy_stats, None)
             components[pid] = (gpm_a, apm_a, wr_a) if mp_a > 0 else None
 
     known = [(pid, c) for pid, c in components.items() if c is not None]

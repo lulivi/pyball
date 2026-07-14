@@ -18,6 +18,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
 from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
+from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 
 def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -121,6 +122,28 @@ class TestComputePlayerScores:
         scores = compute_player_scores(players, [], [])
         for score in scores.values():
             assert score == pytest.approx(0.5)
+
+    def test_all_time_fallback_includes_pre_season_legacy_assists(self):
+        """The all-time fallback must not season-filter legacy assists.
+
+        Both players have no season matches (forcing the all-time fallback)
+        and identical all-time goals/wins (three 1-1 draws against each
+        other). Only p1 has legacy assists, all dated before season start:
+        they must still count in the all-time fallback window.
+        """
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        old = [_finished_meetup(f"2024-10-0{i} 20:00", [p1], [p2], 1, 1) for i in range(1, 4)]
+        legacy = LegacyStats(
+            {
+                "players": {
+                    str(p1.value): {
+                        "assists_by_match": [{"date": "2024-10-01T20:00:00", "count": 10}]
+                    }
+                }
+            }
+        )
+        scores = compute_player_scores([p1, p2], [], old, legacy, datetime(2025, 9, 1))
+        assert scores[p1] > scores[p2]
 
 
 class TestComputeGoalkeeperScores:
