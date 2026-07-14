@@ -464,26 +464,6 @@ def _team_strength(team: list[PlayerId], player_scores: dict[PlayerId, float]) -
     return sum(player_scores.get(pid, 0.5) for pid in team)
 
 
-def _team_score(
-    team: list[PlayerId],
-    player_scores: dict[PlayerId, float],
-    winning_counts: dict[tuple[str, str], int],
-    max_pair_wins: int,
-    role_penalty: float = 0.0,
-) -> float:
-    """Compute the aggregate strength score for a team."""
-    total = sum(player_scores.get(pid, 0.5) for pid in team)
-    if max_pair_wins == 0:
-        return total
-    for pid_a, pid_b in itertools.combinations(team, 2):
-        key: tuple[str, str] = tuple(  # type: ignore[assignment]
-            sorted([str(pid_a.value), str(pid_b.value)])
-        )
-        pair_wins = winning_counts.get(key, 0)
-        total -= (pair_wins / max_pair_wins) * _PAIR_WEIGHT
-    return total + role_penalty
-
-
 def _normalize(values: list[float]) -> list[float]:
     """Normalize a list of floats to [0, 1]. Returns [0.5, ...] if all equal."""
     min_v, max_v = min(values), max(values)

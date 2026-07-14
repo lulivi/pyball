@@ -10,7 +10,6 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     _apply_position_fit_boost,
     _position_imbalance_penalty,
     _snake_draft,
-    _team_score,
     compute_goalkeeper_scores,
     compute_player_scores,
     extract_winning_counts,
@@ -287,17 +286,6 @@ class TestOptimizeTeamsInitialSizes:
         scores = {pid: 0.5 for pid in players}
         team_a, team_b = optimize_teams(players, scores, {}, initial_sizes=(1, 0))
         assert len(team_a) + 1 - len(team_b) in (-1, 0, 1)
-
-
-class TestTeamScore:
-    """Tests for _team_score."""
-
-    def test_returns_sum_of_player_scores_with_no_pair_wins(self):
-        """Without pair-win history, score equals the sum of individual scores."""
-        p1, p2 = PlayerId.generate(), PlayerId.generate()
-        scores = {p1: 0.6, p2: 0.4}
-        result = _team_score([p1, p2], scores, {}, max_pair_wins=0)
-        assert result == pytest.approx(1.0)
 
 
 class TestPositionImbalancePenalty:
