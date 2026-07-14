@@ -60,6 +60,7 @@ _W_WINS = 0.30
 _PAIR_WEIGHT = 1.0
 _MAX_EXHAUSTIVE_PLAYERS = 18
 _SAMPLED_CANDIDATES = 3000
+_MAX_SAMPLE_ATTEMPTS = 10 * _SAMPLED_CANDIDATES
 _MIN_SELECTION_POOL = 8
 _MAX_SELECTION_POOL = 24
 _SELECTION_POOL_FRACTION = 0.15
@@ -304,12 +305,14 @@ def _weighted_choice(
 def _sampled_partitions(
     player_ids: list[PlayerId], initial_sizes: Sequence[int] = (0, 0)
 ) -> list[tuple[list[PlayerId], list[PlayerId]]]:
-    """Return random unique-ish partitions for player counts too large to exhaustively search."""
+    """Return random unique partitions, bounded so small spaces cannot loop forever."""
     partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
     seen: set[frozenset[PlayerId]] = set()
     team_a_size = _balanced_team_a_size(len(player_ids), initial_sizes)
 
-    while len(partitions) < _SAMPLED_CANDIDATES:
+    for _ in range(_MAX_SAMPLE_ATTEMPTS):
+        if len(partitions) >= _SAMPLED_CANDIDATES:
+            break
         players = list(player_ids)
         random.shuffle(players)
         team_a = players[:team_a_size]

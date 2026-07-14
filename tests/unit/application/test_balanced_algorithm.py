@@ -9,6 +9,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     BalancedAlgorithm,
     _apply_position_fit_boost,
     _position_imbalance_penalty,
+    _sampled_partitions,
     _snake_draft,
     compute_goalkeeper_scores,
     compute_player_scores,
@@ -309,6 +310,20 @@ class TestOptimizeTeamsInitialSizes:
         scores = {pid: 0.5 for pid in players}
         team_a, team_b = optimize_teams(players, scores, {}, initial_sizes=(1, 0))
         assert len(team_a) + 1 - len(team_b) in (-1, 0, 1)
+
+
+class TestSampledPartitions:
+    """Tests for _sampled_partitions."""
+
+    def test_terminates_when_partition_space_is_small(self):
+        """With 4 players there are only 3 distinct 2-2 partitions; the sampler
+        must return them instead of looping forever chasing 3000."""
+        players = [PlayerId.generate() for _ in range(4)]
+        partitions = _sampled_partitions(players)
+        assert 1 <= len(partitions) <= 3
+        for team_a, team_b in partitions:
+            assert set(team_a) | set(team_b) == set(players)
+            assert len(team_a) == 2 and len(team_b) == 2
 
 
 class TestPositionImbalancePenalty:
