@@ -87,6 +87,26 @@ async def test_on_meetup_updated_does_nothing_when_no_tracked_messages(tmp_path)
     bot.edit_message_text.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_on_meetup_date_changed_rekeys_and_refreshes_tracked_message(tmp_path):
+    """on_meetup_date_changed re-keys the store entry and edits the message in place."""
+    notifier, bot = _make_notifier(tmp_path)
+    old_date = datetime(2026, 4, 30, 20, 0)
+    new_date = datetime(2026, 5, 7, 20, 0)
+    meetup = Meetup.create(new_date, "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(old_date, "regular", MessageTracking(chat_id=-100, message_id=42))
+
+    await notifier.on_meetup_date_changed(old_date, meetup)
+
+    assert store.get_message(old_date, "regular") is None
+    assert store.get_message(new_date, "regular") is not None
+    bot.edit_message_text.assert_called_once()
+    kwargs = bot.edit_message_text.call_args.kwargs
+    assert kwargs["chat_id"] == -100
+    assert kwargs["message_id"] == 42
+
+
 def _discard_task(coro):
     """Close the coroutine so it is never scheduled and emits no warnings."""
     coro.close()

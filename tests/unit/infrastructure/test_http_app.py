@@ -28,6 +28,7 @@ class _StubNotifier(MatchNotifier):
         self.edited = []
         self.updated = []
         self.cancelled = []
+        self.date_changed = []
 
     async def on_meetup_created(self, meetup):
         """Record the created meetup."""
@@ -48,6 +49,10 @@ class _StubNotifier(MatchNotifier):
     async def on_meetup_cancelled(self, meetup):
         """Record the cancelled meetup."""
         self.cancelled.append(meetup)
+
+    async def on_meetup_date_changed(self, old_date, meetup):
+        """Record the old date and the updated meetup."""
+        self.date_changed.append((old_date, meetup))
 
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
@@ -1496,7 +1501,7 @@ class TestUpdateMeetupDate:
 
         assert resp.status_code == 200
         assert resp.json() == {"date": "2026-06-15T20:00", "location": "Parque"}
-        assert notifier.updated == [updated]
+        assert notifier.date_changed == [(datetime(2026, 6, 8, 20, 0), updated)]
 
     @pytest.mark.asyncio
     async def test_returns_404_when_not_found(self):

@@ -21,6 +21,7 @@
 
 import asyncio
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import telegram
@@ -73,6 +74,12 @@ class TelegramMatchNotifier(MatchNotifier):
         """Handle a meetup update by refreshing platform messages."""
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
 
+    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
+        """Handle a meetup date change by re-keying tracked messages and refreshing them."""
+        store = TelegramMessageStore(self._settings.paths.data_dir / "bot" / "messages.json")
+        store.rename_date(old_date, meetup.date)
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
+
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
         """Handle a cancelled meetup by marking messages as cancelled and clearing tracking."""
         await _cancel_callup_messages(self._bot, self._settings, self._container, meetup)
@@ -118,7 +125,6 @@ class TelegramMatchNotifier(MatchNotifier):
             logger.error("Error sending corrected result message: %s", error)
 
 
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def refresh_callup_messages(
     bot: telegram.Bot,
     settings: "TelegramAppSettings",

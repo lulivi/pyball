@@ -245,7 +245,7 @@ async def _handle_update_meetup_date(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    await notifier.on_meetup_updated(meetup)
+    await notifier.on_meetup_date_changed(old_date, meetup)
     return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
 
 

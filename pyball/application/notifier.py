@@ -20,6 +20,7 @@
 """Notifier interface for match lifecycle events."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from pyball.domain.meetup.models import Meetup
 
@@ -40,6 +41,10 @@ class MatchNotifier(ABC):
         """Handle a meetup update by refreshing platform messages."""
 
     @abstractmethod
+    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
+        """Handle a meetup date change by re-keying and refreshing platform messages."""
+
+    @abstractmethod
     async def on_match_edited(self, meetup: Meetup) -> None:
         """Handle a corrected match result by re-announcing it."""
 
@@ -58,6 +63,9 @@ class NullMatchNotifier(MatchNotifier):
         """Do nothing."""
 
     async def on_meetup_updated(self, meetup: Meetup) -> None:
+        """Do nothing."""
+
+    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
         """Do nothing."""
 
     async def on_match_edited(self, meetup: Meetup) -> None:

@@ -828,8 +828,8 @@ async function _loadConvocatoriaDetail(date) {
     if (!container) return;
     container.innerHTML = '<div class="empty-state">Cargando...</div>';
     try {
-        const { date_label, message } = await get(`/api/match/${encodeURIComponent(date)}/summary`);
-        container.innerHTML = buildConvocatoriaDetail(date, date_label, message);
+        const { message } = await get(`/api/match/${encodeURIComponent(date)}/summary`);
+        container.innerHTML = buildConvocatoriaDetail(date, message);
     } catch {
         container.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>';
     }

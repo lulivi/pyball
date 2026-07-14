@@ -126,7 +126,7 @@ function buildConvocatoriaRow(item, open) {
 
 // Detail panel for one expanded row — identical content to the old Resumen tab,
 // parameterised by date instead of always "the latest match".
-function buildConvocatoriaDetail(date, dateLabel, message) {
+function buildConvocatoriaDetail(date, message) {
     return `
     <div class="summary-box" id="summary-msg-${escHtml(date)}">${escHtml(message)}</div>
     <button class="btn btn-teal" data-date="${escHtml(date)}" onclick="copySummary(this.dataset.date)">📋 Copiar texto</button>
