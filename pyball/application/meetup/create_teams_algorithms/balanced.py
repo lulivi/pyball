@@ -19,59 +19,36 @@
 # SOFTWARE.
 """History-aware balanced team assignment algorithm.
 
-This module builds two teams from the players registered in a meetup by
-combining three ideas:
+Each player gets a normalized [0, 1] strength score from historical
+performance (goals, assists and win rate per match), preferring
+current-season data when the sample is large enough and falling back to
+all-time history otherwise.
 
-1. Estimate each player's current strength from historical performance.
-2. Score complete team partitions, not just individual swaps.
-3. Choose from a broad pool of good candidates to preserve variety.
+For 2 teams, every candidate partition is scored on three components:
+strength imbalance, a penalty for reuniting historically winning pairs, and
+an outfield-position imbalance penalty. Instead of always returning the
+single cheapest partition, the final assignment is drawn from a weighted
+pool of near-best candidates: repeated generations stay balanced but
+deliberately vary, so regenerating produces different, still-reasonable
+teams.
 
-The flow is intentionally split into small helpers so each stage is easy to
-reason about:
-
-- ``compute_player_scores()`` calculates a normalized strength score in
-  ``[0, 1]`` for every player. It prefers current-season data when there is
-  enough sample size, and falls back to all-time history otherwise. The score
-  is a weighted combination of goals per match, assists per match, and win
-  rate.
-- ``_position_imbalance_penalty()`` measures how unevenly the three outfield
-  positions (defensa/centrocampista/delantero) are split between two teams. This
-  is a lightweight extra signal, alongside the pair-repeat penalty, that nudges
-  the optimizer away from stacking one team with e.g. every tagged defender.
-- ``extract_winning_counts()`` measures how often pairs of players have won
-  together in the past. Those counts are later used as a diversity penalty so
-  the algorithm does not keep recreating the same successful pairings.
-
-Once those inputs are prepared, ``optimize_teams()`` evaluates complete
-partitions:
-
-- For typical meetup sizes, it enumerates every unique split of players into
-  two teams. When the player count grows beyond the exhaustive threshold, it
-  switches to sampled random partitions instead.
-- Each partition is scored with ``_assignment_cost()``. The cost has three
-  components: strength imbalance between both teams, repeated winning-pair
-  penalty, and position imbalance penalty.
-- Candidates are sorted by total cost, and ``_selection_pool()`` keeps a broad
-  pool of near-best options rather than only the single optimum. This is the
-  key design choice that improves variety between runs.
-- ``_weighted_choice()`` performs the final pick. Lower-cost teams are still
-  more likely, but several strong alternatives remain viable, so repeated
-  executions do not collapse into the same composition unless the data really
-  leaves very few good options.
-
-In short, this algorithm is not trying to find one mathematically perfect team
-split and reuse it forever. It tries to stay balanced while also giving room
-for different, still-reasonable team compositions across repeated executions.
+For 3 teams, players are distributed by a weighted-lottery draft that favors
+strong players early and boosts candidates whose position the picking team
+lacks. Goalkeepers ("portero") are pre-assigned one per team beforehand via
+a score-weighted lottery of their own.
 """
 
 from __future__ import annotations
 
 import itertools
 import random
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
-from pyball.domain.meetup.models import Meetup, PlayerId
+from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId
 from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
@@ -84,6 +61,7 @@ _W_WINS = 0.30
 _PAIR_WEIGHT = 1.0
 _MAX_EXHAUSTIVE_PLAYERS = 18
 _SAMPLED_CANDIDATES = 3000
+_MAX_SAMPLE_ATTEMPTS = 10 * _SAMPLED_CANDIDATES
 _MIN_SELECTION_POOL = 8
 _MAX_SELECTION_POOL = 24
 _SELECTION_POOL_FRACTION = 0.15
@@ -136,8 +114,8 @@ class BalancedAlgorithm:
                 remaining_players,
                 player_scores,
                 winning_counts,
-                positions,  # type: ignore[arg-type]
-                initial_sizes=(initial_sizes[0], initial_sizes[1]),
+                positions,
+                initial_sizes=initial_sizes,
             )
             groups = [team_a, team_b]
         else:
@@ -172,7 +150,7 @@ def optimize_teams(
     player_scores: dict[PlayerId, float],
     winning_counts: dict[tuple[str, str], int],
     positions: dict[PlayerId, str | None] | None = None,
-    initial_sizes: tuple[int, int] = (0, 0),
+    initial_sizes: Sequence[int] = (0, 0),
 ) -> tuple[list[PlayerId], list[PlayerId]]:
     """Assign players to two balanced teams using a broad good-candidate pool.
 
@@ -189,25 +167,19 @@ def optimize_teams(
     if positions is None:
         positions = {}
 
-    max_pair_wins = max(winning_counts.values(), default=0)
     if len(player_ids) <= _MAX_EXHAUSTIVE_PLAYERS:
         partitions = _unique_partitions(player_ids, initial_sizes)
     else:
         partitions = _sampled_partitions(player_ids, initial_sizes)
 
-    cost_config: AssignmentCostConfig = (
-        player_scores,
-        winning_counts,
-        max_pair_wins,
-        positions,
+    inputs = _CostInputs(
+        player_scores=player_scores,
+        winning_counts=winning_counts,
+        max_pair_wins=max(winning_counts.values(), default=0),
+        positions=positions,
     )
     candidates = [
-        (
-            _assignment_cost(team_a, team_b, cost_config),
-            team_a,
-            team_b,
-        )
-        for team_a, team_b in partitions
+        (_assignment_cost(team_a, team_b, inputs), team_a, team_b) for team_a, team_b in partitions
     ]
     return _weighted_choice(_selection_pool(candidates))
 
@@ -230,7 +202,8 @@ def compute_player_scores(
         if mp_s >= _SEASON_MIN_MATCHES:
             components[pid] = (gpm_s, apm_s, wr_s)
         else:
-            mp_a, gpm_a, apm_a, wr_a = _player_stats(pid, all_meetups, legacy_stats, from_date)
+            # All-time fallback: legacy assists must span all time too, not the season.
+            mp_a, gpm_a, apm_a, wr_a = _player_stats(pid, all_meetups, legacy_stats, None)
             components[pid] = (gpm_a, apm_a, wr_a) if mp_a > 0 else None
 
     known = [(pid, c) for pid, c in components.items() if c is not None]
@@ -292,14 +265,12 @@ def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
         for match in meetup.matches:
             if match.result is None:
                 continue
-            score_a, score_b = match.result.score_a, match.result.score_b
             for i, team in enumerate(match.teams_playing):
-                team_wins = (score_a > score_b) if i == 0 else (score_b > score_a)
-                if team_wins:
-                    for pid_a, pid_b in itertools.combinations(team.players, 2):
-                        key_list = [str(pid_a.value), str(pid_b.value)]
-                        key: tuple[str, str] = tuple(sorted(key_list))  # type: ignore[assignment]
-                        counts[key] = counts.get(key, 0) + 1
+                if not _team_won(i, match.result):
+                    continue
+                for pid_a, pid_b in itertools.combinations(team.players, 2):
+                    key = _pair_key(pid_a, pid_b)
+                    counts[key] = counts.get(key, 0) + 1
     return counts
 
 
@@ -333,14 +304,16 @@ def _weighted_choice(
 
 
 def _sampled_partitions(
-    player_ids: list[PlayerId], initial_sizes: tuple[int, int] = (0, 0)
+    player_ids: list[PlayerId], initial_sizes: Sequence[int] = (0, 0)
 ) -> list[tuple[list[PlayerId], list[PlayerId]]]:
-    """Return random unique-ish partitions for player counts too large to exhaustively search."""
+    """Return random unique partitions, bounded so small spaces cannot loop forever."""
     partitions: list[tuple[list[PlayerId], list[PlayerId]]] = []
     seen: set[frozenset[PlayerId]] = set()
     team_a_size = _balanced_team_a_size(len(player_ids), initial_sizes)
 
-    while len(partitions) < _SAMPLED_CANDIDATES:
+    for _ in range(_MAX_SAMPLE_ATTEMPTS):
+        if len(partitions) >= _SAMPLED_CANDIDATES:
+            break
         players = list(player_ids)
         random.shuffle(players)
         team_a = players[:team_a_size]
@@ -355,7 +328,7 @@ def _sampled_partitions(
     return partitions
 
 
-def _balanced_team_a_size(remaining_count: int, initial_sizes: tuple[int, int]) -> int:
+def _balanced_team_a_size(remaining_count: int, initial_sizes: Sequence[int]) -> int:
     """Return team A's split size so final sizes (split size + handicap) differ by <=1."""
     total = remaining_count + initial_sizes[0] + initial_sizes[1]
     target_a_total = total // 2
@@ -365,7 +338,7 @@ def _balanced_team_a_size(remaining_count: int, initial_sizes: tuple[int, int]) 
 
 
 def _unique_partitions(
-    player_ids: list[PlayerId], initial_sizes: tuple[int, int] = (0, 0)
+    player_ids: list[PlayerId], initial_sizes: Sequence[int] = (0, 0)
 ) -> list[tuple[list[PlayerId], list[PlayerId]]]:
     """Return unique two-team partitions, avoiding mirrored duplicates.
 
@@ -395,23 +368,29 @@ def _unique_partitions(
     return partitions
 
 
-AssignmentCostConfig = tuple[
-    dict[PlayerId, float], dict[tuple[str, str], int], int, dict[PlayerId, str | None]
-]
+@dataclass(frozen=True)
+class _CostInputs:
+    """Inputs shared by every partition's cost evaluation."""
+
+    player_scores: dict[PlayerId, float]
+    winning_counts: dict[tuple[str, str], int]
+    max_pair_wins: int
+    positions: dict[PlayerId, str | None]
 
 
 def _assignment_cost(
     team_a: list[PlayerId],
     team_b: list[PlayerId],
-    config: AssignmentCostConfig,
+    inputs: _CostInputs,
 ) -> float:
     """Return total assignment cost: strength balance plus composition diversity."""
-    player_scores, winning_counts, max_pair_wins, positions = config
     balance_cost = abs(
-        _team_strength(team_a, player_scores) - _team_strength(team_b, player_scores)
+        _team_strength(team_a, inputs.player_scores) - _team_strength(team_b, inputs.player_scores)
     )
-    pair_cost = _pair_repeat_penalty(team_a, team_b, winning_counts, max_pair_wins)
-    position_cost = _position_imbalance_penalty(team_a, team_b, positions) if positions else 0.0
+    pair_cost = _pair_repeat_penalty(team_a, team_b, inputs.winning_counts, inputs.max_pair_wins)
+    position_cost = (
+        _position_imbalance_penalty(team_a, team_b, inputs.positions) if inputs.positions else 0.0
+    )
     return balance_cost + (_PAIR_WEIGHT * pair_cost) + (_POSITION_WEIGHT * position_cost)
 
 
@@ -429,10 +408,7 @@ def _pair_repeat_penalty(
     total_pairs = 0
     for team in (team_a, team_b):
         for pid_a, pid_b in itertools.combinations(team, 2):
-            key: tuple[str, str] = tuple(  # type: ignore[assignment]
-                sorted([str(pid_a.value), str(pid_b.value)])
-            )
-            repeated_strength += winning_counts.get(key, 0) / max_pair_wins
+            repeated_strength += winning_counts.get(_pair_key(pid_a, pid_b), 0) / max_pair_wins
             total_pairs += 1
 
     if total_pairs == 0:
@@ -464,26 +440,6 @@ def _team_strength(team: list[PlayerId], player_scores: dict[PlayerId, float]) -
     return sum(player_scores.get(pid, 0.5) for pid in team)
 
 
-def _team_score(
-    team: list[PlayerId],
-    player_scores: dict[PlayerId, float],
-    winning_counts: dict[tuple[str, str], int],
-    max_pair_wins: int,
-    role_penalty: float = 0.0,
-) -> float:
-    """Compute the aggregate strength score for a team."""
-    total = sum(player_scores.get(pid, 0.5) for pid in team)
-    if max_pair_wins == 0:
-        return total
-    for pid_a, pid_b in itertools.combinations(team, 2):
-        key: tuple[str, str] = tuple(  # type: ignore[assignment]
-            sorted([str(pid_a.value), str(pid_b.value)])
-        )
-        pair_wins = winning_counts.get(key, 0)
-        total -= (pair_wins / max_pair_wins) * _PAIR_WEIGHT
-    return total + role_penalty
-
-
 def _normalize(values: list[float]) -> list[float]:
     """Normalize a list of floats to [0, 1]. Returns [0.5, ...] if all equal."""
     min_v, max_v = min(values), max(values)
@@ -504,12 +460,10 @@ def _player_stats(
         for match in meetup.matches:
             if match.result is None:
                 continue
-            score_a, score_b = match.result.score_a, match.result.score_b
             for i, team in enumerate(match.teams_playing):
                 if player_id in team.players:
                     mp += 1
-                    team_wins = (score_a > score_b) if i == 0 else (score_b > score_a)
-                    if team_wins:
+                    if _team_won(i, match.result):
                         wins += 1
             for event in match.result.events:
                 if event.scorer_id == player_id:
@@ -576,12 +530,9 @@ def _assign_goalkeepers(
     for team_index in team_indices:
         if not remaining_candidates:
             break
-        weights = [
-            1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining_candidates))
-        ]
-        pid = random.choices(remaining_candidates, weights=weights, k=1)[0]
-        remaining_candidates.remove(pid)
-        goalkeeper_per_team[team_index] = pid
+        goalkeeper_per_team[team_index] = _lottery_pick(
+            remaining_candidates, _rank_weights(len(remaining_candidates))
+        )
 
     assigned = {pid for pid in goalkeeper_per_team if pid is not None}
     remaining_players = [pid for pid in players if pid not in assigned]
@@ -593,7 +544,7 @@ def _snake_draft(
     player_scores: dict[PlayerId, float],
     team_count: int,
     positions: dict[PlayerId, str | None] | None = None,
-    initial_sizes: list[int] | None = None,
+    initial_sizes: Sequence[int] | None = None,
 ) -> tuple[list[PlayerId], ...]:
     """Distribute players into team_count groups via a weighted-lottery draft.
 
@@ -619,11 +570,10 @@ def _snake_draft(
         totals = [len(teams[i]) + initial_sizes[i] for i in range(team_count)]
         smallest = min(totals)
         index = random.choice([i for i, total in enumerate(totals) if total == smallest])
-        weights = [1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(len(remaining))]
-        weights = _apply_position_fit_boost(weights, remaining, teams[index], positions)
-        pid = random.choices(remaining, weights=weights, k=1)[0]
-        remaining.remove(pid)
-        teams[index].append(pid)
+        weights = _apply_position_fit_boost(
+            _rank_weights(len(remaining)), remaining, teams[index], positions
+        )
+        teams[index].append(_lottery_pick(remaining, weights))
     return tuple(teams)
 
 
@@ -646,3 +596,33 @@ def _apply_position_fit_boost(
         w * _POSITION_FIT_BOOST if _lacks_position(pid) else w
         for w, pid in zip(weights, remaining)
     ]
+
+
+@lru_cache(maxsize=65536)
+def _pair_key(pid_a: PlayerId, pid_b: PlayerId) -> tuple[str, str]:
+    """Return the canonical (smaller, larger) string-id key for a player pair.
+
+    Cached: exhaustive partition scoring recomputes the same few hundred pairs
+    millions of times, and the UUID-to-string conversion dominates its runtime.
+    """
+    key_a, key_b = str(pid_a.value), str(pid_b.value)
+    return (key_a, key_b) if key_a <= key_b else (key_b, key_a)
+
+
+def _team_won(team_index: int, result: MatchResult) -> bool:
+    """Return whether the team at team_index in teams_playing won the match."""
+    if team_index == 0:
+        return result.score_a > result.score_b
+    return result.score_b > result.score_a
+
+
+def _rank_weights(count: int) -> list[float]:
+    """Return descending lottery weights favoring the top of a ranked list."""
+    return [1.0 / (rank + _DRAFT_PICK_TEMPERATURE) for rank in range(count)]
+
+
+def _lottery_pick(candidates: list[PlayerId], weights: list[float]) -> PlayerId:
+    """Draw one candidate by weight and remove it from candidates."""
+    pid = random.choices(candidates, weights=weights, k=1)[0]
+    candidates.remove(pid)
+    return pid
