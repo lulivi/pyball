@@ -45,6 +45,7 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
 from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId
@@ -597,8 +598,13 @@ def _apply_position_fit_boost(
     ]
 
 
+@lru_cache(maxsize=65536)
 def _pair_key(pid_a: PlayerId, pid_b: PlayerId) -> tuple[str, str]:
-    """Return the canonical (smaller, larger) string-id key for a player pair."""
+    """Return the canonical (smaller, larger) string-id key for a player pair.
+
+    Cached: exhaustive partition scoring recomputes the same few hundred pairs
+    millions of times, and the UUID-to-string conversion dominates its runtime.
+    """
     key_a, key_b = str(pid_a.value), str(pid_b.value)
     return (key_a, key_b) if key_a <= key_b else (key_b, key_a)
 
