@@ -902,6 +902,57 @@ class TestCreateMeetup:
         assert isinstance(body["players"], list)
 
     @pytest.mark.asyncio
+    async def test_create_meetup_calls_on_meetup_created_when_new(self):
+        """POST /api/meetup/create fires on_meetup_created when no meetup existed at that date."""
+        from pyball.domain.meetup.models import Meetup, PlayerId
+
+        date = datetime(2026, 6, 8, 20, 0)
+        meetup = Meetup.create(date=date, location="Parque")
+        p_id = PlayerId.generate()
+        meetup.add_player(p_id)
+
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = None
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": [str(p_id.value)]},
+            )
+
+        assert resp.status_code == 200
+        assert notifier.created == [meetup]
+        assert notifier.updated == []
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_calls_on_meetup_updated_when_existing(self):
+        """POST /api/meetup/create fires on_meetup_updated when a meetup already existed."""
+        from pyball.domain.meetup.models import Meetup
+
+        date = datetime(2026, 6, 8, 20, 0)
+        existing = Meetup.create(date=date, location="Parque")
+        reset_meetup = Meetup.create(date=date, location="Parque")
+
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.set_meetup_players.return_value.execute.return_value = reset_meetup
+        container.player_repository.find_all.return_value = []
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert resp.status_code == 200
+        assert notifier.updated == [reset_meetup]
+        assert notifier.created == []
+
+    @pytest.mark.asyncio
     async def test_create_meetup_resets_existing_meetup(self):
         """POST /api/meetup/create clears players/teams on an existing open meetup via use case."""
         from pyball.domain.meetup.models import Meetup

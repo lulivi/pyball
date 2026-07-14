@@ -153,6 +153,8 @@ async def _handle_create_meetup(
     except ValueError as exc:
         raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
 
+    existed_before = container.meetup_repository.find_by_datetime(meetup_date) is not None
+
     try:
         meetup = container.set_meetup_players().execute(meetup_date, body.player_ids)
     except MeetupAlreadyClosedError as exc:
@@ -160,7 +162,10 @@ async def _handle_create_meetup(
     except InvalidPlayerIdError as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    await notifier.on_meetup_updated(meetup)
+    if existed_before:
+        await notifier.on_meetup_updated(meetup)
+    else:
+        await notifier.on_meetup_created(meetup)
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
