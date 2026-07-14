@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.17.1 (2026-07-14)
+
+### Bug Fixes
+
+- **GL-103..GL-108**: Refactor balanced algorithm, fix scoring bugs, cache pair keys
+  ([`e670a3c`](https://gitlab.com/lulivi/pyball/-/commit/e670a3c5f6faf7da80891f3f2c4d5e0995342b06))
+
+
 ## v4.17.0 (2026-07-13)
 
 ### Features
