@@ -451,6 +451,36 @@ class TestBalancedAlgorithmAssign:
         assert len(assigned_goalkeepers) == 2
 
 
+class TestAssignVariety:
+    """Repeated assign() calls must not collapse into a single composition.
+
+    A full round-robin of 1-0 single-player wins gives player i a win rate of
+    (n-1-i)/(n-1): every player has a distinct historical score, the realistic
+    case. The 2-team selection pool keeps >= 8 candidates with the worst
+    weight >= ~0.29 of the best, and the 3-team draft is a weighted lottery,
+    so 20 identical unseeded outcomes is practically impossible.
+    """
+
+    @pytest.mark.parametrize("team_count", [2, 3])
+    def test_repeated_generations_differ_with_distinct_scores(self, team_count):
+        """20 unseeded assign() calls yield at least 2 distinct compositions."""
+        players = [PlayerId.generate() for _ in range(10)]
+        meetups = [
+            _finished_meetup("2025-10-01 20:00", [players[i]], [players[j]], 1, 0)
+            for i in range(len(players))
+            for j in range(i + 1, len(players))
+        ]
+        algo = BalancedAlgorithm()
+        compositions = {
+            frozenset(
+                frozenset(a.players)
+                for a in algo.assign(players, meetups, meetups, datetime(2025, 9, 1), team_count)
+            )
+            for _ in range(20)
+        }
+        assert len(compositions) > 1
+
+
 class TestGoalkeeperPreassignmentPreservesTeamSizeBalance:
     """Regression tests: goalkeeper pre-assignment must not break team-size balance."""
 
