@@ -32,25 +32,25 @@ convocatoria de jugadores.
   uno por línea) en la primera caja y pulsa "🔍 Reconocer jugadores". PyBall empareja
   cada nombre con tu base de datos de jugadores mediante coincidencia difusa, marca
   cualquier cosa ambigua o no reconocida para que la resuelvas, y te deja excluir
-  suplentes. Confirmar crea el partido con esa convocatoria.
-- **Telegram:** `/meetup_new <fecha> <hora>` crea un partido vacío para esa fecha;
-  `/meetup_next` crea uno para la siguiente ocurrencia del día de la semana y hora por
-  defecto configurados. Cualquiera de los dos comandos publica un mensaje de
-  convocatoria en el chat de titulares (y otro aparte en el de suplentes) con botones
-  "✔ Unirse" / "✖ Salir", para que los jugadores se apunten o se bajen ellos mismos
-  tocando un botón — sin necesidad de añadirlos a mano. El mensaje de titulares también
-  tiene botones "🔀 Crear 2 equipos" / "🔀 Crear 3 equipos" que van directo al
-  [paso 3](#3-generar-equipos).
+  suplentes. Confirmar crea el partido con esa convocatoria — si hay un chat de
+  Telegram de titulares configurado, el mensaje de convocatoria con botones
+  "✔ Unirse" / "✖ Salir" se publica ahí automáticamente, para que los jugadores se
+  apunten o se bajen ellos mismos tocando un botón. El chat de suplentes **no** se
+  avisa en este momento — mira el [paso 2](#2-gestionar-la-convocatoria) para abrirlo a
+  los suplentes cuando estés listo.
 
 ## 2. Gestionar la convocatoria
 
 Antes de generar los equipos todavía puedes ajustar quién juega. En Telegram, los
-jugadores normalmente lo hacen ellos mismos con los botones "✔ Unirse" / "✖ Salir" del
-paso 1 — estos comandos son para que un admin ajuste la convocatoria directamente:
+titulares normalmente lo hacen ellos mismos con los botones "✔ Unirse" / "✖ Salir" del
+paso 1.
 
 - **`/manage`:** la lista de convocados permite quitar un jugador o buscar y añadir otro.
-- **Telegram:** `/meetup_add_player <fecha> <hora> <nombre>` y
-  `/meetup_remove_player <fecha> <hora> <nombre>`.
+- **Telegram:** un admin puede pulsar el botón "🔎 Buscar jugadores" del mensaje de
+  convocatoria de titulares (o volver a tocarlo más tarde) para publicar un mensaje
+  aparte en el chat de suplentes con sus propios botones "✔ Unirse" / "✖ Salir" — es un
+  paso manual y deliberado, para que los titulares tengan prioridad unos días antes de
+  buscar suplentes.
 
 ## 3. Generar equipos
 
@@ -62,11 +62,6 @@ Aquí es donde eliges el formato del partido:
   de forma aleatoria. También puedes abrir "✏️ Editar equipos" después para mover,
   reemplazar, añadir o quitar jugadores de cualquier equipo manualmente — el mismo panel
   funciona con 2 o 3 equipos.
-- **Telegram:** `/meetup_create_teams <fecha> <hora> [algoritmo] [n_equipos]` — omite
-  `n_equipos` para un partido clásico de 2 equipos, o pasa `3` para un triangular.
-  `algoritmo` puede ser `balanceado` (por defecto), o
-  `manual Nombre1,Nombre2;Nombre3,Nombre4` para asignar los equipos a mano desde
-  Telegram.
 
 En cuanto se asignan los equipos, el primer partido ya está listo para seguir — no hace
 falta ningún paso extra de "arrancar".
@@ -93,7 +88,7 @@ que escanear.
 
 **En un partido clásico**, finalizar el único partido cierra el meetup
 automáticamente — se publica un resumen (en Telegram, si está configurado) y el partido
-pasa a la pestaña "Resumen" de `/manage`.
+pasa a la pestaña "Convocatorias" de `/manage`.
 
 **En un triangular**, finalizar un partido no cierra el meetup — PyBall calcula el
 siguiente emparejamiento según [las reglas](#las-reglas-del-triangular) y `/match`
@@ -108,16 +103,16 @@ cuando se acaba el tiempo de la sesión:
 - **`/manage`:** el botón "🏁 Cerrar triangular" aparece en la pestaña Equipos siempre
   que el partido activo sea un triangular (está oculto en los partidos clásicos, que no
   lo necesitan).
-- **Telegram:** `/meetup_close_triangular <fecha> <hora>`.
 
 Cerrar publica un resumen que cubre todas las rondas jugadas en la sesión. Un partido
 clásico nunca necesita esto — se cierra solo en cuanto termina su único partido.
 
 ## 6. Ver estadísticas
 
-- **`/manage` → pestaña "Resumen":** el resumen del último partido terminado, listo
-  para copiar o compartir como imagen, más un enlace para corregir un resultado si se
-  introdujo mal. En un partido clásico, la convocatoria de cada equipo muestra los
+- **`/manage` → pestaña "Convocatorias":** una lista de todos los partidos cerrados, del
+  más reciente al más antiguo. Toca uno para desplegar su resumen, listo para copiar o
+  compartir como imagen, más un enlace para corregir un resultado si se introdujo mal.
+  En un partido clásico, la convocatoria de cada equipo muestra los
   goles/asistencias/goles en propia de cada jugador, seguida de una lista cronológica
   de eventos bajo `*GOLES:*`. En un triangular, el resumen empieza con la convocatoria
   de cada equipo (con estadísticas de cada jugador en toda la sesión) y su récord de

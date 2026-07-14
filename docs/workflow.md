@@ -28,24 +28,22 @@ A meetup is one scheduled session: a date, a time, a location, and a roster of p
 - **`/manage`:** paste the callup text (a list of confirmed and reserve players, one per
   line) into the first box and click "🔍 Reconocer jugadores". PyBall fuzzy-matches each
   name against your player database, flags anything ambiguous or unrecognized for you to
-  resolve, and lets you exclude reserves. Confirming creates the meetup with that roster.
-- **Telegram:** `/meetup_new <fecha> <hora>` creates an empty meetup for that date;
-  `/meetup_next` creates one for the next occurrence of the configured default weekday
-  and time. Either command posts a callup message to the regulars chat (and a separate
-  one to the substitutes chat) with "✔ Unirse" / "✖ Salir" buttons, so players can join
-  or leave the roster themselves by tapping a button — no need to add them by hand. The
-  regulars message also has "🔀 Crear 2 equipos" / "🔀 Crear 3 equipos" buttons that jump straight to
-  [step 3](#3-generate-teams).
+  resolve, and lets you exclude reserves. Confirming creates the meetup with that roster —
+  if a Telegram regulars chat is configured, the callup message with "✔ Unirse" / "✖ Salir"
+  buttons is posted there automatically, so players can join or leave the roster
+  themselves by tapping a button. The substitutes chat is **not** notified at this point —
+  see [step 2](#2-manage-the-roster) for opening it up to subs when you're ready.
 
 ## 2. Manage the roster
 
-Before generating teams you can still adjust who's playing. On Telegram, players
-usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 1 — these
-commands are for an admin adjusting the roster directly:
+Before generating teams you can still adjust who's playing. On Telegram, regulars
+usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 1.
 
 - **`/manage`:** the roster list lets you remove a player or search-and-add another one.
-- **Telegram:** `/meetup_add_player <fecha> <hora> <nombre>` and
-  `/meetup_remove_player <fecha> <hora> <nombre>`.
+- **Telegram:** an admin can open the "🔎 Buscar jugadores" button on the regulars
+  callup message (or tap it again later) to post a separate message to the substitutes
+  chat with its own "✔ Unirse" / "✖ Salir" buttons — this is a deliberate, manual step so
+  regulars get priority for a few days before substitutes are searched.
 
 ## 3. Generate teams
 
@@ -56,10 +54,6 @@ This is where you choose the match format:
   recent results and legacy stats, if configured) or randomly. You can also open
   "✏️ Editar equipos" afterward to manually move, replace, add, or remove players from
   any team — the same panel works for 2 or 3 teams.
-- **Telegram:** `/meetup_create_teams <fecha> <hora> [algoritmo] [n_equipos]` — omit
-  `n_equipos` for a classic 2-team match, or pass `3` for a triangular. `algoritmo` can
-  be `balanceado` (default), or `manual Nombre1,Nombre2;Nombre3,Nombre4` to assign teams
-  by hand from Telegram.
 
 As soon as teams are assigned, the first match is ready to track — no separate "start"
 step needed.
@@ -83,8 +77,8 @@ shows the currently pending match — no manual setup, no QR code to scan.
 - Tap "Finalizar partido" when the match is over and enter the final score.
 
 **For a classic meetup**, finishing the one match closes the meetup automatically — a
-summary is posted (to Telegram, if configured) and the meetup moves to the "Resumen" tab
-in `/manage`.
+summary is posted (to Telegram, if configured) and the meetup moves into the
+"Convocatorias" tab in `/manage`.
 
 **For a triangular**, finishing a match doesn't close the meetup — PyBall computes the
 next pairing per [the ruleset](#the-triangular-ruleset) and `/match` immediately shows
@@ -99,21 +93,20 @@ the session's time is up:
 - **`/manage`:** the "🏁 Cerrar triangular" button appears on the Equipos tab whenever
   the active meetup is a triangular (it's hidden for classic matches, which don't need
   it).
-- **Telegram:** `/meetup_close_triangular <fecha> <hora>`.
 
 Closing posts a summary covering every round played in the session. A classic meetup
 never needs this — it closes itself the moment its one match finishes.
 
 ## 6. View stats
 
-- **`/manage` → "Resumen" tab:** the summary of the last finished match, ready to copy
-  or share as an image, plus a link to correct a result if it was entered wrong. For a
-  classic match, each team's roster shows every player's goals/assists/own-goals,
-  followed by a chronological `*GOLES:*` events list. For a triangular, the summary
-  opens with each team's roster (with session-wide per-player stats) and its
-  win/draw/loss record for the session (e.g. `⚪ Blanco (1V 1E 0D)`), then each round
-  shows just its score and its own events list. Telegram's post-match message uses this
-  same format.
+- **`/manage` → "Convocatorias" tab:** a list of every closed meetup, newest first. Tap
+  one to expand its summary, ready to copy or share as an image, plus a link to correct
+  a result if it was entered wrong. For a classic match, each team's roster shows every
+  player's goals/assists/own-goals, followed by a chronological `*GOLES:*` events list.
+  For a triangular, the summary opens with each team's roster (with session-wide
+  per-player stats) and its win/draw/loss record for the session (e.g.
+  `⚪ Blanco (1V 1E 0D)`), then each round shows just its score and its own events list.
+  Telegram's post-match message uses this same format.
 - **Telegram:** `/meetup_stats [temporada|historico]` posts season or all-time stats as
   an image.
 
