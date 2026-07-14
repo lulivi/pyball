@@ -90,9 +90,9 @@ runs.
 Because a triangular has no fixed number of rounds, an admin closes it explicitly when
 the session's time is up:
 
-- **`/manage`:** the "🏁 Cerrar triangular" button appears on the Equipos tab whenever
-  the active meetup is a triangular (it's hidden for classic matches, which don't need
-  it).
+- **`/manage`:** the "🏁 Cerrar triangular" button appears on the Convocatoria actual tab
+  whenever the active meetup is a triangular (it's hidden for classic matches, which
+  don't need it).
 
 Closing posts a summary covering every round played in the session. A classic meetup
 never needs this — it closes itself the moment its one match finishes.

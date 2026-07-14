@@ -100,9 +100,9 @@ tantas rondas como dure la sesión.
 Como un triangular no tiene un número fijo de rondas, un admin lo cierra explícitamente
 cuando se acaba el tiempo de la sesión:
 
-- **`/manage`:** el botón "🏁 Cerrar triangular" aparece en la pestaña Equipos siempre
-  que el partido activo sea un triangular (está oculto en los partidos clásicos, que no
-  lo necesitan).
+- **`/manage`:** el botón "🏁 Cerrar triangular" aparece en la pestaña Convocatoria
+  actual siempre que el partido activo sea un triangular (está oculto en los partidos
+  clásicos, que no lo necesitan).
 
 Cerrar publica un resumen que cubre todas las rondas jugadas en la sesión. Un partido
 clásico nunca necesita esto — se cierra solo en cuanto termina su único partido.
