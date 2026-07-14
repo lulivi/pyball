@@ -1429,6 +1429,153 @@ async def test_manifest_uses_instance_theme_color():
     assert body["name"] == "PyBall – Partido tensores"
 
 
+class TestUpdateMeetupDate:
+    """Tests for POST /api/meetup/date."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_with_new_date(self):
+        """Successful date change returns the new date."""
+        from pyball.domain.meetup.models import Meetup
+
+        updated = Meetup.create(date=datetime(2026, 6, 15, 20, 0), location="Parque")
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.return_value = updated
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json() == {"date": "2026-06-15T20:00", "location": "Parque"}
+        assert notifier.updated == [updated]
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_not_found(self):
+        """404 when no meetup exists at old_date."""
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.side_effect = MeetupNotFoundError(
+            "2026-06-08T20:00"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_409_when_new_date_taken(self):
+        """409 when another meetup already exists at new_date."""
+        from pyball.domain.meetup.errors import DuplicateMeetupError
+
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.side_effect = DuplicateMeetupError(
+            "taken"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_returns_422_when_closed(self):
+        """422 when the use case rejects a closed meetup."""
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.side_effect = ValueError(
+            "Cannot change date of a finished match"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_bad_date_format(self):
+        """422 for unparseable date strings."""
+        app, _ = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "not-a-date", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 422
+
+
+class TestUpdateMeetupLocation:
+    """Tests for POST /api/meetup/location."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_with_new_location(self):
+        """Successful location change returns the new location."""
+        from pyball.domain.meetup.models import Meetup
+
+        updated = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Nuevo Campo")
+        container = MagicMock()
+        container.update_meetup_location.return_value.execute.return_value = updated
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "2026-06-08T20:00", "location": "Nuevo Campo"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json() == {"date": "2026-06-08T20:00", "location": "Nuevo Campo"}
+        assert notifier.updated == [updated]
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_not_found(self):
+        """404 when no meetup exists at date."""
+        container = MagicMock()
+        container.update_meetup_location.return_value.execute.side_effect = MeetupNotFoundError(
+            "2026-06-08T20:00"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "2026-06-08T20:00", "location": "Nuevo Campo"},
+            )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_empty_location(self):
+        """422 when the use case rejects an empty location."""
+        container = MagicMock()
+        container.update_meetup_location.return_value.execute.side_effect = ValueError(
+            "Location cannot be empty"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "2026-06-08T20:00", "location": ""},
+            )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_bad_date_format(self):
+        """422 for unparseable date strings."""
+        app, _ = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "not-a-date", "location": "X"},
+            )
+        assert resp.status_code == 422
+
+
 class TestCreatePlayerEndpoint:
     """Tests for POST /api/players."""
 

@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI, HTTPException
 
 from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
     MeetupAlreadyClosedError,
     MeetupNotFoundError,
     UnknownAlgorithmError,
@@ -43,6 +44,8 @@ from pyball.infrastructure.http.schemas import (
     CreateMeetupInput,
     GenerateTeamsInput,
     ParseCallupInput,
+    UpdateMeetupDateInput,
+    UpdateMeetupLocationInput,
 )
 
 if TYPE_CHECKING:
@@ -140,6 +143,16 @@ def register_meetup_routes(
         """Create (or reset) a meetup with the given player list."""
         return await _handle_create_meetup(container, notifier, body)
 
+    @app.post("/api/meetup/date")
+    async def update_meetup_date_endpoint(body: UpdateMeetupDateInput):
+        """Move a meetup to a new date."""
+        return await _handle_update_meetup_date(container, notifier, body)
+
+    @app.post("/api/meetup/location")
+    async def update_meetup_location_endpoint(body: UpdateMeetupLocationInput):
+        """Change a meetup's location."""
+        return await _handle_update_meetup_location(container, notifier, body)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -202,3 +215,46 @@ async def _handle_generate_teams(
 
     await notifier.on_meetup_updated(meetup)
     return build_meetup_active_response(container)
+
+
+async def _handle_update_meetup_date(
+    container: "Container", notifier: "MatchNotifier", body: UpdateMeetupDateInput
+) -> dict:
+    """Validate, move the meetup's date, notify, and return the new date/location."""
+    try:
+        old_date = datetime.fromisoformat(body.old_date)
+        new_date = datetime.fromisoformat(body.new_date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    try:
+        meetup = container.update_meetup_date().execute(old_date, new_date)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at old_date") from exc
+    except DuplicateMeetupError as exc:
+        raise HTTPException(409, "A meetup already exists at new_date") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_meetup_updated(meetup)
+    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
+
+
+async def _handle_update_meetup_location(
+    container: "Container", notifier: "MatchNotifier", body: UpdateMeetupLocationInput
+) -> dict:
+    """Validate, update the meetup's location, notify, and return the new date/location."""
+    try:
+        meetup_date = datetime.fromisoformat(body.date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    try:
+        meetup = container.update_meetup_location().execute(meetup_date, body.location)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at date") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_meetup_updated(meetup)
+    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
