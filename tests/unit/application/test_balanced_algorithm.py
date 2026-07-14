@@ -9,8 +9,8 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     BalancedAlgorithm,
     _apply_position_fit_boost,
     _position_imbalance_penalty,
+    _sampled_partitions,
     _snake_draft,
-    _team_score,
     compute_goalkeeper_scores,
     compute_player_scores,
     extract_winning_counts,
@@ -19,6 +19,7 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
 from pyball.domain.meetup.errors import UnknownAlgorithmError
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
+from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
 
 def _finished_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -122,6 +123,28 @@ class TestComputePlayerScores:
         scores = compute_player_scores(players, [], [])
         for score in scores.values():
             assert score == pytest.approx(0.5)
+
+    def test_all_time_fallback_includes_pre_season_legacy_assists(self):
+        """The all-time fallback must not season-filter legacy assists.
+
+        Both players have no season matches (forcing the all-time fallback)
+        and identical all-time goals/wins (three 1-1 draws against each
+        other). Only p1 has legacy assists, all dated before season start:
+        they must still count in the all-time fallback window.
+        """
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        old = [_finished_meetup(f"2024-10-0{i} 20:00", [p1], [p2], 1, 1) for i in range(1, 4)]
+        legacy = LegacyStats(
+            {
+                "players": {
+                    str(p1.value): {
+                        "assists_by_match": [{"date": "2024-10-01T20:00:00", "count": 10}]
+                    }
+                }
+            }
+        )
+        scores = compute_player_scores([p1, p2], [], old, legacy, datetime(2025, 9, 1))
+        assert scores[p1] > scores[p2]
 
 
 class TestComputeGoalkeeperScores:
@@ -289,15 +312,18 @@ class TestOptimizeTeamsInitialSizes:
         assert len(team_a) + 1 - len(team_b) in (-1, 0, 1)
 
 
-class TestTeamScore:
-    """Tests for _team_score."""
+class TestSampledPartitions:
+    """Tests for _sampled_partitions."""
 
-    def test_returns_sum_of_player_scores_with_no_pair_wins(self):
-        """Without pair-win history, score equals the sum of individual scores."""
-        p1, p2 = PlayerId.generate(), PlayerId.generate()
-        scores = {p1: 0.6, p2: 0.4}
-        result = _team_score([p1, p2], scores, {}, max_pair_wins=0)
-        assert result == pytest.approx(1.0)
+    def test_terminates_when_partition_space_is_small(self):
+        """With 4 players there are only 3 distinct 2-2 partitions; the sampler
+        must return them instead of looping forever chasing 3000."""
+        players = [PlayerId.generate() for _ in range(4)]
+        partitions = _sampled_partitions(players)
+        assert 1 <= len(partitions) <= 3
+        for team_a, team_b in partitions:
+            assert set(team_a) | set(team_b) == set(players)
+            assert len(team_a) == 2 and len(team_b) == 2
 
 
 class TestPositionImbalancePenalty:
@@ -423,6 +449,36 @@ class TestBalancedAlgorithmAssign:
         assert all_assigned == set(players)
         assigned_goalkeepers = {a.goalkeeper for a in assignments if a.goalkeeper is not None}
         assert len(assigned_goalkeepers) == 2
+
+
+class TestAssignVariety:
+    """Repeated assign() calls must not collapse into a single composition.
+
+    A full round-robin of 1-0 single-player wins gives player i a win rate of
+    (n-1-i)/(n-1): every player has a distinct historical score, the realistic
+    case. The 2-team selection pool keeps >= 8 candidates with the worst
+    weight >= ~0.29 of the best, and the 3-team draft is a weighted lottery,
+    so 20 identical unseeded outcomes is practically impossible.
+    """
+
+    @pytest.mark.parametrize("team_count", [2, 3])
+    def test_repeated_generations_differ_with_distinct_scores(self, team_count):
+        """20 unseeded assign() calls yield at least 2 distinct compositions."""
+        players = [PlayerId.generate() for _ in range(10)]
+        meetups = [
+            _finished_meetup("2025-10-01 20:00", [players[i]], [players[j]], 1, 0)
+            for i in range(len(players))
+            for j in range(i + 1, len(players))
+        ]
+        algo = BalancedAlgorithm()
+        compositions = {
+            frozenset(
+                frozenset(a.players)
+                for a in algo.assign(players, meetups, meetups, datetime(2025, 9, 1), team_count)
+            )
+            for _ in range(20)
+        }
+        assert len(compositions) > 1
 
 
 class TestGoalkeeperPreassignmentPreservesTeamSizeBalance:
