@@ -23,10 +23,15 @@ class _StubNotifier(MatchNotifier):
     """In-memory notifier for testing."""
 
     def __init__(self):
+        self.created = []
         self.closed = []
         self.edited = []
         self.updated = []
         self.cancelled = []
+
+    async def on_meetup_created(self, meetup):
+        """Record the created meetup."""
+        self.created.append(meetup)
 
     async def on_match_closed(self, meetup):
         """Record the closed meetup."""

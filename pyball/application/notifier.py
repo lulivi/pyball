@@ -28,6 +28,10 @@ class MatchNotifier(ABC):
     """Abstract notifier called after match and meetup state changes."""
 
     @abstractmethod
+    async def on_meetup_created(self, meetup: Meetup) -> None:
+        """Handle a brand-new meetup by announcing it to the platform."""
+
+    @abstractmethod
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Handle a closed match by notifying the platform."""
 
@@ -46,6 +50,9 @@ class MatchNotifier(ABC):
 
 class NullMatchNotifier(MatchNotifier):
     """No-op notifier used by topologies that have no notification channel."""
+
+    async def on_meetup_created(self, meetup: Meetup) -> None:
+        """Do nothing."""
 
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Do nothing."""

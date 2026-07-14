@@ -60,6 +60,10 @@ class TelegramMatchNotifier(MatchNotifier):
         self._settings = settings
         self._container = container
 
+    async def on_meetup_created(self, meetup: Meetup) -> None:
+        """Handle a brand-new meetup by announcing it to the platform."""
+        pass
+
     async def on_meetup_updated(self, meetup: Meetup) -> None:
         """Handle a meetup update by refreshing platform messages."""
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
