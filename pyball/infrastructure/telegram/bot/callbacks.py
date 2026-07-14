@@ -28,11 +28,10 @@ from telegram import CallbackQuery, Update
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
-from pyball.domain.meetup.errors import MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
-from pyball.infrastructure.telegram.bot.handlers.meetup import _do_create_teams, _do_search
+from pyball.infrastructure.telegram.bot.handlers.meetup import _do_search
 from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.infrastructure.telegram.notifications import refresh_callup_messages
@@ -87,27 +86,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_player_action(
             action, meetup, meetup_date, query, container, mapping_store, context.bot, settings
         )
-    elif action in ("create_teams", "create_teams_3"):
-        team_count = 3 if action == "create_teams_3" else 2
-        await _handle_create_teams_callback(
-            meetup_date, query, container, context.bot, settings, from_user.id, team_count
-        )
-    elif action in ("lock", "unlock"):
-        await _handle_lock_callback(
-            meetup,
-            query,
-            container,
-            context.bot,
-            settings,
-            from_user.id,
-            locked=action == "lock",
-        )
     elif action == "search":
         await _handle_search_callback(
             meetup, query, container, context.bot, settings, from_user.id
         )
-    elif action == "noop":
-        await query.answer()
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -169,56 +151,6 @@ async def _handle_player_action(
         if updated_meetup:
             await refresh_callup_messages(bot, settings, container, updated_meetup)
         await query.answer()
-
-
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-async def _handle_create_teams_callback(
-    meetup_date: datetime,
-    query: CallbackQuery,
-    container: Container,
-    bot: telegram.Bot,
-    settings: "TelegramAppSettings",
-    user_id: int,
-    team_count: int = 2,
-) -> None:
-    """Handle create_teams/create_teams_3 admin button callback."""
-    if not settings.telegram.is_authorized(user_id):
-        await query.answer(
-            "Solo los administradores pueden realizar esta acción.", show_alert=True
-        )
-        return
-    try:
-        await _do_create_teams(meetup_date, container, bot, settings, team_count=team_count)
-        await query.answer()
-    except MeetupNotFoundError:
-        await query.answer("No se ha encontrado el meetup.", show_alert=True)
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("Unexpected error in create_teams callback")
-        await query.answer("Ha ocurrido un error inesperado.", show_alert=True)
-
-
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-async def _handle_lock_callback(
-    meetup: Meetup,
-    query: CallbackQuery,
-    container: Container,
-    bot: telegram.Bot,
-    settings: "TelegramAppSettings",
-    user_id: int,
-    locked: bool,
-) -> None:
-    """Handle lock/unlock button callback — toggle the callup keyboards."""
-    if not settings.telegram.is_authorized(user_id):
-        await query.answer(
-            "Solo los administradores pueden realizar esta acción.", show_alert=True
-        )
-        return
-    try:
-        await refresh_callup_messages(bot, settings, container, meetup, locked=locked)
-        await query.answer()
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("Unexpected error in lock callback")
-        await query.answer("Ha ocurrido un error inesperado.", show_alert=True)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments

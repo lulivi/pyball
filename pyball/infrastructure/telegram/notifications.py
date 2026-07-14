@@ -125,7 +125,6 @@ async def refresh_callup_messages(
     container: "Container",
     meetup: Meetup,
     include_keyboard: bool = True,
-    locked: bool = False,
 ) -> None:
     """Edit the existing callup messages to reflect the current meetup state.
 
@@ -135,9 +134,6 @@ async def refresh_callup_messages(
         container: DI container with repositories.
         meetup: Meetup to display.
         include_keyboard: Whether to include join/leave buttons (default True).
-        locked: When True, the regular message's keyboard is replaced by a
-            single "Desfijar partido" button, and the substitutes message's
-            keyboard is hidden, regardless of include_keyboard.
     """
     player_repo = container.player_repository
     all_players = player_repo.find_all()
@@ -157,12 +153,11 @@ async def refresh_callup_messages(
             date_fmt=date_fmt,
             legacy_stats=container.legacy_stats,
         )
-        if locked:
-            kb = build_main_keyboard(meetup.date, locked=True)
-        elif include_keyboard:
-            kb = build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
-        else:
-            kb = None
+        kb = (
+            build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
+            if include_keyboard
+            else None
+        )
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
@@ -186,7 +181,7 @@ async def refresh_callup_messages(
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
         )
-        kb = build_subs_keyboard(meetup.date) if (include_keyboard and not locked) else None
+        kb = build_subs_keyboard(meetup.date) if include_keyboard else None
         try:
             await bot.edit_message_text(
                 chat_id=sub_tracking.chat_id,

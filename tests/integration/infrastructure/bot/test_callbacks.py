@@ -11,7 +11,6 @@ from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.telegram.bot.callbacks import callback_handler
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
-from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 
 # pylint: disable=redefined-outer-name
 
@@ -231,153 +230,6 @@ async def test_leave_logs_info_event(
     assert any("left" in r.message.lower() or "luis" in r.message.lower() for r in caplog.records)
 
 
-@pytest.fixture
-def meetup_with_players(bot_context):
-    """Create and persist a meetup with 4 players (enough for balanced teams)."""
-    container = bot_context.bot_data["container"]
-    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
-    for name in ["Alice", "Bob", "Carlos", "Diana"]:
-        player = Player.create(name, "regular")
-        container.player_repository.save(player)
-        meetup.add_player(player.id)
-    container.meetup_repository.save(meetup)
-    return meetup
-
-
-@pytest.fixture
-def meetup_with_teams(bot_context):
-    """Create and persist a meetup that already has teams with real players.
-
-    Also seeds a tracked regular-group message so refresh_callup_messages can
-    call edit_message_text during the lock callback test.
-    """
-    container = bot_context.bot_data["container"]
-    settings = bot_context.bot_data["settings"]
-    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
-    p1 = Player.create("Alice", "regular")
-    p2 = Player.create("Bob", "regular")
-    container.player_repository.save(p1)
-    container.player_repository.save(p2)
-    meetup.set_teams([Team.create("A", [p1.id]), Team.create("B", [p2.id])])
-    container.meetup_repository.save(meetup)
-    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
-    store.save_message(meetup.date, "regular", MessageTracking(chat_id=-100111, message_id=1001))
-    return meetup
-
-
-@pytest.mark.asyncio
-async def test_create_teams_callback_authorized_creates_teams(
-    callback_update, bot_context, meetup_with_players  # pylint: disable=unused-argument
-):
-    """Admin pressing create_teams creates balanced teams and persists them."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "create_teams:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    container = bot_context.bot_data["container"]
-    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
-    assert meetup.teams is not None
-    callback_update.callback_query.answer.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_create_teams_3_callback_authorized_creates_triangular(
-    callback_update, bot_context, meetup_with_players  # pylint: disable=unused-argument
-):
-    """Admin pressing create_teams_3 creates a 3-team triangular."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "create_teams_3:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    container = bot_context.bot_data["container"]
-    meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
-    assert meetup.teams is not None
-    assert len(meetup.teams) == 3
-    callback_update.callback_query.answer.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_create_teams_callback_unauthorized_answers_admin_alert(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Non-admin pressing create_teams receives an admin-only alert."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
-    callback_update.callback_query.data = "create_teams:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "administrador" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_lock_callback_authorized_shows_single_unlock_button(
-    callback_update, bot_context, meetup_with_teams  # pylint: disable=unused-argument
-):
-    """Admin pressing lock replaces the keyboard with a single unlock button."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "lock:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    kb = bot_context.bot.edit_message_text.call_args.kwargs["reply_markup"]
-    assert len(kb.inline_keyboard) == 1
-    assert kb.inline_keyboard[0][0].text == "🔓 Desfijar partido"
-    callback_update.callback_query.answer.assert_called_once()
-    bot_context.bot.send_photo.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_lock_callback_unauthorized_answers_admin_alert(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Non-admin pressing lock receives an admin-only alert."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
-    callback_update.callback_query.data = "lock:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "administrador" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_unlock_callback_authorized_restores_buttons(
-    callback_update, bot_context, meetup_with_teams  # pylint: disable=unused-argument
-):
-    """Admin pressing unlock restores the full keyboard."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "unlock:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    kb = bot_context.bot.edit_message_text.call_args.kwargs["reply_markup"]
-    assert len(kb.inline_keyboard) > 1
-    callback_update.callback_query.answer.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_unlock_callback_unauthorized_answers_admin_alert(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Non-admin pressing unlock receives an admin-only alert."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
-    callback_update.callback_query.data = "unlock:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "administrador" in text.lower()
-
-
 @pytest.mark.asyncio
 async def test_search_callback_authorized_sends_message(
     callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
@@ -427,17 +279,3 @@ async def test_search_callback_no_substitutes_chat_answers_alert(
     assert call_kwargs[1].get("show_alert") is True
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
     assert "no está configurado" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_noop_callback_answers_silently(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Pressing the separator button answers with no text and no alert."""
-    callback_update.callback_query.data = "noop:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    callback_update.callback_query.answer.assert_called_once_with()
-    bot_context.bot.send_message.assert_not_called()
-    bot_context.bot.edit_message_text.assert_not_called()
