@@ -113,6 +113,30 @@ function buildRosterList(players) {
     return players.map(buildRosterRow).join('');
 }
 
+// One collapsed row in the Convocatorias list. `open` = detail panel expanded.
+function buildConvocatoriaRow(item, open) {
+    return `
+    <button class="collapsible-trigger" data-date="${escHtml(item.date)}"
+      onclick="toggleConvocatoriaRow(this.dataset.date)">
+      <span>📅 ${escHtml(_formatDate(item.date))} · ${escHtml(item.location)}</span>
+      <span>${open ? '▾' : '▸'}</span>
+    </button>
+    <div id="convocatoria-detail-${escHtml(item.date)}"></div>`;
+}
+
+// Detail panel for one expanded row — identical content to the old Resumen tab,
+// parameterised by date instead of always "the latest match".
+function buildConvocatoriaDetail(date, dateLabel, message) {
+    return `
+    <div class="summary-box" id="summary-msg-${escHtml(date)}">${escHtml(message)}</div>
+    <button class="btn btn-teal" data-date="${escHtml(date)}" onclick="copySummary(this.dataset.date)">📋 Copiar texto</button>
+    <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.date, document.getElementById('summary-msg-' + this.dataset.date).textContent)">📤 Compartir imagen con texto</button>
+    <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
+    <hr class="divider">
+    <button class="btn-sm green" data-date="${escHtml(date)}"
+      onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>`;
+}
+
 // Date/location editor shown next to the date badge in "Convocatoria actual".
 // `data` is activeMatchData ({date, location, ...}); `open` toggles edit mode.
 function buildDateLocationEditor(data, open) {
@@ -178,5 +202,6 @@ export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
     buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor,
+    buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

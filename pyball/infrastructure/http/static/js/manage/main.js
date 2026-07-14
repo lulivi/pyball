@@ -3,6 +3,7 @@ import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
     buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor,
+    buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -23,6 +24,7 @@ let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null �
 let editAddQuery = '';          // State 2 edit panel: current add search text
 let repastePanelOpen = false;   // collapsed re-paste section open?
 let dateLocationEditOpen = false; // date/location edit panel open?
+let expandedConvocatoriaDate = null; // which Convocatorias row is expanded, if any
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -33,9 +35,6 @@ function switchTab(name, btn) {
     if (name === 'convocatorias') loadConvocatorias();
     if (name === 'jugadores') window.loadJugadores();
 }
-
-// TODO(Task 9): replace this stub with the real "Convocatorias" history tab loader.
-function loadConvocatorias() {}
 
 // ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
 async function parseCallup() {
@@ -567,46 +566,32 @@ async function closeMeetup() {
     showStep('paste');
 }
 
-// ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
-async function loadResumen() {
-    const el = document.getElementById('resumen-content');
+// ── TAB: CONVOCATORIAS ────────────────────────────────────────────────────────
+async function loadConvocatorias() {
+    const el = document.getElementById('convocatorias-content');
     el.innerHTML = '<div class="empty-state">Cargando...</div>';
+    let history;
     try {
-        let latestData;
-        try {
-            latestData = await get('/api/match/latest');
-        } catch (err) {
-            if (err instanceof ApiError && err.status === 404) {
-                el.innerHTML = '<div class="empty-state">Aún no hay partidos terminados.</div>';
-                return;
-            }
-            throw err;
-        }
-        const { date } = latestData;
-        let summaryData;
-        try {
-            summaryData = await get(`/api/match/${encodeURIComponent(date)}/summary`);
-        } catch {
-            el.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>';
-            return;
-        }
-        const { date_label, message } = summaryData;
-
-        el.innerHTML = `
-      <div class="step-label">${escHtml(date_label)}</div>
-      <div class="summary-box" id="summary-msg">${escHtml(message)}</div>
-      <button class="btn btn-teal" onclick="copySummary()">📋 Copiar texto</button>
-      <button class="btn btn-purple" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen con texto</button>
-      <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
-      <hr class="divider">
-      <button class="btn-sm green" data-date="${escHtml(date)}"
-        onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>
-    `;
-    } catch (e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
+        history = await get('/api/meetup/history');
+    } catch {
+        el.innerHTML = '<div class="empty-state">Error al cargar el historial.</div>';
+        return;
+    }
+    if (!history.length) {
+        el.innerHTML = '<div class="empty-state">Aún no hay convocatorias cerradas.</div>';
+        return;
+    }
+    el.innerHTML = history.map(item => buildConvocatoriaRow(item, item.date === expandedConvocatoriaDate)).join('');
+    if (expandedConvocatoriaDate) await _loadConvocatoriaDetail(expandedConvocatoriaDate);
 }
 
-function copySummary() {
-    _copyToClipboard(document.getElementById('summary-msg').textContent);
+async function toggleConvocatoriaRow(date) {
+    expandedConvocatoriaDate = (expandedConvocatoriaDate === date ? null : date);
+    await loadConvocatorias();
+}
+
+function copySummary(date) {
+    _copyToClipboard(document.getElementById('summary-msg-' + date).textContent);
 }
 
 async function downloadStats(date) {
@@ -627,7 +612,7 @@ async function shareStats(btn, date, summaryText) {
         const blob = await res.blob();
         const file = new File([blob], `stats-${date}.png`, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], text: summaryText || document.getElementById('summary-msg')?.textContent || '' });
+            await navigator.share({ files: [file], text: summaryText || document.getElementById('summary-msg-' + date)?.textContent || '' });
         } else {
             alert('Compartir archivos no está disponible en este navegador.');
         }
@@ -838,6 +823,18 @@ function _renderTeamsEditPanel() {
     }
 }
 
+async function _loadConvocatoriaDetail(date) {
+    const container = document.getElementById('convocatoria-detail-' + date);
+    if (!container) return;
+    container.innerHTML = '<div class="empty-state">Cargando...</div>';
+    try {
+        const { date_label, message } = await get(`/api/match/${encodeURIComponent(date)}/summary`);
+        container.innerHTML = buildConvocatoriaDetail(date, date_label, message);
+    } catch {
+        container.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>';
+    }
+}
+
 function _copyToClipboard(text) {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
@@ -885,7 +882,8 @@ Object.assign(window, {
     copySummary,
     downloadStats,
     shareStats,
-    loadResumen,
+    loadConvocatorias,
+    toggleConvocatoriaRow,
     pickCandidate,
     excludePlayer,
     closePanel,

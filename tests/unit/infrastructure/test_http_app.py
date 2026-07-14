@@ -1214,17 +1214,6 @@ async def test_match_active_404_when_no_meetup():
 
 
 @pytest.mark.asyncio
-async def test_match_latest_404_when_nothing_finished():
-    """GET /api/match/latest returns 404 when no finished meetups."""
-    container = _container_for_responses()
-    container.meetup_repository.find_all.return_value = []
-    app, _ = _make_app(container)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/match/latest")
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
 async def test_players_endpoint_serialises_players():
     """GET /api/players returns id, name, group, and position for each player."""
     container = _container_for_responses()
