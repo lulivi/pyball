@@ -131,8 +131,8 @@
 
 <div class="tab-bar">
   <button class="tab-btn" onclick="switchTab('jugadores', this)">Jugadores</button>
-  <button class="tab-btn active" onclick="switchTab('equipos', this)">Equipos</button>
-  <button class="tab-btn" onclick="switchTab('resumen', this)">Resumen</button>
+  <button class="tab-btn active" onclick="switchTab('equipos', this)">Convocatoria actual</button>
+  <button class="tab-btn" onclick="switchTab('convocatorias', this)">Convocatorias</button>
 </div>
 
 <!-- ── TAB: JUGADORES — content fully rendered by js/manage/players.js ─── -->
@@ -141,9 +141,9 @@
 <!-- ── TAB: EQUIPOS — content fully rendered by js/manage/main.js ─────── -->
 <div id="tab-equipos" class="tab-view active"></div>
 
-<!-- ── TAB: RESUMEN ────────────────────────────────────────────────────── -->
-<div id="tab-resumen" class="tab-view">
-  <div id="resumen-content"></div>
+<!-- ── TAB: CONVOCATORIAS — filled in by Task 9 ─────────────────────────── -->
+<div id="tab-convocatorias" class="tab-view">
+  <div id="convocatorias-content"></div>
 </div>
 
 <script type="module" src="/js/manage/main.js"></script>

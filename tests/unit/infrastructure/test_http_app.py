@@ -384,6 +384,7 @@ class TestMeetupActive:
         meetup = MagicMock()
         meetup.teams = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
+        meetup.location = "Polideportivo Municipal"
         pid = MagicMock()
         pid.value = "p1"
         meetup.players = [pid]
@@ -403,6 +404,7 @@ class TestMeetupActive:
         assert response.status_code == 200
         data = response.json()
         assert data["date"] == "2026-05-28T20:00"
+        assert data["location"] == "Polideportivo Municipal"
         assert data["players"] == [{"id": "p1", "name": "Juande"}]
         assert data["teams"] is None
 
@@ -411,6 +413,7 @@ class TestMeetupActive:
         """200 with players list and populated teams object when meetup has teams."""
         meetup = MagicMock()
         meetup.date = datetime(2026, 5, 28, 20, 0)
+        meetup.location = "Polideportivo Municipal"
         pid_a = MagicMock()
         pid_a.value = "p1"
         pid_b = MagicMock()
@@ -440,6 +443,7 @@ class TestMeetupActive:
 
         assert response.status_code == 200
         data = response.json()
+        assert data["location"] == "Polideportivo Municipal"
         assert data["players"] == [
             {"id": "p2", "name": "David"},
             {"id": "p1", "name": "Juande"},
@@ -1252,6 +1256,7 @@ async def test_meetup_active_with_teams_response_shape():
 
     body = response.json()
     assert body["date"] == "2026-06-17T20:00"
+    assert body["location"] == "X"
     assert [p["name"] for p in body["players"]] == ["Ana", "Bea"]
     assert body["teams"]["teamA"] == ["Ana"]
     assert body["teams"]["teamB"] == ["Bea"]

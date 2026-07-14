@@ -2,7 +2,7 @@ import { get, post, del, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger,
+    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -22,6 +22,7 @@ let rosterSearchQuery = '';     // State 1: current add-player search text
 let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
 let repastePanelOpen = false;   // collapsed re-paste section open?
+let dateLocationEditOpen = false; // date/location edit panel open?
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -29,9 +30,12 @@ function switchTab(name, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
-    if (name === 'resumen') loadResumen();
+    if (name === 'convocatorias') loadConvocatorias();
     if (name === 'jugadores') window.loadJugadores();
 }
+
+// TODO(Task 9): replace this stub with the real "Convocatorias" history tab loader.
+function loadConvocatorias() {}
 
 // ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
 async function parseCallup() {
@@ -150,6 +154,7 @@ function renderState1(data) {
         : '';
     document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
+    ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
     <div id="roster-list">${buildRosterList(data.players)}</div>
     <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
@@ -193,6 +198,45 @@ async function removeFromRoster(id) {
     await _saveRoster(remaining.map(p => p.id));
 }
 
+async function toggleDateLocationEdit() {
+    if (!dateLocationEditOpen && activeMatchData.location === undefined) {
+        try {
+            const active = await get('/api/meetup/active');
+            activeMatchData.location = active.location;
+        } catch {
+            activeMatchData.location = '';
+        }
+    }
+    dateLocationEditOpen = !dateLocationEditOpen;
+    _rerenderActiveState();
+}
+
+async function saveDateLocationEdit() {
+    const newDate = document.getElementById('edit-date-input').value;
+    const newTime = document.getElementById('edit-time-input').value;
+    const newLocation = document.getElementById('edit-location-input').value.trim();
+    if (!newDate || !newTime || !newLocation) {
+        alert('Completa fecha, hora y ubicación.');
+        return;
+    }
+    const newIso = `${newDate}T${newTime}`;
+    try {
+        if (newIso !== activeMatchData.date) {
+            await post('/api/meetup/date', { old_date: activeMatchData.date, new_date: newIso });
+            activeMatchData.date = newIso;
+        }
+        if (newLocation !== activeMatchData.location) {
+            await post('/api/meetup/location', { date: activeMatchData.date, location: newLocation });
+            activeMatchData.location = newLocation;
+        }
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    dateLocationEditOpen = false;
+    _rerenderActiveState();
+}
+
 function toggleRosterAdd() {
     rosterAddVisible = !rosterAddVisible;
     rosterSearchQuery = '';
@@ -231,6 +275,7 @@ function renderState2(data) {
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
+    ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     <div class="regen-row">
@@ -854,6 +899,8 @@ Object.assign(window, {
     toggleRosterAdd,
     searchRosterAdd,
     pickRosterAdd,
+    toggleDateLocationEdit,
+    saveDateLocationEdit,
 });
 
 if ('serviceWorker' in navigator) {

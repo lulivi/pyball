@@ -113,6 +113,28 @@ function buildRosterList(players) {
     return players.map(buildRosterRow).join('');
 }
 
+// Date/location editor shown next to the date badge in "Convocatoria actual".
+// `data` is activeMatchData ({date, location, ...}); `open` toggles edit mode.
+function buildDateLocationEditor(data, open) {
+    if (!open) {
+        return `<button class="btn-sm gray" onclick="toggleDateLocationEdit()">✏️ ${escHtml(data.location || '')}</button>`;
+    }
+    const [datePart, timePart] = (data.date || '').split('T');
+    return `
+    <div class="edit-panel">
+      <div class="field-label">Fecha</div>
+      <input class="search-box" id="edit-date-input" type="date" value="${escHtml(datePart || '')}">
+      <div class="field-label">Hora</div>
+      <input class="search-box" id="edit-time-input" type="time" value="${escHtml(timePart || '')}">
+      <div class="field-label">Ubicación</div>
+      <input class="search-box" id="edit-location-input" type="text" value="${escHtml(data.location || '')}">
+      <div class="edit-actions">
+        <button class="btn-sm green" onclick="saveDateLocationEdit()">Guardar</button>
+        <button class="btn-sm gray" onclick="toggleDateLocationEdit()">Cancelar</button>
+      </div>
+    </div>`;
+}
+
 // Search input + results container for the add-player widget.
 // idPrefix yields #<idPrefix>-search and #<idPrefix>-results; searchFn is the
 // oninput handler call as a string, e.g. 'searchRosterAdd()'.
@@ -155,6 +177,6 @@ function buildCancelTrigger() {
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger,
+    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };
