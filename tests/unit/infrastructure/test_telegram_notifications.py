@@ -5,6 +5,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import telegram
 
 from pyball.domain.meetup.models import Meetup
 from pyball.infrastructure.telegram import notifications
@@ -15,14 +16,47 @@ from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 def _make_notifier(tmp_path):
     """Build a TelegramMatchNotifier with mocked bot, settings, and container."""
     bot = AsyncMock()
+    bot.send_message.return_value.message_id = 555
     settings = MagicMock()
     settings.paths.data_dir = tmp_path
     settings.pyball.team_colors = ("blanco", "negro")
     settings.pyball.team_emojis = ("⚪", "⚫")
     settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
+    settings.telegram.regulars.chat_id = -100
+    settings.telegram.regulars.meetups_thread_id = ""
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     return TelegramMatchNotifier(bot, settings, container), bot
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_created_sends_only_regulars_message(tmp_path):
+    """on_meetup_created posts to the regulars chat and tracks the message, never subs."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+
+    await notifier.on_meetup_created(meetup)
+
+    bot.send_message.assert_called_once()
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["reply_markup"] is not None
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "regular") is not None
+    assert store.get_message(meetup.date, "substitute") is None
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_created_swallows_telegram_error(tmp_path):
+    """A Telegram send failure is logged and swallowed, not raised."""
+    notifier, bot = _make_notifier(tmp_path)
+    bot.send_message.side_effect = telegram.error.TelegramError("boom")
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+
+    await notifier.on_meetup_created(meetup)  # must not raise
+
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "regular") is None
 
 
 @pytest.mark.asyncio
