@@ -85,9 +85,12 @@ function _formatDate(iso) {
 function _buildFreshFlowHTML() {
     document.getElementById('tab-equipos').innerHTML = `
     <div id="step-paste">
-      <div class="step-label">1. Pega la convocatoria</div>
-      <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
-      <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>
+      <div class="step-label">Crear convocatoria</div>
+      <button class="btn btn-green" onclick="createNextMeetup()">📅 Siguiente convocatoria</button>
+      <button class="btn btn-blue" onclick="toggleManualCreate()">🆕 Nueva convocatoria</button>
+      <button class="btn btn-teal" onclick="togglePasteFlow()">📋 Pegar convocatoria</button>
+      <div id="manual-create-container"></div>
+      <div id="paste-flow-container"></div>
     </div>
     <div id="step-review" style="display:none">
       <div class="step-label">2. Revisa los jugadores</div>
@@ -111,6 +114,80 @@ function buildRosterRow(p) {
 
 function buildRosterList(players) {
     return players.map(buildRosterRow).join('');
+}
+
+// One collapsed row in the Convocatorias list. `open` = detail panel expanded.
+function buildConvocatoriaRow(item, open) {
+    return `
+    <button class="edit-chip" data-date="${escHtml(item.date)}"
+      onclick="toggleConvocatoriaRow(this.dataset.date)">
+      <div class="chip-text-col">
+        <div class="chip-primary">📅 ${escHtml(_formatDate(item.date))}</div>
+        <div class="cand-score">${escHtml(item.location)}</div>
+      </div>
+      <span id="convocatoria-arrow-${escHtml(item.date)}">${open ? '▾' : '▸'}</span>
+    </button>
+    <div id="convocatoria-detail-${escHtml(item.date)}"></div>`;
+}
+
+// Detail panel for one expanded row — identical content to the old Resumen tab,
+// parameterised by date instead of always "the latest match".
+function buildConvocatoriaDetail(date, message) {
+    return `
+    <div class="summary-box" id="summary-msg-${escHtml(date)}">${escHtml(message)}</div>
+    <button class="btn btn-teal" data-date="${escHtml(date)}" onclick="copySummary(this.dataset.date)">📋 Copiar texto</button>
+    <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.date, document.getElementById('summary-msg-' + this.dataset.date).textContent)">📤 Compartir imagen con texto</button>
+    <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
+    <hr class="divider">
+    <button class="btn-sm green" data-date="${escHtml(date)}"
+      onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>`;
+}
+
+// Date/location editor shown next to the date badge in "Convocatoria actual".
+// `data` is activeMatchData ({date, location, ...}); `open` toggles edit mode.
+function buildDateLocationEditor(data, open) {
+    if (!open) {
+        return `<button class="date-badge-btn" onclick="toggleDateLocationEdit()">
+      <span>📅 ${escHtml(_formatDate(data.date))} · ${escHtml(data.location || '')}</span>
+      <span>✏️</span>
+    </button>`;
+    }
+    const [datePart, timePart] = (data.date || '').split('T');
+    return `
+    <div class="edit-panel">
+      <div class="field-label">Fecha</div>
+      <input class="search-box" id="edit-date-input" type="date" value="${escHtml(datePart || '')}">
+      <div class="field-label">Hora</div>
+      <input class="search-box" id="edit-time-input" type="time" value="${escHtml(timePart || '')}">
+      <div class="field-label">Ubicación</div>
+      <input class="search-box" id="edit-location-input" type="text" value="${escHtml(data.location || '')}">
+      <div class="edit-actions">
+        <button class="btn-sm green" onclick="saveDateLocationEdit()">Guardar</button>
+        <button class="btn-sm gray" onclick="toggleDateLocationEdit()">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+// Manual date/hour/location entry for creating a brand-new (empty) meetup.
+// Mirrors buildDateLocationEditor's open-state fields, but for creation, not editing.
+function buildManualCreatePanel(open) {
+    if (!open) return '';
+    const today = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const defaultDate = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    return `
+    <div class="edit-panel">
+      <div class="field-label">Fecha</div>
+      <input class="search-box" id="create-date-input" type="date" value="${escHtml(defaultDate)}">
+      <div class="field-label">Hora</div>
+      <input class="search-box" id="create-time-input" type="time" value="20:00">
+      <div class="field-label">Ubicación</div>
+      <input class="search-box" id="create-location-input" type="text" placeholder="Ubicación...">
+      <div class="edit-actions">
+        <button class="btn-sm green" onclick="confirmManualCreate()">Crear</button>
+        <button class="btn-sm gray" onclick="toggleManualCreate()">Cancelar</button>
+      </div>
+    </div>`;
 }
 
 // Search input + results container for the add-player widget.
@@ -142,9 +219,7 @@ function buildRepasteTrigger(open) {
       <button class="btn btn-blue" onclick="parseRepaste()">🔍 Reconocer jugadores</button>
       <div id="repaste-review"></div>` : '';
     return `
-    <button class="collapsible-trigger" onclick="toggleRepaste()">
-      <span>📋 Re-pegar convocatoria</span><span>${open ? '▾' : '▸'}</span>
-    </button>
+    <button class="btn btn-teal" onclick="toggleRepaste()">📋 Repegar convocatoria</button>
     <div id="repaste-container">${body}</div>`;
 }
 
@@ -155,6 +230,7 @@ function buildCancelTrigger() {
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger,
+    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor, buildManualCreatePanel,
+    buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

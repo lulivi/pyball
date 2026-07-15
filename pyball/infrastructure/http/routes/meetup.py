@@ -23,12 +23,13 @@ from __future__ import annotations
 
 import functools
 import locale
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 
 from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
     MeetupAlreadyClosedError,
     MeetupNotFoundError,
     UnknownAlgorithmError,
@@ -43,6 +44,8 @@ from pyball.infrastructure.http.schemas import (
     CreateMeetupInput,
     GenerateTeamsInput,
     ParseCallupInput,
+    UpdateMeetupDateInput,
+    UpdateMeetupLocationInput,
 )
 
 if TYPE_CHECKING:
@@ -59,6 +62,15 @@ def register_meetup_routes(
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
         return build_meetup_active_response(container)
+
+    @app.get("/api/meetup/history")
+    async def meetup_history():
+        """Return closed meetups (date, location), newest first."""
+        closed = [m for m in container.meetup_repository.find_all() if m.is_closed()]
+        closed.sort(key=lambda m: m.date, reverse=True)
+        return [
+            {"date": m.date.strftime("%Y-%m-%dT%H:%M"), "location": m.location} for m in closed
+        ]
 
     @app.delete("/api/meetup/active")
     async def cancel_meetup_endpoint():
@@ -140,6 +152,21 @@ def register_meetup_routes(
         """Create (or reset) a meetup with the given player list."""
         return await _handle_create_meetup(container, notifier, body)
 
+    @app.post("/api/meetup/create-next")
+    async def create_next_meetup_endpoint():
+        """Create an empty meetup at the next occurrence of the default weekday/hour."""
+        return await _handle_create_next_meetup(container, notifier)
+
+    @app.post("/api/meetup/date")
+    async def update_meetup_date_endpoint(body: UpdateMeetupDateInput):
+        """Move a meetup to a new date."""
+        return await _handle_update_meetup_date(container, notifier, body)
+
+    @app.post("/api/meetup/location")
+    async def update_meetup_location_endpoint(body: UpdateMeetupLocationInput):
+        """Change a meetup's location."""
+        return await _handle_update_meetup_location(container, notifier, body)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -153,6 +180,8 @@ async def _handle_create_meetup(
     except ValueError as exc:
         raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
 
+    existed_before = container.meetup_repository.find_by_datetime(meetup_date) is not None
+
     try:
         meetup = container.set_meetup_players().execute(meetup_date, body.player_ids)
     except MeetupAlreadyClosedError as exc:
@@ -160,7 +189,10 @@ async def _handle_create_meetup(
     except InvalidPlayerIdError as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    await notifier.on_meetup_updated(meetup)
+    if existed_before:
+        await notifier.on_meetup_updated(meetup)
+    else:
+        await notifier.on_meetup_created(meetup)
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -172,7 +204,29 @@ async def _handle_create_meetup(
         ],
         key=lambda p: _sort(p["name"]),
     )
-    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "players": players,
+        "teams": None,
+        "location": meetup.location,
+    }
+
+
+async def _handle_create_next_meetup(container: "Container", notifier: "MatchNotifier") -> dict:
+    """Create an empty meetup at the next default weekday/hour and notify."""
+    next_date = _get_next_default_date(container.default_week_day, container.default_hour)
+    try:
+        meetup = container.create_meetup().execute(next_date)
+    except DuplicateMeetupError as exc:
+        raise HTTPException(409, "A meetup already exists at the next default date") from exc
+
+    await notifier.on_meetup_created(meetup)
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "players": [],
+        "teams": None,
+        "location": meetup.location,
+    }
 
 
 async def _handle_generate_teams(
@@ -197,3 +251,69 @@ async def _handle_generate_teams(
 
     await notifier.on_meetup_updated(meetup)
     return build_meetup_active_response(container)
+
+
+async def _handle_update_meetup_date(
+    container: "Container", notifier: "MatchNotifier", body: UpdateMeetupDateInput
+) -> dict:
+    """Validate, move the meetup's date, notify, and return the new date/location."""
+    try:
+        old_date = datetime.fromisoformat(body.old_date)
+        new_date = datetime.fromisoformat(body.new_date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    try:
+        meetup = container.update_meetup_date().execute(old_date, new_date)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at old_date") from exc
+    except DuplicateMeetupError as exc:
+        raise HTTPException(409, "A meetup already exists at new_date") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_meetup_date_changed(old_date, meetup)
+    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
+
+
+async def _handle_update_meetup_location(
+    container: "Container", notifier: "MatchNotifier", body: UpdateMeetupLocationInput
+) -> dict:
+    """Validate, update the meetup's location, notify, and return the new date/location."""
+    try:
+        meetup_date = datetime.fromisoformat(body.date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    try:
+        meetup = container.update_meetup_location().execute(meetup_date, body.location)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at date") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    await notifier.on_meetup_updated(meetup)
+    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
+
+
+def _get_next_default_date(
+    default_week_day: str, default_hour: str, now: datetime | None = None
+) -> datetime:
+    """Compute the next occurrence of the configured default weekday/hour."""
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target_weekday = day_map.get(default_week_day.lower(), 2)
+    reference = now or datetime.now()
+    days_until_target = (target_weekday - reference.weekday() + 7) % 7
+    if days_until_target == 0:
+        days_until_target = 7
+    next_date = reference + timedelta(days=days_until_target)
+    hour, minute = map(int, default_hour.split(":"))
+    return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)

@@ -57,16 +57,6 @@ def register_match_routes(app: FastAPI, container: "Container", notifier: "Match
         """Record match result and notify via the configured notifier."""
         return await _handle_finish_match(container, notifier, body)
 
-    @app.get("/api/match/latest")
-    async def latest_match():
-        """Return the date of the most recent finished meetup."""
-        all_meetups = container.meetup_repository.find_all()
-        finished = [m for m in all_meetups if m.matches and m.matches[-1].result is not None]
-        if not finished:
-            raise HTTPException(404, "No finished matches found")
-        latest = max(finished, key=lambda m: m.date)
-        return {"date": latest.date.strftime("%Y-%m-%dT%H:%M")}
-
     @app.get("/api/match/active")
     async def active_match():
         """Return the current unfinished meetup with teams, or 404."""

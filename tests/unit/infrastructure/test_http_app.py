@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
-from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
+from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
     NameAlreadyTakenError,
@@ -19,14 +19,51 @@ from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
 
 
+class TestGetNextDefaultDate:
+    """Tests for the _get_next_default_date helper."""
+
+    def test_rolls_forward_to_target_weekday(self):
+        """From a Monday, targeting Wednesday rolls forward 2 days."""
+        from pyball.infrastructure.http.routes.meetup import _get_next_default_date
+
+        monday = datetime(2026, 6, 8, 10, 0)  # a Monday
+        result = _get_next_default_date("wednesday", "20:00", now=monday)
+
+        assert result == datetime(2026, 6, 10, 20, 0)
+
+    def test_rolls_to_next_week_when_today_is_the_target_weekday(self):
+        """If today IS the target weekday, rolls forward a full week, not 0 days."""
+        from pyball.infrastructure.http.routes.meetup import _get_next_default_date
+
+        wednesday = datetime(2026, 6, 10, 10, 0)  # a Wednesday
+        result = _get_next_default_date("wednesday", "20:00", now=wednesday)
+
+        assert result == datetime(2026, 6, 17, 20, 0)
+
+    def test_defaults_to_wednesday_for_unknown_weekday_name(self):
+        """An unrecognised weekday name falls back to Wednesday (index 2)."""
+        from pyball.infrastructure.http.routes.meetup import _get_next_default_date
+
+        monday = datetime(2026, 6, 8, 10, 0)
+        result = _get_next_default_date("not-a-real-day", "20:00", now=monday)
+
+        assert result == datetime(2026, 6, 10, 20, 0)
+
+
 class _StubNotifier(MatchNotifier):
     """In-memory notifier for testing."""
 
     def __init__(self):
+        self.created = []
         self.closed = []
         self.edited = []
         self.updated = []
         self.cancelled = []
+        self.date_changed = []
+
+    async def on_meetup_created(self, meetup):
+        """Record the created meetup."""
+        self.created.append(meetup)
 
     async def on_match_closed(self, meetup):
         """Record the closed meetup."""
@@ -43,6 +80,10 @@ class _StubNotifier(MatchNotifier):
     async def on_meetup_cancelled(self, meetup):
         """Record the cancelled meetup."""
         self.cancelled.append(meetup)
+
+    async def on_meetup_date_changed(self, old_date, meetup):
+        """Record the old date and the updated meetup."""
+        self.date_changed.append((old_date, meetup))
 
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
@@ -379,6 +420,7 @@ class TestMeetupActive:
         meetup = MagicMock()
         meetup.teams = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
+        meetup.location = "Polideportivo Municipal"
         pid = MagicMock()
         pid.value = "p1"
         meetup.players = [pid]
@@ -398,6 +440,7 @@ class TestMeetupActive:
         assert response.status_code == 200
         data = response.json()
         assert data["date"] == "2026-05-28T20:00"
+        assert data["location"] == "Polideportivo Municipal"
         assert data["players"] == [{"id": "p1", "name": "Juande"}]
         assert data["teams"] is None
 
@@ -406,6 +449,7 @@ class TestMeetupActive:
         """200 with players list and populated teams object when meetup has teams."""
         meetup = MagicMock()
         meetup.date = datetime(2026, 5, 28, 20, 0)
+        meetup.location = "Polideportivo Municipal"
         pid_a = MagicMock()
         pid_a.value = "p1"
         pid_b = MagicMock()
@@ -435,6 +479,7 @@ class TestMeetupActive:
 
         assert response.status_code == 200
         data = response.json()
+        assert data["location"] == "Polideportivo Municipal"
         assert data["players"] == [
             {"id": "p2", "name": "David"},
             {"id": "p1", "name": "Juande"},
@@ -897,6 +942,78 @@ class TestCreateMeetup:
         assert isinstance(body["players"], list)
 
     @pytest.mark.asyncio
+    async def test_create_meetup_response_includes_location(self):
+        """POST /api/meetup/create includes the meetup's location in the response."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque Central")
+
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["location"] == "Parque Central"
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_calls_on_meetup_created_when_new(self):
+        """POST /api/meetup/create fires on_meetup_created when no meetup existed at that date."""
+        from pyball.domain.meetup.models import Meetup, PlayerId
+
+        date = datetime(2026, 6, 8, 20, 0)
+        meetup = Meetup.create(date=date, location="Parque")
+        p_id = PlayerId.generate()
+        meetup.add_player(p_id)
+
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = None
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": [str(p_id.value)]},
+            )
+
+        assert resp.status_code == 200
+        assert notifier.created == [meetup]
+        assert notifier.updated == []
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_calls_on_meetup_updated_when_existing(self):
+        """POST /api/meetup/create fires on_meetup_updated when a meetup already existed."""
+        from pyball.domain.meetup.models import Meetup
+
+        date = datetime(2026, 6, 8, 20, 0)
+        existing = Meetup.create(date=date, location="Parque")
+        reset_meetup = Meetup.create(date=date, location="Parque")
+
+        container = MagicMock()
+        container.meetup_repository.find_by_datetime.return_value = existing
+        container.set_meetup_players.return_value.execute.return_value = reset_meetup
+        container.player_repository.find_all.return_value = []
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert resp.status_code == 200
+        assert notifier.updated == [reset_meetup]
+        assert notifier.created == []
+
+    @pytest.mark.asyncio
     async def test_create_meetup_resets_existing_meetup(self):
         """POST /api/meetup/create clears players/teams on an existing open meetup via use case."""
         from pyball.domain.meetup.models import Meetup
@@ -1154,17 +1271,6 @@ async def test_match_active_404_when_no_meetup():
 
 
 @pytest.mark.asyncio
-async def test_match_latest_404_when_nothing_finished():
-    """GET /api/match/latest returns 404 when no finished meetups."""
-    container = _container_for_responses()
-    container.meetup_repository.find_all.return_value = []
-    app, _ = _make_app(container)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/match/latest")
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
 async def test_players_endpoint_serialises_players():
     """GET /api/players returns id, name, group, and position for each player."""
     container = _container_for_responses()
@@ -1196,6 +1302,7 @@ async def test_meetup_active_with_teams_response_shape():
 
     body = response.json()
     assert body["date"] == "2026-06-17T20:00"
+    assert body["location"] == "X"
     assert [p["name"] for p in body["players"]] == ["Ana", "Bea"]
     assert body["teams"]["teamA"] == ["Ana"]
     assert body["teams"]["teamB"] == ["Bea"]
@@ -1334,6 +1441,58 @@ async def test_meetup_create_422_on_bad_date():
     assert response.status_code == 422
 
 
+class TestMeetupHistory:
+    """Tests for GET /api/meetup/history."""
+
+    @pytest.mark.asyncio
+    async def test_returns_only_closed_meetups_newest_first(self):
+        """Only closed meetups are returned, sorted by date descending."""
+        open_meetup = Meetup.create(date=datetime(2026, 7, 20, 20, 0), location="Abierto")
+
+        p1 = PlayerId.generate()
+        closed_old = Meetup.create(date=datetime(2026, 6, 1, 20, 0), location="Viejo")
+        closed_old.add_player(p1)
+        team_a = Team.create("A", [p1])
+        team_b = Team.create("B", [])
+        closed_old.set_teams([team_a, team_b])
+        closed_old.add_match(Match(teams_playing=(team_a, team_b)))
+        closed_old.record_result(MatchResult(score_a=1, score_b=0, events=()))
+        closed_old.close()
+
+        closed_new = Meetup.create(date=datetime(2026, 7, 1, 20, 0), location="Nuevo")
+        closed_new.add_player(p1)
+        closed_new.set_teams([team_a, team_b])
+        closed_new.add_match(Match(teams_playing=(team_a, team_b)))
+        closed_new.record_result(MatchResult(score_a=2, score_b=2, events=()))
+        closed_new.close()
+
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = [open_meetup, closed_old, closed_new]
+        app, _ = _make_app(container=container)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/meetup/history")
+
+        assert resp.status_code == 200
+        assert resp.json() == [
+            {"date": "2026-07-01T20:00", "location": "Nuevo"},
+            {"date": "2026-06-01T20:00", "location": "Viejo"},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_list_when_no_closed_meetups(self):
+        """Returns an empty list (not 404) when nothing is closed yet."""
+        container = MagicMock()
+        container.meetup_repository.find_all.return_value = []
+        app, _ = _make_app(container=container)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/meetup/history")
+
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
 @pytest.mark.asyncio
 async def test_match_token_gets_403_on_manage_and_200_on_public():
     """A match-token holder cannot open /manage but can read /sw.js."""
@@ -1371,6 +1530,153 @@ async def test_manifest_uses_instance_theme_color():
     assert body["theme_color"] == "#112233"
     assert body["background_color"] == "#112233"
     assert body["name"] == "PyBall – Partido tensores"
+
+
+class TestUpdateMeetupDate:
+    """Tests for POST /api/meetup/date."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_with_new_date(self):
+        """Successful date change returns the new date."""
+        from pyball.domain.meetup.models import Meetup
+
+        updated = Meetup.create(date=datetime(2026, 6, 15, 20, 0), location="Parque")
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.return_value = updated
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json() == {"date": "2026-06-15T20:00", "location": "Parque"}
+        assert notifier.date_changed == [(datetime(2026, 6, 8, 20, 0), updated)]
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_not_found(self):
+        """404 when no meetup exists at old_date."""
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.side_effect = MeetupNotFoundError(
+            "2026-06-08T20:00"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_409_when_new_date_taken(self):
+        """409 when another meetup already exists at new_date."""
+        from pyball.domain.meetup.errors import DuplicateMeetupError
+
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.side_effect = DuplicateMeetupError(
+            "taken"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_returns_422_when_closed(self):
+        """422 when the use case rejects a closed meetup."""
+        container = MagicMock()
+        container.update_meetup_date.return_value.execute.side_effect = ValueError(
+            "Cannot change date of a finished match"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "2026-06-08T20:00", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_bad_date_format(self):
+        """422 for unparseable date strings."""
+        app, _ = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/date",
+                json={"old_date": "not-a-date", "new_date": "2026-06-15T20:00"},
+            )
+        assert resp.status_code == 422
+
+
+class TestUpdateMeetupLocation:
+    """Tests for POST /api/meetup/location."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_with_new_location(self):
+        """Successful location change returns the new location."""
+        from pyball.domain.meetup.models import Meetup
+
+        updated = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Nuevo Campo")
+        container = MagicMock()
+        container.update_meetup_location.return_value.execute.return_value = updated
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "2026-06-08T20:00", "location": "Nuevo Campo"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json() == {"date": "2026-06-08T20:00", "location": "Nuevo Campo"}
+        assert notifier.updated == [updated]
+
+    @pytest.mark.asyncio
+    async def test_returns_404_when_not_found(self):
+        """404 when no meetup exists at date."""
+        container = MagicMock()
+        container.update_meetup_location.return_value.execute.side_effect = MeetupNotFoundError(
+            "2026-06-08T20:00"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "2026-06-08T20:00", "location": "Nuevo Campo"},
+            )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_empty_location(self):
+        """422 when the use case rejects an empty location."""
+        container = MagicMock()
+        container.update_meetup_location.return_value.execute.side_effect = ValueError(
+            "Location cannot be empty"
+        )
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "2026-06-08T20:00", "location": ""},
+            )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_returns_422_on_bad_date_format(self):
+        """422 for unparseable date strings."""
+        app, _ = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/location",
+                json={"date": "not-a-date", "location": "X"},
+            )
+        assert resp.status_code == 422
 
 
 class TestCreatePlayerEndpoint:
@@ -1944,3 +2250,48 @@ class TestMeetupRouteNotifierCalls:
             await c.post("/api/meetup/close")
 
         assert notifier.closed == []
+
+
+class TestCreateNextMeetup:
+    """Tests for POST /api/meetup/create-next."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_and_calls_on_meetup_created(self):
+        """Creates an empty meetup at the computed date and fires on_meetup_created."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 10, 20, 0), location="Parque Central")
+        container = MagicMock()
+        container.default_week_day = "wednesday"
+        container.default_hour = "20:00"
+        container.create_meetup.return_value.execute.return_value = meetup
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/create-next")
+
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "date": "2026-06-10T20:00",
+            "players": [],
+            "teams": None,
+            "location": "Parque Central",
+        }
+        assert notifier.created == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_returns_409_when_meetup_already_exists_at_computed_date(self):
+        """409 when a meetup (open or closed) already exists at the computed date."""
+        from pyball.domain.meetup.errors import DuplicateMeetupError
+
+        container = MagicMock()
+        container.default_week_day = "wednesday"
+        container.default_hour = "20:00"
+        container.create_meetup.return_value.execute.side_effect = DuplicateMeetupError("taken")
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/create-next")
+
+        assert resp.status_code == 409
+        assert notifier.created == []

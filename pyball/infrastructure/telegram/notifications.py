@@ -21,6 +21,7 @@
 
 import asyncio
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import telegram
@@ -37,7 +38,7 @@ from pyball.infrastructure.telegram.formatters import (
     format_main_message,
     format_subs_message,
 )
-from pyball.infrastructure.telegram.message_store import TelegramMessageStore
+from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
@@ -60,8 +61,23 @@ class TelegramMatchNotifier(MatchNotifier):
         self._settings = settings
         self._container = container
 
+    async def on_meetup_created(self, meetup: Meetup) -> None:
+        """Handle a brand-new meetup by posting the callup message to regulars only.
+
+        The substitutes chat is never notified here — that stays a manual,
+        separate action (the "🔎 Buscar jugadores" button / /meetup_search),
+        so regulars get priority for a few days before subs are searched.
+        """
+        await _send_regulars_callup_message(self._bot, self._settings, self._container, meetup)
+
     async def on_meetup_updated(self, meetup: Meetup) -> None:
         """Handle a meetup update by refreshing platform messages."""
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
+
+    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
+        """Handle a meetup date change by re-keying tracked messages and refreshing them."""
+        store = TelegramMessageStore(self._settings.paths.data_dir / "bot" / "messages.json")
+        store.rename_date(old_date, meetup.date)
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
 
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
@@ -109,14 +125,12 @@ class TelegramMatchNotifier(MatchNotifier):
             logger.error("Error sending corrected result message: %s", error)
 
 
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def refresh_callup_messages(
     bot: telegram.Bot,
     settings: "TelegramAppSettings",
     container: "Container",
     meetup: Meetup,
     include_keyboard: bool = True,
-    locked: bool = False,
 ) -> None:
     """Edit the existing callup messages to reflect the current meetup state.
 
@@ -126,9 +140,6 @@ async def refresh_callup_messages(
         container: DI container with repositories.
         meetup: Meetup to display.
         include_keyboard: Whether to include join/leave buttons (default True).
-        locked: When True, the regular message's keyboard is replaced by a
-            single "Desfijar partido" button, and the substitutes message's
-            keyboard is hidden, regardless of include_keyboard.
     """
     player_repo = container.player_repository
     all_players = player_repo.find_all()
@@ -148,12 +159,11 @@ async def refresh_callup_messages(
             date_fmt=date_fmt,
             legacy_stats=container.legacy_stats,
         )
-        if locked:
-            kb = build_main_keyboard(meetup.date, locked=True)
-        elif include_keyboard:
-            kb = build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
-        else:
-            kb = None
+        kb = (
+            build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
+            if include_keyboard
+            else None
+        )
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
@@ -177,7 +187,7 @@ async def refresh_callup_messages(
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
         )
-        kb = build_subs_keyboard(meetup.date) if (include_keyboard and not locked) else None
+        kb = build_subs_keyboard(meetup.date) if include_keyboard else None
         try:
             await bot.edit_message_text(
                 chat_id=sub_tracking.chat_id,
@@ -255,6 +265,48 @@ async def _cancel_callup_messages(
 
     store.delete_message(meetup.date, "regular")
     store.delete_message(meetup.date, "substitute")
+
+
+async def _send_regulars_callup_message(
+    bot: telegram.Bot,
+    settings: "TelegramAppSettings",
+    container: "Container",
+    meetup: Meetup,
+) -> None:
+    """Send the initial callup message to the regulars chat and track it."""
+    player_names = {str(p.id.value): p.name for p in container.player_repository.find_all()}
+    text = format_main_message(
+        meetup,
+        player_names,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
+        date_fmt=settings.pyball.display_date_format,
+    )
+    keyboard = build_main_keyboard(meetup.date)
+    thread_id = settings.telegram.regulars.meetups_thread_id or None
+
+    try:
+        msg = await bot.send_message(
+            chat_id=settings.telegram.regulars.chat_id,
+            text=text,
+            reply_markup=keyboard,
+            message_thread_id=int(thread_id) if thread_id else None,
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+        store.save_message(
+            meetup.date,
+            "regular",
+            MessageTracking(
+                chat_id=settings.telegram.regulars.chat_id,
+                thread_id=thread_id,
+                message_id=msg.message_id,
+            ),
+        )
+    except telegram.error.TelegramError as error:
+        logger.error("Error sending regulars message (Telegram): %s", error)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception("Error sending regulars message: %s", error)
 
 
 async def _post_match_stats(

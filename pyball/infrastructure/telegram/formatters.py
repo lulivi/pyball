@@ -45,25 +45,8 @@ def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
     return datetime.strptime(s, fmt)
 
 
-def build_main_keyboard(
-    meetup_date: datetime, has_teams: bool = False, locked: bool = False
-) -> InlineKeyboardMarkup:
-    """Build inline keyboard for main chat.
-
-    When locked, every other button is replaced by a single "Desfijar partido"
-    button that undoes the lock.
-    """
-    if locked:
-        return InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        text="🔓 Desfijar partido",
-                        callback_data=build_callback_data("unlock", meetup_date),
-                    ),
-                ]
-            ]
-        )
+def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> InlineKeyboardMarkup:
+    """Build inline keyboard for main chat."""
     rows = [
         [
             InlineKeyboardButton(
@@ -77,22 +60,6 @@ def build_main_keyboard(
                 callback_data=build_callback_data("leave", meetup_date),
             ),
         ],
-        [
-            InlineKeyboardButton(
-                text="────────────────────",
-                callback_data=build_callback_data("noop", meetup_date),
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="🔀 Crear 2 equipos",
-                callback_data=build_callback_data("create_teams", meetup_date),
-            ),
-            InlineKeyboardButton(
-                text="🔀 Crear 3 equipos",
-                callback_data=build_callback_data("create_teams_3", meetup_date),
-            ),
-        ],
     ]
     if not has_teams:
         rows.append(
@@ -100,15 +67,6 @@ def build_main_keyboard(
                 InlineKeyboardButton(
                     text="🔎 Buscar jugadores",
                     callback_data=build_callback_data("search", meetup_date),
-                ),
-            ]
-        )
-    if has_teams:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text="🔒 Fijar partido",
-                    callback_data=build_callback_data("lock", meetup_date),
                 ),
             ]
         )
@@ -308,18 +266,7 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     if ":" not in callback_data:
         return None
     action, date_str = callback_data.split(":", 1)
-    if action not in (
-        "join",
-        "leave",
-        "join_sub",
-        "leave_sub",
-        "create_teams",
-        "create_teams_3",
-        "lock",
-        "unlock",
-        "search",
-        "noop",
-    ):
+    if action not in ("join", "leave", "join_sub", "leave_sub", "search"):
         return None
     return action, date_str
 

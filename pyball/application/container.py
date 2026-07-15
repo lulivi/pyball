@@ -200,6 +200,11 @@ class Container:  # pylint: disable=too-many-public-methods
         return self._settings.pyball.default_hour
 
     @property
+    def default_week_day(self) -> str:
+        """Return the configured default meetup weekday, e.g. 'wednesday'."""
+        return self._settings.pyball.default_week_day
+
+    @property
     def name(self) -> str:
         """Return the configured instance name."""
         return self._settings.pyball.name
