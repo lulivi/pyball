@@ -19,7 +19,7 @@
 # SOFTWARE.
 """Cancel (delete) the active meetup use case."""
 
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 
@@ -41,11 +41,14 @@ class CancelMeetup:
 
         Raises:
             MeetupNotFoundError: No active meetup exists.
+            MeetupLockedError: The active meetup is locked.
         """
         all_meetups = self.meetup_repository.find_all()
         active = [m for m in all_meetups if not m.closed]
         if not active:
             raise MeetupNotFoundError("active")
         meetup = max(active, key=lambda m: m.date)
+        if meetup.locked:
+            raise MeetupLockedError(f"Meetup at {meetup.date} is locked, cannot cancel.")
         self.meetup_repository.delete(meetup.id)
         return meetup

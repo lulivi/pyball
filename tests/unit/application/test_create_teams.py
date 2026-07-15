@@ -7,8 +7,8 @@ import pytest
 
 from pyball.application.meetup.create_teams import CreateTeams
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
-from pyball.domain.meetup.errors import MeetupNotFoundError
-from pyball.domain.meetup.models import Meetup, PlayerId
+from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
+from pyball.domain.meetup.models import Meetup, PlayerId, Team
 
 
 class StubAlgorithm:
@@ -112,3 +112,23 @@ class TestCreateTeams:
 
         assert result.current_match() is not None
         assert set(result.current_match().teams_playing) == set(result.teams)
+
+    def test_raises_when_meetup_is_locked(self):
+        """MeetupLockedError is raised when the meetup is locked, teams untouched."""
+        players = [PlayerId.generate() for _ in range(4)]
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        for p in players:
+            meetup.add_player(p)
+        meetup.set_teams([Team.create("A", players[:2]), Team.create("B", players[2:])])
+        original_teams = meetup.teams
+        meetup.lock()
+
+        repo = MagicMock()
+        repo.find_by_datetime.return_value = meetup
+        use_case = CreateTeams(repo, StubAlgorithm())
+
+        with pytest.raises(MeetupLockedError):
+            use_case.execute(datetime(2026, 5, 6, 20, 0))
+
+        assert meetup.teams == original_teams
+        repo.save.assert_not_called()
