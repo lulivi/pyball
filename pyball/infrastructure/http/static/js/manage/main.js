@@ -48,6 +48,8 @@ async function createNextMeetup() {
         return;
     }
     activeMatchData = data;
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
     renderState1(activeMatchData);
 }
 
@@ -76,6 +78,7 @@ async function confirmManualCreate() {
     }
     activeMatchData = { ...created, location };
     manualCreateOpen = false;
+    pasteFlowOpen = false;
     renderState1(activeMatchData);
 }
 
@@ -573,6 +576,8 @@ async function confirmRepaste() {
             activeMatchData = null;
             repastePanelOpen = false;
             rosterAddVisible = false;
+            manualCreateOpen = false;
+            pasteFlowOpen = false;
             _buildFreshFlowHTML();
             showStep('paste');
         }
@@ -594,6 +599,8 @@ async function cancelMeetup() {
     activeMatchData = null;
     repastePanelOpen = false;
     rosterAddVisible = false;
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
     _buildFreshFlowHTML();
     showStep('paste');
 }
@@ -609,6 +616,8 @@ async function closeMeetup() {
     activeMatchData = null;
     repastePanelOpen = false;
     rosterAddVisible = false;
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
     _buildFreshFlowHTML();
     showStep('paste');
 }
@@ -709,11 +718,15 @@ async function bootstrap() {
                 data = await get('/api/meetup/active');
             } catch (err) {
                 if (err instanceof ApiError && err.status === 404) {
+                    manualCreateOpen = false;
+                    pasteFlowOpen = false;
                     _buildFreshFlowHTML();
                     showStep('paste');
                     return;
                 }
                 if (err instanceof ApiError && err.status !== 0) {
+                    manualCreateOpen = false;
+                    pasteFlowOpen = false;
                     _buildFreshFlowHTML();
                     showStep('paste');
                     document.getElementById('step-paste').insertAdjacentHTML(
