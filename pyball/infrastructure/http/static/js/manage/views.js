@@ -122,7 +122,7 @@ function buildConvocatoriaRow(item, open) {
     <button class="collapsible-trigger" data-date="${escHtml(item.date)}"
       onclick="toggleConvocatoriaRow(this.dataset.date)">
       <span>📅 ${escHtml(_formatDate(item.date))} · ${escHtml(item.location)}</span>
-      <span>${open ? '▾' : '▸'}</span>
+      <span id="convocatoria-arrow-${escHtml(item.date)}">${open ? '▾' : '▸'}</span>
     </button>
     <div id="convocatoria-detail-${escHtml(item.date)}"></div>`;
 }

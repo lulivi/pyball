@@ -641,9 +641,18 @@ async function loadConvocatorias() {
     if (expandedConvocatoriaDate) await _loadConvocatoriaDetail(expandedConvocatoriaDate);
 }
 
+// Toggles one row's expand state in place (arrow + detail panel only) — never
+// rebuilds the whole list, so the page never collapses to a "Cargando..."
+// placeholder and the browser has no reason to reset scroll position.
 async function toggleConvocatoriaRow(date) {
-    expandedConvocatoriaDate = (expandedConvocatoriaDate === date ? null : date);
-    await loadConvocatorias();
+    const previous = expandedConvocatoriaDate;
+    if (previous && previous !== date) {
+        _setConvocatoriaExpanded(previous, false);
+    }
+    const opening = previous !== date;
+    expandedConvocatoriaDate = opening ? date : null;
+    _setConvocatoriaExpanded(date, opening);
+    if (opening) await _loadConvocatoriaDetail(date);
 }
 
 function copySummary(date) {
@@ -894,6 +903,17 @@ function _renderTeamsEditPanel() {
         input.value = editAddQuery;
         input.focus();
         searchEditAdd();
+    }
+}
+
+// Flips one row's arrow icon and clears its detail panel on collapse.
+// Does nothing to the rest of the list — no full-list rebuild, no scroll reset.
+function _setConvocatoriaExpanded(date, expanded) {
+    const arrow = document.getElementById('convocatoria-arrow-' + date);
+    if (arrow) arrow.textContent = expanded ? '▾' : '▸';
+    if (!expanded) {
+        const detail = document.getElementById('convocatoria-detail-' + date);
+        if (detail) detail.innerHTML = '';
     }
 }
 
