@@ -35,20 +35,8 @@ COMMAND_DESCRIPTIONS: dict[str, str] = {
     "player_change_position": "Change player position",
     "player_link": "Link Telegram ID to player",
     "player_unlink": "Unlink a player's Telegram ID",
-    "meetup_new": "Create a new meetup",
-    "meetup_next": "Create meetup for next default day",
-    "meetup_list": "List all meetups",
-    "meetup_show": "Show meetup details",
-    "meetup_add_player": "Add player to meetup",
-    "meetup_remove_player": "Remove player from meetup",
     "meetup_search": "Send substitutes message",
-    "meetup_create_teams": "Create random teams",
-    "meetup_lock": "Remove inline buttons from callup messages",
-    "meetup_unlock": "Restore inline buttons on callup messages",
     "meetup_stats": "Show statistics",
-    "meetup_change_location": "Change meetup location",
-    "meetup_change_date": "Change meetup date",
-    "meetup_close_triangular": "Close a triangular tournament session",
 }
 
 _MD_V2_SPECIAL = r"_*[]()~`>#+-=|{}.!"

@@ -30,7 +30,9 @@ from pyball.application.notifier import NullMatchNotifier
 async def test_null_notifier_methods_are_noops():
     """All NullMatchNotifier hooks can be awaited without side effects."""
     notifier = NullMatchNotifier()
+    await notifier.on_meetup_created(MagicMock())
     await notifier.on_match_closed(MagicMock())
     await notifier.on_meetup_updated(MagicMock())
     await notifier.on_match_edited(MagicMock())
     await notifier.on_meetup_cancelled(MagicMock())
+    await notifier.on_meetup_date_changed(MagicMock(), MagicMock())

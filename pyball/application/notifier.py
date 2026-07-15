@@ -20,6 +20,7 @@
 """Notifier interface for match lifecycle events."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from pyball.domain.meetup.models import Meetup
 
@@ -28,12 +29,20 @@ class MatchNotifier(ABC):
     """Abstract notifier called after match and meetup state changes."""
 
     @abstractmethod
+    async def on_meetup_created(self, meetup: Meetup) -> None:
+        """Handle a brand-new meetup by announcing it to the platform."""
+
+    @abstractmethod
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Handle a closed match by notifying the platform."""
 
     @abstractmethod
     async def on_meetup_updated(self, meetup: Meetup) -> None:
         """Handle a meetup update by refreshing platform messages."""
+
+    @abstractmethod
+    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
+        """Handle a meetup date change by re-keying and refreshing platform messages."""
 
     @abstractmethod
     async def on_match_edited(self, meetup: Meetup) -> None:
@@ -47,10 +56,16 @@ class MatchNotifier(ABC):
 class NullMatchNotifier(MatchNotifier):
     """No-op notifier used by topologies that have no notification channel."""
 
+    async def on_meetup_created(self, meetup: Meetup) -> None:
+        """Do nothing."""
+
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Do nothing."""
 
     async def on_meetup_updated(self, meetup: Meetup) -> None:
+        """Do nothing."""
+
+    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
         """Do nothing."""
 
     async def on_match_edited(self, meetup: Meetup) -> None:

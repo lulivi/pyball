@@ -2,7 +2,8 @@ import { get, post, del, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger,
+    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor, buildManualCreatePanel,
+    buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -22,6 +23,11 @@ let rosterSearchQuery = '';     // State 1: current add-player search text
 let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
 let repastePanelOpen = false;   // collapsed re-paste section open?
+let manualCreateOpen = false;   // manual create-date/location form open?
+let pasteFlowOpen = false;      // paste-a-callup textarea revealed?
+let dateLocationEditOpen = false; // date/location edit panel open?
+let teamsEditPanelOpen = false; // team-edit panel open? (hides the other state-2 buttons)
+let expandedConvocatoriaDate = null; // which Convocatorias row is expanded, if any
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -29,8 +35,58 @@ function switchTab(name, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
-    if (name === 'resumen') loadResumen();
+    if (name === 'convocatorias') loadConvocatorias();
     if (name === 'jugadores') window.loadJugadores();
+}
+
+// ── NO ACTIVE MEETUP: three creation actions ─────────────────────────────────
+async function createNextMeetup() {
+    let data;
+    try {
+        data = await post('/api/meetup/create-next', {});
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = data;
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
+    renderState1(activeMatchData);
+}
+
+function toggleManualCreate() {
+    manualCreateOpen = !manualCreateOpen;
+    if (manualCreateOpen) { pasteFlowOpen = false; _renderPasteContainer(); }
+    _renderManualCreateContainer();
+}
+
+async function confirmManualCreate() {
+    const date = document.getElementById('create-date-input').value;
+    const time = document.getElementById('create-time-input').value;
+    const location = document.getElementById('create-location-input').value.trim();
+    if (!date || !time || !location) {
+        alert('Completa fecha, hora y ubicación.');
+        return;
+    }
+    const iso = `${date}T${time}`;
+    let created;
+    try {
+        created = await post('/api/meetup/create', { date: iso, player_ids: [] });
+        await post('/api/meetup/location', { date: created.date, location });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = { ...created, location };
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
+    renderState1(activeMatchData);
+}
+
+function togglePasteFlow() {
+    pasteFlowOpen = !pasteFlowOpen;
+    if (pasteFlowOpen) { manualCreateOpen = false; _renderManualCreateContainer(); }
+    _renderPasteContainer();
 }
 
 // ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
@@ -149,7 +205,7 @@ function renderState1(data) {
         ? buildAddPlayerPanel('roster-add', 'searchRosterAdd()')
         : '';
     document.getElementById('tab-equipos').innerHTML = `
-    <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
+    ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
     <div id="roster-list">${buildRosterList(data.players)}</div>
     <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
@@ -193,6 +249,45 @@ async function removeFromRoster(id) {
     await _saveRoster(remaining.map(p => p.id));
 }
 
+async function toggleDateLocationEdit() {
+    if (!dateLocationEditOpen && activeMatchData.location === undefined) {
+        try {
+            const active = await get('/api/meetup/active');
+            activeMatchData.location = active.location;
+        } catch {
+            activeMatchData.location = '';
+        }
+    }
+    dateLocationEditOpen = !dateLocationEditOpen;
+    _rerenderActiveState();
+}
+
+async function saveDateLocationEdit() {
+    const newDate = document.getElementById('edit-date-input').value;
+    const newTime = document.getElementById('edit-time-input').value;
+    const newLocation = document.getElementById('edit-location-input').value.trim();
+    if (!newDate || !newTime || !newLocation) {
+        alert('Completa fecha, hora y ubicación.');
+        return;
+    }
+    const newIso = `${newDate}T${newTime}`;
+    try {
+        if (newIso !== activeMatchData.date) {
+            await post('/api/meetup/date', { old_date: activeMatchData.date, new_date: newIso });
+            activeMatchData.date = newIso;
+        }
+        if (newLocation !== activeMatchData.location) {
+            await post('/api/meetup/location', { date: activeMatchData.date, location: newLocation });
+            activeMatchData.location = newLocation;
+        }
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    dateLocationEditOpen = false;
+    _rerenderActiveState();
+}
+
 function toggleRosterAdd() {
     rosterAddVisible = !rosterAddVisible;
     rosterSearchQuery = '';
@@ -226,21 +321,28 @@ async function pickRosterAdd(id) {
 // ── STATE 2: match with teams ─────────────────────────────────────────────
 function renderState2(data) {
     const t = data.teams;
+    if (teamsEditPanelOpen) {
+        document.getElementById('tab-equipos').innerHTML = `
+      ${buildDateLocationEditor(data, dateLocationEditOpen)}
+      <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✕ Cancelar edición</button>
+      <div id="edit-panel-container"></div>
+    `;
+        return;
+    }
     const blocks = [`${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}`, `${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`];
     if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${t.teamC.join('\n')}`);
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
-    <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
-    <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
-    <div class="regen-row">
-      <button class="btn-sm green" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar (2)</button>
-      <button class="btn-sm green" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar (3)</button>
-      <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
-    </div>
-    ${t.teamC ? '<button class="btn-sm amber" style="width:100%;margin-top:6px;" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
-    <div id="edit-panel-container"></div>
+    ${buildDateLocationEditor(data, dateLocationEditOpen)}
     ${buildRepasteTrigger(repastePanelOpen)}
+    <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
+    <div class="action-row">
+      <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar equipos (2)</button>
+      <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar equipos (3)</button>
+    </div>
+    <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
+    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
+    ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     ${buildCancelTrigger()}
   `;
 }
@@ -250,7 +352,7 @@ function copyTeams() {
 }
 
 async function regenerateCurrentTeams(teamCount, btn) {
-    const buttons = document.querySelectorAll('.regen-row .btn-sm.green');
+    const buttons = document.querySelectorAll('.regen-btn');
     const originalLabels = Array.from(buttons).map(b => b.textContent);
     buttons.forEach(b => { b.disabled = true; });
     if (btn) btn.textContent = 'Regenerando...';
@@ -270,15 +372,13 @@ async function regenerateCurrentTeams(teamCount, btn) {
 
 // ── TEAMS EDIT PANEL ─────────────────────────────────────────────────────
 async function toggleTeamsEditPanel() {
-    const container = document.getElementById('edit-panel-container');
-    if (container.innerHTML) {
+    if (teamsEditPanelOpen) {
         editTeamLetters.forEach(letter => { editTeams[letter] = []; editGoalkeepers[letter] = null; });
         editReplacingPlayer = null;
         editAddOpenTeam = null;
         editAddQuery = '';
-        container.innerHTML = '';
-        const teamsBox = document.getElementById('teams-text');
-        if (teamsBox) teamsBox.style.display = '';
+        teamsEditPanelOpen = false;
+        renderState2(activeMatchData);
         return;
     }
     const open = () => {
@@ -302,6 +402,8 @@ async function toggleTeamsEditPanel() {
             return;
         }
         editReplacingPlayer = null;
+        teamsEditPanelOpen = true;
+        renderState2(activeMatchData);
         _renderTeamsEditPanel();
     };
     if (!allPlayers.length) {
@@ -424,6 +526,7 @@ async function saveTeams() {
     editReplacingPlayer = null;
     editAddOpenTeam = null;
     editAddQuery = '';
+    teamsEditPanelOpen = false;
     renderState2(activeMatchData);
 }
 
@@ -482,6 +585,8 @@ async function confirmRepaste() {
             activeMatchData = null;
             repastePanelOpen = false;
             rosterAddVisible = false;
+            manualCreateOpen = false;
+            pasteFlowOpen = false;
             _buildFreshFlowHTML();
             showStep('paste');
         }
@@ -503,6 +608,8 @@ async function cancelMeetup() {
     activeMatchData = null;
     repastePanelOpen = false;
     rosterAddVisible = false;
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
     _buildFreshFlowHTML();
     showStep('paste');
 }
@@ -518,50 +625,47 @@ async function closeMeetup() {
     activeMatchData = null;
     repastePanelOpen = false;
     rosterAddVisible = false;
+    manualCreateOpen = false;
+    pasteFlowOpen = false;
     _buildFreshFlowHTML();
     showStep('paste');
 }
 
-// ── TAB: RESUMEN ──────────────────────────────────────────────────────────────
-async function loadResumen() {
-    const el = document.getElementById('resumen-content');
+// ── TAB: CONVOCATORIAS ────────────────────────────────────────────────────────
+async function loadConvocatorias() {
+    const el = document.getElementById('convocatorias-content');
     el.innerHTML = '<div class="empty-state">Cargando...</div>';
+    let history;
     try {
-        let latestData;
-        try {
-            latestData = await get('/api/match/latest');
-        } catch (err) {
-            if (err instanceof ApiError && err.status === 404) {
-                el.innerHTML = '<div class="empty-state">Aún no hay partidos terminados.</div>';
-                return;
-            }
-            throw err;
-        }
-        const { date } = latestData;
-        let summaryData;
-        try {
-            summaryData = await get(`/api/match/${encodeURIComponent(date)}/summary`);
-        } catch {
-            el.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>';
-            return;
-        }
-        const { date_label, message } = summaryData;
-
-        el.innerHTML = `
-      <div class="step-label">${escHtml(date_label)}</div>
-      <div class="summary-box" id="summary-msg">${escHtml(message)}</div>
-      <button class="btn btn-teal" onclick="copySummary()">📋 Copiar texto</button>
-      <button class="btn btn-purple" data-share-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.shareDate, document.getElementById('summary-msg').textContent)">📤 Compartir imagen con texto</button>
-      <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
-      <hr class="divider">
-      <button class="btn-sm green" data-date="${escHtml(date)}"
-        onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>
-    `;
-    } catch (e) { el.innerHTML = '<div class="empty-state">Error de red.</div>'; }
+        history = await get('/api/meetup/history');
+    } catch {
+        el.innerHTML = '<div class="empty-state">Error al cargar el historial.</div>';
+        return;
+    }
+    if (!history.length) {
+        el.innerHTML = '<div class="empty-state">Aún no hay convocatorias cerradas.</div>';
+        return;
+    }
+    el.innerHTML = history.map(item => buildConvocatoriaRow(item, item.date === expandedConvocatoriaDate)).join('');
+    if (expandedConvocatoriaDate) await _loadConvocatoriaDetail(expandedConvocatoriaDate);
 }
 
-function copySummary() {
-    _copyToClipboard(document.getElementById('summary-msg').textContent);
+// Toggles one row's expand state in place (arrow + detail panel only) — never
+// rebuilds the whole list, so the page never collapses to a "Cargando..."
+// placeholder and the browser has no reason to reset scroll position.
+async function toggleConvocatoriaRow(date) {
+    const previous = expandedConvocatoriaDate;
+    if (previous && previous !== date) {
+        _setConvocatoriaExpanded(previous, false);
+    }
+    const opening = previous !== date;
+    expandedConvocatoriaDate = opening ? date : null;
+    _setConvocatoriaExpanded(date, opening);
+    if (opening) await _loadConvocatoriaDetail(date);
+}
+
+function copySummary(date) {
+    _copyToClipboard(document.getElementById('summary-msg-' + date).textContent);
 }
 
 async function downloadStats(date) {
@@ -582,7 +686,7 @@ async function shareStats(btn, date, summaryText) {
         const blob = await res.blob();
         const file = new File([blob], `stats-${date}.png`, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], text: summaryText || document.getElementById('summary-msg')?.textContent || '' });
+            await navigator.share({ files: [file], text: summaryText || document.getElementById('summary-msg-' + date)?.textContent || '' });
         } else {
             alert('Compartir archivos no está disponible en este navegador.');
         }
@@ -632,11 +736,15 @@ async function bootstrap() {
                 data = await get('/api/meetup/active');
             } catch (err) {
                 if (err instanceof ApiError && err.status === 404) {
+                    manualCreateOpen = false;
+                    pasteFlowOpen = false;
                     _buildFreshFlowHTML();
                     showStep('paste');
                     return;
                 }
                 if (err instanceof ApiError && err.status !== 0) {
+                    manualCreateOpen = false;
+                    pasteFlowOpen = false;
                     _buildFreshFlowHTML();
                     showStep('paste');
                     document.getElementById('step-paste').insertAdjacentHTML(
@@ -697,9 +805,21 @@ function _rerenderActiveState() {
     else renderState1(activeMatchData);
 }
 
+function _renderManualCreateContainer() {
+    const el = document.getElementById('manual-create-container');
+    if (el) el.innerHTML = buildManualCreatePanel(manualCreateOpen);
+}
+
+function _renderPasteContainer() {
+    const el = document.getElementById('paste-flow-container');
+    if (!el) return;
+    el.innerHTML = pasteFlowOpen ? `
+    <div class="step-label" style="margin-top:12px;">Pega la convocatoria</div>
+    <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
+    <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>` : '';
+}
+
 function _renderTeamsEditPanel() {
-    const teamsBox = document.getElementById('teams-text');
-    if (teamsBox) teamsBox.style.display = 'none';
     const sizes = editTeamLetters.map(letter => editTeams[letter].length);
     const tooUneven = Math.max(...sizes) - Math.min(...sizes) > 1;
     const t = activeMatchData.teams;
@@ -793,6 +913,29 @@ function _renderTeamsEditPanel() {
     }
 }
 
+// Flips one row's arrow icon and clears its detail panel on collapse.
+// Does nothing to the rest of the list — no full-list rebuild, no scroll reset.
+function _setConvocatoriaExpanded(date, expanded) {
+    const arrow = document.getElementById('convocatoria-arrow-' + date);
+    if (arrow) arrow.textContent = expanded ? '▾' : '▸';
+    if (!expanded) {
+        const detail = document.getElementById('convocatoria-detail-' + date);
+        if (detail) detail.innerHTML = '';
+    }
+}
+
+async function _loadConvocatoriaDetail(date) {
+    const container = document.getElementById('convocatoria-detail-' + date);
+    if (!container) return;
+    container.innerHTML = '<div class="empty-state">Cargando...</div>';
+    try {
+        const { message } = await get(`/api/match/${encodeURIComponent(date)}/summary`);
+        container.innerHTML = buildConvocatoriaDetail(date, message);
+    } catch {
+        container.innerHTML = '<div class="empty-state">Error al cargar el resumen.</div>';
+    }
+}
+
 function _copyToClipboard(text) {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
@@ -835,12 +978,17 @@ Object.assign(window, {
     toggleRepaste,
     parseRepaste,
     confirmRepaste,
+    createNextMeetup,
+    toggleManualCreate,
+    confirmManualCreate,
+    togglePasteFlow,
     cancelMeetup,
     closeMeetup,
     copySummary,
     downloadStats,
     shareStats,
-    loadResumen,
+    loadConvocatorias,
+    toggleConvocatoriaRow,
     pickCandidate,
     excludePlayer,
     closePanel,
@@ -854,6 +1002,8 @@ Object.assign(window, {
     toggleRosterAdd,
     searchRosterAdd,
     pickRosterAdd,
+    toggleDateLocationEdit,
+    saveDateLocationEdit,
 });
 
 if ('serviceWorker' in navigator) {

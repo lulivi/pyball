@@ -7,16 +7,13 @@ from datetime import datetime
 import pytest
 from telegram.constants import ParseMode
 
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError
-from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
-from pyball.infrastructure.telegram.bot.handlers.meetup import (
-    add_player_handler,
-    create_teams_handler,
-    new_meetup_handler,
-    remove_player_handler,
-    search_handler,
-    stats_handler,
+from pyball.domain.meetup.errors import (
+    DuplicateMeetupError,
+    MeetupAlreadyClosedError,
+    PlayerNotInMeetupError,
 )
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
+from pyball.infrastructure.telegram.bot.handlers.meetup import search_handler, stats_handler
 from pyball.infrastructure.telegram.bot.handlers.player import new_player_handler
 
 _DATE_ARGS = ["2026-06-15", "20:00"]
@@ -40,10 +37,10 @@ class TestFullMatchLifecycle:
     ):
         """Happy path: create players → meetup → add/remove → teams → match → stats."""
         await self._create_players(bot_update, bot_context, real_container)
-        await self._create_meetup(bot_update, bot_context, real_container)
-        await self._add_players(bot_update, bot_context, real_container)
-        await self._remove_player(bot_update, bot_context, real_container)
-        await self._generate_teams_twice(bot_update, bot_context, real_container)
+        await self._create_meetup(real_container)
+        await self._add_players(real_container)
+        await self._remove_player(real_container)
+        await self._generate_teams_twice(real_container)
         await self._search_substitutes(bot_update, bot_context)
         await self._finish_match(real_container)
         await self._verify_stats(bot_update, bot_context, real_container, monkeypatch)
@@ -63,46 +60,38 @@ class TestFullMatchLifecycle:
         all_players = real_container.player_repository.find_all()
         assert len(all_players) == 14
 
-    async def _create_meetup(self, bot_update, bot_context, real_container):
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+    async def _create_meetup(self, real_container):
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup is not None
         assert meetup.location == "Test Field"
 
-    async def _add_players(self, bot_update, bot_context, real_container):
+    async def _add_players(self, real_container):
         for name in _REGULARS:
-            bot_context.args = [*_DATE_ARGS, name]
-            await add_player_handler(bot_update, bot_context)
+            real_container.add_player_to_meetup().execute(_MATCH_DATE, name)
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 10
 
-    async def _remove_player(self, bot_update, bot_context, real_container):
-        bot_context.args = [*_DATE_ARGS, "Regular_10"]
-        await remove_player_handler(bot_update, bot_context)
+    async def _remove_player(self, real_container):
+        real_container.remove_player_from_meetup().execute(_MATCH_DATE, "Regular_10")
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 9
 
-    async def _generate_teams_twice(self, bot_update, bot_context, real_container):
-        bot_context.args = _DATE_ARGS
-        await create_teams_handler(bot_update, bot_context)
+    async def _generate_teams_twice(self, real_container):
+        real_container.create_teams(None).execute(_MATCH_DATE, 2)
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.teams is not None
         assert len(meetup.teams) == 2
 
-        bot_update.message.reply_text.reset_mock()
-        bot_context.args = _DATE_ARGS
-        await create_teams_handler(bot_update, bot_context)
+        real_container.create_teams(None).execute(_MATCH_DATE, 2)
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert meetup.teams is not None
         assert meetup.current_match() is not None
-        bot_context.bot.set_message_reaction.assert_called()
-        bot_update.message.reply_text.assert_not_called()
 
     async def _search_substitutes(self, bot_update, bot_context):
         bot_update.message.reply_text.reset_mock()
@@ -186,33 +175,23 @@ class TestFullMatchLifecycle:
         """Adding an already-enrolled player is a no-op — count stays the same."""
         bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
-        bot_context.args = [*_DATE_ARGS, "Regular_01"]
-        await add_player_handler(bot_update, bot_context)
-
-        bot_context.args = [*_DATE_ARGS, "Regular_01"]
-        await add_player_handler(bot_update, bot_context)
+        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
+        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 1
 
     @pytest.mark.asyncio
-    async def test_remove_player_not_enrolled(self, bot_update, bot_context):
-        """Removing a player not in the meetup replies with a meetup error."""
+    async def test_remove_player_not_enrolled(self, bot_update, bot_context, real_container):
+        """Removing a player not in the meetup raises PlayerNotInMeetupError."""
         bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
-        bot_update.message.reply_text.reset_mock()
-        bot_context.args = [*_DATE_ARGS, "Regular_01"]
-        await remove_player_handler(bot_update, bot_context)
-
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "no está en este meetup" in text
+        with pytest.raises(PlayerNotInMeetupError):
+            real_container.remove_player_from_meetup().execute(_MATCH_DATE, "Regular_01")
 
     # ------------------------------------------------------------------
     # Edge cases: fuzzy matching
@@ -223,49 +202,32 @@ class TestFullMatchLifecycle:
         """A one-character typo in the name is resolved by fuzzy matching."""
         bot_context.args = ["Regular_03,", "regular"]
         await new_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
-        bot_update.message.reply_text.reset_mock()
-        bot_context.args = [*_DATE_ARGS, "Regulr_03"]  # missing 'a'
-        await add_player_handler(bot_update, bot_context)
+        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regulr_03")  # missing 'a'
 
-        bot_update.message.reply_text.assert_not_called()
-        bot_context.bot.set_message_reaction.assert_called()
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 1
 
     @pytest.mark.asyncio
-    async def test_add_player_unknown_name(self, bot_update, bot_context):
-        """An unrecognisable name produces a Failed entry in the reply."""
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+    async def test_add_player_unknown_name(self, real_container):
+        """An unrecognisable name raises ValueError from fuzzy matching."""
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
-        bot_update.message.reply_text.reset_mock()
-        bot_context.args = [*_DATE_ARGS, "NameThatDoesNotExist"]
-        await add_player_handler(bot_update, bot_context)
-
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Fallidos" in text
+        with pytest.raises(ValueError):
+            real_container.add_player_to_meetup().execute(_MATCH_DATE, "NameThatDoesNotExist")
 
     # ------------------------------------------------------------------
     # Edge cases: meetup lifecycle errors
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_create_duplicate_meetup(self, bot_update, bot_context):
-        """Creating a meetup on an already-taken date replies with a duplicate error."""
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+    async def test_create_duplicate_meetup(self, real_container):
+        """Creating a meetup on an already-taken date raises DuplicateMeetupError."""
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
-        bot_update.message.reply_text.reset_mock()
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
-
-        call = bot_update.message.reply_text.call_args
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Ya existe" in text
+        with pytest.raises(DuplicateMeetupError):
+            real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
     @pytest.mark.asyncio
     async def test_finish_already_closed_match(self, bot_update, bot_context, real_container):
@@ -273,13 +235,10 @@ class TestFullMatchLifecycle:
         for i in range(1, 5):
             bot_context.args = [f"Player_{i:02d},", "regular"]
             await new_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
         for i in range(1, 5):
-            bot_context.args = [*_DATE_ARGS, f"Player_{i:02d}"]
-            await add_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await create_teams_handler(bot_update, bot_context)
+            real_container.add_player_to_meetup().execute(_MATCH_DATE, f"Player_{i:02d}")
+        real_container.create_teams(None).execute(_MATCH_DATE, 2)
 
         events = [
             {"scorer": "Player_01", "assistant": None, "team": "A", "timestamp": "20:30:00"},
@@ -291,14 +250,14 @@ class TestFullMatchLifecycle:
             real_container.finish_match().execute(_ISO_DATE, events, final_score)
 
     @pytest.mark.asyncio
-    async def test_stats_no_closed_matches(self, bot_update, bot_context, monkeypatch):
+    async def test_stats_no_closed_matches(
+        self, bot_update, bot_context, real_container, monkeypatch
+    ):
         """stats_handler with no closed matches still sends a photo (empty report)."""
         bot_context.args = ["Regular_01,", "regular"]
         await new_player_handler(bot_update, bot_context)
-        bot_context.args = _DATE_ARGS
-        await new_meetup_handler(bot_update, bot_context)
-        bot_context.args = [*_DATE_ARGS, "Regular_01"]
-        await add_player_handler(bot_update, bot_context)
+        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
+        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
 
         fake_png = b"\x89PNG\r\n\x1a\n"
         captured = {}

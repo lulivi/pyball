@@ -94,3 +94,17 @@ class EditPlayerInput(BaseModel):
     name: str
     group: str
     position: str | None = None
+
+
+class UpdateMeetupDateInput(BaseModel):
+    """Request body for POST /api/meetup/date."""
+
+    old_date: str
+    new_date: str
+
+
+class UpdateMeetupLocationInput(BaseModel):
+    """Request body for POST /api/meetup/location."""
+
+    date: str
+    location: str

@@ -95,7 +95,12 @@ def build_meetup_active_response(container: Container) -> dict:
     )
 
     if meetup.teams is None:
-        return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
+        return {
+            "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "location": meetup.location,
+            "players": players,
+            "teams": None,
+        }
 
     colors = container.team_colors
     hex_bg = container.team_hex_bg
@@ -142,6 +147,7 @@ def build_meetup_active_response(container: Container) -> dict:
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "location": meetup.location,
         "players": players,
         "teams": teams_payload,
     }
