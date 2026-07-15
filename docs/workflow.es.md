@@ -77,6 +77,23 @@ una señal más suave para evitar amontonar en un mismo equipo a todos los jugad
 una misma posición. Siempre puedes ver o cambiar quién es el portero de un equipo desde
 "✏️ Editar equipos".
 
+Nada más existir los equipos, la convocatoria se cierra automáticamente: los
+botones "✔ Unirse" / "✖ Salir" de Telegram desaparecen de los mensajes de titulares y
+suplentes, y pulsar "🔎 Buscar jugadores" (o el comando `/meetup_search`) se rechaza —
+ya nadie puede apuntarse ni bajarse una vez que hay equipos.
+
+Si además quieres proteger los equipos de más cambios en `/manage`, pulsa
+"🔒 Bloquear equipos" cuando la convocatoria te convenza — oculta "Regenerar equipos",
+"📋 Repegar convocatoria" y "🗑 Cancelar partido" para que nadie edite la convocatoria
+por accidente después de decidirla. "✏️ Editar equipos" (reasignar jugadores entre los
+equipos ya generados) sigue funcionando igual, esté bloqueado o no.
+
+¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales (estén
+bloqueados o no) y vuelve a la vista de convocatoria, para que puedas editarla y, en
+Telegram, volver a buscar suplentes. Está disponible hasta que se registre el primer
+resultado — a partir de ahí, la única forma de deshacer la sesión es corregir el
+resultado después (ver [paso 6](#6-ver-estadísticas)).
+
 ## 4. Seguir el partido
 
 Abre `/match` en el dispositivo que vaya a llevar el marcador (móvil, tablet). Muestra

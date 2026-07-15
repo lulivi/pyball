@@ -68,6 +68,23 @@ keepers tend to end up on different teams. The other three positions
 one team with every player of the same position. You can always see or override which
 player is a team's goalkeeper from "✏️ Editar equipos".
 
+The moment teams exist, signup closes automatically: Telegram's "✔ Unirse" /
+"✖ Salir" buttons disappear from the callup and substitutes messages, and tapping
+"🔎 Buscar jugadores" (or the `/meetup_search` command) is rejected — nobody can join
+or leave the roster anymore once teams exist.
+
+If you also want to protect the teams from further changes in `/manage`, click
+"🔒 Bloquear equipos" once the lineup looks right — it hides "Regenerar equipos",
+"📋 Repegar convocatoria", and "🗑 Cancelar partido" so nobody accidentally edits the
+roster after you've settled on it. "✏️ Editar equipos" (reassigning players between
+the already-generated teams) keeps working either way, locked or not.
+
+Changed your mind? "🗑️ Destruir equipos" discards the current teams (locked or not)
+and returns to the roster view, so you can edit the convocatoria and, on Telegram,
+search for substitutes again. It's available until the first match result is
+recorded — after that, the only way to undo the session is correcting the result
+after the fact (see [step 6](#6-view-stats)).
+
 ## 4. Track the match
 
 Open `/match` on whatever device is scoring the game (phone, tablet). It automatically
