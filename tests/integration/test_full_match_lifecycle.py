@@ -5,7 +5,6 @@
 from datetime import datetime
 
 import pytest
-from telegram.constants import ParseMode
 
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
@@ -14,7 +13,6 @@ from pyball.domain.meetup.errors import (
 )
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.bot.handlers.meetup import search_handler, stats_handler
-from pyball.infrastructure.telegram.bot.handlers.player import new_player_handler
 
 _DATE_ARGS = ["2026-06-15", "20:00"]
 _ISO_DATE = "2026-06-15T20:00"
@@ -49,13 +47,12 @@ class TestFullMatchLifecycle:
     # Phase helpers
     # ------------------------------------------------------------------
 
+    # pylint: disable-next=unused-argument
     async def _create_players(self, bot_update, bot_context, real_container):
         for name in _REGULARS:
-            bot_context.args = [f"{name},", "regular"]
-            await new_player_handler(bot_update, bot_context)
+            real_container.create_player().execute(name, "regular")
         for name in _SUBS:
-            bot_context.args = [f"{name},", "substitute"]
-            await new_player_handler(bot_update, bot_context)
+            real_container.create_player().execute(name, "substitute")
 
         all_players = real_container.player_repository.find_all()
         assert len(all_players) == 14
@@ -156,25 +153,9 @@ class TestFullMatchLifecycle:
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_create_duplicate_player(self, bot_update, bot_context):
-        """Creating a player with an existing name replies with a MarkdownV2 error."""
-        bot_context.args = ["Regular_01,", "regular"]
-        await new_player_handler(bot_update, bot_context)
-
-        bot_update.message.reply_text.reset_mock()
-        bot_context.args = ["Regular_01,", "regular"]
-        await new_player_handler(bot_update, bot_context)
-
-        call = bot_update.message.reply_text.call_args
-        assert call.kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
-        text = call.kwargs.get("text") or (call.args[0] if call.args else "")
-        assert "Regular_01" in text
-
-    @pytest.mark.asyncio
-    async def test_add_player_already_enrolled(self, bot_update, bot_context, real_container):
+    async def test_add_player_already_enrolled(self, real_container):
         """Adding an already-enrolled player is a no-op — count stays the same."""
-        bot_context.args = ["Regular_01,", "regular"]
-        await new_player_handler(bot_update, bot_context)
+        real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
         real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
@@ -184,10 +165,9 @@ class TestFullMatchLifecycle:
         assert len(meetup.players) == 1
 
     @pytest.mark.asyncio
-    async def test_remove_player_not_enrolled(self, bot_update, bot_context, real_container):
+    async def test_remove_player_not_enrolled(self, real_container):
         """Removing a player not in the meetup raises PlayerNotInMeetupError."""
-        bot_context.args = ["Regular_01,", "regular"]
-        await new_player_handler(bot_update, bot_context)
+        real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
         with pytest.raises(PlayerNotInMeetupError):
@@ -198,10 +178,9 @@ class TestFullMatchLifecycle:
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_add_player_fuzzy_name(self, bot_update, bot_context, real_container):
+    async def test_add_player_fuzzy_name(self, real_container):
         """A one-character typo in the name is resolved by fuzzy matching."""
-        bot_context.args = ["Regular_03,", "regular"]
-        await new_player_handler(bot_update, bot_context)
+        real_container.create_player().execute("Regular_03", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
         real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regulr_03")  # missing 'a'
@@ -230,11 +209,10 @@ class TestFullMatchLifecycle:
             real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
     @pytest.mark.asyncio
-    async def test_finish_already_closed_match(self, bot_update, bot_context, real_container):
+    async def test_finish_already_closed_match(self, real_container):
         """Calling finish_match twice on the same meetup raises MeetupAlreadyClosedError."""
         for i in range(1, 5):
-            bot_context.args = [f"Player_{i:02d},", "regular"]
-            await new_player_handler(bot_update, bot_context)
+            real_container.create_player().execute(f"Player_{i:02d}", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
         for i in range(1, 5):
             real_container.add_player_to_meetup().execute(_MATCH_DATE, f"Player_{i:02d}")
@@ -254,8 +232,7 @@ class TestFullMatchLifecycle:
         self, bot_update, bot_context, real_container, monkeypatch
     ):
         """stats_handler with no closed matches still sends a photo (empty report)."""
-        bot_context.args = ["Regular_01,", "regular"]
-        await new_player_handler(bot_update, bot_context)
+        real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
         real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
 

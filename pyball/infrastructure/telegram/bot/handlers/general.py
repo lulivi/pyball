@@ -27,12 +27,6 @@ from pyball.logger import log_func
 
 COMMAND_DESCRIPTIONS: dict[str, str] = {
     "help": "Show this message",
-    "player_new": "Create a new player",
-    "player_rename": "Rename a player",
-    "player_delete": "Delete a player",
-    "player_list": "List all players",
-    "player_change_group": "Change player group",
-    "player_change_position": "Change player position",
     "player_link": "Link Telegram ID to player",
     "player_unlink": "Unlink a player's Telegram ID",
     "meetup_search": "Send substitutes message",
