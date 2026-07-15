@@ -85,9 +85,12 @@ function _formatDate(iso) {
 function _buildFreshFlowHTML() {
     document.getElementById('tab-equipos').innerHTML = `
     <div id="step-paste">
-      <div class="step-label">1. Pega la convocatoria</div>
-      <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
-      <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>
+      <div class="step-label">Crear convocatoria</div>
+      <button class="btn btn-green" onclick="createNextMeetup()">📅 Siguiente convocatoria</button>
+      <button class="btn btn-blue" onclick="toggleManualCreate()">🆕 Nueva convocatoria</button>
+      <button class="btn btn-teal" onclick="togglePasteFlow()">📋 Pegar convocatoria</button>
+      <div id="manual-create-container"></div>
+      <div id="paste-flow-container"></div>
     </div>
     <div id="step-review" style="display:none">
       <div class="step-label">2. Revisa los jugadores</div>
@@ -162,6 +165,28 @@ function buildDateLocationEditor(data, open) {
     </div>`;
 }
 
+// Manual date/hour/location entry for creating a brand-new (empty) meetup.
+// Mirrors buildDateLocationEditor's open-state fields, but for creation, not editing.
+function buildManualCreatePanel(open) {
+    if (!open) return '';
+    const today = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const defaultDate = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    return `
+    <div class="edit-panel">
+      <div class="field-label">Fecha</div>
+      <input class="search-box" id="create-date-input" type="date" value="${escHtml(defaultDate)}">
+      <div class="field-label">Hora</div>
+      <input class="search-box" id="create-time-input" type="time" value="20:00">
+      <div class="field-label">Ubicación</div>
+      <input class="search-box" id="create-location-input" type="text" placeholder="Ubicación...">
+      <div class="edit-actions">
+        <button class="btn-sm green" onclick="confirmManualCreate()">Crear</button>
+        <button class="btn-sm gray" onclick="toggleManualCreate()">Cancelar</button>
+      </div>
+    </div>`;
+}
+
 // Search input + results container for the add-player widget.
 // idPrefix yields #<idPrefix>-search and #<idPrefix>-results; searchFn is the
 // oninput handler call as a string, e.g. 'searchRosterAdd()'.
@@ -204,7 +229,7 @@ function buildCancelTrigger() {
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor,
+    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor, buildManualCreatePanel,
     buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

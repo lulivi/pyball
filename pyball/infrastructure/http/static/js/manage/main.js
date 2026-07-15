@@ -2,7 +2,7 @@ import { get, post, del, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor,
+    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor, buildManualCreatePanel,
     buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
@@ -23,6 +23,8 @@ let rosterSearchQuery = '';     // State 1: current add-player search text
 let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
 let repastePanelOpen = false;   // collapsed re-paste section open?
+let manualCreateOpen = false;   // manual create-date/location form open?
+let pasteFlowOpen = false;      // paste-a-callup textarea revealed?
 let dateLocationEditOpen = false; // date/location edit panel open?
 let expandedConvocatoriaDate = null; // which Convocatorias row is expanded, if any
 
@@ -34,6 +36,53 @@ function switchTab(name, btn) {
     btn.classList.add('active');
     if (name === 'convocatorias') loadConvocatorias();
     if (name === 'jugadores') window.loadJugadores();
+}
+
+// ── NO ACTIVE MEETUP: three creation actions ─────────────────────────────────
+async function createNextMeetup() {
+    let data;
+    try {
+        data = await post('/api/meetup/create-next', {});
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = data;
+    renderState1(activeMatchData);
+}
+
+function toggleManualCreate() {
+    manualCreateOpen = !manualCreateOpen;
+    if (manualCreateOpen) { pasteFlowOpen = false; _renderPasteContainer(); }
+    _renderManualCreateContainer();
+}
+
+async function confirmManualCreate() {
+    const date = document.getElementById('create-date-input').value;
+    const time = document.getElementById('create-time-input').value;
+    const location = document.getElementById('create-location-input').value.trim();
+    if (!date || !time || !location) {
+        alert('Completa fecha, hora y ubicación.');
+        return;
+    }
+    const iso = `${date}T${time}`;
+    let created;
+    try {
+        created = await post('/api/meetup/create', { date: iso, player_ids: [] });
+        await post('/api/meetup/location', { date: created.date, location });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    activeMatchData = { ...created, location };
+    manualCreateOpen = false;
+    renderState1(activeMatchData);
+}
+
+function togglePasteFlow() {
+    pasteFlowOpen = !pasteFlowOpen;
+    if (pasteFlowOpen) { manualCreateOpen = false; _renderManualCreateContainer(); }
+    _renderPasteContainer();
 }
 
 // ── STEP 1 → 2: PARSE CALLUP ─────────────────────────────────────────────────
@@ -725,6 +774,20 @@ function _rerenderActiveState() {
     else renderState1(activeMatchData);
 }
 
+function _renderManualCreateContainer() {
+    const el = document.getElementById('manual-create-container');
+    if (el) el.innerHTML = buildManualCreatePanel(manualCreateOpen);
+}
+
+function _renderPasteContainer() {
+    const el = document.getElementById('paste-flow-container');
+    if (!el) return;
+    el.innerHTML = pasteFlowOpen ? `
+    <div class="step-label" style="margin-top:12px;">Pega la convocatoria</div>
+    <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
+    <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>` : '';
+}
+
 function _renderTeamsEditPanel() {
     const teamsBox = document.getElementById('teams-text');
     if (teamsBox) teamsBox.style.display = 'none';
@@ -875,6 +938,10 @@ Object.assign(window, {
     toggleRepaste,
     parseRepaste,
     confirmRepaste,
+    createNextMeetup,
+    toggleManualCreate,
+    confirmManualCreate,
+    togglePasteFlow,
     cancelMeetup,
     closeMeetup,
     copySummary,
