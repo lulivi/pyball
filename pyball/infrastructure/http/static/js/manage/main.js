@@ -330,10 +330,8 @@ function renderState2(data) {
       <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar equipos (2)</button>
       <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar equipos (3)</button>
     </div>
-    <div class="action-row">
-      <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
-      <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
-    </div>
+    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
+    <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     ${buildRepasteTrigger(repastePanelOpen)}
     ${t.teamC ? '<button class="btn-sm amber" style="width:100%;margin-top:6px;" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     <div id="edit-panel-container"></div>
