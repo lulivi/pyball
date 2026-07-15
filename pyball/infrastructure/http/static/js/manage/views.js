@@ -219,9 +219,7 @@ function buildRepasteTrigger(open) {
       <button class="btn btn-blue" onclick="parseRepaste()">🔍 Reconocer jugadores</button>
       <div id="repaste-review"></div>` : '';
     return `
-    <button class="collapsible-trigger" onclick="toggleRepaste()">
-      <span>📋 Re-pegar convocatoria</span><span>${open ? '▾' : '▸'}</span>
-    </button>
+    <button class="btn btn-teal" onclick="toggleRepaste()">📋 Repegar convocatoria</button>
     <div id="repaste-container">${body}</div>`;
 }
 

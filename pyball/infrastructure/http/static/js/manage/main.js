@@ -326,15 +326,17 @@ function renderState2(data) {
     document.getElementById('tab-equipos').innerHTML = `
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
-    <div class="regen-row">
-      <button class="btn-sm green" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar (2)</button>
-      <button class="btn-sm green" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar (3)</button>
-      <button class="btn-sm gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
+    <div class="action-row">
+      <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar equipos (2)</button>
+      <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar equipos (3)</button>
     </div>
+    <div class="action-row">
+      <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
+      <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
+    </div>
+    ${buildRepasteTrigger(repastePanelOpen)}
     ${t.teamC ? '<button class="btn-sm amber" style="width:100%;margin-top:6px;" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     <div id="edit-panel-container"></div>
-    ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
 }
@@ -344,7 +346,7 @@ function copyTeams() {
 }
 
 async function regenerateCurrentTeams(teamCount, btn) {
-    const buttons = document.querySelectorAll('.regen-row .btn-sm.green');
+    const buttons = document.querySelectorAll('.regen-btn');
     const originalLabels = Array.from(buttons).map(b => b.textContent);
     buttons.forEach(b => { b.disabled = true; });
     if (btn) btn.textContent = 'Regenerando...';
