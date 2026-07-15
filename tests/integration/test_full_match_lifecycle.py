@@ -35,13 +35,13 @@ class TestFullMatchLifecycle:
         real_container,
         monkeypatch,
     ):
-        """Happy path: create players → meetup → add/remove → teams → match → stats."""
+        """Happy path: create players → meetup → add/remove → search → teams → match → stats."""
         await self._create_players(bot_update, bot_context, real_container)
         await self._create_meetup(real_container)
         await self._add_players(real_container)
         await self._remove_player(real_container)
-        await self._generate_teams_twice(real_container)
         await self._search_substitutes(bot_update, bot_context)
+        await self._generate_teams_twice(real_container)
         await self._finish_match(real_container)
         await self._verify_stats(bot_update, bot_context, real_container, monkeypatch)
 
