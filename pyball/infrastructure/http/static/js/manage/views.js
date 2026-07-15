@@ -119,7 +119,7 @@ function buildRosterList(players) {
 // One collapsed row in the Convocatorias list. `open` = detail panel expanded.
 function buildConvocatoriaRow(item, open) {
     return `
-    <button class="collapsible-trigger" data-date="${escHtml(item.date)}"
+    <button class="edit-chip" data-date="${escHtml(item.date)}"
       onclick="toggleConvocatoriaRow(this.dataset.date)">
       <div class="chip-text-col">
         <div class="chip-primary">📅 ${escHtml(_formatDate(item.date))}</div>
