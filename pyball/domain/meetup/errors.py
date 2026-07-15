@@ -69,3 +69,15 @@ class UnknownAlgorithmError(MeetupError):
         self.name = name
         self.available = available
         super().__init__(f"Unknown algorithm '{name}'. Available: {', '.join(available)}")
+
+
+class SignupClosedError(MeetupError):
+    """Raised when trying to join, leave, or search a meetup once teams are assigned."""
+
+
+class MeetupLockedError(MeetupError):
+    """Raised when trying to edit a locked meetup's convocatoria from /manage."""
+
+
+class MeetupHasRecordedResultsError(MeetupError):
+    """Raised when trying to destroy a meetup's teams after a match result is recorded."""
