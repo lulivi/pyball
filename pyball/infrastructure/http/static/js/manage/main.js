@@ -334,16 +334,19 @@ function renderState2(data) {
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
-    ${buildRepasteTrigger(repastePanelOpen)}
+    ${data.locked ? '' : buildRepasteTrigger(repastePanelOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
+    ${data.locked ? '' : `
     <div class="action-row">
       <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar equipos (2)</button>
       <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar equipos (3)</button>
-    </div>
+    </div>`}
     <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
-    ${buildCancelTrigger()}
+    ${data.locked ? '' : '<button class="btn btn-amber" onclick="lockMeetup()">🔒 Bloquear equipos</button>'}
+    ${t.hasRecordedResults ? '' : '<button class="cancel-match-btn" onclick="destroyTeams()">🗑️ Destruir equipos</button>'}
+    ${data.locked ? '' : buildCancelTrigger()}
   `;
 }
 
@@ -368,6 +371,27 @@ async function regenerateCurrentTeams(teamCount, btn) {
         alert('Error: ' + e.message);
         buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
     }
+}
+
+async function lockMeetup() {
+    try {
+        activeMatchData = await post('/api/meetup/lock', { date: activeMatchData.date });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    _rerenderActiveState();
+}
+
+async function destroyTeams() {
+    if (!confirm('¿Seguro que quieres destruir los equipos? Se perderá la composición actual y el meetup volverá a estar abierto para apuntarse.')) return;
+    try {
+        activeMatchData = await post('/api/meetup/destroy-teams', { date: activeMatchData.date });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    _rerenderActiveState();
 }
 
 // ── TEAMS EDIT PANEL ─────────────────────────────────────────────────────
@@ -964,6 +988,8 @@ Object.assign(window, {
     generateFromActive,
     copyTeams,
     regenerateCurrentTeams,
+    lockMeetup,
+    destroyTeams,
     toggleTeamsEditPanel,
     moveToOtherTeam,
     setEditGoalkeeper,
