@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.18.0 (2026-07-15)
+
+### Features
+
+- **GL-117..GL-143**: Move meetup management to /manage, keep Telegram for signup/search/stats
+  ([`7cfa10e`](https://gitlab.com/lulivi/pyball/-/commit/7cfa10eec9ec44e64871453fabff0af1f8d25474))
+
+
 ## v4.17.1 (2026-07-14)
 
 ### Bug Fixes
