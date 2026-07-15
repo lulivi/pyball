@@ -67,8 +67,10 @@ function buildRow(p) {
     const groupLabel = p.group === 'regular' ? 'Regular' : 'Suplente';
     return `
     <div class="edit-chip">
-      <span style="flex:1;">${escHtml(p.name)}</span>
-      <span class="cand-score">${groupLabel} · ${posLabel}</span>
+      <div class="chip-text-col">
+        <div class="chip-primary">${escHtml(p.name)}</div>
+        <div class="cand-score">${groupLabel} · ${posLabel}</div>
+      </div>
       <button class="btn-sm gray" style="padding:3px 8px;" data-pid="${escHtml(p.id)}"
         onclick="togglePlayerEdit(this.dataset.pid)">✏️</button>
       <button class="remove-btn" data-pid="${escHtml(p.id)}"
