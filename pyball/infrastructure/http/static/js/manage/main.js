@@ -333,7 +333,7 @@ function renderState2(data) {
     </div>
     <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
-    ${t.teamC ? '<button class="btn-sm amber" style="width:100%;margin-bottom:10px;" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
+    ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     <div id="edit-panel-container"></div>
     ${buildCancelTrigger()}
   `;
