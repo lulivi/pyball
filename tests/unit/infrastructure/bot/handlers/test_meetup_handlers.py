@@ -164,6 +164,30 @@ async def test_search_handler_no_args_no_active_meetup_replies_error(mock_update
 
 
 @pytest.mark.asyncio
+async def test_search_handler_signup_closed_replies_error(mock_update, mock_context):
+    """search replies in Spanish and sends nothing once teams already exist."""
+    from pyball.domain.meetup.models import Meetup, PlayerId, Team
+
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    pid = PlayerId.generate()
+    meetup.add_player(pid)
+    meetup.set_teams([Team.create("A", [pid]), Team.create("B", [])])
+
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -1001234567
+    mock_context.args = ["2026-04-25", "20:00"]
+    mock_context.bot.send_message = AsyncMock()
+
+    await search_handler(mock_update, mock_context)
+
+    mock_context.bot.send_message.assert_not_called()
+    text = mock_update.message.reply_text.call_args.args[0]
+    assert "equipos" in text.lower()
+
+
+@pytest.mark.asyncio
 async def test_stats_handler_success_reacts(mock_update, mock_context):
     """stats reacts ✅ after sending the stats photo."""
     container = MagicMock()

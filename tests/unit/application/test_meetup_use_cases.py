@@ -20,6 +20,7 @@ from pyball.domain.meetup.errors import (
     MeetupAlreadyClosedError,
     MeetupHasNoTeamsError,
     MeetupNotFoundError,
+    SignupClosedError,
 )
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, MeetupId, PlayerId, Team
 from pyball.domain.player.models import Player
@@ -121,8 +122,8 @@ class TestAddPlayerToMeetup:
 
         assert player.id in meetup.players
 
-    def test_add_player_clears_existing_teams(self):
-        """Adding a player to a meetup that already has teams clears the teams."""
+    def test_add_player_raises_when_teams_already_assigned(self):
+        """Adding a player to a meetup that already has teams raises SignupClosedError."""
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
         p1, p2 = PlayerId.generate(), PlayerId.generate()
@@ -136,9 +137,11 @@ class TestAddPlayerToMeetup:
         player_repo.save(player)
 
         use_case = AddPlayerToMeetup(meetup_repo, player_repo)
-        result = use_case.execute(datetime(2024, 3, 20, 20, 0), "Mario")
+        with pytest.raises(SignupClosedError):
+            use_case.execute(datetime(2024, 3, 20, 20, 0), "Mario")
 
-        assert result.teams is None
+        assert meetup.teams is not None
+        assert player.id not in meetup.players
 
     def test_add_player_when_no_teams_leaves_teams_as_none(self):
         """Adding a player to a meetup without teams leaves teams as None."""
@@ -193,8 +196,8 @@ class TestRemovePlayerFromMeetup:
         with pytest.raises(MeetupNotFoundError):
             use_case.execute(datetime(2024, 1, 15, 20, 0), "Mario")
 
-    def test_remove_player_clears_existing_teams(self):
-        """Removing a player from a meetup that already has teams clears the teams."""
+    def test_remove_player_raises_when_teams_already_assigned(self):
+        """Removing a player from a meetup that already has teams raises SignupClosedError."""
         meetup_repo = FakeMeetupRepository()
         meetup = Meetup.create(date=datetime(2024, 1, 15, 20, 0), location="Parque Central")
         player = Player.create(name="Mario", group="regular")
@@ -207,11 +210,13 @@ class TestRemovePlayerFromMeetup:
         player_repo = FakePlayerRepository()
         player_repo.save(player)
 
-        result = RemovePlayerFromMeetup(meetup_repo, player_repo).execute(
-            datetime(2024, 1, 15, 20, 0), "Mario"
-        )
+        with pytest.raises(SignupClosedError):
+            RemovePlayerFromMeetup(meetup_repo, player_repo).execute(
+                datetime(2024, 1, 15, 20, 0), "Mario"
+            )
 
-        assert result.teams is None
+        assert meetup.teams is not None
+        assert player.id in meetup.players
 
     def test_remove_player_without_teams_leaves_teams_as_none(self):
         """Removing a player from a meetup without teams leaves teams as None."""

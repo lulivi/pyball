@@ -110,6 +110,13 @@ async def _handle_player_action(
     matches both ``join`` and ``join_sub``). This is safe because the action
     set is constrained by ``parse_callback_data``.
     """
+    if not meetup.is_signup_open():
+        await query.answer(
+            "Los equipos ya están hechos, no se puede apuntar ni salir del meetup.",
+            show_alert=True,
+        )
+        return
+
     telegram_id = query.from_user.id
 
     player_id_str = mapping_store.get_player_id(telegram_id)
@@ -166,6 +173,11 @@ async def _handle_search_callback(
     if not settings.telegram.is_authorized(user_id):
         await query.answer(
             "Solo los administradores pueden realizar esta acción.", show_alert=True
+        )
+        return
+    if not meetup.is_signup_open():
+        await query.answer(
+            "Los equipos ya están hechos, no se puede buscar más jugadores.", show_alert=True
         )
         return
     if not settings.telegram.substitutes.chat_id:

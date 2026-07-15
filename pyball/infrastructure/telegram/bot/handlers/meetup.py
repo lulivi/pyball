@@ -73,6 +73,9 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_search")
     if meetup is None:
         return
+    if not meetup.is_signup_open():
+        await message.reply_text("Los equipos ya están hechos, no se puede buscar más jugadores.")
+        return
 
     try:
         await _do_search(meetup, container, context.bot, settings)
