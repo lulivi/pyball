@@ -26,6 +26,7 @@ let repastePanelOpen = false;   // collapsed re-paste section open?
 let manualCreateOpen = false;   // manual create-date/location form open?
 let pasteFlowOpen = false;      // paste-a-callup textarea revealed?
 let dateLocationEditOpen = false; // date/location edit panel open?
+let teamsEditPanelOpen = false; // team-edit panel open? (hides the other state-2 buttons)
 let expandedConvocatoriaDate = null; // which Convocatorias row is expanded, if any
 
 // ── TAB SWITCHING ────────────────────────────────────────────────────────────
@@ -320,6 +321,14 @@ async function pickRosterAdd(id) {
 // ── STATE 2: match with teams ─────────────────────────────────────────────
 function renderState2(data) {
     const t = data.teams;
+    if (teamsEditPanelOpen) {
+        document.getElementById('tab-equipos').innerHTML = `
+      ${buildDateLocationEditor(data, dateLocationEditOpen)}
+      <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✕ Cancelar edición</button>
+      <div id="edit-panel-container"></div>
+    `;
+        return;
+    }
     const blocks = [`${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}`, `${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`];
     if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${t.teamC.join('\n')}`);
     const teamsText = blocks.join('\n\n');
@@ -334,7 +343,6 @@ function renderState2(data) {
     <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
-    <div id="edit-panel-container"></div>
     ${buildCancelTrigger()}
   `;
 }
@@ -364,15 +372,13 @@ async function regenerateCurrentTeams(teamCount, btn) {
 
 // ── TEAMS EDIT PANEL ─────────────────────────────────────────────────────
 async function toggleTeamsEditPanel() {
-    const container = document.getElementById('edit-panel-container');
-    if (container.innerHTML) {
+    if (teamsEditPanelOpen) {
         editTeamLetters.forEach(letter => { editTeams[letter] = []; editGoalkeepers[letter] = null; });
         editReplacingPlayer = null;
         editAddOpenTeam = null;
         editAddQuery = '';
-        container.innerHTML = '';
-        const teamsBox = document.getElementById('teams-text');
-        if (teamsBox) teamsBox.style.display = '';
+        teamsEditPanelOpen = false;
+        renderState2(activeMatchData);
         return;
     }
     const open = () => {
@@ -396,6 +402,8 @@ async function toggleTeamsEditPanel() {
             return;
         }
         editReplacingPlayer = null;
+        teamsEditPanelOpen = true;
+        renderState2(activeMatchData);
         _renderTeamsEditPanel();
     };
     if (!allPlayers.length) {
@@ -518,6 +526,7 @@ async function saveTeams() {
     editReplacingPlayer = null;
     editAddOpenTeam = null;
     editAddQuery = '';
+    teamsEditPanelOpen = false;
     renderState2(activeMatchData);
 }
 
@@ -811,8 +820,6 @@ function _renderPasteContainer() {
 }
 
 function _renderTeamsEditPanel() {
-    const teamsBox = document.getElementById('teams-text');
-    if (teamsBox) teamsBox.style.display = 'none';
     const sizes = editTeamLetters.map(letter => editTeams[letter].length);
     const tooUneven = Math.max(...sizes) - Math.min(...sizes) > 1;
     const t = activeMatchData.teams;
