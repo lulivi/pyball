@@ -100,6 +100,8 @@ def build_meetup_active_response(container: Container) -> dict:
             "location": meetup.location,
             "players": players,
             "teams": None,
+            "locked": meetup.locked,
+            "signupOpen": meetup.is_signup_open(),
         }
 
     colors = container.team_colors
@@ -130,6 +132,7 @@ def build_meetup_active_response(container: Container) -> dict:
             str(meetup.teams[1].goalkeeper.value) if meetup.teams[1].goalkeeper else None
         ),
         "matchUrl": match_url,
+        "hasRecordedResults": any(match.result is not None for match in meetup.matches),
     }
     if len(meetup.teams) == 3:
         teams_payload.update(
@@ -150,6 +153,8 @@ def build_meetup_active_response(container: Container) -> dict:
         "location": meetup.location,
         "players": players,
         "teams": teams_payload,
+        "locked": meetup.locked,
+        "signupOpen": meetup.is_signup_open(),
     }
 
 

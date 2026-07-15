@@ -31,6 +31,9 @@ from fastapi import FastAPI, HTTPException
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
+    MeetupHasNoTeamsError,
+    MeetupHasRecordedResultsError,
+    MeetupLockedError,
     MeetupNotFoundError,
     UnknownAlgorithmError,
 )
@@ -43,6 +46,7 @@ from pyball.infrastructure.http.schemas import (
     AssignTeamsInput,
     CreateMeetupInput,
     GenerateTeamsInput,
+    MeetupDateInput,
     ParseCallupInput,
     UpdateMeetupDateInput,
     UpdateMeetupLocationInput,
@@ -74,11 +78,13 @@ def register_meetup_routes(
 
     @app.delete("/api/meetup/active")
     async def cancel_meetup_endpoint():
-        """Delete the active meetup, or 404 if none exists."""
+        """Delete the active meetup, or 404/409 if none exists or it's locked."""
         try:
             meetup = container.cancel_meetup().execute()
         except MeetupNotFoundError as exc:
             raise HTTPException(404, "No active meetup to cancel") from exc
+        except MeetupLockedError as exc:
+            raise HTTPException(409, "Meetup is locked, cannot cancel") from exc
         await notifier.on_meetup_cancelled(meetup)
         return {"status": "cancelled", "date": meetup.date.strftime("%Y-%m-%dT%H:%M")}
 
@@ -147,6 +153,16 @@ def register_meetup_routes(
         await notifier.on_meetup_updated(meetup)
         return build_meetup_active_response(container)
 
+    @app.post("/api/meetup/lock")
+    async def lock_meetup_endpoint(body: MeetupDateInput):
+        """Lock the meetup's convocatoria-editing actions in /manage, or 404/409."""
+        return await _handle_lock_meetup(container, body)
+
+    @app.post("/api/meetup/destroy-teams")
+    async def destroy_teams_endpoint(body: MeetupDateInput):
+        """Destroy the meetup's teams and reopen signup, or 404/409."""
+        return await _handle_destroy_teams(container, notifier, body)
+
     @app.post("/api/meetup/create")
     async def create_meetup_endpoint(body: CreateMeetupInput):
         """Create (or reset) a meetup with the given player list."""
@@ -186,6 +202,8 @@ async def _handle_create_meetup(
         meetup = container.set_meetup_players().execute(meetup_date, body.player_ids)
     except MeetupAlreadyClosedError as exc:
         raise HTTPException(409, "Match already finished, cannot reset") from exc
+    except MeetupLockedError as exc:
+        raise HTTPException(409, "Meetup is locked, cannot reset the roster") from exc
     except InvalidPlayerIdError as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -248,6 +266,49 @@ async def _handle_generate_teams(
         meetup = container.create_teams(body.algorithm).execute(meetup_date, body.team_count)
     except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
+    except MeetupLockedError as exc:
+        raise HTTPException(409, "Meetup is locked, cannot regenerate teams") from exc
+
+    await notifier.on_meetup_updated(meetup)
+    return build_meetup_active_response(container)
+
+
+async def _handle_lock_meetup(container: "Container", body: MeetupDateInput) -> dict:
+    """Validate, lock the meetup, and return the active meetup response."""
+    try:
+        meetup_date = datetime.fromisoformat(body.date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    try:
+        container.lock_meetup().execute(meetup_date)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at the given date") from exc
+    except MeetupHasNoTeamsError as exc:
+        raise HTTPException(409, "Cannot lock a meetup with no teams") from exc
+
+    return build_meetup_active_response(container)
+
+
+async def _handle_destroy_teams(
+    container: "Container", notifier: "MatchNotifier", body: MeetupDateInput
+) -> dict:
+    """Validate, destroy the meetup's teams, notify, and return the active meetup response."""
+    try:
+        meetup_date = datetime.fromisoformat(body.date)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+    try:
+        meetup = container.destroy_teams().execute(meetup_date)
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at the given date") from exc
+    except MeetupHasNoTeamsError as exc:
+        raise HTTPException(409, "Cannot destroy teams: meetup has no teams") from exc
+    except MeetupHasRecordedResultsError as exc:
+        raise HTTPException(
+            409, "Cannot destroy teams: a match result is already recorded"
+        ) from exc
 
     await notifier.on_meetup_updated(meetup)
     return build_meetup_active_response(container)
