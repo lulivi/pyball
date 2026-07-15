@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import functools
 import locale
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
@@ -152,6 +152,11 @@ def register_meetup_routes(
         """Create (or reset) a meetup with the given player list."""
         return await _handle_create_meetup(container, notifier, body)
 
+    @app.post("/api/meetup/create-next")
+    async def create_next_meetup_endpoint():
+        """Create an empty meetup at the next occurrence of the default weekday/hour."""
+        return await _handle_create_next_meetup(container, notifier)
+
     @app.post("/api/meetup/date")
     async def update_meetup_date_endpoint(body: UpdateMeetupDateInput):
         """Move a meetup to a new date."""
@@ -202,6 +207,23 @@ async def _handle_create_meetup(
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
         "players": players,
+        "teams": None,
+        "location": meetup.location,
+    }
+
+
+async def _handle_create_next_meetup(container: "Container", notifier: "MatchNotifier") -> dict:
+    """Create an empty meetup at the next default weekday/hour and notify."""
+    next_date = _get_next_default_date(container.default_week_day, container.default_hour)
+    try:
+        meetup = container.create_meetup().execute(next_date)
+    except DuplicateMeetupError as exc:
+        raise HTTPException(409, "A meetup already exists at the next default date") from exc
+
+    await notifier.on_meetup_created(meetup)
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "players": [],
         "teams": None,
         "location": meetup.location,
     }
@@ -272,3 +294,26 @@ async def _handle_update_meetup_location(
 
     await notifier.on_meetup_updated(meetup)
     return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
+
+
+def _get_next_default_date(
+    default_week_day: str, default_hour: str, now: datetime | None = None
+) -> datetime:
+    """Compute the next occurrence of the configured default weekday/hour."""
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target_weekday = day_map.get(default_week_day.lower(), 2)
+    reference = now or datetime.now()
+    days_until_target = (target_weekday - reference.weekday() + 7) % 7
+    if days_until_target == 0:
+        days_until_target = 7
+    next_date = reference + timedelta(days=days_until_target)
+    hour, minute = map(int, default_hour.split(":"))
+    return next_date.replace(hour=hour, minute=minute, second=0, microsecond=0)

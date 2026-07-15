@@ -19,6 +19,37 @@ from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
 
 
+class TestGetNextDefaultDate:
+    """Tests for the _get_next_default_date helper."""
+
+    def test_rolls_forward_to_target_weekday(self):
+        """From a Monday, targeting Wednesday rolls forward 2 days."""
+        from pyball.infrastructure.http.routes.meetup import _get_next_default_date
+
+        monday = datetime(2026, 6, 8, 10, 0)  # a Monday
+        result = _get_next_default_date("wednesday", "20:00", now=monday)
+
+        assert result == datetime(2026, 6, 10, 20, 0)
+
+    def test_rolls_to_next_week_when_today_is_the_target_weekday(self):
+        """If today IS the target weekday, rolls forward a full week, not 0 days."""
+        from pyball.infrastructure.http.routes.meetup import _get_next_default_date
+
+        wednesday = datetime(2026, 6, 10, 10, 0)  # a Wednesday
+        result = _get_next_default_date("wednesday", "20:00", now=wednesday)
+
+        assert result == datetime(2026, 6, 17, 20, 0)
+
+    def test_defaults_to_wednesday_for_unknown_weekday_name(self):
+        """An unrecognised weekday name falls back to Wednesday (index 2)."""
+        from pyball.infrastructure.http.routes.meetup import _get_next_default_date
+
+        monday = datetime(2026, 6, 8, 10, 0)
+        result = _get_next_default_date("not-a-real-day", "20:00", now=monday)
+
+        assert result == datetime(2026, 6, 10, 20, 0)
+
+
 class _StubNotifier(MatchNotifier):
     """In-memory notifier for testing."""
 
@@ -2219,3 +2250,48 @@ class TestMeetupRouteNotifierCalls:
             await c.post("/api/meetup/close")
 
         assert notifier.closed == []
+
+
+class TestCreateNextMeetup:
+    """Tests for POST /api/meetup/create-next."""
+
+    @pytest.mark.asyncio
+    async def test_returns_200_and_calls_on_meetup_created(self):
+        """Creates an empty meetup at the computed date and fires on_meetup_created."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 10, 20, 0), location="Parque Central")
+        container = MagicMock()
+        container.default_week_day = "wednesday"
+        container.default_hour = "20:00"
+        container.create_meetup.return_value.execute.return_value = meetup
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/create-next")
+
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "date": "2026-06-10T20:00",
+            "players": [],
+            "teams": None,
+            "location": "Parque Central",
+        }
+        assert notifier.created == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_returns_409_when_meetup_already_exists_at_computed_date(self):
+        """409 when a meetup (open or closed) already exists at the computed date."""
+        from pyball.domain.meetup.errors import DuplicateMeetupError
+
+        container = MagicMock()
+        container.default_week_day = "wednesday"
+        container.default_hour = "20:00"
+        container.create_meetup.return_value.execute.side_effect = DuplicateMeetupError("taken")
+
+        app, notifier = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/create-next")
+
+        assert resp.status_code == 409
+        assert notifier.created == []
