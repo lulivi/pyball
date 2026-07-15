@@ -911,6 +911,27 @@ class TestCreateMeetup:
         assert isinstance(body["players"], list)
 
     @pytest.mark.asyncio
+    async def test_create_meetup_response_includes_location(self):
+        """POST /api/meetup/create includes the meetup's location in the response."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque Central")
+
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["location"] == "Parque Central"
+
+    @pytest.mark.asyncio
     async def test_create_meetup_calls_on_meetup_created_when_new(self):
         """POST /api/meetup/create fires on_meetup_created when no meetup existed at that date."""
         from pyball.domain.meetup.models import Meetup, PlayerId

@@ -141,7 +141,10 @@ function buildConvocatoriaDetail(date, message) {
 // `data` is activeMatchData ({date, location, ...}); `open` toggles edit mode.
 function buildDateLocationEditor(data, open) {
     if (!open) {
-        return `<button class="btn-sm gray" onclick="toggleDateLocationEdit()">✏️ ${escHtml(data.location || '')}</button>`;
+        return `<button class="date-badge-btn" onclick="toggleDateLocationEdit()">
+      <span>📅 ${escHtml(_formatDate(data.date))} · ${escHtml(data.location || '')}</span>
+      <span>✏️</span>
+    </button>`;
     }
     const [datePart, timePart] = (data.date || '').split('T');
     return `

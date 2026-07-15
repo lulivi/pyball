@@ -199,7 +199,12 @@ async def _handle_create_meetup(
         ],
         key=lambda p: _sort(p["name"]),
     )
-    return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "players": players, "teams": None}
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "players": players,
+        "teams": None,
+        "location": meetup.location,
+    }
 
 
 async def _handle_generate_teams(

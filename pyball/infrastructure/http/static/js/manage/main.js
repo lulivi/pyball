@@ -152,7 +152,6 @@ function renderState1(data) {
         ? buildAddPlayerPanel('roster-add', 'searchRosterAdd()')
         : '';
     document.getElementById('tab-equipos').innerHTML = `
-    <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
     <div id="roster-list">${buildRosterList(data.players)}</div>
@@ -273,7 +272,6 @@ function renderState2(data) {
     if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${t.teamC.join('\n')}`);
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
-    <div class="date-badge">📅 <span>${_formatDate(data.date)}</span></div>
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
