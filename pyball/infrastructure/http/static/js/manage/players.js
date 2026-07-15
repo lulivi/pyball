@@ -50,7 +50,10 @@ function renderList() {
 }
 
 function _visiblePlayersHtml() {
-    const sorted = [...players].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    const sorted = [...players].sort((a, b) => {
+        if (a.group !== b.group) return a.group === 'regular' ? -1 : 1;
+        return a.name.localeCompare(b.name, 'es');
+    });
     const visible = searchQuery
         ? sorted.filter(p => p.name.toLowerCase().includes(searchQuery))
         : sorted;
