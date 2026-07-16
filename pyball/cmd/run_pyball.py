@@ -35,7 +35,7 @@ from pyball.settings import SettingsValidationError
 
 def main() -> None:
     """Start the FastAPI server without any Telegram integration."""
-    parser = argparse.ArgumentParser(description="PyBall web-only server")
+    parser = argparse.ArgumentParser(description="PyBall bare-topology server")
     parser.add_argument(
         "--config",
         type=Path,
@@ -64,7 +64,7 @@ def main() -> None:
 
 
 async def _main_async(config_path: Path) -> None:
-    """Boot the web-only topology."""
+    """Boot the bare topology."""
     app_settings, container = bootstrap_core(config_path)
     notifier = NullMatchNotifier()
     app = create_app(

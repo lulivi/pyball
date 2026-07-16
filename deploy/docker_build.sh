@@ -41,7 +41,11 @@ if [ ! -f "$GET_VERSION_SCRIPT" ]; then
 fi
 
 VERSION="$($GET_VERSION_SCRIPT)"
-IMAGE_NAME="${IMAGE}-${TOPOLOGY}"
+if [ "$TOPOLOGY" = "pyball" ]; then
+    IMAGE_NAME="${IMAGE}"
+else
+    IMAGE_NAME="${IMAGE}-${TOPOLOGY}"
+fi
 IMAGE_TAG="${IMAGE_NAME}:${VERSION}"
 IMAGE_LATEST="${IMAGE_NAME}:latest"
 

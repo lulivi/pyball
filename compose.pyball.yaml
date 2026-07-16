@@ -1,6 +1,6 @@
 services:
-  web:
-    image: lulivi/pyball-web:${TAG:-latest}
+  pyball:
+    image: lulivi/pyball:${TAG:-latest}
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"
