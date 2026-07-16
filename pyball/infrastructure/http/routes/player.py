@@ -31,22 +31,37 @@ from pyball.domain.player.errors import (
     PlayerAlreadyExistsError,
     PlayerNotFoundError,
 )
-from pyball.domain.player.models import VALID_POSITIONS
+from pyball.domain.player.models import VALID_POSITIONS, PlayerId
 from pyball.infrastructure.http.schemas import CreatePlayerInput, EditPlayerInput
+from pyball.infrastructure.signup.code_store import SignupCodeStore, generate_code
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
 
 
-def register_player_routes(app: FastAPI, container: "Container") -> None:
+def register_player_routes(  # pylint: disable=too-many-statements
+    app: FastAPI, container: "Container", enable_web_signup: bool = False
+) -> None:
     """Register player-related routes."""
 
     @app.get("/api/players")
     async def list_players():
         """Return all registered players."""
         players = container.player_repository.find_all()
+        if not enable_web_signup:
+            return [
+                {"id": str(p.id.value), "name": p.name, "group": p.group, "position": p.position}
+                for p in players
+            ]
+        store = _code_store(container)
         return [
-            {"id": str(p.id.value), "name": p.name, "group": p.group, "position": p.position}
+            {
+                "id": str(p.id.value),
+                "name": p.name,
+                "group": p.group,
+                "position": p.position,
+                "has_signup_code": store.has_code(str(p.id.value)),
+            }
             for p in players
         ]
 
@@ -66,12 +81,17 @@ def register_player_routes(app: FastAPI, container: "Container") -> None:
             )
         except PlayerAlreadyExistsError as exc:
             raise HTTPException(409, f"A player named {name!r} already exists") from exc
-        return {
+        response = {
             "id": str(player.id.value),
             "name": player.name,
             "group": player.group,
             "position": player.position,
         }
+        if enable_web_signup:
+            code = generate_code()
+            _code_store(container).set_code(str(player.id.value), code)
+            response["signup_code"] = code
+        return response
 
     @app.post("/api/players/{player_id}/edit")
     async def edit_player_endpoint(player_id: str, body: EditPlayerInput):
@@ -110,3 +130,26 @@ def register_player_routes(app: FastAPI, container: "Container") -> None:
         except InvalidPlayerIdError as exc:
             raise HTTPException(422, str(exc)) from exc
         return {"status": "deleted", "id": player_id}
+
+    @app.post("/api/players/{player_id}/signup-code/regenerate")
+    async def regenerate_signup_code_endpoint(player_id: str):
+        """Generate and store a new signup code, returning it once in plaintext."""
+        if not enable_web_signup:
+            raise HTTPException(404, "Not Found")
+        try:
+            parsed_id = PlayerId.from_string(player_id)
+        except InvalidPlayerIdError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        if container.player_repository.find_by_id(parsed_id) is None:
+            raise HTTPException(404, f"Player with id '{player_id}' not found")
+        code = generate_code()
+        _code_store(container).set_code(player_id, code)
+        return {"code": code}
+
+
+# ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _code_store(container: "Container") -> SignupCodeStore:
+    """Build a SignupCodeStore rooted at this instance's data directory."""
+    return SignupCodeStore(container.data_dir / "signup" / "codes.json")

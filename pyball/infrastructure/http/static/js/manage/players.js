@@ -78,6 +78,7 @@ function buildRow(p) {
         onclick="togglePlayerEdit(this.dataset.pid)">✏️</button>
       <button class="remove-btn" data-pid="${escHtml(p.id)}"
         onclick="deletePlayerRow(this.dataset.pid)">✕</button>
+      ${window.__signupCodeCell ? window.__signupCodeCell(p) : ''}
     </div>`;
 }
 
@@ -147,6 +148,9 @@ async function createPlayer() {
     try {
         const created = await post('/api/players', { name, group, position });
         players.push(created);
+        if (created.signup_code && window.__showSignupCode) {
+            window.__showSignupCode(created.name, created.signup_code);
+        }
     } catch (err) {
         alert('Error al crear jugador: ' + (err.detail || err.message));
         return;
