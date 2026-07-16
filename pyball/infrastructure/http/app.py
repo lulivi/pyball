@@ -39,12 +39,14 @@ if TYPE_CHECKING:
     from pyball.application.notifier import MatchNotifier
 
 _DEFAULT_STATIC_DIR = Path(__file__).parent / "static"
+_DEFAULT_SIGNUP_STATIC_DIR = Path(__file__).parent / "static_signup"
 
 
 def create_app(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     container: "Container",
     notifier: "MatchNotifier",
     static_dir: Path = _DEFAULT_STATIC_DIR,
+    signup_static_dir: Path = _DEFAULT_SIGNUP_STATIC_DIR,
     match_token: str = "",
     manage_token: str = "",
     signup_token: str = "",
@@ -66,11 +68,14 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     register_player_routes(app, container)
     register_meetup_routes(app, container, notifier)
     if enable_web_signup:
-        register_signup_routes(app, container, signup_token)
+        register_signup_routes(app, container, signup_token, static_dir=signup_static_dir)
 
     icons_dir = Path(container.icons_dir) if container.icons_dir else None
     if icons_dir and icons_dir.exists():
         app.mount("/icons", StaticFiles(directory=icons_dir), name="icons")
+
+    if enable_web_signup and signup_static_dir.exists():
+        app.mount("/signup-static", StaticFiles(directory=signup_static_dir), name="signup-static")
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

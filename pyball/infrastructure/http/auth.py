@@ -22,6 +22,10 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
     - signup_token: grants access to /signup and /api/signup/*
     - manage_token: grants access to everything (superset of the other two)
 
+    Static assets (/js/*, /icons/*, /signup-static/*) carry no player data and are
+    always public, same as the pages' own JS was already documented to be — only the
+    page shells and the API are gated.
+
     Token delivery:
     - ?token=<value> → validates, sets HttpOnly cookie, redirects to clean URL
     - Cookie pyball_<scope>_token=<value> → validates on every subsequent request
@@ -68,6 +72,8 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
         self._signup_api_prefix = "/api/signup/"
         self._api_prefix = "/api/"
         self._icons_prefix = "/icons/"
+        self._js_prefix = "/js/"
+        self._signup_static_prefix = "/signup-static/"
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check token on every request."""
@@ -134,8 +140,14 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
         return None
 
     def _is_public(self, path: str) -> bool:
-        """Return True if the path requires no authentication."""
-        return path in self._public_paths or path.startswith(self._icons_prefix)
+        """Return True if the path requires no authentication.
+
+        Static assets (JS, icons) carry no player data and are the same for every
+        visitor, so — like the page shells they support (/match, /manage, /signup) —
+        only the *pages* and the API are gated, never the scripts that render them.
+        """
+        public_prefixes = (self._icons_prefix, self._js_prefix, self._signup_static_prefix)
+        return path in self._public_paths or path.startswith(public_prefixes)
 
     def _required_scope(self, method: str, path: str) -> str:
         """Return which token scope ('match', 'signup', or 'manage') a path requires."""

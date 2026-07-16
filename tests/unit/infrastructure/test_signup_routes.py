@@ -302,3 +302,55 @@ class TestSignupRoutesDisabledByDefault:
         # the signup feature. The important assertion is that the signup route itself
         # was never registered.
         assert response.status_code == 405
+
+
+class TestSignupPage:
+    """Tests for GET /signup and static asset isolation."""
+
+    @pytest.mark.asyncio
+    async def test_signup_page_served_when_enabled(self, tmp_path):
+        # Uses _client(), not a bare AsyncClient: TokenAuthMiddleware (Task 2) already
+        # gates /signup behind the "signup" scope cookie, same as /api/signup/* — see
+        # the comment on _client() above.
+        ana = Player.create("Ana")
+        container = _container_with_code_store(tmp_path, ana)
+        app = _make_app(container)
+
+        async with _client(app) as c:
+            response = await c.get("/signup")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    @pytest.mark.asyncio
+    async def test_signup_page_404_when_disabled(self):
+        container = MagicMock()
+        app = create_app(container, NullMatchNotifier())
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/signup")
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_signup_static_js_served_when_enabled(self, tmp_path):
+        # Same reasoning as above: /signup-static/* requires the "signup" scope cookie
+        # when signup_token is configured, so this needs _client() too.
+        ana = Player.create("Ana")
+        container = _container_with_code_store(tmp_path, ana)
+        app = _make_app(container)
+
+        async with _client(app) as c:
+            response = await c.get("/signup-static/js/main.js")
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_signup_static_js_404_when_disabled(self):
+        container = MagicMock()
+        app = create_app(container, NullMatchNotifier())
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/signup-static/js/main.js")
+
+        assert response.status_code == 404

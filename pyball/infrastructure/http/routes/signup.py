@@ -17,20 +17,17 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Signup route registrar and handlers — self-service /api/signup/* only.
-
-The GET /signup page route and its static asset mount are added in a later
-task (once the frontend exists); this file currently registers the API only.
-"""
+"""Signup route registrar and handlers — the /signup page and /api/signup/*."""
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from pyball.domain.meetup.errors import (
     MeetupNotFoundError,
@@ -50,8 +47,16 @@ if TYPE_CHECKING:
 _IDENTITY_COOKIE = "pyball_signup_player"
 
 
-def register_signup_routes(app: FastAPI, container: "Container", signup_token: str) -> None:
-    """Register /api/signup/* routes."""
+def register_signup_routes(
+    app: FastAPI, container: "Container", signup_token: str, static_dir: Path
+) -> None:
+    """Register the /signup page and /api/signup/* routes."""
+
+    @app.get("/signup")
+    async def signup_page():
+        """Serve the signup SPA."""
+        content = (static_dir / "signup.html").read_text()
+        return HTMLResponse(content)
 
     @app.post("/api/signup/verify")
     async def verify_code_endpoint(body: VerifyCodeInput):

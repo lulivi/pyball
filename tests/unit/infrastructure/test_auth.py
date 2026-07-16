@@ -33,6 +33,12 @@ def _make_app(
     async def signup_page(request: Request):
         return JSONResponse({"page": "signup"})
 
+    async def signup_static_asset(request: Request):
+        return JSONResponse({"asset": "main.js"})
+
+    async def js_asset(request: Request):
+        return JSONResponse({"asset": "api.js"})
+
     async def api_match_active(request: Request):
         return JSONResponse({"active": True})
 
@@ -50,6 +56,8 @@ def _make_app(
         Route("/match", match_page),
         Route("/manage", manage_page),
         Route("/signup", signup_page),
+        Route("/signup-static/js/main.js", signup_static_asset),
+        Route("/js/api.js", js_asset),
         Route("/api/match/active", api_match_active),
         Route("/api/match/finish", api_match_finish, methods=["POST"]),
         Route("/api/signup/verify", api_signup_verify, methods=["POST"]),
@@ -83,6 +91,22 @@ class TestPublicPaths:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/icons/icon-192.png")
         assert response.status_code != 401
+
+    @pytest.mark.asyncio
+    async def test_js_prefix_is_public(self):
+        """/js/* is public with no token: shared scripts (e.g. api.js) carry no data."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/js/api.js")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_signup_static_prefix_is_public(self):
+        """/signup-static/* is public with no token — only the /signup page is gated."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/signup-static/js/main.js")
+        assert response.status_code == 200
 
 
 class TestUnauthenticatedRequests:
