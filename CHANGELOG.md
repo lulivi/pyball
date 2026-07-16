@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.19.0 (2026-07-16)
+
+### Features
+
+- **GL-144..GL-152**: Add meetup signup lock, destroy-teams, and /meetup_show
+  ([`60528d6`](https://gitlab.com/lulivi/pyball/-/commit/60528d6a18df37073d0294bcf5c81515f986f28c))
+
+
 ## v4.18.0 (2026-07-15)
 
 ### Features
