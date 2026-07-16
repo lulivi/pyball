@@ -208,7 +208,7 @@ function renderState1(data) {
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
     <div id="roster-list">${buildRosterList(data.players)}</div>
-    <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
+    <button class="btn-sm gray" style="margin-top:6px;margin-bottom:10px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
     ${addPanel}
     ${buildTeamButtonsRow()}
     ${buildRepasteTrigger(repastePanelOpen)}
