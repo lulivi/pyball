@@ -71,8 +71,18 @@ class TelegramMatchNotifier(MatchNotifier):
         await _send_regulars_callup_message(self._bot, self._settings, self._container, meetup)
 
     async def on_meetup_updated(self, meetup: Meetup) -> None:
-        """Handle a meetup update by refreshing platform messages."""
-        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
+        """Handle a meetup update by refreshing platform messages.
+
+        The join/leave keyboard is omitted once teams exist — signup is
+        closed automatically the moment teams are generated.
+        """
+        await refresh_callup_messages(
+            self._bot,
+            self._settings,
+            self._container,
+            meetup,
+            include_keyboard=meetup.is_signup_open(),
+        )
 
     async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
         """Handle a meetup date change by re-keying tracked messages and refreshing them."""

@@ -59,7 +59,7 @@ async def test_help_handler_renders_categories():
 
     text = update.message.reply_text.call_args.args[0]
     assert "*Player:*" in text
-    assert r"`/player_new`" in text
+    assert r"`/player_link`" in text
     assert r"`/meetup_search`" in text
     assert update.message.reply_text.call_args.kwargs["parse_mode"] == ParseMode.MARKDOWN_V2
 

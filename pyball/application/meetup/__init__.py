@@ -33,10 +33,12 @@ from pyball.application.meetup.compute_stats import (
 from pyball.application.meetup.create_meetup import CreateMeetup
 from pyball.application.meetup.create_teams import CreateTeams
 from pyball.application.meetup.create_teams_manually import CreateTeamsManually
+from pyball.application.meetup.destroy_teams import DestroyTeams
 from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.meetup.get_active_meetup import GetActiveMeetup
+from pyball.application.meetup.lock_meetup import LockMeetup
 from pyball.application.meetup.parse_callup import CallupParseOutcome, ParseCallup
 from pyball.application.meetup.parse_callup_text import (
     MatchedPlayer,
@@ -67,6 +69,8 @@ __all__ = [
     "CancelMeetup",
     "CloseMeetup",
     "CreateTeamsManually",
+    "DestroyTeams",
+    "LockMeetup",
     "StartNextRound",
     "MeetupHasNoTeamsError",
     "EditMatchResult",

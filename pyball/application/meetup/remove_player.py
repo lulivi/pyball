@@ -22,7 +22,7 @@
 from datetime import datetime
 
 from pyball.application.fuzzy_match import fuzzy_match_player
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupNotFoundError, SignupClosedError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
@@ -49,10 +49,10 @@ class RemovePlayerFromMeetup:
         all_players = self.player_repository.find_all()
         match = fuzzy_match_player(player_name, all_players)
 
-        meetup.remove_player(match.player_id)
+        if not meetup.is_signup_open():
+            raise SignupClosedError("Cannot leave a meetup once teams have been assigned.")
 
-        if meetup.teams is not None:
-            meetup.clear_teams()
+        meetup.remove_player(match.player_id)
 
         self.meetup_repository.save(meetup)
         return meetup

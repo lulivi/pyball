@@ -7,7 +7,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from pyball.application.notifier import MatchNotifier
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
+from pyball.domain.meetup.errors import (
+    MeetupAlreadyClosedError,
+    MeetupHasNoTeamsError,
+    MeetupNotFoundError,
+)
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.errors import (
     InvalidPlayerIdError,
@@ -421,6 +425,8 @@ class TestMeetupActive:
         meetup.teams = None
         meetup.date = datetime(2026, 5, 28, 20, 0)
         meetup.location = "Polideportivo Municipal"
+        meetup.locked = False
+        meetup.is_signup_open.return_value = True
         pid = MagicMock()
         pid.value = "p1"
         meetup.players = [pid]
@@ -443,6 +449,8 @@ class TestMeetupActive:
         assert data["location"] == "Polideportivo Municipal"
         assert data["players"] == [{"id": "p1", "name": "Juande"}]
         assert data["teams"] is None
+        assert data["locked"] is False
+        assert data["signupOpen"] is True
 
     @pytest.mark.asyncio
     async def test_returns_full_payload_when_teams_exist(self):
@@ -456,6 +464,9 @@ class TestMeetupActive:
         pid_b.value = "p2"
         meetup.players = [pid_a, pid_b]
         meetup.teams = [MagicMock(players=[pid_a]), MagicMock(players=[pid_b])]
+        meetup.locked = True
+        meetup.matches = []
+        meetup.is_signup_open.return_value = False
 
         player_a = MagicMock()
         player_a.id.value = "p1"
@@ -497,6 +508,9 @@ class TestMeetupActive:
         assert teams["colorTextB"] == "#e4e4e7"
         assert teams["emojiB"] == "⚫"
         assert teams["matchUrl"] == "http://test/match"
+        assert data["locked"] is True
+        assert data["signupOpen"] is False
+        assert teams["hasRecordedResults"] is False
 
     @pytest.mark.asyncio
     async def test_uses_match_token_url_when_configured(self):
@@ -507,6 +521,8 @@ class TestMeetupActive:
         pid.value = "p1"
         meetup.players = [pid]
         meetup.teams = [MagicMock(players=[pid]), MagicMock(players=[])]
+        meetup.locked = False
+        meetup.matches = []
 
         player = MagicMock()
         player.id.value = "p1"
@@ -1216,6 +1232,26 @@ class TestGenerateTeams:
             datetime(2026, 6, 8, 20, 0), 3
         )
 
+    @pytest.mark.asyncio
+    async def test_generate_teams_409_when_locked(self):
+        """POST /api/meetup/generate-teams returns 409 when the meetup is locked."""
+        from pyball.domain.meetup.errors import MeetupLockedError
+
+        container = MagicMock()
+        meetup = MagicMock()
+        meetup.is_closed.return_value = False
+        container.meetup_repository.find_by_datetime.return_value = meetup
+        container.create_teams.return_value.execute.side_effect = MeetupLockedError("locked")
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+
+        assert resp.status_code == 409
+
 
 @pytest.mark.asyncio
 async def test_create_meetup_409_when_closed():
@@ -1224,6 +1260,23 @@ async def test_create_meetup_409_when_closed():
     container.set_meetup_players.return_value.execute.side_effect = MeetupAlreadyClosedError(
         "closed"
     )
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/meetup/create", json={"date": "2026-06-17T20:00", "player_ids": []}
+        )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_meetup_409_when_locked():
+    """/api/meetup/create maps MeetupLockedError to 409."""
+    from pyball.domain.meetup.errors import MeetupLockedError
+
+    container = MagicMock()
+    container.set_meetup_players.return_value.execute.side_effect = MeetupLockedError("locked")
     app, _ = _make_app(container)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -1904,6 +1957,169 @@ class TestCancelMeetupEndpoint:
             resp = await c.delete("/api/meetup/active")
 
         assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_cancel_409_when_locked(self):
+        """DELETE /api/meetup/active returns 409 when the active meetup is locked."""
+        from pyball.domain.meetup.errors import MeetupLockedError
+
+        container = MagicMock()
+        container.cancel_meetup.return_value.execute.side_effect = MeetupLockedError("locked")
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.delete("/api/meetup/active")
+
+        assert resp.status_code == 409
+
+
+class TestLockMeetupEndpoint:
+    """Tests for POST /api/meetup/lock."""
+
+    @pytest.mark.asyncio
+    async def test_lock_returns_active_meetup_response(self):
+        """POST /api/meetup/lock locks the meetup and returns the active meetup payload."""
+        from unittest.mock import patch
+
+        container = MagicMock()
+        expected = {"date": "2026-06-08T20:00", "players": [], "teams": None, "locked": True}
+
+        app, _ = _make_app(container)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value=expected,
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post("/api/meetup/lock", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 200
+        assert resp.json() == expected
+        container.lock_meetup.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0)
+        )
+
+    @pytest.mark.asyncio
+    async def test_lock_404_when_meetup_not_found(self):
+        """POST /api/meetup/lock returns 404 when LockMeetup raises MeetupNotFoundError."""
+        container = MagicMock()
+        container.lock_meetup.return_value.execute.side_effect = MeetupNotFoundError(
+            "2026-06-08T20:00"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/lock", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_lock_409_when_no_teams(self):
+        """POST /api/meetup/lock returns 409 when LockMeetup raises MeetupHasNoTeamsError."""
+        container = MagicMock()
+        container.lock_meetup.return_value.execute.side_effect = MeetupHasNoTeamsError("no teams")
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/lock", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_lock_422_on_bad_date(self):
+        """POST /api/meetup/lock returns 422 for unparseable date strings."""
+        app, _ = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/lock", json={"date": "not-a-date"})
+
+        assert resp.status_code == 422
+
+
+class TestDestroyTeamsEndpoint:
+    """Tests for POST /api/meetup/destroy-teams."""
+
+    @pytest.mark.asyncio
+    async def test_destroy_teams_calls_notifier_and_returns_active_meetup_response(self):
+        """POST /api/meetup/destroy-teams destroys teams, notifies, and returns the payload."""
+        from unittest.mock import patch
+
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.return_value = meetup
+        expected = {"date": "2026-06-08T20:00", "players": [], "teams": None, "locked": False}
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value=expected,
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 200
+        assert resp.json() == expected
+        assert notifier.updated == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_destroy_teams_404_when_meetup_not_found(self):
+        """POST /api/meetup/destroy-teams returns 404 when the meetup doesn't exist."""
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.side_effect = MeetupNotFoundError(
+            "2026-06-08T20:00"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_destroy_teams_409_when_no_teams(self):
+        """POST /api/meetup/destroy-teams returns 409 when there are no teams to destroy."""
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.side_effect = MeetupHasNoTeamsError(
+            "no teams"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_destroy_teams_409_when_results_already_recorded(self):
+        """POST /api/meetup/destroy-teams returns 409 when a match already has a result."""
+        from pyball.domain.meetup.errors import MeetupHasRecordedResultsError
+
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.side_effect = MeetupHasRecordedResultsError(
+            "has results"
+        )
+
+        app, _ = _make_app(container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_destroy_teams_does_not_call_notifier_on_error(self):
+        """POST /api/meetup/destroy-teams does not notify when the use case raises."""
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.side_effect = MeetupHasNoTeamsError(
+            "no teams"
+        )
+
+        notifier = _StubNotifier()
+        app = create_app(container, notifier)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert notifier.updated == []
 
 
 class TestCloseMeetupEndpoint:

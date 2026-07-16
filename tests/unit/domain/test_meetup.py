@@ -237,6 +237,40 @@ class TestClearTeamsResetsMatches:
         assert not meetup.is_closed()
 
 
+class TestLock:
+    """Tests for Meetup.lock / is_signup_open."""
+
+    def test_lock_sets_locked_true(self):
+        """lock() marks the meetup as locked."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        assert not meetup.locked
+        meetup.lock()
+        assert meetup.locked
+
+    def test_is_signup_open_true_when_no_teams(self):
+        """is_signup_open returns True while teams is None."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        assert meetup.is_signup_open()
+
+    def test_is_signup_open_false_once_teams_assigned(self):
+        """is_signup_open returns False once teams are set, regardless of locked."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        assert not meetup.is_signup_open()
+
+    def test_clear_teams_also_resets_locked(self):
+        """clear_teams resets locked to False along with teams/matches/closed."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        meetup.lock()
+
+        meetup.clear_teams()
+
+        assert not meetup.locked
+
+
 class TestGoalEventOwnGoal:
     """GoalEvent own-goal field."""
 

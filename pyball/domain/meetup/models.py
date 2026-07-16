@@ -31,7 +31,7 @@ from pyball.domain.player.models import PlayerId
 
 
 @dataclass
-class Meetup(Entity["MeetupId"]):
+class Meetup(Entity["MeetupId"]):  # pylint: disable=too-many-instance-attributes
     """Meetup entity - represents a football session."""
 
     id: MeetupId
@@ -41,6 +41,7 @@ class Meetup(Entity["MeetupId"]):
     teams: list[Team] | None = None
     matches: list[Match] = field(default_factory=list)
     closed: bool = False
+    locked: bool = False
 
     @classmethod
     def create(cls, date: datetime, location: str) -> "Meetup":
@@ -67,10 +68,15 @@ class Meetup(Entity["MeetupId"]):
         self.teams = teams
 
     def clear_teams(self) -> None:
-        """Clear any assigned teams, and any matches/closed state tied to them."""
+        """Clear any assigned teams, and any matches/closed/locked state tied to them."""
         self.teams = None
         self.matches = []
         self.closed = False
+        self.locked = False
+
+    def lock(self) -> None:
+        """Lock the meetup, disabling /manage's convocatoria-editing actions."""
+        self.locked = True
 
     def add_match(self, match: "Match") -> None:
         """Append a new pending (or already-resolved) match to this meetup."""
@@ -96,6 +102,10 @@ class Meetup(Entity["MeetupId"]):
     def is_closed(self) -> bool:
         """Return True if the meetup has been closed."""
         return self.closed
+
+    def is_signup_open(self) -> bool:
+        """Return True if players may still join or leave (no teams assigned yet)."""
+        return self.teams is None
 
     def set_location(self, location: str) -> None:
         """Set the meetup location."""

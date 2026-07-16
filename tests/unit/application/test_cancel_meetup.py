@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pyball.application.meetup import CancelMeetup
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 
 
@@ -47,6 +47,18 @@ class TestCancelMeetup:
         repo.find_all.return_value = [closed]
 
         with pytest.raises(MeetupNotFoundError):
+            CancelMeetup(repo).execute()
+
+        repo.delete.assert_not_called()
+
+    def test_raises_when_active_meetup_is_locked(self):
+        """MeetupLockedError is raised and nothing is deleted when the meetup is locked."""
+        meetup = _active_meetup(datetime(2026, 6, 8, 20, 0))
+        meetup.locked = True
+        repo = MagicMock()
+        repo.find_all.return_value = [meetup]
+
+        with pytest.raises(MeetupLockedError):
             CancelMeetup(repo).execute()
 
         repo.delete.assert_not_called()

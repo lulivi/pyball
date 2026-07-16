@@ -139,10 +139,10 @@ async def test_unlinked_player_answers_registration_message(
 
 
 @pytest.mark.asyncio
-async def test_join_clears_teams_when_teams_exist(
+async def test_join_signup_closed_when_teams_exist(
     callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
 ):
-    """Join callback clears existing teams from the meetup."""
+    """Join callback rejects and leaves teams untouched once teams already exist."""
     container = bot_context.bot_data["container"]
     extra_id = PlayerId.generate()
     saved_meetup.add_player(extra_id)
@@ -154,14 +154,19 @@ async def test_join_clears_teams_when_teams_exist(
     await callback_handler(callback_update, bot_context)
 
     meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
-    assert meetup.teams is None
+    assert meetup.teams is not None
+    assert linked_player.id not in meetup.players
+    call_kwargs = callback_update.callback_query.answer.call_args
+    assert call_kwargs[1].get("show_alert") is True
+    text = call_kwargs[1].get("text") or call_kwargs[0][0]
+    assert "equipos" in text.lower()
 
 
 @pytest.mark.asyncio
-async def test_leave_clears_teams_when_teams_exist(
+async def test_leave_signup_closed_when_teams_exist(
     callback_update, bot_context, linked_player, saved_meetup
 ):
-    """Leave callback clears existing teams from the meetup."""
+    """Leave callback rejects and leaves teams untouched once teams already exist."""
     container = bot_context.bot_data["container"]
     extra_id = PlayerId.generate()
     saved_meetup.add_player(linked_player.id)
@@ -174,7 +179,10 @@ async def test_leave_clears_teams_when_teams_exist(
     await callback_handler(callback_update, bot_context)
 
     meetup = container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
-    assert meetup.teams is None
+    assert meetup.teams is not None
+    assert linked_player.id in meetup.players
+    call_kwargs = callback_update.callback_query.answer.call_args
+    assert call_kwargs[1].get("show_alert") is True
 
 
 @pytest.mark.asyncio
@@ -279,3 +287,25 @@ async def test_search_callback_no_substitutes_chat_answers_alert(
     assert call_kwargs[1].get("show_alert") is True
     text = call_kwargs[1].get("text") or call_kwargs[0][0]
     assert "no está configurado" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_search_callback_signup_closed_answers_alert(
+    callback_update, bot_context, saved_meetup
+):
+    """Search callback alerts and sends nothing once teams already exist."""
+    container = bot_context.bot_data["container"]
+    extra_id = PlayerId.generate()
+    saved_meetup.add_player(extra_id)
+    saved_meetup.set_teams([Team.create("A", [extra_id]), Team.create("B", [])])
+    container.meetup_repository.save(saved_meetup)
+    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
+    callback_update.callback_query.data = "search:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    bot_context.bot.send_message.assert_not_called()
+    call_kwargs = callback_update.callback_query.answer.call_args
+    assert call_kwargs[1].get("show_alert") is True
+    text = call_kwargs[1].get("text") or call_kwargs[0][0]
+    assert "equipos" in text.lower()
