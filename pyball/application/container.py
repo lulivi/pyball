@@ -21,6 +21,7 @@
 
 from pyball.application.meetup import (
     AddPlayerToMeetup,
+    AddPlayerToMeetupById,
     AssignTeamsById,
     CancelMeetup,
     CloseMeetup,
@@ -36,6 +37,7 @@ from pyball.application.meetup import (
     LockMeetup,
     ParseCallup,
     RemovePlayerFromMeetup,
+    RemovePlayerFromMeetupById,
     SetMeetupPlayers,
     StartNextRound,
     UpdateMeetupDate,
@@ -102,6 +104,14 @@ class Container:  # pylint: disable=too-many-public-methods
     def remove_player_from_meetup(self) -> RemovePlayerFromMeetup:
         """Create a new RemovePlayerFromMeetup use case."""
         return RemovePlayerFromMeetup(self.meetup_repository, self.player_repository)
+
+    def add_player_to_meetup_by_id(self) -> AddPlayerToMeetupById:
+        """Create a new AddPlayerToMeetupById use case."""
+        return AddPlayerToMeetupById(self.meetup_repository)
+
+    def remove_player_from_meetup_by_id(self) -> RemovePlayerFromMeetupById:
+        """Create a new RemovePlayerFromMeetupById use case."""
+        return RemovePlayerFromMeetupById(self.meetup_repository)
 
     def create_teams(self, algo_name: str | None = None) -> CreateTeams:
         """Create a new CreateTeams use case with the specified or default algorithm."""
