@@ -38,6 +38,7 @@ from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
 
 if TYPE_CHECKING:
+    from pyball.domain.player.models import Player
     from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
@@ -142,7 +143,6 @@ async def _handle_player_action(
             show_alert=True,
         )
         return
-    player_name = player.name
 
     is_player_in_meetup = player_id in meetup.players
     if is_player_in_meetup and "join" in action:
@@ -152,7 +152,7 @@ async def _handle_player_action(
         await query.answer("No estás en este meetup.", show_alert=True)
         return
 
-    modified = _process_action(action, meetup_date, player_name, container)
+    modified = _process_action(action, meetup_date, player, container)
     if modified:
         updated_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if updated_meetup:
@@ -206,7 +206,7 @@ def _validate_player_id(player_id_str: str) -> PlayerId | None:
 
 
 def _process_action(
-    action: str, meetup_date: datetime, player_name: str, container: Container
+    action: str, meetup_date: datetime, player: "Player", container: Container
 ) -> bool:
     """Add or remove the player based on the action.
 
@@ -215,18 +215,18 @@ def _process_action(
     """
     if "join" in action:
         try:
-            container.add_player_to_meetup().execute(meetup_date, player_name)
-            logger.info("Player '%s' joined meetup %s", player_name, meetup_date)
+            container.add_player_to_meetup_by_id().execute(meetup_date, player.id)
+            logger.info("Player '%s' joined meetup %s", player.name, meetup_date)
             return True
         except Exception:  # pylint: disable=broad-except
-            logger.exception("Unexpected error processing join for player '%s'", player_name)
+            logger.exception("Unexpected error processing join for player '%s'", player.name)
             return False
     if "leave" in action:
         try:
-            container.remove_player_from_meetup().execute(meetup_date, player_name)
-            logger.info("Player '%s' left meetup %s", player_name, meetup_date)
+            container.remove_player_from_meetup_by_id().execute(meetup_date, player.id)
+            logger.info("Player '%s' left meetup %s", player.name, meetup_date)
             return True
         except Exception:  # pylint: disable=broad-except
-            logger.exception("Unexpected error processing leave for player '%s'", player_name)
+            logger.exception("Unexpected error processing leave for player '%s'", player.name)
             return False
     return False
