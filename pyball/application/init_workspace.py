@@ -108,10 +108,10 @@ chat_id = -1000000000001
 chat_id = 0
 """
 
-_WEB_COMPOSE = """\
+_PYBALL_COMPOSE = """\
 services:
-  web:
-    image: lulivi/pyball-web:${TAG:-latest}
+  pyball:
+    image: lulivi/pyball:${TAG:-latest}
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"
@@ -138,7 +138,7 @@ services:
 
 _DOCS_BASE_URL = "https://gitlab.com/lulivi/pyball/-/blob/main/docs"
 
-_WEB_README = f"""\
+_PYBALL_README = f"""\
 # PyBall
 
 PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
@@ -201,6 +201,9 @@ Pin a specific version in `.env`: `TAG=4.13.0`
 """
 
 
+_TOPOLOGY_LABELS = {"pyball": "pyball", "web": "pyball-web", "tg": "pyball-telegram"}
+
+
 def init_workspace(topology: str, config_path: Path) -> None:
     """Generate a deployment workspace and exit without starting the app.
 
@@ -226,7 +229,7 @@ def init_workspace(topology: str, config_path: Path) -> None:
             print(f"Error: {msg}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Bootstrapping pyball-{topology} workspace in {workspace} ...")
+    print(f"Bootstrapping {_TOPOLOGY_LABELS.get(topology, topology)} workspace in {workspace} ...")
 
     for rel in ("data", "data/meetups", "logs"):
         (workspace / rel).mkdir(parents=True, exist_ok=True)
@@ -265,7 +268,7 @@ def _compose_template(topology: str) -> str:
     """Return the compose.yaml content for the given topology."""
     if topology == "tg":
         return _TG_COMPOSE
-    return _WEB_COMPOSE
+    return _PYBALL_COMPOSE
 
 
 def _env_template() -> str:
@@ -277,4 +280,4 @@ def _readme_template(topology: str) -> str:
     """Return the README.md content for the given topology."""
     if topology == "tg":
         return _TG_README
-    return _WEB_README
+    return _PYBALL_README

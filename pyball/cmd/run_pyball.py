@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Web-only topology entrypoint — FastAPI without Telegram."""
+"""Bare topology entrypoint — FastAPI only, no Telegram, no /signup."""
 
 import argparse
 import asyncio
@@ -54,7 +54,7 @@ def main() -> None:
     if args.bootstrap:
         from pyball.application.init_workspace import init_workspace  # pylint: disable=C0415
 
-        init_workspace("web", args.config)
+        init_workspace("pyball", args.config)
         return
     try:
         asyncio.run(_main_async(args.config))

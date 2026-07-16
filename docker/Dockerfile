@@ -72,11 +72,11 @@ WORKDIR /pyball
 RUN chown -R pyballuser:pyballgroup /pyball
 
 USER pyballuser
-ENTRYPOINT ["pyball-tg"]
+ENTRYPOINT ["pyball-telegram"]
 
 
-# --- web: FastAPI-only topology ---
-FROM base AS web
+# --- pyball: bare topology (no Telegram, no /signup) ---
+FROM base AS pyball
 
 RUN $VIRTUAL_ENV/bin/pip install --no-cache /builder/*.whl \
     && rm -rf /builder
@@ -85,4 +85,4 @@ WORKDIR /pyball
 RUN chown -R pyballuser:pyballgroup /pyball
 
 USER pyballuser
-ENTRYPOINT ["pyball-web"]
+ENTRYPOINT ["pyball"]

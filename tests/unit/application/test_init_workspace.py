@@ -7,12 +7,12 @@ import pytest
 from pyball.application.init_workspace import init_workspace
 
 
-class TestInitWorkspaceWeb:
-    """Tests for web topology workspace initialisation."""
+class TestInitWorkspacePyball:
+    """Tests for bare-topology workspace initialisation."""
 
     def test_creates_all_files_and_dirs(self, tmp_path):
-        """Web bootstrap generates config.toml, compose.yaml, .env, README.md and dirs."""
-        init_workspace("web", tmp_path / "config.toml")
+        """Bare bootstrap generates config.toml, compose.yaml, .env, README.md and dirs."""
+        init_workspace("pyball", tmp_path / "config.toml")
 
         assert (tmp_path / "config.toml").exists()
         assert (tmp_path / "compose.yaml").exists()
@@ -23,22 +23,23 @@ class TestInitWorkspaceWeb:
         assert (tmp_path / "logs").is_dir()
 
     def test_config_excludes_telegram_section(self, tmp_path):
-        """Web config.toml must not contain the [pyball.telegram] section."""
-        init_workspace("web", tmp_path / "config.toml")
+        """Bare config.toml must not contain the [pyball.telegram] section."""
+        init_workspace("pyball", tmp_path / "config.toml")
 
         content = (tmp_path / "config.toml").read_text()
         assert "[pyball.telegram]" not in content
 
-    def test_compose_references_web_image(self, tmp_path):
-        """Web compose.yaml references the pyball-web image."""
-        init_workspace("web", tmp_path / "config.toml")
+    def test_compose_references_pyball_image(self, tmp_path):
+        """Bare compose.yaml references the lulivi/pyball image, not pyball-web."""
+        init_workspace("pyball", tmp_path / "config.toml")
 
         content = (tmp_path / "compose.yaml").read_text()
-        assert "pyball-web" in content
+        assert "image: lulivi/pyball:" in content
+        assert "pyball-web" not in content
 
     def test_env_contains_uid_gid(self, tmp_path):
         """.env is pre-populated with the current process UID and GID."""
-        init_workspace("web", tmp_path / "config.toml")
+        init_workspace("pyball", tmp_path / "config.toml")
 
         content = (tmp_path / ".env").read_text()
         assert f"UID={os.getuid()}" in content
@@ -46,7 +47,7 @@ class TestInitWorkspaceWeb:
 
     def test_env_contains_port_and_tag(self, tmp_path):
         """.env includes PORT and TAG defaults."""
-        init_workspace("web", tmp_path / "config.toml")
+        init_workspace("pyball", tmp_path / "config.toml")
 
         content = (tmp_path / ".env").read_text()
         assert "PORT=8000" in content
@@ -79,7 +80,7 @@ class TestInitWorkspaceErrors:
         (tmp_path / "config.toml").touch()
 
         with pytest.raises(SystemExit) as exc_info:
-            init_workspace("web", tmp_path / "config.toml")
+            init_workspace("pyball", tmp_path / "config.toml")
 
         assert exc_info.value.code == 1
 
@@ -88,7 +89,7 @@ class TestInitWorkspaceErrors:
         (tmp_path / "compose.yaml").touch()
 
         with pytest.raises(SystemExit) as exc_info:
-            init_workspace("web", tmp_path / "config.toml")
+            init_workspace("pyball", tmp_path / "config.toml")
 
         assert exc_info.value.code == 1
 
@@ -97,7 +98,7 @@ class TestInitWorkspaceErrors:
         (tmp_path / ".env").touch()
 
         with pytest.raises(SystemExit) as exc_info:
-            init_workspace("web", tmp_path / "config.toml")
+            init_workspace("pyball", tmp_path / "config.toml")
 
         assert exc_info.value.code == 1
 
@@ -106,7 +107,7 @@ class TestInitWorkspaceErrors:
         readme = tmp_path / "README.md"
         readme.write_text("existing content", encoding="utf-8")
 
-        init_workspace("web", tmp_path / "config.toml")
+        init_workspace("pyball", tmp_path / "config.toml")
 
         assert readme.read_text() == "existing content"
         assert "Skipped  README.md" in capsys.readouterr().out
@@ -118,7 +119,7 @@ class TestInitWorkspaceErrors:
         (tmp_path / ".env").touch()
 
         with pytest.raises(SystemExit):
-            init_workspace("web", tmp_path / "config.toml")
+            init_workspace("pyball", tmp_path / "config.toml")
 
         err = capsys.readouterr().err
         assert "config.toml" in err
@@ -134,7 +135,7 @@ class TestInitWorkspaceDirectory:
         subdir = tmp_path / "deploy"
         subdir.mkdir()
 
-        init_workspace("web", subdir / "config.toml")
+        init_workspace("pyball", subdir / "config.toml")
 
         assert (subdir / "config.toml").exists()
         assert (subdir / "compose.yaml").exists()
