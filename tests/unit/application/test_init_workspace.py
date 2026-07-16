@@ -72,6 +72,31 @@ class TestInitWorkspaceTg:
         assert "pyball-telegram" in content
 
 
+class TestInitWorkspaceWebSignup:
+    """Tests for the signup-capable web topology workspace initialisation."""
+
+    def test_compose_references_web_signup_image(self, tmp_path):
+        """Web-signup compose.yaml references the lulivi/pyball-web image."""
+        init_workspace("web", tmp_path / "config.toml")
+
+        content = (tmp_path / "compose.yaml").read_text()
+        assert "image: lulivi/pyball-web:" in content
+
+    def test_config_excludes_telegram_section(self, tmp_path):
+        """Web-signup config.toml must not contain the [pyball.telegram] section."""
+        init_workspace("web", tmp_path / "config.toml")
+
+        content = (tmp_path / "config.toml").read_text()
+        assert "[pyball.telegram]" not in content
+
+    def test_readme_mentions_signup(self, tmp_path):
+        """Web-signup README.md mentions the /signup page."""
+        init_workspace("web", tmp_path / "config.toml")
+
+        content = (tmp_path / "README.md").read_text()
+        assert "/signup" in content
+
+
 class TestInitWorkspaceErrors:
     """Tests for blocking-error behaviour."""
 

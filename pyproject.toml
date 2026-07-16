@@ -27,6 +27,7 @@ telegram = ["python-telegram-bot>=22,<23"]
 
 [project.scripts]
 pyball = "pyball.cmd.run_pyball:main"
+pyball-web = "pyball.cmd.run_web:main"
 pyball-telegram = "pyball.cmd.run_telegram:main"
 
 [dependency-groups]

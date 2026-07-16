@@ -127,6 +127,20 @@ services:
     restart: unless-stopped
 """
 
+_WEB_SIGNUP_COMPOSE = """\
+services:
+  web:
+    image: lulivi/pyball-web:${TAG:-latest}
+    user: "${UID}:${GID}"
+    ports:
+      - "127.0.0.1:${PORT}:8000"
+    volumes:
+      - "./config.toml:/pyball/config.toml"
+      - "./logs:/pyball/logs"
+      - "./data:/pyball/data"
+    restart: unless-stopped
+"""
+
 _TG_COMPOSE = """\
 services:
   bot:
@@ -157,6 +171,38 @@ docker compose up -d
 
 Edit `config.toml` first — see the full setup guide for configuration, access tokens,
 and how to use `/manage` and `/match`:
+
+- [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
+- [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
+[Flujo de la aplicación]({_DOCS_BASE_URL}/workflow.es.md)
+- [Data Directory]({_DOCS_BASE_URL}/data-directory.md) / \
+[Directorio de datos]({_DOCS_BASE_URL}/data-directory.es.md)
+
+## Updating
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Pin a specific version in `.env`: `TAG=4.13.0`
+"""
+
+_WEB_SIGNUP_README = f"""\
+# PyBall
+
+PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
+managing players, and recording results — including a self-service /signup page
+where players join or leave a meetup with their own personal code.
+
+## Quick Start
+
+```bash
+docker compose up -d
+```
+
+Edit `config.toml` first — see the full setup guide for configuration, access tokens
+(including `signup_token`), and how to use `/manage`, `/match`, and `/signup`:
 
 - [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
 - [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
@@ -213,7 +259,8 @@ def init_workspace(topology: str, config_path: Path) -> None:
     """Generate a deployment workspace and exit without starting the app.
 
     Args:
-        topology: "web" or "tg" — controls which config/compose/README template is used.
+        topology: "pyball", "web", or "tg" — controls which config/compose/README
+            template is used.
         config_path: Path where config.toml will be written; all other files go in
             the same directory.
     """
@@ -273,6 +320,8 @@ def _compose_template(topology: str) -> str:
     """Return the compose.yaml content for the given topology."""
     if topology == "tg":
         return _TG_COMPOSE
+    if topology == "web":
+        return _WEB_SIGNUP_COMPOSE
     return _PYBALL_COMPOSE
 
 
@@ -285,4 +334,6 @@ def _readme_template(topology: str) -> str:
     """Return the README.md content for the given topology."""
     if topology == "tg":
         return _TG_README
+    if topology == "web":
+        return _WEB_SIGNUP_README
     return _PYBALL_README

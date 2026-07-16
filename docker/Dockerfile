@@ -86,3 +86,16 @@ RUN chown -R pyballuser:pyballgroup /pyball
 
 USER pyballuser
 ENTRYPOINT ["pyball"]
+
+
+# --- web: manage + match + signup topology (no Telegram) ---
+FROM base AS web
+
+RUN $VIRTUAL_ENV/bin/pip install --no-cache /builder/*.whl \
+    && rm -rf /builder
+
+WORKDIR /pyball
+RUN chown -R pyballuser:pyballgroup /pyball
+
+USER pyballuser
+ENTRYPOINT ["pyball-web"]
