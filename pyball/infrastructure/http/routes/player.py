@@ -143,7 +143,7 @@ def register_player_routes(  # pylint: disable=too-many-statements
         if container.player_repository.find_by_id(parsed_id) is None:
             raise HTTPException(404, f"Player with id '{player_id}' not found")
         code = generate_code()
-        _code_store(container).set_code(player_id, code)
+        _code_store(container).set_code(str(parsed_id.value), code)
         return {"code": code}
 
 
