@@ -22,7 +22,6 @@
 from pathlib import Path
 
 from pyball.application.meetup import (
-    AddPlayerToMeetup,
     AddPlayerToMeetupById,
     AssignTeamsById,
     CancelMeetup,
@@ -38,7 +37,6 @@ from pyball.application.meetup import (
     GetActiveMeetup,
     LockMeetup,
     ParseCallup,
-    RemovePlayerFromMeetup,
     RemovePlayerFromMeetupById,
     SetMeetupPlayers,
     StartNextRound,
@@ -98,14 +96,6 @@ class Container:  # pylint: disable=too-many-public-methods
     def set_player_position(self) -> SetPlayerPosition:
         """Create a new SetPlayerPosition use case."""
         return SetPlayerPosition(self.player_repository)
-
-    def add_player_to_meetup(self) -> AddPlayerToMeetup:
-        """Create a new AddPlayerToMeetup use case."""
-        return AddPlayerToMeetup(self.meetup_repository, self.player_repository)
-
-    def remove_player_from_meetup(self) -> RemovePlayerFromMeetup:
-        """Create a new RemovePlayerFromMeetup use case."""
-        return RemovePlayerFromMeetup(self.meetup_repository, self.player_repository)
 
     def add_player_to_meetup_by_id(self) -> AddPlayerToMeetupById:
         """Create a new AddPlayerToMeetupById use case."""

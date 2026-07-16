@@ -19,7 +19,6 @@
 # SOFTWARE.
 """Meetup use cases."""
 
-from pyball.application.meetup.add_player import AddPlayerToMeetup
 from pyball.application.meetup.add_player_by_id import AddPlayerToMeetupById
 from pyball.application.meetup.assign_teams_by_id import AssignTeamsById
 from pyball.application.meetup.cancel_meetup import CancelMeetup
@@ -47,7 +46,6 @@ from pyball.application.meetup.parse_callup_text import (
     ParseResult,
     PlayerCandidate,
 )
-from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
 from pyball.application.meetup.remove_player_by_id import RemovePlayerFromMeetupById
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
 from pyball.application.meetup.start_next_round import StartNextRound
@@ -64,9 +62,7 @@ __all__ = [
     "CallupParseOutcome",
     "CreateMeetup",
     "DuplicateMeetupError",
-    "AddPlayerToMeetup",
     "AddPlayerToMeetupById",
-    "RemovePlayerFromMeetup",
     "RemovePlayerFromMeetupById",
     "CreateTeams",
     "AssignTeamsById",
