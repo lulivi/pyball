@@ -59,7 +59,7 @@ def register_signup_routes(
         return HTMLResponse(content)
 
     @app.post("/api/signup/verify")
-    async def verify_code_endpoint(body: VerifyCodeInput):
+    async def verify_code_endpoint(request: Request, body: VerifyCodeInput):
         """Validate a personal code, identify the player, and set the identity cookie."""
         store = _code_store(container)
         player_id_str = store.verify_code(body.code)
@@ -68,7 +68,9 @@ def register_signup_routes(
             raise HTTPException(401, "Código incorrecto")
         identified_id = str(player.id.value)
         response = JSONResponse({"id": identified_id, "name": player.name})
-        _set_identity_cookie(response, identified_id, signup_token)
+        _set_identity_cookie(
+            response, identified_id, signup_token, secure=request.url.scheme == "https"
+        )
         return response
 
     @app.get("/api/signup/me")
@@ -154,13 +156,16 @@ def _active_meetup_or_404(container: "Container") -> "Meetup":
         raise HTTPException(404, "No hay convocatoria activa") from exc
 
 
-def _set_identity_cookie(response: JSONResponse, player_id: str, signup_token: str) -> None:
+def _set_identity_cookie(
+    response: JSONResponse, player_id: str, signup_token: str, secure: bool
+) -> None:
     """Set the HMAC-signed identity cookie on the response."""
     mac = hmac.new(signup_token.encode(), player_id.encode(), hashlib.sha256).hexdigest()
     response.set_cookie(
         _IDENTITY_COOKIE,
         f"{player_id}.{mac}",
         httponly=True,
+        secure=secure,
         samesite="lax",
         max_age=31536000,
         path="/",

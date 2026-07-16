@@ -21,6 +21,7 @@ from pyball.domain.player.errors import (
 )
 from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
+from pyball.infrastructure.signup.code_store import SignupCodeStore
 
 
 class TestGetNextDefaultDate:
@@ -1024,6 +1025,28 @@ class TestPlayerSignupCode:
                 "/api/players/11111111-1111-1111-1111-111111111111/signup-code/regenerate"
             )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_player_removes_signup_code_when_enabled(self, tmp_path):
+        container = _container_for_responses()
+        player = Player.create("Luis")
+        container.player_repository.find_by_id.return_value = player
+        container.data_dir = tmp_path
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        store = SignupCodeStore(tmp_path / "signup" / "codes.json")
+        store.set_code(str(player.id.value), "ABCD2345")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.delete(f"/api/players/{player.id.value}")
+        assert response.status_code == 200
+        assert store.has_code(str(player.id.value)) is False
+
+    @pytest.mark.asyncio
+    async def test_delete_player_does_not_touch_signup_store_when_disabled(self, tmp_path):
+        container = _container_for_responses()
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.delete("/api/players/11111111-1111-1111-1111-111111111111")
+        assert response.status_code == 200
 
 
 class TestCreateMeetup:

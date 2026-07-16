@@ -82,6 +82,23 @@ class TestVerifyCode:
 
         assert response.status_code == 401
 
+    @pytest.mark.asyncio
+    async def test_sets_secure_cookie_over_https(self, tmp_path):
+        player = Player.create("Ana", group="regular")
+        container = _container_with_code_store(tmp_path, player)
+        app = _make_app(container)
+
+        # Built manually (not via _client()) so the base_url can be https://, needed
+        # to exercise the secure=request.url.scheme == "https" branch — but it still
+        # needs the pyball_signup_token scope cookie _client() would otherwise set,
+        # or TokenAuthMiddleware rejects the request before it reaches the handler.
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as c:
+            c.cookies.set("pyball_signup_token", SIGNUP_TOKEN)
+            response = await c.post("/api/signup/verify", json={"code": "ABCD2345"})
+
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "Secure" in set_cookie
+
 
 class TestGetMe:
     """Tests for GET /api/signup/me."""
@@ -177,6 +194,25 @@ class TestChangeCode:
             )
 
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_current_code_belonging_to_different_player_returns_401(self, tmp_path):
+        player = Player.create("Ana", group="regular")
+        other = Player.create("Bea", group="regular")
+        container = _container_with_code_store(tmp_path, player, code="PLAYERONE")
+        store = SignupCodeStore(tmp_path / "signup" / "codes.json")
+        store.set_code(str(other.id.value), "PLAYERTWO")
+        app = _make_app(container)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(player.id.value)))
+            response = await c.post(
+                "/api/signup/change-code",
+                json={"current_code": "PLAYERTWO", "new_code": "NEWCODE1"},
+            )
+
+        assert response.status_code == 401
+        assert store.verify_code("PLAYERONE") == str(player.id.value)
 
 
 class TestSignupMeetup:
