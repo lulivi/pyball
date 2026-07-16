@@ -227,10 +227,18 @@ function buildCancelTrigger() {
     return `<button class="cancel-match-btn" onclick="cancelMeetup()">🗑 Cancelar partido</button>`;
 }
 
+function buildTeamButtonsRow() {
+    return `
+    <div class="action-row">
+      <button class="btn btn-green gen-btn" onclick="createOrRegenerateTeams(2, this)">⚽ Crear 2 equipos</button>
+      <button class="btn btn-green gen-btn" onclick="createOrRegenerateTeams(3, this)">⚽ Crear 3 equipos</button>
+    </div>`;
+}
+
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor, buildManualCreatePanel,
-    buildConvocatoriaRow, buildConvocatoriaDetail,
+    buildRepasteTrigger, buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor,
+    buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

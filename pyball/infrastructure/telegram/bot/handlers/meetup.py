@@ -38,8 +38,10 @@ from pyball.infrastructure.telegram.bot.auth import authorized
 from pyball.infrastructure.telegram.bot.handlers.general import add_command
 from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.formatters import (
+    build_main_keyboard,
     build_subs_keyboard,
     format_display,
+    format_main_message,
     format_subs_message,
     parse_display,
 )
@@ -52,8 +54,44 @@ logger = logging.getLogger(__name__)
 
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
+    add_command(application, "meetup_show", show_handler)
     add_command(application, "meetup_search", search_handler)
     add_command(application, "meetup_stats", stats_handler)
+
+
+@log_func
+@authorized
+async def show_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /meetup_show command - repost the current convocatoria to its chats."""
+    message = update.message
+    if message is None:
+        return
+    container: Container = context.bot_data["container"]
+    settings = context.bot_data["settings"]
+
+    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_show")
+    if meetup is None:
+        return
+
+    try:
+        await _show_regulars_message(meetup, container, context.bot, settings)
+
+        player_ids = set(meetup.players)
+        has_substitutes = any(
+            p.group == "substitute"
+            for p in container.player_repository.find_all()
+            if p.id in player_ids
+        )
+        if has_substitutes and settings.telegram.substitutes.chat_id:
+            await _do_search(meetup, container, context.bot, settings)
+
+        await react_ok(context.bot, message)
+    except telegram.error.TelegramError as error:
+        logger.error("Telegram error showing meetup: %s", error)
+        await message.reply_text("Error de Telegram al mostrar la convocatoria.")
+    except Exception:
+        logger.exception("Unexpected error showing meetup")
+        await message.reply_text("Error al mostrar la convocatoria.")
 
 
 @log_func
@@ -72,6 +110,9 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_search")
     if meetup is None:
+        return
+    if not meetup.is_signup_open():
+        await message.reply_text("Los equipos ya están hechos, no se puede buscar más jugadores.")
         return
 
     try:
@@ -148,7 +189,7 @@ async def _do_search(
         team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
     )
-    keyboard = build_subs_keyboard(meetup.date)
+    keyboard = build_subs_keyboard(meetup.date) if meetup.is_signup_open() else None
 
     msg = await bot.send_message(
         chat_id=settings.telegram.substitutes.chat_id,
@@ -162,6 +203,44 @@ async def _do_search(
         "substitute",
         MessageTracking(
             chat_id=settings.telegram.substitutes.chat_id,
+            message_id=msg.message_id,
+        ),
+    )
+
+
+async def _show_regulars_message(
+    meetup: Meetup,
+    container: Container,
+    bot: telegram.Bot,
+    settings: TelegramAppSettings,
+) -> None:
+    """Send a fresh regulars callup message to the regulars chat and (re)track it."""
+    player_names = _get_player_names(container.player_repository)
+    text = format_main_message(
+        meetup,
+        player_names,
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
+        date_fmt=settings.pyball.display_date_format,
+        legacy_stats=container.legacy_stats,
+    )
+    keyboard = build_main_keyboard(meetup.date) if meetup.is_signup_open() else None
+    thread_id = settings.telegram.regulars.meetups_thread_id or None
+
+    msg = await bot.send_message(
+        chat_id=settings.telegram.regulars.chat_id,
+        text=text,
+        reply_markup=keyboard,
+        message_thread_id=int(thread_id) if thread_id else None,
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+    store.save_message(
+        meetup.date,
+        "regular",
+        MessageTracking(
+            chat_id=settings.telegram.regulars.chat_id,
+            thread_id=thread_id,
             message_id=msg.message_id,
         ),
     )

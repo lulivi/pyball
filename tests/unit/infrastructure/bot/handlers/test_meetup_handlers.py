@@ -82,6 +82,243 @@ async def test_do_search_sends_message_and_tracks_it(mock_context):
 
 
 @pytest.mark.asyncio
+async def test_do_search_omits_keyboard_when_signup_closed(mock_context):
+    """_do_search sends no keyboard once teams already exist (defensive; callers already guard)."""
+    from pyball.domain.meetup.models import Meetup, PlayerId, Team
+
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    pid = PlayerId.generate()
+    meetup.add_player(pid)
+    meetup.set_teams([Team.create("A", [pid]), Team.create("B", [])])
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    settings = mock_context.bot_data["settings"]
+    settings.telegram.substitutes.chat_id = -1001234567
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=7))
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_subs_message",
+            return_value="msg",
+        ),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        await _do_search(meetup, container, bot, settings)
+
+    call_kwargs = bot.send_message.call_args.kwargs
+    assert call_kwargs["reply_markup"] is None
+
+
+@pytest.mark.asyncio
+async def test_show_regulars_message_sends_and_tracks_with_keyboard(mock_context):
+    """_show_regulars_message sends to the regulars chat with a keyboard when signup is open."""
+    from pyball.domain.meetup.models import Meetup
+
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    settings = mock_context.bot_data["settings"]
+    settings.telegram.regulars.chat_id = -1009876543
+    settings.telegram.regulars.meetups_thread_id = ""
+    settings.pyball.team_colors = ("blanco", "negro")
+    settings.pyball.team_emojis = ("⚪", "⚫")
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=9))
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+            return_value="msg",
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"
+        ) as mock_store_cls,
+    ):
+        from pyball.infrastructure.telegram.bot.handlers.meetup import _show_regulars_message
+
+        await _show_regulars_message(meetup, container, bot, settings)
+
+    bot.send_message.assert_called_once()
+    call_kwargs = bot.send_message.call_args.kwargs
+    assert call_kwargs["chat_id"] == -1009876543
+    assert call_kwargs["reply_markup"] is not None
+    mock_store_cls.return_value.save_message.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_show_regulars_message_omits_keyboard_when_signup_closed(mock_context):
+    """_show_regulars_message sends no keyboard once teams already exist."""
+    from pyball.domain.meetup.models import Meetup, PlayerId, Team
+
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    pid = PlayerId.generate()
+    meetup.add_player(pid)
+    meetup.set_teams([Team.create("A", [pid]), Team.create("B", [])])
+    container = MagicMock()
+    container.player_repository.find_all.return_value = []
+    settings = mock_context.bot_data["settings"]
+    settings.telegram.regulars.chat_id = -1009876543
+    settings.telegram.regulars.meetups_thread_id = ""
+    settings.pyball.team_colors = ("blanco", "negro")
+    settings.pyball.team_emojis = ("⚪", "⚫")
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=9))
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup.format_main_message",
+            return_value="msg",
+        ),
+        patch("pyball.infrastructure.telegram.bot.handlers.meetup.TelegramMessageStore"),
+    ):
+        from pyball.infrastructure.telegram.bot.handlers.meetup import _show_regulars_message
+
+        await _show_regulars_message(meetup, container, bot, settings)
+
+    call_kwargs = bot.send_message.call_args.kwargs
+    assert call_kwargs["reply_markup"] is None
+
+
+@pytest.mark.asyncio
+async def test_show_handler_posts_to_both_chats_when_substitutes_present(
+    mock_update, mock_context
+):
+    """show_handler posts the regulars message and, since a substitute is in the roster,
+    also the substitutes message."""
+    from pyball.domain.meetup.models import Meetup, PlayerId
+    from pyball.domain.player.models import Player
+
+    reg_id, sub_id = PlayerId.generate(), PlayerId.generate()
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    meetup.add_player(reg_id)
+    meetup.add_player(sub_id)
+
+    regular = Player(id=reg_id, name="Reg", group="regular")
+    substitute = Player(id=sub_id, name="Sub", group="substitute")
+
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = meetup
+    container.player_repository.find_all.return_value = [regular, substitute]
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.args = ["2026-04-25", "20:00"]
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup._show_regulars_message",
+            new=AsyncMock(),
+        ) as mock_show_regulars,
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup._do_search", new=AsyncMock()
+        ) as mock_do_search,
+    ):
+        from pyball.infrastructure.telegram.bot.handlers.meetup import show_handler
+
+        await show_handler(mock_update, mock_context)
+
+    mock_show_regulars.assert_called_once_with(
+        meetup, container, mock_context.bot, mock_context.bot_data["settings"]
+    )
+    mock_do_search.assert_called_once_with(
+        meetup, container, mock_context.bot, mock_context.bot_data["settings"]
+    )
+    mock_context.bot.set_message_reaction.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_show_handler_skips_substitutes_message_when_none_in_roster(
+    mock_update, mock_context
+):
+    """show_handler skips the substitutes message entirely when no substitute is in the roster."""
+    from pyball.domain.meetup.models import Meetup, PlayerId
+    from pyball.domain.player.models import Player
+
+    reg_id = PlayerId.generate()
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    meetup.add_player(reg_id)
+
+    regular = Player(id=reg_id, name="Reg", group="regular")
+
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = meetup
+    container.player_repository.find_all.return_value = [regular]
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.args = ["2026-04-25", "20:00"]
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup._show_regulars_message",
+            new=AsyncMock(),
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup._do_search", new=AsyncMock()
+        ) as mock_do_search,
+    ):
+        from pyball.infrastructure.telegram.bot.handlers.meetup import show_handler
+
+        await show_handler(mock_update, mock_context)
+
+    mock_do_search.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_show_handler_skips_substitutes_message_when_chat_not_configured(
+    mock_update, mock_context
+):
+    """show_handler skips the substitutes message when no substitutes chat is configured,
+    even if there are substitutes in the roster."""
+    from pyball.domain.meetup.models import Meetup, PlayerId
+    from pyball.domain.player.models import Player
+
+    sub_id = PlayerId.generate()
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    meetup.add_player(sub_id)
+
+    substitute = Player(id=sub_id, name="Sub", group="substitute")
+
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = meetup
+    container.player_repository.find_all.return_value = [substitute]
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = None
+    mock_context.args = ["2026-04-25", "20:00"]
+
+    with (
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup._show_regulars_message",
+            new=AsyncMock(),
+        ),
+        patch(
+            "pyball.infrastructure.telegram.bot.handlers.meetup._do_search", new=AsyncMock()
+        ) as mock_do_search,
+    ):
+        from pyball.infrastructure.telegram.bot.handlers.meetup import show_handler
+
+        await show_handler(mock_update, mock_context)
+
+    mock_do_search.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_show_handler_no_active_meetup_replies_error(mock_update, mock_context):
+    """show_handler replies in Spanish when there's no active meetup and no date args given."""
+    container = MagicMock()
+    container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
+    mock_context.bot_data["container"] = container
+    mock_context.args = []
+
+    from pyball.infrastructure.telegram.bot.handlers.meetup import show_handler
+
+    await show_handler(mock_update, mock_context)
+
+    call = mock_update.message.reply_text.call_args
+    text = call.args[0] if call.args else call.kwargs.get("text", "")
+    assert "activo" in text.lower()
+
+
+@pytest.mark.asyncio
 async def test_search_handler_success_reacts(mock_update, mock_context):
     """search reacts ✅ and sends no reply_text on success."""
     container = MagicMock()
@@ -161,6 +398,30 @@ async def test_search_handler_no_args_no_active_meetup_replies_error(mock_update
     call = mock_update.message.reply_text.call_args
     text = call.args[0] if call.args else call.kwargs.get("text", "")
     assert "activo" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_search_handler_signup_closed_replies_error(mock_update, mock_context):
+    """search replies in Spanish and sends nothing once teams already exist."""
+    from pyball.domain.meetup.models import Meetup, PlayerId, Team
+
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Campo")
+    pid = PlayerId.generate()
+    meetup.add_player(pid)
+    meetup.set_teams([Team.create("A", [pid]), Team.create("B", [])])
+
+    container = MagicMock()
+    container.meetup_repository.find_by_datetime.return_value = meetup
+    mock_context.bot_data["container"] = container
+    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -1001234567
+    mock_context.args = ["2026-04-25", "20:00"]
+    mock_context.bot.send_message = AsyncMock()
+
+    await search_handler(mock_update, mock_context)
+
+    mock_context.bot.send_message.assert_not_called()
+    text = mock_update.message.reply_text.call_args.args[0]
+    assert "equipos" in text.lower()
 
 
 @pytest.mark.asyncio

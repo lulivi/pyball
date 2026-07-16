@@ -71,6 +71,7 @@ class JsonMeetupRepository(MeetupRepository):
             teams=teams,
             matches=matches,
             closed=data.get("closed", False),
+            locked=data.get("locked", False),
         )
 
     def _write(self, meetup: Meetup) -> None:
@@ -100,6 +101,7 @@ class JsonMeetupRepository(MeetupRepository):
             "teams": teams_data,
             "matches": matches_data,
             "closed": meetup.closed,
+            "locked": meetup.locked,
         }
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)

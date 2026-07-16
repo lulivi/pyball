@@ -22,7 +22,7 @@
 from datetime import date, datetime
 
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignmentAlgorithm
-from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
@@ -48,6 +48,8 @@ class CreateTeams:
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
+        if meetup.locked:
+            raise MeetupLockedError(f"Meetup at {meetup_date} is locked, cannot regenerate teams.")
 
         if len(meetup.players) < team_count:
             raise ValueError(f"Need at least {team_count} players to create teams.")

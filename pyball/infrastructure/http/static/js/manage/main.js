@@ -2,8 +2,8 @@ import { get, post, del, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger, buildDateLocationEditor, buildManualCreatePanel,
-    buildConvocatoriaRow, buildConvocatoriaDetail,
+    buildRepasteTrigger, buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor,
+    buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -208,12 +208,9 @@ function renderState1(data) {
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
     <div id="roster-list">${buildRosterList(data.players)}</div>
-    <button class="btn-sm gray" style="margin-top:6px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
+    <button class="btn-sm gray" style="margin-top:6px;margin-bottom:10px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
     ${addPanel}
-    <div class="action-row">
-      <button class="btn btn-green" onclick="generateFromActive(2, this)">⚽ Generar 2 equipos</button>
-      <button class="btn btn-green" onclick="generateFromActive(3, this)">⚽ Generar 3 equipos</button>
-    </div>
+    ${buildTeamButtonsRow()}
     ${buildRepasteTrigger(repastePanelOpen)}
     ${buildCancelTrigger()}
   `;
@@ -225,11 +222,11 @@ function renderState1(data) {
     }
 }
 
-async function generateFromActive(teamCount, btn) {
-    const buttons = document.querySelectorAll('#tab-equipos .action-row .btn');
+async function createOrRegenerateTeams(teamCount, btn) {
+    const buttons = document.querySelectorAll('.gen-btn');
     const originalLabels = Array.from(buttons).map(b => b.textContent);
     buttons.forEach(b => { b.disabled = true; });
-    if (btn) btn.textContent = 'Generando...';
+    if (btn) btn.textContent = 'Creando...';
     try {
         activeMatchData = await _callGenerateTeams(teamCount);
         if (!activeMatchData.teams) {
@@ -334,16 +331,15 @@ function renderState2(data) {
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
-    ${buildRepasteTrigger(repastePanelOpen)}
+    ${data.locked ? '' : buildRepasteTrigger(repastePanelOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    <div class="action-row">
-      <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(2, this)">↺ Regenerar equipos (2)</button>
-      <button class="btn btn-green regen-btn" onclick="regenerateCurrentTeams(3, this)">↺ Regenerar equipos (3)</button>
-    </div>
+    ${data.locked ? '' : buildTeamButtonsRow()}
     <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
-    ${buildCancelTrigger()}
+    ${data.locked ? '' : '<button class="btn btn-amber" onclick="lockMeetup()">🔒 Bloquear equipos</button>'}
+    ${t.hasRecordedResults ? '' : '<button class="btn btn-amber" onclick="destroyTeams()">♻️ Destruir equipos</button>'}
+    ${data.locked ? '' : buildCancelTrigger()}
   `;
 }
 
@@ -351,23 +347,25 @@ function copyTeams() {
     _copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
-async function regenerateCurrentTeams(teamCount, btn) {
-    const buttons = document.querySelectorAll('.regen-btn');
-    const originalLabels = Array.from(buttons).map(b => b.textContent);
-    buttons.forEach(b => { b.disabled = true; });
-    if (btn) btn.textContent = 'Regenerando...';
+async function lockMeetup() {
     try {
-        activeMatchData = await _callGenerateTeams(teamCount);
-        if (!activeMatchData.teams) {
-            alert('Error: el servidor no devolvió equipos.');
-            buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
-            return;
-        }
-        renderState2(activeMatchData);
-    } catch (e) {
-        alert('Error: ' + e.message);
-        buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
+        activeMatchData = await post('/api/meetup/lock', { date: activeMatchData.date });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
     }
+    _rerenderActiveState();
+}
+
+async function destroyTeams() {
+    if (!confirm('¿Seguro que quieres destruir los equipos? Se perderá la composición actual y el meetup volverá a estar abierto para apuntarse.')) return;
+    try {
+        activeMatchData = await post('/api/meetup/destroy-teams', { date: activeMatchData.date });
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    _rerenderActiveState();
 }
 
 // ── TEAMS EDIT PANEL ─────────────────────────────────────────────────────
@@ -896,7 +894,6 @@ function _renderTeamsEditPanel() {
     <div class="edit-panel" id="teams-edit-panel">
       <div class="edit-panel-header">
         <div class="step-label" style="margin:0;">✏️ Editar equipos</div>
-        <button class="close-x" onclick="toggleTeamsEditPanel()">✕</button>
       </div>
       ${replaceSearch}
       ${teamsSection}
@@ -961,9 +958,10 @@ Object.assign(window, {
     switchTab,
     parseCallup,
     generateTeams,
-    generateFromActive,
+    createOrRegenerateTeams,
     copyTeams,
-    regenerateCurrentTeams,
+    lockMeetup,
+    destroyTeams,
     toggleTeamsEditPanel,
     moveToOtherTeam,
     setEditGoalkeeper,
