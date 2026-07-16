@@ -19,6 +19,8 @@
 # SOFTWARE.
 """Dependency injection container."""
 
+from pathlib import Path
+
 from pyball.application.meetup import (
     AddPlayerToMeetup,
     AddPlayerToMeetupById,
@@ -238,6 +240,11 @@ class Container:  # pylint: disable=too-many-public-methods
     def icons_dir(self) -> str:
         """Return the per-instance icons directory override ('' = packaged icons)."""
         return self._settings.pyball.icons_dir
+
+    @property
+    def data_dir(self) -> Path:
+        """Return the configured data directory (for infra modules keyed by it)."""
+        return self._settings.paths.data_dir
 
     @property
     def player_repository(self) -> PlayerRepository:

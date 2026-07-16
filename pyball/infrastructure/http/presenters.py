@@ -32,6 +32,7 @@ from pyball.domain.meetup.errors import MeetupNotFoundError
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.domain.meetup.models import Meetup
+    from pyball.domain.player.models import PlayerId
 
 
 def build_active_match_response(container: Container) -> dict:
@@ -155,6 +156,47 @@ def build_meetup_active_response(container: Container) -> dict:
         "teams": teams_payload,
         "locked": meetup.locked,
         "signupOpen": meetup.is_signup_open(),
+    }
+
+
+def build_signup_meetup_response(container: Container, player_id: "PlayerId") -> dict:
+    """Build the response for /api/signup/{meetup,join,leave}, or raise 404.
+
+    Unlike build_meetup_active_response, this never exposes player IDs or
+    management-only fields — only what a self-identified player needs to see.
+    """
+    try:
+        meetup = container.get_active_meetup().execute()
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No hay convocatoria activa") from exc
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    is_joined = player_id in meetup.players
+
+    if meetup.teams is None:
+        return {
+            "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "location": meetup.location,
+            "signupOpen": True,
+            "roster": sorted_names(meetup.players, player_names),
+            "isJoined": is_joined,
+            "team": None,
+        }
+
+    my_team = next((t for t in meetup.teams if player_id in t.players), None)
+    team_payload = None
+    if my_team is not None:
+        teammates = [p for p in my_team.players if p != player_id]
+        team_payload = {"name": my_team.name, "teammates": sorted_names(teammates, player_names)}
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "location": meetup.location,
+        "signupOpen": False,
+        "roster": None,
+        "isJoined": is_joined,
+        "team": team_payload,
     }
 
 
