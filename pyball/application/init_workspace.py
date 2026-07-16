@@ -71,6 +71,11 @@ data_dir = "data"
 # Override with PYBALL_CORE_MANAGE_TOKEN
 # manage_token = ""
 
+# Static token gating /signup (the self-service join/leave page) -- only
+# relevant on the pyball-web topology, harmless if left unset elsewhere
+# Override with PYBALL_CORE_SIGNUP_TOKEN
+# signup_token = ""
+
 # Override with PYBALL_CORE_THEME_COLOR
 theme_color = "#0f172a"
 
