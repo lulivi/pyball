@@ -130,7 +130,7 @@ def register_player_routes(  # pylint: disable=too-many-statements
         except InvalidPlayerIdError as exc:
             raise HTTPException(422, str(exc)) from exc
         if enable_web_signup:
-            _code_store(container).delete_code(player_id)
+            _code_store(container).delete_code(str(PlayerId.from_string(player_id).value))
         return {"status": "deleted", "id": player_id}
 
     @app.post("/api/players/{player_id}/signup-code/regenerate")
