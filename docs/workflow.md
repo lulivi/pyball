@@ -5,7 +5,9 @@
 This document walks through the full life of a meetup in PyBall: creating it, building
 teams, playing, and closing it out — covering both match formats PyBall supports. Every
 step can be done from the `/manage` and `/match` web pages; where a Telegram bot command
-exists too (only if you're running the `pyball-telegram` topology), it's noted alongside.
+exists too (only if you're running the `pyball-telegram` topology), it's noted alongside,
+and where players can act on their own from `/signup` (only if you're running the
+`pyball-web` topology), that's noted too.
 
 ## The two match formats
 
@@ -44,6 +46,32 @@ usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 
   callup message (or tap it again later) to post a separate message to the substitutes
   chat with its own "✔ Unirse" / "✖ Salir" buttons — this is a deliberate, manual step so
   regulars get priority for a few days before substitutes are searched.
+
+## Self-service signup via `/signup`
+
+If you're running the `pyball-web` topology, players can join or leave a meetup
+themselves at `/signup`, without ever touching `/manage`. Share the page's URL —
+protected by `signup_token`, see [Access tokens](setup.md#6-access-tokens) — once; each
+player then identifies themselves individually with their own 8-character personal code
+(shown once when an admin creates them in `/manage`, or regenerated anytime with the
+"Regenerar código" button on their row).
+
+- **Entering the code:** the first screen just asks for the code. A correct one greets
+  the player by name and shows the currently active meetup, if any.
+- **Joining/leaving:** while signup is still open (before teams are generated — see
+  [step 3](#3-generate-teams)), an "Apuntarme" / "Salir" button lets the player add or
+  remove themselves from the roster, exactly as if an admin had done it from `/manage`.
+- **Once teams exist:** the join/leave button disappears; the player instead sees their
+  own team and its list of teammates, read-only, the same view `/manage` and `/match`
+  show everyone else.
+- **Changing their code:** "Cambiar mi código" lets a player set a new personal code
+  themselves, given their current one.
+- **Shared devices:** "No soy yo" logs the current player out (clears their identity
+  cookie) without touching the `signup_token` cookie, so the next person can enter their
+  own code on the same phone or tablet.
+
+`/signup` is pure convenience — an admin can always add, remove, or reassign a player
+from `/manage` without anyone ever visiting `/signup`.
 
 ## 3. Generate teams
 

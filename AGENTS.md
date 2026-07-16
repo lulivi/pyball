@@ -103,6 +103,7 @@ pyball/
 ├── infrastructure/          # Concrete implementations of domain interfaces
 │   ├── persistence/         #   JsonPlayerRepository, JsonMeetupRepository, LegacyStats
 │   ├── images/              #   StatsHtmlRenderer (WeasyPrint + Jinja2)
+│   ├── signup/              #   SignupCodeStore — hashed personal signup codes (data/signup/codes.json)
 │   ├── telegram/
 │   │   ├── settings.py      #     TelegramSettings, TelegramAppSettings, loader
 │   │   ├── logging.py       #     TelegramLogHandler, config_telegram_logging()
@@ -117,15 +118,18 @@ pyball/
 │   │   └── message_store.py #     Telegram message-ID tracking (pyball-telegram only)
 │   └── http/
 │       ├── app.py            #   FastAPI factory (create_app) + _Server
-│       ├── auth.py           #   TokenAuthMiddleware (match_token / manage_token)
+│       ├── auth.py           #   TokenAuthMiddleware (match_token / signup_token / manage_token)
 │       ├── links.py          #   MatchLinkBuilder — builds the /match URL
 │       ├── presenters.py     #   Domain → JSON response serialisation
 │       ├── schemas.py        #   Pydantic request models
-│       ├── routes/           #   meetup.py, match.py, player.py, static.py
-│       └── static/           #   manage.html/match.html + their JS (no build step)
+│       ├── routes/           #   meetup.py, match.py, player.py, signup.py, static.py
+│       ├── static/           #   manage.html/match.html + their JS (no build step)
+│       └── static_signup/    #   signup.html + its JS — isolated /signup frontend,
+│                              #   mounted only when enable_web_signup is True
 ├── cmd/
-│   ├── run_web.py           #   Topology: FastAPI only  (uv run pyball-web [--bootstrap])
-│   └── run_telegram.py      #   Topology: Telegram + FastAPI  (uv run pyball-tg [--bootstrap])
+│   ├── run_pyball.py        #   Topology: FastAPI only, bare   (uv run pyball [--bootstrap])
+│   ├── run_web.py           #   Topology: FastAPI + /signup    (uv run pyball-web [--bootstrap])
+│   └── run_telegram.py      #   Topology: Telegram + FastAPI   (uv run pyball-telegram [--bootstrap])
 ├── settings.py              #   AppSettings, PyballConfig, Paths, load_app_settings()
 └── exceptions.py
 ```
@@ -137,17 +141,28 @@ user-facing documentation (see the intro above).
 **Data flow:** `bootstrap_core()` loads `AppSettings`, configures logging, sets locale, and
 builds the `Container`. Each `cmd/run_*.py` is the Composition Root for its topology —
 it calls `bootstrap_core()`, loads any integration-specific settings, wires
-infrastructure components, and manages graceful shutdown. Both entrypoints also accept
-`--bootstrap`, which just generates a deployment workspace and exits (see
+infrastructure components, and manages graceful shutdown. All three entrypoints also
+accept `--bootstrap`, which just generates a deployment workspace and exits (see
 `init_workspace.py` and `docs/setup.md`) — it never touches the running app.
 
-**Topology: Telegram+FastAPI** (`uv run pyball-tg`): bot polls Telegram, FastAPI serves
-the `/manage` and `/match` web UI on port 8000. Both run in the same asyncio event loop.
+**Three topologies, one codebase, three `NullMatchNotifier`/`TelegramMatchNotifier` +
+`create_app()` wirings:**
 
-**Topology: Web-only** (`uv run pyball-web`): FastAPI only, with a `NullMatchNotifier`.
-Does not require `python-telegram-bot` to be installed. Every feature is reachable from
-`/manage`/`/match` alone — Telegram is a convenience layer on top of the same use cases,
-never a requirement for any feature to function.
+- **`pyball`** (`uv run pyball`, `run_pyball.py`): FastAPI only, bare — `/manage` and
+  `/match`, no Telegram, no `/signup`.
+- **`pyball-web`** (`uv run pyball-web`, `run_web.py`): FastAPI with `/manage`, `/match`,
+  and `/signup` (`enable_web_signup=True`, `signup_token` wired into `create_app()`) — no
+  Telegram.
+- **`pyball-telegram`** (`uv run pyball-telegram`, `run_telegram.py`): bot polls
+  Telegram, FastAPI serves `/manage` and `/match` on port 8000 (no `/signup`). Both run
+  in the same asyncio event loop.
+
+None of the three requires `python-telegram-bot` to be installed except
+`pyball-telegram`. Every feature is reachable from `/manage`/`/match` alone on any
+topology — Telegram and `/signup` are convenience layers on top of the same use cases,
+never a requirement for any feature to function: an admin can always add, remove, or
+move a player between teams from `/manage` without a player ever visiting `/signup`, and
+without a Telegram bot configured at all.
 
 **Match formats:** a `Meetup` holds 2 or 3 `Team`s and a `matches: list[Match]`. 2 teams
 means a single classic match that closes the meetup on its own result; 3 teams means a
@@ -163,23 +178,25 @@ This project uses **uv** for dependency management.
 # Install with Telegram support (default for development)
 uv sync --extra telegram
 
-# Install without Telegram (web-only topology)
+# Install without Telegram (pyball / pyball-web topologies)
 uv sync
 
 # Install all extras including dev tools
 uv sync --all-extras
 
 # Run topologies
-uv run pyball-tg   # Telegram + FastAPI
-uv run pyball-web  # FastAPI only
+uv run pyball            # FastAPI only, bare
+uv run pyball-web        # FastAPI + /signup
+uv run pyball-telegram   # Telegram + FastAPI
 ```
 
 ## Configuration
 
-Run `uv run pyball-web --bootstrap` or `uv run pyball-tg --bootstrap` to generate a
-`config.toml` template (there's no static `example.config.toml` to copy — the template
-is generated code, in `application/init_workspace.py`, kept in sync with `PyballConfig`
-and `TelegramSettings`). **Do not add a config key to `settings.py` or
+Run `uv run pyball --bootstrap`, `uv run pyball-web --bootstrap`, or
+`uv run pyball-telegram --bootstrap` to generate a `config.toml` template (there's no
+static `example.config.toml` to copy — the template is generated code, in
+`application/init_workspace.py`, kept in sync with `PyballConfig` and
+`TelegramSettings`). **Do not add a config key to `settings.py` or
 `telegram/settings.py` without also adding it to `init_workspace.py`'s templates and to
 `docs/setup.md`'s tables** — those three are the only places a key is documented, and
 they drift independently if only one is updated.

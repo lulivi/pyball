@@ -24,6 +24,8 @@ pyball/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # un archivo por partido, nombrado según su fecha/hora
+│   ├── signup/
+│   │   └── codes.json   # solo pyball-web — ver más abajo
 │   └── bot/
 │       └── messages.json   # solo pyball-telegram — ver más abajo
 └── logs/
@@ -149,11 +151,42 @@ correcto — PyBall lo trata igual que un archivo vacío:
 }
 ```
 
+## El alta web es exclusiva de `pyball-web`
+
+El directorio `data/signup/` de abajo solo existe cuando la topología tiene activada el
+alta por cuenta propia en `/signup` — `pyball-web`. Ejecutar `pyball` (a secas) o
+`pyball-telegram` nunca lo lee ni lo escribe.
+
+### `data/signup/codes.json`
+
+Una entrada por cada jugador al que se le ha dado un código personal de alta, indexada
+por su id:
+
+```json
+{
+  "11111111-1111-4111-8111-111111111111": {
+    "salt": "3f9c2a1b8e7d4f605a3c9b8e1d7f6042",
+    "hash": "8e1a9c3f7b2d6e405c1a8f9b3d7e6042c1a8f9b3d7e6042c1a8f9b3d7e60428e"
+  }
+}
+```
+
+- `salt` — bytes aleatorios propios de cada jugador (en hex), generados de nuevo cada
+  vez que se fija un código.
+- `hash` — el hash PBKDF2-HMAC-SHA256 del código con ese salt (200.000 iteraciones).
+
+Los códigos nunca se guardan en texto plano, así que un código existente nunca se puede
+recuperar de este archivo — solo regenerar (el botón "Regenerar código" de la fila de un
+jugador en `/manage`, o automáticamente la primera vez que se crea un jugador con
+`pyball-web` en marcha; ver [docs/workflow.es.md](workflow.es.md)). Este archivo se crea
+automáticamente la primera vez que hace falta, y es seguro borrarlo: hacerlo simplemente
+invalida el código de todos los jugadores, obligando a generarles uno nuevo a cada uno.
+
 ## La configuración de Telegram es solo para el bot
 
 La sección `[pyball.telegram]` de `config.toml`, y el directorio `data/bot/` de más
-abajo, solo existen para la topología `pyball-telegram`. Ejecutar `pyball-web` nunca lee
-ni escribe ninguno de los dos — un despliegue `pyball-web` sencillamente no tiene
+abajo, solo existen para la topología `pyball-telegram`. Ejecutar `pyball` o
+`pyball-web` nunca lee ni escribe ninguno de los dos — ningún despliegue de esos tiene
 directorio `data/bot/` en absoluto.
 
 ### `data/bot/messages.json`

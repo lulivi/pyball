@@ -8,19 +8,25 @@ want to build PyBall from source or contribute to it, see the
 
 ## 1. Choose a topology
 
-PyBall ships as two Docker images, built from the same codebase:
+PyBall ships as three Docker images, built from the same codebase:
 
 | Image | What it runs | Needs a Telegram bot? |
 |---|---|---|
-| `lulivi/pyball-web` | FastAPI only — `/manage` and `/match` web pages | No |
-| `lulivi/pyball-telegram` | Telegram bot + FastAPI (same web pages) | Yes |
+| `lulivi/pyball` | FastAPI only — `/manage` and `/match` web pages | No |
+| `lulivi/pyball-web` | FastAPI — `/manage`, `/match`, and self-service `/signup` | No |
+| `lulivi/pyball-telegram` | Telegram bot + FastAPI (`/manage` and `/match`) | Yes |
 
-If your group doesn't use Telegram, or you'd rather manage everything from the browser,
-use `pyball-web`: every feature — creating meetups, building teams (classic or
-triangular), tracking a match, closing a triangular session, viewing stats — is
-reachable from `/manage` and `/match`. Use `pyball-telegram` if you want meetups posted
-to a group chat automatically, admin commands from Telegram, and reactions/notifications
-in the chat.
+Every feature — creating meetups, building teams (classic or triangular), tracking a
+match, closing a triangular session, viewing stats — is reachable from `/manage` and
+`/match` on any of the three images; Telegram and `/signup` are convenience layers on
+top, never a requirement. If your group doesn't use Telegram, pick between the two
+`pyball`/`pyball-web` images: use `pyball-web` if you want players to join or leave a
+meetup themselves from a personal code at `/signup` (see
+[Application Workflow](workflow.md#self-service-signup-via-signup)) without
+touching `/manage`; use the bare `pyball` image if you'd rather keep signup an
+admin-only, `/manage`-driven task. Use `pyball-telegram` if you want meetups posted to a
+group chat automatically, admin commands from Telegram, and reactions/notifications in
+the chat.
 
 ## 2. Bootstrap a workspace
 
@@ -28,8 +34,10 @@ Pick an empty directory for this instance's config and data, then run:
 
 ```bash
 mkdir pyball && cd pyball
+docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
+# or, for the self-service /signup page:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-web --bootstrap
-# or:
+# or, for Telegram:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 ```
 
@@ -53,7 +61,7 @@ Every key can also be set with an environment variable, `PYBALL_<SECTION>_<KEY>`
 (e.g. `PYBALL_CORE_LOCATION`, `PYBALL_TELEGRAM_BOT_TOKEN`) — useful for keeping secrets
 out of `config.toml` or overriding a value per-deployment without editing the file.
 
-### `[pyball.core]` — both topologies
+### `[pyball.core]` — all topologies
 
 | Key | Description | Default |
 |---|---|---|
@@ -69,6 +77,7 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `data_dir` | Directory for JSON data files | `data` |
 | `match_token` | Access token for `/match` only (optional, see [Access tokens](#6-access-tokens)) | *(empty)* |
 | `manage_token` | Access token for everything, including `/manage` (optional) | *(empty)* |
+| `signup_token` | Access token for `/signup` only (optional; only relevant on `pyball-web`, harmless if left unset elsewhere) | *(empty)* |
 | `theme_color` | PWA theme/background color | `#0f172a` |
 | `icons_dir` | Custom PWA icons directory (optional) | *(empty)* |
 
@@ -77,7 +86,7 @@ Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` `azu
 
 ### `[pyball.telegram]` and sub-sections — `pyball-telegram` only
 
-These are ignored by `pyball-web` — see
+These are ignored by `pyball` and `pyball-web` — see
 [Telegram config is bot-only](data-directory.md#telegram-config-is-bot-only) for why.
 
 | Key | Description |
@@ -115,27 +124,38 @@ PyBall's web UI is two pages:
   the session — it auto-loads whichever match is currently active, no manual setup
   needed once you're past the token prompt (below).
 
+On the `pyball-web` topology there's also `/signup`, a self-service page for players —
+see [Self-service signup via `/signup`](workflow.md#self-service-signup-via-signup).
+
 See [docs/workflow.md](workflow.md) for the full step-by-step flow.
 
 ## 6. Access tokens
 
-`match_token` and `manage_token` protect the app when it's exposed beyond your own
-private network (e.g. through a reverse proxy on the public internet) — without them,
-`/manage` and `/match` are open to anyone who reaches the URL. If both are left empty,
-no authentication is enforced at all (fine for a private network you already trust).
-How you expose the app publicly (reverse proxy, VPN, tunnel, etc.) is up to you — these
-tokens work the same regardless.
+`match_token`, `signup_token`, and `manage_token` protect the app when it's exposed
+beyond your own private network (e.g. through a reverse proxy on the public internet) —
+without them, `/manage`, `/match`, and `/signup` are open to anyone who reaches the URL.
+If all three are left empty, no authentication is enforced at all (fine for a private
+network you already trust). How you expose the app publicly (reverse proxy, VPN, tunnel,
+etc.) is up to you — these tokens work the same regardless.
 
 | Path | Required token |
 |---|---|
 | `/`, static assets, PWA manifests | None (always public) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **or** `manage_token` |
+| `/signup` and `/api/signup/*` (`pyball-web` only) | `signup_token` **or** `manage_token` |
 | `/manage` and everything else under `/api/*` | `manage_token` only |
 
 Give the scoreboard-only `match_token` to a device that should only ever see `/match`
-(e.g. a tablet mounted at the pitch), and the `manage_token` to admins. Visiting a URL
-with `?token=<value>` once validates it and sets an `HttpOnly` cookie that lasts a year —
-no need to pass the token again after that on the same device/browser.
+(e.g. a tablet mounted at the pitch), the `signup_token` to players (on `pyball-web`),
+and the `manage_token` to admins. Visiting a URL with `?token=<value>` once validates it
+and sets an `HttpOnly` cookie that lasts a year — no need to pass the token again after
+that on the same device/browser.
+
+`signup_token` only gates the `/signup` page itself, like a site password shared with
+everyone who's allowed to use it; once inside, each player additionally identifies
+themselves with their own personal signup code (see
+[Application Workflow](workflow.md#self-service-signup-via-signup)) — the two are
+independent layers, and neither substitutes for the other.
 
 ## 7. Updating
 

@@ -6,7 +6,8 @@ Este documento recorre la vida completa de un partido en PyBall: crearlo, genera
 equipos, jugarlo, y cerrarlo — cubriendo los dos formatos de partido que soporta PyBall.
 Todos los pasos se pueden hacer desde las páginas web `/manage` y `/match`; donde
 también existe un comando de Telegram (solo si usas la topología `pyball-telegram`), se
-indica junto al paso.
+indica junto al paso, y donde los jugadores pueden actuar por su cuenta desde `/signup`
+(solo si usas la topología `pyball-web`), también se indica.
 
 ## Los dos formatos de partido
 
@@ -51,6 +52,33 @@ paso 1.
   aparte en el chat de suplentes con sus propios botones "✔ Unirse" / "✖ Salir" — es un
   paso manual y deliberado, para que los titulares tengan prioridad unos días antes de
   buscar suplentes.
+
+## Alta por cuenta propia en `/signup`
+
+Si ejecutas la topología `pyball-web`, los jugadores pueden apuntarse o bajarse de un
+partido ellos mismos en `/signup`, sin pasar nunca por `/manage`. Comparte la URL de la
+página — protegida por `signup_token`, ver
+[Tokens de acceso](setup.es.md#6-tokens-de-acceso) — una vez; cada jugador se identifica
+después individualmente con su propio código personal de 8 caracteres (se muestra una
+sola vez al crearlo en `/manage`, o se puede regenerar en cualquier momento con el botón
+"Regenerar código" de su fila).
+
+- **Introducir el código:** la primera pantalla solo pide el código. Uno correcto
+  saluda al jugador por su nombre y muestra el partido activo, si lo hay.
+- **Apuntarse o bajarse:** mientras el alta sigue abierta (antes de generar los
+  equipos — ver [paso 3](#3-generar-equipos)), un botón "Apuntarme" / "Salir" añade o
+  quita al jugador de la convocatoria, igual que si lo hiciera un admin desde `/manage`.
+- **Una vez hay equipos:** el botón de apuntarse/bajarse desaparece; el jugador ve en
+  su lugar su propio equipo y la lista de compañeros, en modo solo lectura, la misma
+  vista que ven todos desde `/manage` o `/match`.
+- **Cambiar su código:** "Cambiar mi código" deja que el jugador fije un código nuevo
+  él mismo, dando el actual.
+- **Dispositivos compartidos:** "No soy yo" cierra la sesión del jugador actual (borra
+  su cookie de identidad) sin tocar la cookie del `signup_token`, para que la siguiente
+  persona pueda introducir su propio código en el mismo móvil o tablet.
+
+`/signup` es pura conveniencia — un admin siempre puede añadir, quitar o reasignar a un
+jugador desde `/manage` sin que nadie tenga que visitar `/signup`.
 
 ## 3. Generar equipos
 
