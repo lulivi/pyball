@@ -30,11 +30,3 @@ class MeetupError(PyBallError):
 
 class PlayerError(PyBallError):
     """Errors related to player management."""
-
-
-class TelegramBotError(PyBallError):
-    """Errors related to Telegram bot interaction."""
-
-
-class StorageError(PyBallError):
-    """Errors related to data storage/persistence."""
