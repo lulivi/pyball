@@ -48,7 +48,7 @@ async function showMainScreen(playerName) {
     if (joinBtn) joinBtn.addEventListener('click', () => joinOrLeave('/api/signup/join', playerName));
     const leaveBtn = document.getElementById('leave-btn');
     if (leaveBtn) leaveBtn.addEventListener('click', () => joinOrLeave('/api/signup/leave', playerName));
-    document.getElementById('change-code-btn').addEventListener('click', showChangeCodeScreen);
+    document.getElementById('change-code-btn').addEventListener('click', () => showChangeCodeScreen());
     document.getElementById('logout-btn').addEventListener('click', logout);
 }
 
