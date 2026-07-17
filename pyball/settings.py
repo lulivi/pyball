@@ -65,6 +65,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "match_token",
         "manage_token",
         "signup_token",
+        "enable_web_signup",
         "theme_color",
         "icons_dir",
     )
@@ -72,6 +73,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     raw["match_token"] = raw["match_token"] or ""
     raw["manage_token"] = raw["manage_token"] or ""
     raw["signup_token"] = raw["signup_token"] or ""
+    raw["enable_web_signup"] = raw["enable_web_signup"] or False
     raw["theme_color"] = raw["theme_color"] or "#0f172a"
     raw["icons_dir"] = raw["icons_dir"] or ""
 
@@ -101,6 +103,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         match_token=raw["match_token"],
         manage_token=raw["manage_token"],
         signup_token=raw["signup_token"],
+        enable_web_signup=_parse_bool(raw["enable_web_signup"]),
         theme_color=raw["theme_color"],
         icons_dir=raw["icons_dir"],
     )
@@ -149,6 +152,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     match_token: str = ""
     manage_token: str = ""
     signup_token: str = ""
+    enable_web_signup: bool = False
     theme_color: str = "#0f172a"
     icons_dir: str = ""
 
@@ -200,6 +204,15 @@ def _parse_api_port(value) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 8000
+
+
+def _parse_bool(value) -> bool:
+    """Parse enable_web_signup from a native TOML bool or an env var string."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return False
 
 
 def _parse_team_colors(value) -> tuple[str, str, str]:
