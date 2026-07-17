@@ -75,7 +75,7 @@ USER pyballuser
 ENTRYPOINT ["pyball-telegram"]
 
 
-# --- pyball: bare topology (no Telegram, no /signup) ---
+# --- pyball: FastAPI topology, /signup opt-in via config (no Telegram) ---
 FROM base AS pyball
 
 RUN $VIRTUAL_ENV/bin/pip install --no-cache /builder/*.whl \
