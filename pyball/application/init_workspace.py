@@ -64,6 +64,10 @@ locale = "es_ES.UTF-8"
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
+# Enable the self-service /signup page (players join/leave with a personal code)
+# Override with PYBALL_CORE_ENABLE_WEB_SIGNUP
+enable_web_signup = false
+
 # Static tokens for public access (optional -- leave empty to disable auth)
 # Override with PYBALL_CORE_MATCH_TOKEN
 # match_token = ""
@@ -71,8 +75,8 @@ data_dir = "data"
 # Override with PYBALL_CORE_MANAGE_TOKEN
 # manage_token = ""
 
-# Static token gating /signup (the self-service join/leave page) -- only
-# relevant on the pyball-web topology, harmless if left unset elsewhere
+# Static token gating /signup -- only relevant when enable_web_signup is true,
+# harmless if left unset
 # Override with PYBALL_CORE_SIGNUP_TOKEN
 # signup_token = ""
 
@@ -127,20 +131,6 @@ services:
     restart: unless-stopped
 """
 
-_WEB_SIGNUP_COMPOSE = """\
-services:
-  web:
-    image: lulivi/pyball-web:${TAG:-latest}
-    user: "${UID}:${GID}"
-    ports:
-      - "127.0.0.1:${PORT}:8000"
-    volumes:
-      - "./config.toml:/pyball/config.toml"
-      - "./logs:/pyball/logs"
-      - "./data:/pyball/data"
-    restart: unless-stopped
-"""
-
 _TG_COMPOSE = """\
 services:
   bot:
@@ -161,39 +151,9 @@ _PYBALL_README = f"""\
 # PyBall
 
 PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
-managing players, and recording results.
-
-## Quick Start
-
-```bash
-docker compose up -d
-```
-
-Edit `config.toml` first — see the full setup guide for configuration, access tokens,
-and how to use `/manage` and `/match`:
-
-- [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
-- [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
-[Flujo de la aplicación]({_DOCS_BASE_URL}/workflow.es.md)
-- [Data Directory]({_DOCS_BASE_URL}/data-directory.md) / \
-[Directorio de datos]({_DOCS_BASE_URL}/data-directory.es.md)
-
-## Updating
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Pin a specific version in `.env`: `TAG=4.13.0`
-"""
-
-_WEB_SIGNUP_README = f"""\
-# PyBall
-
-PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
-managing players, and recording results — including a self-service /signup page
-where players join or leave a meetup with their own personal code.
+managing players, and recording results — including an optional self-service /signup
+page where players join or leave a meetup with their own personal code (enable it with
+`enable_web_signup = true` in config.toml).
 
 ## Quick Start
 
@@ -252,7 +212,7 @@ Pin a specific version in `.env`: `TAG=4.13.0`
 """
 
 
-_TOPOLOGY_LABELS = {"pyball": "pyball", "web": "pyball-web", "tg": "pyball-telegram"}
+_TOPOLOGY_LABELS = {"pyball": "pyball", "tg": "pyball-telegram"}
 
 
 def init_workspace(topology: str, config_path: Path) -> None:
@@ -320,8 +280,6 @@ def _compose_template(topology: str) -> str:
     """Return the compose.yaml content for the given topology."""
     if topology == "tg":
         return _TG_COMPOSE
-    if topology == "web":
-        return _WEB_SIGNUP_COMPOSE
     return _PYBALL_COMPOSE
 
 
@@ -334,6 +292,4 @@ def _readme_template(topology: str) -> str:
     """Return the README.md content for the given topology."""
     if topology == "tg":
         return _TG_README
-    if topology == "web":
-        return _WEB_SIGNUP_README
     return _PYBALL_README

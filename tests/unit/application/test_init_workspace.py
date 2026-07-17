@@ -53,6 +53,20 @@ class TestInitWorkspacePyball:
         assert "PORT=8000" in content
         assert "TAG=latest" in content
 
+    def test_config_includes_enable_web_signup_toggle(self, tmp_path):
+        """config.toml includes the enable_web_signup key, defaulting to false."""
+        init_workspace("pyball", tmp_path / "config.toml")
+
+        content = (tmp_path / "config.toml").read_text()
+        assert "enable_web_signup = false" in content
+
+    def test_readme_mentions_signup_opt_in(self, tmp_path):
+        """README.md tells the reader how to turn /signup on."""
+        init_workspace("pyball", tmp_path / "config.toml")
+
+        content = (tmp_path / "README.md").read_text()
+        assert "enable_web_signup" in content
+
 
 class TestInitWorkspaceTg:
     """Tests for Telegram topology workspace initialisation."""
@@ -70,31 +84,6 @@ class TestInitWorkspaceTg:
 
         content = (tmp_path / "compose.yaml").read_text()
         assert "pyball-telegram" in content
-
-
-class TestInitWorkspaceWebSignup:
-    """Tests for the signup-capable web topology workspace initialisation."""
-
-    def test_compose_references_web_signup_image(self, tmp_path):
-        """Web-signup compose.yaml references the lulivi/pyball-web image."""
-        init_workspace("web", tmp_path / "config.toml")
-
-        content = (tmp_path / "compose.yaml").read_text()
-        assert "image: lulivi/pyball-web:" in content
-
-    def test_config_excludes_telegram_section(self, tmp_path):
-        """Web-signup config.toml must not contain the [pyball.telegram] section."""
-        init_workspace("web", tmp_path / "config.toml")
-
-        content = (tmp_path / "config.toml").read_text()
-        assert "[pyball.telegram]" not in content
-
-    def test_readme_mentions_signup(self, tmp_path):
-        """Web-signup README.md mentions the /signup page."""
-        init_workspace("web", tmp_path / "config.toml")
-
-        content = (tmp_path / "README.md").read_text()
-        assert "/signup" in content
 
 
 class TestInitWorkspaceErrors:
