@@ -66,13 +66,15 @@ class TestFullMatchLifecycle:
 
     async def _add_players(self, real_container):
         for name in _REGULARS:
-            real_container.add_player_to_meetup().execute(_MATCH_DATE, name)
+            player = real_container.player_repository.find_by_name(name)
+            real_container.add_player_to_meetup_by_id().execute(_MATCH_DATE, player.id)
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 10
 
     async def _remove_player(self, real_container):
-        real_container.remove_player_from_meetup().execute(_MATCH_DATE, "Regular_10")
+        player = real_container.player_repository.find_by_name("Regular_10")
+        real_container.remove_player_from_meetup_by_id().execute(_MATCH_DATE, player.id)
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 9
@@ -158,8 +160,9 @@ class TestFullMatchLifecycle:
         real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
-        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
-        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
+        player = real_container.player_repository.find_by_name("Regular_01")
+        real_container.add_player_to_meetup_by_id().execute(_MATCH_DATE, player.id)
+        real_container.add_player_to_meetup_by_id().execute(_MATCH_DATE, player.id)
 
         meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
         assert len(meetup.players) == 1
@@ -170,31 +173,9 @@ class TestFullMatchLifecycle:
         real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
 
+        player = real_container.player_repository.find_by_name("Regular_01")
         with pytest.raises(PlayerNotInMeetupError):
-            real_container.remove_player_from_meetup().execute(_MATCH_DATE, "Regular_01")
-
-    # ------------------------------------------------------------------
-    # Edge cases: fuzzy matching
-    # ------------------------------------------------------------------
-
-    @pytest.mark.asyncio
-    async def test_add_player_fuzzy_name(self, real_container):
-        """A one-character typo in the name is resolved by fuzzy matching."""
-        real_container.create_player().execute("Regular_03", "regular")
-        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
-
-        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regulr_03")  # missing 'a'
-
-        meetup = real_container.meetup_repository.find_by_datetime(_MATCH_DATE)
-        assert len(meetup.players) == 1
-
-    @pytest.mark.asyncio
-    async def test_add_player_unknown_name(self, real_container):
-        """An unrecognisable name raises ValueError from fuzzy matching."""
-        real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
-
-        with pytest.raises(ValueError):
-            real_container.add_player_to_meetup().execute(_MATCH_DATE, "NameThatDoesNotExist")
+            real_container.remove_player_from_meetup_by_id().execute(_MATCH_DATE, player.id)
 
     # ------------------------------------------------------------------
     # Edge cases: meetup lifecycle errors
@@ -215,7 +196,8 @@ class TestFullMatchLifecycle:
             real_container.create_player().execute(f"Player_{i:02d}", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
         for i in range(1, 5):
-            real_container.add_player_to_meetup().execute(_MATCH_DATE, f"Player_{i:02d}")
+            player = real_container.player_repository.find_by_name(f"Player_{i:02d}")
+            real_container.add_player_to_meetup_by_id().execute(_MATCH_DATE, player.id)
         real_container.create_teams(None).execute(_MATCH_DATE, 2)
 
         events = [
@@ -234,7 +216,8 @@ class TestFullMatchLifecycle:
         """stats_handler with no closed matches still sends a photo (empty report)."""
         real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
-        real_container.add_player_to_meetup().execute(_MATCH_DATE, "Regular_01")
+        player = real_container.player_repository.find_by_name("Regular_01")
+        real_container.add_player_to_meetup_by_id().execute(_MATCH_DATE, player.id)
 
         fake_png = b"\x89PNG\r\n\x1a\n"
         captured = {}

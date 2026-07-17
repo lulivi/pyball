@@ -21,6 +21,7 @@ from pyball.domain.player.errors import (
 )
 from pyball.domain.player.models import Player
 from pyball.infrastructure.http.app import create_app
+from pyball.infrastructure.signup.code_store import SignupCodeStore
 
 
 class TestGetNextDefaultDate:
@@ -514,7 +515,7 @@ class TestMeetupActive:
 
     @pytest.mark.asyncio
     async def test_uses_match_token_url_when_configured(self):
-        """matchUrl is built by StartNextRound.execute(), which now returns the token URL."""
+        """matchUrl in the active-meetup response comes from MatchLinkBuilder.build()."""
         meetup = MagicMock()
         meetup.date = datetime(2026, 5, 28, 20, 0)
         pid = MagicMock()
@@ -926,6 +927,126 @@ class TestManifests:
         assert data["theme_color"] == "#0f172a"
         assert len(data["icons"]) == 2
         assert data["scope"] == "/manage"
+
+
+class TestConfigEndpoint:
+    """Tests for GET /api/config."""
+
+    @pytest.mark.asyncio
+    async def test_signup_enabled_false_by_default(self):
+        app = create_app(MagicMock(), _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/config")
+        assert response.status_code == 200
+        assert response.json() == {"signup_enabled": False}
+
+    @pytest.mark.asyncio
+    async def test_signup_enabled_true_when_web_signup_on(self):
+        app = create_app(MagicMock(), _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/config")
+        assert response.status_code == 200
+        assert response.json() == {"signup_enabled": True}
+
+
+class TestPlayerSignupCode:
+    """Tests for signup-code creation/regeneration on player routes."""
+
+    @pytest.mark.asyncio
+    async def test_players_list_excludes_has_signup_code_when_disabled(self):
+        container = _container_for_responses()
+        container.player_repository.find_all.return_value = [Player.create("Luis")]
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/players")
+        assert "has_signup_code" not in response.json()[0]
+
+    @pytest.mark.asyncio
+    async def test_players_list_includes_has_signup_code_when_enabled(self, tmp_path):
+        container = _container_for_responses()
+        player = Player.create("Luis")
+        container.player_repository.find_all.return_value = [player]
+        container.data_dir = tmp_path
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/api/players")
+        assert response.json()[0]["has_signup_code"] is False
+
+    @pytest.mark.asyncio
+    async def test_create_player_includes_signup_code_when_enabled(self, tmp_path):
+        container = _container_for_responses()
+        player = Player.create("Nueva")
+        container.create_player.return_value.execute.return_value = player
+        container.data_dir = tmp_path
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.post("/api/players", json={"name": "Nueva", "group": "regular"})
+        assert response.status_code == 201
+        assert len(response.json()["signup_code"]) == 8
+
+    @pytest.mark.asyncio
+    async def test_create_player_excludes_signup_code_when_disabled(self):
+        container = _container_for_responses()
+        player = Player.create("Nueva")
+        container.create_player.return_value.execute.return_value = player
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.post("/api/players", json={"name": "Nueva", "group": "regular"})
+        assert "signup_code" not in response.json()
+
+    @pytest.mark.asyncio
+    async def test_regenerate_signup_code_returns_new_code(self, tmp_path):
+        container = _container_for_responses()
+        player = Player.create("Luis")
+        container.player_repository.find_by_id.return_value = player
+        container.data_dir = tmp_path
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.post(f"/api/players/{player.id.value}/signup-code/regenerate")
+        assert response.status_code == 200
+        assert len(response.json()["code"]) == 8
+
+    @pytest.mark.asyncio
+    async def test_regenerate_signup_code_404_when_disabled(self):
+        container = _container_for_responses()
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.post("/api/players/some-id/signup-code/regenerate")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_regenerate_signup_code_404_when_player_not_found(self, tmp_path):
+        container = _container_for_responses()
+        container.player_repository.find_by_id.return_value = None
+        container.data_dir = tmp_path
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.post(
+                "/api/players/11111111-1111-1111-1111-111111111111/signup-code/regenerate"
+            )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_player_removes_signup_code_when_enabled(self, tmp_path):
+        container = _container_for_responses()
+        player = Player.create("Luis")
+        container.player_repository.find_by_id.return_value = player
+        container.data_dir = tmp_path
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        store = SignupCodeStore(tmp_path / "signup" / "codes.json")
+        store.set_code(str(player.id.value), "ABCD2345")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.delete(f"/api/players/{player.id.value}")
+        assert response.status_code == 200
+        assert store.has_code(str(player.id.value)) is False
+
+    @pytest.mark.asyncio
+    async def test_delete_player_does_not_touch_signup_store_when_disabled(self, tmp_path):
+        container = _container_for_responses()
+        app = create_app(container, _StubNotifier())
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.delete("/api/players/11111111-1111-1111-1111-111111111111")
+        assert response.status_code == 200
 
 
 class TestCreateMeetup:

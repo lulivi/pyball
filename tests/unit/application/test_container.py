@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pyball.application.container import Container
+from pyball.application.meetup import AddPlayerToMeetupById, RemovePlayerFromMeetupById
 from pyball.application.notifier import NullMatchNotifier
 
 
@@ -40,6 +41,26 @@ class TestContainerInit:
         settings.pyball.name = "Tensores"
         container = Container(settings)
         assert container.name == "Tensores"
+
+
+class TestContainerAddRemovePlayerById:
+    """Tests for Container wiring of the ID-based join/leave use cases."""
+
+    def test_add_player_to_meetup_by_id_returns_use_case(self):
+        """add_player_to_meetup_by_id returns a use case wired to the meetup repository."""
+        settings = MagicMock()
+        container = Container(settings)
+        use_case = container.add_player_to_meetup_by_id()
+        assert isinstance(use_case, AddPlayerToMeetupById)
+        assert use_case.meetup_repository is container.meetup_repository
+
+    def test_remove_player_from_meetup_by_id_returns_use_case(self):
+        """remove_player_from_meetup_by_id returns a use case wired to the meetup repository."""
+        settings = MagicMock()
+        container = Container(settings)
+        use_case = container.remove_player_from_meetup_by_id()
+        assert isinstance(use_case, RemovePlayerFromMeetupById)
+        assert use_case.meetup_repository is container.meetup_repository
 
 
 class TestNullMatchNotifier:

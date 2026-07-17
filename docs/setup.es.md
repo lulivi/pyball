@@ -12,13 +12,18 @@ PyBall se distribuye como dos imágenes Docker, construidas desde el mismo códi
 
 | Imagen | Qué ejecuta | ¿Necesita un bot de Telegram? |
 |---|---|---|
-| `lulivi/pyball-web` | Solo FastAPI — páginas web `/manage` y `/match` | No |
-| `lulivi/pyball-telegram` | Bot de Telegram + FastAPI (mismas páginas web) | Sí |
+| `lulivi/pyball` | FastAPI — `/manage`, `/match`, y opcionalmente alta por cuenta propia en `/signup` (ver abajo) | No |
+| `lulivi/pyball-telegram` | Bot de Telegram + FastAPI (`/manage` y `/match`) | Sí |
 
-Si tu grupo no usa Telegram, o prefieres gestionarlo todo desde el navegador, usa
-`pyball-web`: todas las funciones — crear partidos, generar equipos (clásico o
-triangular), seguir un partido, cerrar una sesión triangular, ver estadísticas — están
-disponibles desde `/manage` y `/match`. Usa `pyball-telegram` si quieres que las
+Todas las funciones — crear partidos, generar equipos (clásico o triangular), seguir un
+partido, cerrar una sesión triangular, ver estadísticas — están disponibles desde
+`/manage` y `/match` en cualquiera de las dos imágenes; Telegram y `/signup` son capas
+de conveniencia añadidas encima, nunca un requisito. Si tu grupo no usa Telegram, usa
+`pyball`: pon `enable_web_signup = true` en `config.toml` si quieres que los jugadores
+se apunten o se bajen ellos mismos de un partido con su código personal en `/signup`
+(ver [Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup)) sin
+tocar `/manage`, o déjalo en `false` (por defecto) para que el alta siga siendo una
+tarea de admin, hecha desde `/manage`. Usa `pyball-telegram` si quieres que las
 convocatorias se publiquen automáticamente en un grupo, comandos de admin desde
 Telegram, y reacciones/notificaciones en el chat.
 
@@ -28,8 +33,8 @@ Elige un directorio vacío para la configuración y los datos de esta instancia,
 
 ```bash
 mkdir pyball && cd pyball
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-web --bootstrap
-# o:
+docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
+# o, para Telegram:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 ```
 
@@ -55,7 +60,7 @@ Cualquier clave también se puede fijar con una variable de entorno,
 útil para mantener secretos fuera de `config.toml` o sobrescribir un valor por
 despliegue sin editar el archivo.
 
-### `[pyball.core]` — ambas topologías
+### `[pyball.core]` — todas las topologías
 
 | Clave | Descripción | Por defecto |
 |---|---|---|
@@ -71,6 +76,8 @@ despliegue sin editar el archivo.
 | `data_dir` | Directorio para los archivos de datos JSON | `data` |
 | `match_token` | Token de acceso solo para `/match` (opcional, ver [Tokens de acceso](#6-tokens-de-acceso)) | *(vacío)* |
 | `manage_token` | Token de acceso para todo, incluyendo `/manage` (opcional) | *(vacío)* |
+| `enable_web_signup` | Activa la página de alta por cuenta propia `/signup` | `false` |
+| `signup_token` | Token de acceso solo para `/signup` (opcional; solo relevante si `enable_web_signup` está activo, inofensivo si se deja vacío) | *(vacío)* |
 | `theme_color` | Color de tema/fondo de la PWA | `#0f172a` |
 | `icons_dir` | Directorio de iconos PWA personalizados (opcional) | *(vacío)* |
 
@@ -79,7 +86,7 @@ Colores de equipo disponibles: `blanco` `negro` `rojo` `naranja` `amarillo` `ver
 
 ### `[pyball.telegram]` y subsecciones — solo `pyball-telegram`
 
-Estas claves se ignoran en `pyball-web` — ver
+Estas claves se ignoran en `pyball` — ver
 [la configuración de Telegram es solo para el bot](data-directory.es.md#la-configuración-de-telegram-es-solo-para-el-bot)
 para saber por qué.
 
@@ -119,27 +126,39 @@ La interfaz web de PyBall son dos páginas:
   un móvil o tablet durante la sesión — carga automáticamente el partido activo en cada
   momento, sin configuración manual una vez superado el aviso de token (abajo).
 
+Con `enable_web_signup = true` también existe `/signup`, una página de alta por cuenta
+propia para jugadores — ver
+[Alta por cuenta propia en `/signup`](workflow.es.md#alta-por-cuenta-propia-en-signup).
+
 Ver [docs/workflow.es.md](workflow.es.md) para el flujo completo paso a paso.
 
 ## 6. Tokens de acceso
 
-`match_token` y `manage_token` protegen la aplicación cuando se expone más allá de tu
-propia red privada (ej. a través de un proxy inverso en internet) — sin ellos, `/manage`
-y `/match` quedan abiertos a cualquiera que llegue a la URL. Si ambos se dejan vacíos,
-no se aplica ninguna autenticación (correcto para una red privada en la que ya
-confías). Cómo expongas la aplicación públicamente (proxy inverso, VPN, túnel, etc.)
-depende de ti — estos tokens funcionan igual en cualquier caso.
+`match_token`, `signup_token` y `manage_token` protegen la aplicación cuando se expone
+más allá de tu propia red privada (ej. a través de un proxy inverso en internet) — sin
+ellos, `/manage`, `/match` y `/signup` quedan abiertos a cualquiera que llegue a la URL.
+Si los tres se dejan vacíos, no se aplica ninguna autenticación (correcto para una red
+privada en la que ya confías). Cómo expongas la aplicación públicamente (proxy inverso,
+VPN, túnel, etc.) depende de ti — estos tokens funcionan igual en cualquier caso.
 
 | Ruta | Token requerido |
 |---|---|
 | `/`, archivos estáticos, manifiestos PWA | Ninguno (siempre público) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **o** `manage_token` |
+| `/signup` y `/api/signup/*` (solo si `enable_web_signup` está activo) | `signup_token` **o** `manage_token` |
 | `/manage` y todo lo demás bajo `/api/*` | Solo `manage_token` |
 
 Dale el `match_token` (solo marcador) a un dispositivo que solo deba ver `/match` (ej.
-una tablet montada en el campo), y el `manage_token` a los admins. Visitar una URL con
-`?token=<valor>` una vez valida el token y guarda una cookie `HttpOnly` que dura un
-año — no hace falta volver a pasar el token en ese mismo dispositivo/navegador.
+una tablet montada en el campo), el `signup_token` a los jugadores (si `/signup` está
+activo), y el `manage_token` a los admins. Visitar una URL con `?token=<valor>` una vez valida el
+token y guarda una cookie `HttpOnly` que dura un año — no hace falta volver a pasar el
+token en ese mismo dispositivo/navegador.
+
+`signup_token` solo protege la propia página `/signup`, como una contraseña compartida
+con todo el que puede usarla; una vez dentro, cada jugador se identifica además con su
+propio código personal de alta (ver
+[Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup)) — son dos
+capas independientes, y ninguna sustituye a la otra.
 
 ## 7. Actualizar
 

@@ -17,28 +17,39 @@ if TYPE_CHECKING:
 class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-instance-attributes
     """Middleware that enforces static-token access control.
 
-    Two tokens are supported:
-    - match_token: grants access to /match, GET /api/match/active,
-      POST /api/match/finish
-    - manage_token: grants access to everything (superset of match_token)
+    Three tokens are supported, each scoped to its own subtree:
+    - match_token: grants access to /match, GET /api/match/active, POST /api/match/finish
+    - signup_token: grants access to /signup and /api/signup/*
+    - manage_token: grants access to everything (superset of the other two)
+
+    Static assets (/js/*, /icons/*, /signup-static/*) carry no player data and are
+    always public, same as the pages' own JS was already documented to be — only the
+    page shells and the API are gated.
 
     Token delivery:
     - ?token=<value> → validates, sets HttpOnly cookie, redirects to clean URL
-    - Cookie pyball_token=<value> → validates on every subsequent request
+    - Cookie pyball_<scope>_token=<value> → validates on every subsequent request
 
-    When both tokens are empty the middleware is disabled (no-op).
+    When all three tokens are empty the middleware is disabled (no-op).
     """
 
     def __init__(
         self,
         app: "ASGIApp",
-        match_token: str,
-        manage_token: str,
+        match_token: str = "",
+        manage_token: str = "",
+        signup_token: str = "",
     ) -> None:
-        """Initialise with the two static tokens."""
+        """Initialise with the three static tokens."""
         super().__init__(app)
         self._match_token = match_token
         self._manage_token = manage_token
+        self._signup_token = signup_token
+        self._cookie_names = {
+            "manage": "pyball_manage_token",
+            "match": "pyball_match_token",
+            "signup": "pyball_signup_token",
+        }
         self._cookie_path = "/"
         self._public_paths = frozenset(
             [
@@ -49,19 +60,23 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
                 "/manifest-manage.json",
             ]
         )
-        self._manage_page = "/manage"
+        self._match_page = "/match"
         self._match_api_routes = frozenset(
             [
                 ("GET", "/api/match/active"),
                 ("POST", "/api/match/finish"),
             ]
         )
+        self._signup_page = "/signup"
+        self._signup_api_prefix = "/api/signup/"
         self._api_prefix = "/api/"
         self._icons_prefix = "/icons/"
+        self._js_prefix = "/js/"
+        self._signup_static_prefix = "/signup-static/"
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check token on every request."""
-        if not self._match_token and not self._manage_token:
+        if not self._match_token and not self._manage_token and not self._signup_token:
             return await call_next(request)
 
         path = request.url.path
@@ -73,33 +88,37 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
         if token_param is not None:
             return self._handle_token_param(request, token_param, path)
 
-        manage_cookie = request.cookies.get("pyball_manage_token")
+        manage_cookie = request.cookies.get(self._cookie_names["manage"])
         if manage_cookie and self._classify(manage_cookie) == "manage":
             return await call_next(request)
 
-        match_cookie = request.cookies.get("pyball_match_token")
-        if not match_cookie or self._classify(match_cookie) != "match":
-            return _unauthorized(path, self._api_prefix)
+        required = self._required_scope(request.method, path)
+        valid_scopes = set()
+        for scope in ("match", "signup"):
+            cookie = request.cookies.get(self._cookie_names[scope])
+            if cookie and self._classify(cookie) == scope:
+                valid_scopes.add(scope)
 
-        if self._requires_manage(request.method, path):
+        if required in valid_scopes:
+            return await call_next(request)
+        if valid_scopes:
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
-
-        return await call_next(request)
+        return _unauthorized(path, self._api_prefix)
 
     def _handle_token_param(self, request: Request, token: str, path: str) -> Response:
         """Validate ?token=, set cookie, and redirect to the same path without the param."""
         token_type = self._classify(token)
         if token_type is None:
             return JSONResponse({"detail": "Invalid token"}, status_code=401)
-        if self._requires_manage(request.method, path) and token_type != "manage":
+        required = self._required_scope(request.method, path)
+        if token_type not in ("manage", required):
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
         remaining = {k: v for k, v in request.query_params.items() if k != "token"}
         clean = path + ("?" + urllib.parse.urlencode(remaining) if remaining else "")
         response = RedirectResponse(url=clean, status_code=302)
-        cookie_name = "pyball_manage_token" if token_type == "manage" else "pyball_match_token"
         response.set_cookie(
-            cookie_name,
+            self._cookie_names[token_type],
             token,
             httponly=True,
             secure=request.url.scheme == "https",
@@ -110,24 +129,32 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
         return response
 
     def _classify(self, token: str) -> str | None:
-        """Return 'manage', 'match', or None for an unrecognised token."""
+        """Return 'manage', 'match', 'signup', or None for an unrecognised token."""
         if self._manage_token and hmac.compare_digest(token, self._manage_token):
             return "manage"
         if self._match_token and hmac.compare_digest(token, self._match_token):
             return "match"
+        if self._signup_token and hmac.compare_digest(token, self._signup_token):
+            return "signup"
         return None
 
     def _is_public(self, path: str) -> bool:
-        """Return True if the path requires no authentication."""
-        return path in self._public_paths or path.startswith(self._icons_prefix)
+        """Return True if the path requires no authentication.
 
-    def _requires_manage(self, method: str, path: str) -> bool:
-        """Return True if the request requires manage-level access."""
-        if path == self._manage_page:
-            return True
-        if (method, path) in self._match_api_routes:
-            return False
-        return path.startswith(self._api_prefix)
+        Static assets (JS, icons) carry no player data and are the same for every
+        visitor, so — like the page shells they support (/match, /manage, /signup) —
+        only the *pages* and the API are gated, never the scripts that render them.
+        """
+        public_prefixes = (self._icons_prefix, self._js_prefix, self._signup_static_prefix)
+        return path in self._public_paths or path.startswith(public_prefixes)
+
+    def _required_scope(self, method: str, path: str) -> str:
+        """Return which token scope ('match', 'signup', or 'manage') a path requires."""
+        if path == self._match_page or (method, path) in self._match_api_routes:
+            return "match"
+        if path == self._signup_page or path.startswith(self._signup_api_prefix):
+            return "signup"
+        return "manage"
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────

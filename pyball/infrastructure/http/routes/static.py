@@ -31,13 +31,20 @@ if TYPE_CHECKING:
     from pyball.application.container import Container
 
 
-def register_static_routes(app: FastAPI, static_dir: Path, container: "Container") -> None:
-    """Register the health-check, static-page, manifest, and SW routes."""
+def register_static_routes(
+    app: FastAPI, static_dir: Path, container: "Container", enable_web_signup: bool = False
+) -> None:
+    """Register the health-check, static-page, manifest, config, and SW routes."""
 
     @app.get("/")
     async def health():
         """Return a simple status response."""
         return {"status": "ok"}
+
+    @app.get("/api/config")
+    async def app_config():
+        """Return topology capability flags for the shared /manage frontend."""
+        return {"signup_enabled": enable_web_signup}
 
     @app.get("/match")
     async def match_page():

@@ -17,41 +17,33 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Start next round use case."""
+"""Remove player from meetup by ID use case."""
 
 from datetime import datetime
 
-from pyball.domain.meetup.errors import MeetupHasNoTeamsError, MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupNotFoundError, SignupClosedError
 from pyball.domain.meetup.models import Meetup
-from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
+from pyball.domain.player.models import PlayerId
 
 
-class StartNextRound:
-    """Use case that ensures a meetup has a pending match ready for tracking."""
+class RemovePlayerFromMeetupById:
+    """Use case for removing an already-identified player from a meetup."""
 
     def __init__(self, meetup_repository: MeetupRepository):
-        """Initialize with the meetup repository."""
+        """Initialize the use case with the meetup repository."""
         self.meetup_repository = meetup_repository
 
-    def execute(self, meetup_date: datetime) -> Meetup:
-        """Return the meetup with a pending match ready for tracking.
-
-        If a match is already pending (no result yet), this is a no-op. Otherwise,
-        creates the first match: the 2 teams for classic meetups, or a random pairing
-        of 2 of the 3 teams for triangulars.
-
-        Raises:
-            MeetupNotFoundError: If no meetup exists at the date.
-            MeetupHasNoTeamsError: If the meetup has no teams assigned.
-        """
+    def execute(self, meetup_date: datetime, player_id: PlayerId) -> Meetup:
+        """Remove a player from a meetup by datetime and an already-validated player ID."""
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
-        if meetup is None:
+        if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
-        if meetup.teams is None:
-            raise MeetupHasNoTeamsError("Meetup has no teams. Run /create_teams first.")
 
-        if ensure_first_match(meetup):
-            self.meetup_repository.save(meetup)
+        if not meetup.is_signup_open():
+            raise SignupClosedError("Cannot leave a meetup once teams have been assigned.")
 
+        meetup.remove_player(player_id)
+
+        self.meetup_repository.save(meetup)
         return meetup

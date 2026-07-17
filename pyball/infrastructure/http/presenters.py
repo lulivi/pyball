@@ -32,6 +32,7 @@ from pyball.domain.meetup.errors import MeetupNotFoundError
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.domain.meetup.models import Meetup
+    from pyball.domain.player.models import PlayerId
 
 
 def build_active_match_response(container: Container) -> dict:
@@ -158,6 +159,54 @@ def build_meetup_active_response(container: Container) -> dict:
     }
 
 
+def build_signup_meetup_response(container: Container, player_id: "PlayerId") -> dict:
+    """Build the response for /api/signup/{meetup,join,leave}, or raise 404.
+
+    Unlike build_meetup_active_response, this never exposes player IDs or
+    management-only fields — only what a self-identified player needs to see.
+    """
+    try:
+        meetup = container.get_active_meetup().execute()
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No hay convocatoria activa") from exc
+
+    all_players = container.player_repository.find_all()
+    player_names = {str(p.id.value): p.name for p in all_players}
+    is_joined = player_id in meetup.players
+
+    if meetup.teams is None:
+        return {
+            "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+            "location": meetup.location,
+            "signupOpen": True,
+            "roster": sorted_names(meetup.players, player_names),
+            "isJoined": is_joined,
+            "teams": None,
+        }
+
+    colors = container.team_colors
+    hex_bg = container.team_hex_bg
+    hex_text = container.team_hex_text
+    teams_payload = [
+        {
+            "name": colors[index].capitalize(),
+            "colorBg": hex_bg[index],
+            "colorText": hex_text[index],
+            "players": _sorted_players_with_me(team.players, player_names, player_id),
+        }
+        for index, team in enumerate(meetup.teams)
+    ]
+
+    return {
+        "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
+        "location": meetup.location,
+        "signupOpen": False,
+        "roster": None,
+        "isJoined": is_joined,
+        "teams": teams_payload,
+    }
+
+
 def build_match_events_response(container: Container, meetup: Meetup) -> dict:
     """Serialise the most recent match's events and team data into a response dict."""
     assert meetup.teams is not None
@@ -211,6 +260,20 @@ def sorted_names(player_ids, player_names: dict[str, str]) -> list[str]:
     return sorted(
         [player_names.get(str(pid.value), "(desconocido)") for pid in player_ids],
         key=_sort,
+    )
+
+
+def _sorted_players_with_me(
+    player_ids, player_names: dict[str, str], me: "PlayerId"
+) -> list[dict]:
+    """Return locale-sorted {name, isMe} dicts for a team's players."""
+    _sort = functools.cmp_to_key(locale.strcoll)
+    return sorted(
+        [
+            {"name": player_names.get(str(pid.value), "(desconocido)"), "isMe": pid == me}
+            for pid in player_ids
+        ],
+        key=lambda p: _sort(p["name"]),
     )
 
 

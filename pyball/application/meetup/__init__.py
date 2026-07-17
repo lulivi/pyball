@@ -19,7 +19,7 @@
 # SOFTWARE.
 """Meetup use cases."""
 
-from pyball.application.meetup.add_player import AddPlayerToMeetup
+from pyball.application.meetup.add_player_by_id import AddPlayerToMeetupById
 from pyball.application.meetup.assign_teams_by_id import AssignTeamsById
 from pyball.application.meetup.cancel_meetup import CancelMeetup
 from pyball.application.meetup.close_meetup import CloseMeetup
@@ -32,7 +32,6 @@ from pyball.application.meetup.compute_stats import (
 )
 from pyball.application.meetup.create_meetup import CreateMeetup
 from pyball.application.meetup.create_teams import CreateTeams
-from pyball.application.meetup.create_teams_manually import CreateTeamsManually
 from pyball.application.meetup.destroy_teams import DestroyTeams
 from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
@@ -46,9 +45,8 @@ from pyball.application.meetup.parse_callup_text import (
     ParseResult,
     PlayerCandidate,
 )
-from pyball.application.meetup.remove_player import RemovePlayerFromMeetup
+from pyball.application.meetup.remove_player_by_id import RemovePlayerFromMeetupById
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
-from pyball.application.meetup.start_next_round import StartNextRound
 from pyball.application.meetup.update_meetup_date import UpdateMeetupDate
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
 from pyball.domain.meetup.errors import (
@@ -62,16 +60,14 @@ __all__ = [
     "CallupParseOutcome",
     "CreateMeetup",
     "DuplicateMeetupError",
-    "AddPlayerToMeetup",
-    "RemovePlayerFromMeetup",
+    "AddPlayerToMeetupById",
+    "RemovePlayerFromMeetupById",
     "CreateTeams",
     "AssignTeamsById",
     "CancelMeetup",
     "CloseMeetup",
-    "CreateTeamsManually",
     "DestroyTeams",
     "LockMeetup",
-    "StartNextRound",
     "MeetupHasNoTeamsError",
     "EditMatchResult",
     "FinishMatch",
