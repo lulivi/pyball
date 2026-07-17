@@ -55,7 +55,7 @@ function buildClosedTeam(meetup) {
             .join('');
         return `
       <div class="team-badge" style="background:${team.colorBg};color:${team.colorText}">
-        ${team.emoji} ${escHtml(team.name)}
+        ${escHtml(team.name)}
       </div>
       <ul class="teammate-list">${players}</ul>
     `;
