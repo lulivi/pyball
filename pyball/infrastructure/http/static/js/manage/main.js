@@ -7,6 +7,20 @@ import {
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
+initSignupCodesIfEnabled();
+
+async function initSignupCodesIfEnabled() {
+    try {
+        const { signup_enabled } = await get('/api/config');
+        if (signup_enabled) {
+            const { initSignupCodes } = await import('./signup-codes.js');
+            initSignupCodes();
+        }
+    } catch {
+        // /api/config unreachable — leave signup-code UI disabled
+    }
+}
+
 // ── STATE ────────────────────────────────────────────────────────────────────
 let allPlayers = [];        // [{id, name}, ...] from /api/players
 let parsedPlayers = [];     // [{raw, player_id, name, confidence, candidates, excluded}, ...]

@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Web-only topology entrypoint — FastAPI without Telegram."""
+"""FastAPI topology entrypoint — /manage, /match, and optional /signup, no Telegram."""
 
 import argparse
 import asyncio
@@ -35,7 +35,7 @@ from pyball.settings import SettingsValidationError
 
 def main() -> None:
     """Start the FastAPI server without any Telegram integration."""
-    parser = argparse.ArgumentParser(description="PyBall web-only server")
+    parser = argparse.ArgumentParser(description="PyBall server (manage, match, optional signup)")
     parser.add_argument(
         "--config",
         type=Path,
@@ -54,7 +54,7 @@ def main() -> None:
     if args.bootstrap:
         from pyball.application.init_workspace import init_workspace  # pylint: disable=C0415
 
-        init_workspace("web", args.config)
+        init_workspace("pyball", args.config)
         return
     try:
         asyncio.run(_main_async(args.config))
@@ -64,7 +64,7 @@ def main() -> None:
 
 
 async def _main_async(config_path: Path) -> None:
-    """Boot the web-only topology."""
+    """Boot the pyball topology, with /signup enabled or not per config."""
     app_settings, container = bootstrap_core(config_path)
     notifier = NullMatchNotifier()
     app = create_app(
@@ -72,6 +72,8 @@ async def _main_async(config_path: Path) -> None:
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
+        signup_token=app_settings.pyball.signup_token,
+        enable_web_signup=app_settings.pyball.enable_web_signup,
     )
 
     server_config = uvicorn.Config(

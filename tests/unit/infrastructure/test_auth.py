@@ -11,9 +11,14 @@ from pyball.infrastructure.http.auth import TokenAuthMiddleware
 
 MATCH_TOKEN = "match-tok"
 MANAGE_TOKEN = "manage-tok"
+SIGNUP_TOKEN = "signup-tok"
 
 
-def _make_app(match_token: str = MATCH_TOKEN, manage_token: str = MANAGE_TOKEN):
+def _make_app(
+    match_token: str = MATCH_TOKEN,
+    manage_token: str = MANAGE_TOKEN,
+    signup_token: str = SIGNUP_TOKEN,
+):
     """Minimal Starlette app with the middleware and representative routes."""
 
     async def root(request: Request):
@@ -25,11 +30,23 @@ def _make_app(match_token: str = MATCH_TOKEN, manage_token: str = MANAGE_TOKEN):
     async def manage_page(request: Request):
         return JSONResponse({"page": "manage"})
 
+    async def signup_page(request: Request):
+        return JSONResponse({"page": "signup"})
+
+    async def signup_static_asset(request: Request):
+        return JSONResponse({"asset": "main.js"})
+
+    async def js_asset(request: Request):
+        return JSONResponse({"asset": "api.js"})
+
     async def api_match_active(request: Request):
         return JSONResponse({"active": True})
 
     async def api_match_finish(request: Request):
         return JSONResponse({"done": True})
+
+    async def api_signup_verify(request: Request):
+        return JSONResponse({"verified": True})
 
     async def api_admin(request: Request):
         return JSONResponse({"admin": True})
@@ -38,12 +55,21 @@ def _make_app(match_token: str = MATCH_TOKEN, manage_token: str = MANAGE_TOKEN):
         Route("/", root),
         Route("/match", match_page),
         Route("/manage", manage_page),
+        Route("/signup", signup_page),
+        Route("/signup-static/js/main.js", signup_static_asset),
+        Route("/js/api.js", js_asset),
         Route("/api/match/active", api_match_active),
         Route("/api/match/finish", api_match_finish, methods=["POST"]),
+        Route("/api/signup/verify", api_signup_verify, methods=["POST"]),
         Route("/api/admin", api_admin),
     ]
     app = Starlette(routes=routes)
-    app.add_middleware(TokenAuthMiddleware, match_token=match_token, manage_token=manage_token)
+    app.add_middleware(
+        TokenAuthMiddleware,
+        match_token=match_token,
+        manage_token=manage_token,
+        signup_token=signup_token,
+    )
     return app
 
 
@@ -65,6 +91,22 @@ class TestPublicPaths:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/icons/icon-192.png")
         assert response.status_code != 401
+
+    @pytest.mark.asyncio
+    async def test_js_prefix_is_public(self):
+        """/js/* is public with no token: shared scripts (e.g. api.js) carry no data."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/js/api.js")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_signup_static_prefix_is_public(self):
+        """/signup-static/* is public with no token — only the /signup page is gated."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/signup-static/js/main.js")
+        assert response.status_code == 200
 
 
 class TestUnauthenticatedRequests:
@@ -95,6 +137,15 @@ class TestUnauthenticatedRequests:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/manage")
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_signup_page_returns_401_html(self):
+        """GET /signup returns 401 HTML when unauthenticated."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get("/signup")
+        assert response.status_code == 401
+        assert "text/html" in response.headers["content-type"]
 
 
 class TestMatchTokenCookieAccess:
@@ -134,11 +185,67 @@ class TestMatchTokenCookieAccess:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
+    async def test_denies_signup_page(self):
+        """match_token must not access /signup."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_match_token", MATCH_TOKEN)
+            response = await c.get("/signup")
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
     async def test_denies_other_api_routes(self):
         """match_token must not access admin API routes."""
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             c.cookies.set("pyball_match_token", MATCH_TOKEN)
+            response = await c.get("/api/admin")
+        assert response.status_code == 403
+
+
+class TestSignupTokenCookieAccess:
+    """signup_token cookie grants access to signup routes only."""
+
+    @pytest.mark.asyncio
+    async def test_allows_signup_page(self):
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_signup_token", SIGNUP_TOKEN)
+            response = await c.get("/signup")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_allows_api_signup_verify(self):
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_signup_token", SIGNUP_TOKEN)
+            response = await c.post("/api/signup/verify")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_denies_match_page(self):
+        """signup_token must not access /match."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_signup_token", SIGNUP_TOKEN)
+            response = await c.get("/match")
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_denies_manage_page(self):
+        """signup_token must not access /manage."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_signup_token", SIGNUP_TOKEN)
+            response = await c.get("/manage")
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_denies_other_api_routes(self):
+        """signup_token must not access admin API routes."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_signup_token", SIGNUP_TOKEN)
             response = await c.get("/api/admin")
         assert response.status_code == 403
 
@@ -160,6 +267,14 @@ class TestManageTokenCookieAccess:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             c.cookies.set("pyball_manage_token", MANAGE_TOKEN)
             response = await c.get("/match")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_allows_signup_page(self):
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            c.cookies.set("pyball_manage_token", MANAGE_TOKEN)
+            response = await c.get("/signup")
         assert response.status_code == 200
 
     @pytest.mark.asyncio
@@ -231,11 +346,31 @@ class TestTokenQueryParam:
         assert response.headers["location"] == "/manage"
 
     @pytest.mark.asyncio
+    async def test_valid_signup_token_sets_cookie_and_redirects(self):
+        app = _make_app()
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", follow_redirects=False
+        ) as c:
+            response = await c.get(f"/signup?token={SIGNUP_TOKEN}")
+        assert response.status_code == 302
+        assert response.headers["location"] == "/signup"
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "pyball_signup_token" in set_cookie
+
+    @pytest.mark.asyncio
     async def test_match_token_on_manage_path_returns_403(self):
         """match_token cannot be used to set a cookie for /manage."""
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get(f"/manage?token={MATCH_TOKEN}")
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_signup_token_on_match_path_returns_403(self):
+        """signup_token cannot be used to set a cookie for /match."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            response = await c.get(f"/match?token={SIGNUP_TOKEN}")
         assert response.status_code == 403
 
     @pytest.mark.asyncio
@@ -260,15 +395,17 @@ class TestTokenQueryParam:
 
 
 class TestMiddlewareDisabled:
-    """When both tokens are empty the middleware is a no-op."""
+    """When all three tokens are empty the middleware is a no-op."""
 
     @pytest.mark.asyncio
     async def test_all_routes_accessible_without_tokens(self):
-        app = _make_app(match_token="", manage_token="")
+        app = _make_app(match_token="", manage_token="", signup_token="")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             r1 = await c.get("/match")
             r2 = await c.get("/manage")
             r3 = await c.get("/api/admin")
+            r4 = await c.get("/signup")
         assert r1.status_code == 200
         assert r2.status_code == 200
         assert r3.status_code == 200
+        assert r4.status_code == 200

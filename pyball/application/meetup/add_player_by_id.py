@@ -17,42 +17,33 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Add player to meetup use case."""
+"""Add player to meetup by ID use case."""
 
 from datetime import datetime
 
-from pyball.application.fuzzy_match import fuzzy_match_player
 from pyball.domain.meetup.errors import MeetupNotFoundError, SignupClosedError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
-from pyball.domain.player.repository import PlayerRepository
+from pyball.domain.player.models import PlayerId
 
 
-class AddPlayerToMeetup:
-    """Use case for adding a player to a meetup."""
+class AddPlayerToMeetupById:
+    """Use case for adding an already-identified player to a meetup."""
 
-    def __init__(
-        self,
-        meetup_repository: MeetupRepository,
-        player_repository: PlayerRepository,
-    ):
-        """Initialize the use case with required repositories."""
+    def __init__(self, meetup_repository: MeetupRepository):
+        """Initialize the use case with the meetup repository."""
         self.meetup_repository = meetup_repository
-        self.player_repository = player_repository
 
-    def execute(self, meetup_date: datetime, player_name: str) -> Meetup:
-        """Add player to meetup by datetime and fuzzy name match."""
+    def execute(self, meetup_date: datetime, player_id: PlayerId) -> Meetup:
+        """Add a player to a meetup by datetime and an already-validated player ID."""
         meetup = self.meetup_repository.find_by_datetime(meetup_date)
         if not meetup:
             raise MeetupNotFoundError(str(meetup_date))
 
-        all_players = self.player_repository.find_all()
-        match = fuzzy_match_player(player_name, all_players)
-
         if not meetup.is_signup_open():
             raise SignupClosedError("Cannot join a meetup once teams have been assigned.")
 
-        meetup.add_player(match.player_id)
+        meetup.add_player(player_id)
 
         self.meetup_repository.save(meetup)
         return meetup

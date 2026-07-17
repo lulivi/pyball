@@ -64,12 +64,21 @@ locale = "es_ES.UTF-8"
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
+# Enable the self-service /signup page (players join/leave with a personal code)
+# Override with PYBALL_CORE_ENABLE_WEB_SIGNUP
+enable_web_signup = false
+
 # Static tokens for public access (optional -- leave empty to disable auth)
 # Override with PYBALL_CORE_MATCH_TOKEN
 # match_token = ""
 
 # Override with PYBALL_CORE_MANAGE_TOKEN
 # manage_token = ""
+
+# Static token gating /signup -- only relevant when enable_web_signup is true,
+# harmless if left unset
+# Override with PYBALL_CORE_SIGNUP_TOKEN
+# signup_token = ""
 
 # Override with PYBALL_CORE_THEME_COLOR
 theme_color = "#0f172a"
@@ -108,10 +117,10 @@ chat_id = -1000000000001
 chat_id = 0
 """
 
-_WEB_COMPOSE = """\
+_PYBALL_COMPOSE = """\
 services:
-  web:
-    image: lulivi/pyball-web:${TAG:-latest}
+  pyball:
+    image: lulivi/pyball:${TAG:-latest}
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"
@@ -138,11 +147,13 @@ services:
 
 _DOCS_BASE_URL = "https://gitlab.com/lulivi/pyball/-/blob/main/docs"
 
-_WEB_README = f"""\
+_PYBALL_README = f"""\
 # PyBall
 
 PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
-managing players, and recording results.
+managing players, and recording results — including an optional self-service /signup
+page where players join or leave a meetup with their own personal code (enable it with
+`enable_web_signup = true` in config.toml).
 
 ## Quick Start
 
@@ -150,8 +161,8 @@ managing players, and recording results.
 docker compose up -d
 ```
 
-Edit `config.toml` first — see the full setup guide for configuration, access tokens,
-and how to use `/manage` and `/match`:
+Edit `config.toml` first — see the full setup guide for configuration, access tokens
+(including `signup_token`), and how to use `/manage`, `/match`, and `/signup`:
 
 - [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
 - [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
@@ -201,11 +212,15 @@ Pin a specific version in `.env`: `TAG=4.13.0`
 """
 
 
+_TOPOLOGY_LABELS = {"pyball": "pyball", "tg": "pyball-telegram"}
+
+
 def init_workspace(topology: str, config_path: Path) -> None:
     """Generate a deployment workspace and exit without starting the app.
 
     Args:
-        topology: "web" or "tg" — controls which config/compose/README template is used.
+        topology: "pyball" or "tg" — controls which config/compose/README
+            template is used.
         config_path: Path where config.toml will be written; all other files go in
             the same directory.
     """
@@ -226,7 +241,7 @@ def init_workspace(topology: str, config_path: Path) -> None:
             print(f"Error: {msg}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Bootstrapping pyball-{topology} workspace in {workspace} ...")
+    print(f"Bootstrapping {_TOPOLOGY_LABELS.get(topology, topology)} workspace in {workspace} ...")
 
     for rel in ("data", "data/meetups", "logs"):
         (workspace / rel).mkdir(parents=True, exist_ok=True)
@@ -265,7 +280,7 @@ def _compose_template(topology: str) -> str:
     """Return the compose.yaml content for the given topology."""
     if topology == "tg":
         return _TG_COMPOSE
-    return _WEB_COMPOSE
+    return _PYBALL_COMPOSE
 
 
 def _env_template() -> str:
@@ -277,4 +292,4 @@ def _readme_template(topology: str) -> str:
     """Return the README.md content for the given topology."""
     if topology == "tg":
         return _TG_README
-    return _WEB_README
+    return _PYBALL_README

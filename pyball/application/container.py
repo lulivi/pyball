@@ -19,15 +19,16 @@
 # SOFTWARE.
 """Dependency injection container."""
 
+from pathlib import Path
+
 from pyball.application.meetup import (
-    AddPlayerToMeetup,
+    AddPlayerToMeetupById,
     AssignTeamsById,
     CancelMeetup,
     CloseMeetup,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
-    CreateTeamsManually,
     DestroyTeams,
     EditMatchResult,
     FinishMatch,
@@ -35,9 +36,8 @@ from pyball.application.meetup import (
     GetActiveMeetup,
     LockMeetup,
     ParseCallup,
-    RemovePlayerFromMeetup,
+    RemovePlayerFromMeetupById,
     SetMeetupPlayers,
-    StartNextRound,
     UpdateMeetupDate,
     UpdateMeetupLocation,
 )
@@ -95,13 +95,13 @@ class Container:  # pylint: disable=too-many-public-methods
         """Create a new SetPlayerPosition use case."""
         return SetPlayerPosition(self.player_repository)
 
-    def add_player_to_meetup(self) -> AddPlayerToMeetup:
-        """Create a new AddPlayerToMeetup use case."""
-        return AddPlayerToMeetup(self.meetup_repository, self.player_repository)
+    def add_player_to_meetup_by_id(self) -> AddPlayerToMeetupById:
+        """Create a new AddPlayerToMeetupById use case."""
+        return AddPlayerToMeetupById(self.meetup_repository)
 
-    def remove_player_from_meetup(self) -> RemovePlayerFromMeetup:
-        """Create a new RemovePlayerFromMeetup use case."""
-        return RemovePlayerFromMeetup(self.meetup_repository, self.player_repository)
+    def remove_player_from_meetup_by_id(self) -> RemovePlayerFromMeetupById:
+        """Create a new RemovePlayerFromMeetupById use case."""
+        return RemovePlayerFromMeetupById(self.meetup_repository)
 
     def create_teams(self, algo_name: str | None = None) -> CreateTeams:
         """Create a new CreateTeams use case with the specified or default algorithm."""
@@ -111,17 +111,9 @@ class Container:  # pylint: disable=too-many-public-methods
             raise UnknownAlgorithmError(name, list(registry.keys()))
         return CreateTeams(self.meetup_repository, registry[name])
 
-    def create_teams_manually(self) -> CreateTeamsManually:
-        """Create a new CreateTeamsManually use case."""
-        return CreateTeamsManually(self.meetup_repository, self.player_repository)
-
     def assign_teams_by_id(self) -> AssignTeamsById:
         """Create a new AssignTeamsById use case."""
         return AssignTeamsById(self.meetup_repository)
-
-    def start_next_round(self) -> StartNextRound:
-        """Create a new StartNextRound use case."""
-        return StartNextRound(self.meetup_repository)
 
     def match_link_builder(self) -> MatchLinkBuilder:
         """Create the web match-link builder for this instance."""
@@ -228,6 +220,11 @@ class Container:  # pylint: disable=too-many-public-methods
     def icons_dir(self) -> str:
         """Return the per-instance icons directory override ('' = packaged icons)."""
         return self._settings.pyball.icons_dir
+
+    @property
+    def data_dir(self) -> Path:
+        """Return the configured data directory (for infra modules keyed by it)."""
+        return self._settings.paths.data_dir
 
     @property
     def player_repository(self) -> PlayerRepository:

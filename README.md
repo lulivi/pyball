@@ -12,8 +12,8 @@ Most people just want to run the app. All you need is Docker.
 
 ```bash
 mkdir pyball && cd pyball
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-web --bootstrap
-# or, for the Telegram + web topology:
+docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
+# or, for Telegram:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 
 # edit config.toml with your settings, then:
@@ -51,11 +51,12 @@ uv sync --all-extras
 ### Run from source
 
 ```bash
-uv run pyball-web --bootstrap   # first run only, generates config.toml
-uv run pyball-web               # FastAPI only — no Telegram required
-# or:
-uv run pyball-tg --bootstrap
-uv run pyball-tg                # Telegram bot + FastAPI
+uv run pyball --bootstrap       # first run only, generates config.toml
+uv run pyball                   # /manage + /match, no Telegram; add /signup via
+                                 # enable_web_signup = true in config.toml
+
+uv run pyball-telegram --bootstrap
+uv run pyball-telegram          # /manage + /match + Telegram bot
 ```
 
 ### Checks

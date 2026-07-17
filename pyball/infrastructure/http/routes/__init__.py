@@ -22,11 +22,13 @@
 from pyball.infrastructure.http.routes.match import register_match_routes
 from pyball.infrastructure.http.routes.meetup import register_meetup_routes
 from pyball.infrastructure.http.routes.player import register_player_routes
+from pyball.infrastructure.http.routes.signup import register_signup_routes
 from pyball.infrastructure.http.routes.static import register_static_routes
 
 __all__ = [
     "register_match_routes",
     "register_meetup_routes",
     "register_player_routes",
+    "register_signup_routes",
     "register_static_routes",
 ]

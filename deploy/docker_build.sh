@@ -11,7 +11,7 @@ RELEASE=false
 TOPOLOGY="telegram"
 
 usage() {
-    echo "Usage: $0 [--push] [--release] [--image NAME] [--topology telegram|web]" >&2
+    echo "Usage: $0 [--push] [--release] [--image NAME] [--topology telegram|pyball]" >&2
     exit 1
 }
 
@@ -31,8 +31,8 @@ if $RELEASE && ! $PUSH; then
 fi
 
 case "$TOPOLOGY" in
-    telegram|web) ;;
-    *) echo "Error: --topology must be 'telegram' or 'web'" >&2; exit 1 ;;
+    telegram|pyball) ;;
+    *) echo "Error: --topology must be 'telegram' or 'pyball'" >&2; exit 1 ;;
 esac
 
 if [ ! -f "$GET_VERSION_SCRIPT" ]; then
@@ -41,7 +41,11 @@ if [ ! -f "$GET_VERSION_SCRIPT" ]; then
 fi
 
 VERSION="$($GET_VERSION_SCRIPT)"
-IMAGE_NAME="${IMAGE}-${TOPOLOGY}"
+if [ "$TOPOLOGY" = "pyball" ]; then
+    IMAGE_NAME="${IMAGE}"
+else
+    IMAGE_NAME="${IMAGE}-${TOPOLOGY}"
+fi
 IMAGE_TAG="${IMAGE_NAME}:${VERSION}"
 IMAGE_LATEST="${IMAGE_NAME}:latest"
 

@@ -115,12 +115,12 @@ publish-telegram:
   script:
     - ./deploy/docker_build.sh --push --release --topology telegram
 
-publish-web:
+publish-pyball:
   extends: .publish_base
   variables:
     GIT_DEPTH: 0
   script:
-    - ./deploy/docker_build.sh --push --release --topology web
+    - ./deploy/docker_build.sh --push --release --topology pyball
 
 # rules:changes always evaluates to true on tag pipelines, so caddy-related
 # changes are detected by diffing against the previous tag instead. The result
@@ -171,13 +171,13 @@ deploy-telegram:
     - scp compose.tg.yaml "$SERVER_USER@$SERVER_IP:$SERVER_TENSORES_DIR/compose.yaml"
     - ssh "$SERVER_USER@$SERVER_IP" "VERSION=$VERSION APP_DIR=$SERVER_TENSORES_DIR sh -s" < deploy/deploy.sh
 
-deploy-web:
+deploy-pyball:
   extends: .ssh_deploy
   needs:
-    - publish-web
+    - publish-pyball
   script:
     - VERSION="${CI_COMMIT_TAG#v}"
-    - scp compose.web.yaml "$SERVER_USER@$SERVER_IP:$SERVER_CUCARACHAS_DIR/compose.yaml"
+    - scp compose.pyball.yaml "$SERVER_USER@$SERVER_IP:$SERVER_CUCARACHAS_DIR/compose.yaml"
     - ssh "$SERVER_USER@$SERVER_IP" "VERSION=$VERSION APP_DIR=$SERVER_CUCARACHAS_DIR sh -s" < deploy/deploy.sh
 
 deploy-caddy:

@@ -90,7 +90,7 @@ def load_telegram_app_settings(
     if not config_path.exists():
         raise SettingsValidationError(
             f"No se encontró el archivo de configuración: '{config_path}'. "
-            "Ejecuta 'pyball-tg --bootstrap' para generar un config.toml de ejemplo."
+            "Ejecuta 'pyball-telegram --bootstrap' para generar un config.toml de ejemplo."
         )
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
@@ -154,7 +154,7 @@ def load_telegram_app_settings(
     if missing:
         raise SettingsValidationError(
             f"Faltan parámetros requeridos: {', '.join(missing)}. "
-            "Ejecuta 'pyball-tg --bootstrap' para generar un config.toml de ejemplo."
+            "Ejecuta 'pyball-telegram --bootstrap' para generar un config.toml de ejemplo."
         )
 
     return TelegramAppSettings(

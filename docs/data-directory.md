@@ -24,6 +24,8 @@ pyball/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # one file per meetup, named after its date/time
+│   ├── signup/
+│   │   └── codes.json   # only when enable_web_signup is set — see below
 │   └── bot/
 │       └── messages.json   # pyball-telegram only — see below
 └── logs/
@@ -144,12 +146,41 @@ empty file:
 }
 ```
 
+## Web signup is opt-in via `enable_web_signup`
+
+The `data/signup/` directory below only exists when `enable_web_signup` is set to
+`true` in `config.toml`. With it left at the default `false`, or on `pyball-telegram`,
+nothing reads or writes it.
+
+### `data/signup/codes.json`
+
+One entry per player who's been issued a personal signup code, keyed by player id:
+
+```json
+{
+  "11111111-1111-4111-8111-111111111111": {
+    "salt": "3f9c2a1b8e7d4f605a3c9b8e1d7f6042",
+    "hash": "8e1a9c3f7b2d6e405c1a8f9b3d7e6042c1a8f9b3d7e6042c1a8f9b3d7e60428e"
+  }
+}
+```
+
+- `salt` — random per-player bytes (hex), generated fresh every time a code is set.
+- `hash` — the PBKDF2-HMAC-SHA256 hash of the code with that salt (200,000 iterations).
+
+Codes are never stored in plaintext, so an existing code can never be recovered from
+this file — only regenerated (the "Regenerar código" button on a player's row in
+`/manage`, or automatically the first time a player is created while `enable_web_signup`
+is set; see [docs/workflow.md](workflow.md)). This file is created automatically the
+first time it's needed and is safe to delete: doing so just invalidates every player's
+existing code, forcing everyone to be issued a new one.
+
 ## Telegram config is bot-only
 
 The `[pyball.telegram]` section in `config.toml`, and the `data/bot/` directory below,
-only exist for the `pyball-telegram` topology. Running `pyball-web` never reads or
-writes either of them — a `pyball-web` deployment simply has no `data/bot/` directory at
-all.
+only exist for the `pyball-telegram` topology. Running `pyball` (with or without
+`enable_web_signup`) never reads or writes either of them — that deployment has no
+`data/bot/` directory at all.
 
 ### `data/bot/messages.json`
 
