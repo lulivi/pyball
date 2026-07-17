@@ -51,7 +51,6 @@ function buildOpenRoster(meetup) {
 }
 
 function buildClosedTeam(meetup) {
-    const note = '<div class="closed-note">El fichaje ya está cerrado — los equipos están hechos.</div>';
     const wasInATeam = meetup.teams.some((team) => team.players.some((p) => p.isMe));
     const notJoinedNote = wasInATeam
         ? ''
@@ -67,7 +66,7 @@ function buildClosedTeam(meetup) {
       </div>
     `;
     }).join('');
-    return `${note}${notJoinedNote}${teamsHtml}`;
+    return `${notJoinedNote}${teamsHtml}`;
 }
 
 function _formatDate(iso) {
