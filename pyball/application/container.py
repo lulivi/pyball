@@ -29,7 +29,6 @@ from pyball.application.meetup import (
     ComputeStats,
     CreateMeetup,
     CreateTeams,
-    CreateTeamsManually,
     DestroyTeams,
     EditMatchResult,
     FinishMatch,
@@ -112,10 +111,6 @@ class Container:  # pylint: disable=too-many-public-methods
         if name not in registry:
             raise UnknownAlgorithmError(name, list(registry.keys()))
         return CreateTeams(self.meetup_repository, registry[name])
-
-    def create_teams_manually(self) -> CreateTeamsManually:
-        """Create a new CreateTeamsManually use case."""
-        return CreateTeamsManually(self.meetup_repository, self.player_repository)
 
     def assign_teams_by_id(self) -> AssignTeamsById:
         """Create a new AssignTeamsById use case."""

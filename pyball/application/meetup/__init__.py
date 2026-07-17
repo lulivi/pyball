@@ -32,7 +32,6 @@ from pyball.application.meetup.compute_stats import (
 )
 from pyball.application.meetup.create_meetup import CreateMeetup
 from pyball.application.meetup.create_teams import CreateTeams
-from pyball.application.meetup.create_teams_manually import CreateTeamsManually
 from pyball.application.meetup.destroy_teams import DestroyTeams
 from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
@@ -68,7 +67,6 @@ __all__ = [
     "AssignTeamsById",
     "CancelMeetup",
     "CloseMeetup",
-    "CreateTeamsManually",
     "DestroyTeams",
     "LockMeetup",
     "StartNextRound",
