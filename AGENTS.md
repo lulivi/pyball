@@ -140,7 +140,7 @@ user-facing documentation (see the intro above).
 **Data flow:** `bootstrap_core()` loads `AppSettings`, configures logging, sets locale, and
 builds the `Container`. Each `cmd/run_*.py` is the Composition Root for its topology —
 it calls `bootstrap_core()`, loads any integration-specific settings, wires
-infrastructure components, and manages graceful shutdown. All three entrypoints also
+infrastructure components, and manages graceful shutdown. Both entrypoints also
 accept `--bootstrap`, which just generates a deployment workspace and exits (see
 `init_workspace.py` and `docs/setup.md`) — it never touches the running app.
 
