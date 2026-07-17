@@ -61,9 +61,9 @@ player then identifies themselves individually with their own 8-character person
 - **Joining/leaving:** while signup is still open (before teams are generated — see
   [step 3](#3-generate-teams)), an "Apuntarme" / "Salir" button lets the player add or
   remove themselves from the roster, exactly as if an admin had done it from `/manage`.
-- **Once teams exist:** the join/leave button disappears; the player instead sees their
-  own team and its list of teammates, read-only, the same view `/manage` and `/match`
-  show everyone else.
+- **Once teams exist:** the join/leave button disappears; the player instead sees all
+  teams, read-only, the same view `/manage` and `/match` show everyone else — with their
+  own name highlighted so they can find themselves at a glance.
 - **Shared devices:** "No soy yo" logs the current player out (clears their identity
   cookie) without touching the `signup_token` cookie, so the next person can enter their
   own code on the same phone or tablet.

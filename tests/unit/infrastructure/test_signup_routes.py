@@ -181,7 +181,7 @@ class TestSignupMeetup:
         assert data["signupOpen"] is True
         assert data["isJoined"] is True
         assert data["roster"] == ["Ana"]
-        assert data["team"] is None
+        assert data["teams"] is None
 
     @pytest.mark.asyncio
     async def test_returns_404_when_no_active_meetup(self, tmp_path):
@@ -195,6 +195,66 @@ class TestSignupMeetup:
             response = await c.get("/api/signup/meetup")
 
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_returns_both_teams_with_me_highlighted_when_teams_exist(self, tmp_path):
+        ana, bea, carlos = Player.create("Ana"), Player.create("Bea"), Player.create("Carlos")
+        container = _container_with_code_store(tmp_path, ana)
+        container.player_repository.find_all.return_value = [ana, bea, carlos]
+        meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
+        meetup.add_player(ana.id)
+        meetup.add_player(bea.id)
+        meetup.add_player(carlos.id)
+        meetup.teams = [
+            Team.create("blanco", [ana.id, bea.id]),
+            Team.create("negro", [carlos.id]),
+        ]
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        app = _make_app(container)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(ana.id.value)))
+            response = await c.get("/api/signup/meetup")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["signupOpen"] is False
+        assert data["roster"] is None
+        assert data["teams"] == [
+            {
+                "name": "blanco",
+                "players": [
+                    {"name": "Ana", "isMe": True},
+                    {"name": "Bea", "isMe": False},
+                ],
+            },
+            {"name": "negro", "players": [{"name": "Carlos", "isMe": False}]},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_shows_both_teams_even_when_not_in_either(self, tmp_path):
+        ana, bea, carlos = Player.create("Ana"), Player.create("Bea"), Player.create("Carlos")
+        container = _container_with_code_store(tmp_path, ana)
+        container.player_repository.find_all.return_value = [ana, bea, carlos]
+        meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
+        meetup.add_player(bea.id)
+        meetup.add_player(carlos.id)
+        meetup.teams = [
+            Team.create("blanco", [bea.id]),
+            Team.create("negro", [carlos.id]),
+        ]
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        app = _make_app(container)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(ana.id.value)))
+            response = await c.get("/api/signup/meetup")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["isJoined"] is False
+        assert all(not p["isMe"] for team in data["teams"] for p in team["players"])
+        assert [team["name"] for team in data["teams"]] == ["blanco", "negro"]
 
 
 class TestJoinLeave:

@@ -45,15 +45,20 @@ function buildOpenRoster(meetup) {
 
 function buildClosedTeam(meetup) {
     const note = '<div class="closed-note">El fichaje ya está cerrado — los equipos están hechos.</div>';
-    if (!meetup.team) {
-        return `${note}<div class="meetup-info">No estabas apuntado a esta convocatoria.</div>`;
-    }
-    const teammates = meetup.team.teammates.map((name) => `<li>${escHtml(name)}</li>`).join('');
-    return `
-    ${note}
-    <div class="field-label">Tu equipo: ${escHtml(meetup.team.name)}</div>
-    <ul class="teammate-list">${teammates}</ul>
-  `;
+    const wasInATeam = meetup.teams.some((team) => team.players.some((p) => p.isMe));
+    const notJoinedNote = wasInATeam
+        ? ''
+        : '<div class="meetup-info">No estabas apuntado a esta convocatoria.</div>';
+    const teamsHtml = meetup.teams.map((team) => {
+        const players = team.players
+            .map((p) => `<li${p.isMe ? ' class="me"' : ''}>${escHtml(p.name)}</li>`)
+            .join('');
+        return `
+      <div class="field-label">${escHtml(team.name)}</div>
+      <ul class="teammate-list">${players}</ul>
+    `;
+    }).join('');
+    return `${note}${notJoinedNote}${teamsHtml}`;
 }
 
 function _formatDate(iso) {

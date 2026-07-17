@@ -68,9 +68,9 @@ sola vez al crearlo en `/manage`, o se puede regenerar en cualquier momento con 
 - **Apuntarse o bajarse:** mientras el alta sigue abierta (antes de generar los
   equipos — ver [paso 3](#3-generar-equipos)), un botón "Apuntarme" / "Salir" añade o
   quita al jugador de la convocatoria, igual que si lo hiciera un admin desde `/manage`.
-- **Una vez hay equipos:** el botón de apuntarse/bajarse desaparece; el jugador ve en
-  su lugar su propio equipo y la lista de compañeros, en modo solo lectura, la misma
-  vista que ven todos desde `/manage` o `/match`.
+- **Una vez hay equipos:** el botón de apuntarse/bajarse desaparece; el jugador ve todos
+  los equipos, en modo solo lectura, la misma vista que ven todos desde `/manage` o
+  `/match` — con su propio nombre resaltado para encontrarse de un vistazo.
 - **Dispositivos compartidos:** "No soy yo" cierra la sesión del jugador actual (borra
   su cookie de identidad) sin tocar la cookie del `signup_token`, para que la siguiente
   persona pueda introducir su propio código en el mismo móvil o tablet.

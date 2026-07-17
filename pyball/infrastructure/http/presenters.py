@@ -181,14 +181,16 @@ def build_signup_meetup_response(container: Container, player_id: "PlayerId") ->
             "signupOpen": True,
             "roster": sorted_names(meetup.players, player_names),
             "isJoined": is_joined,
-            "team": None,
+            "teams": None,
         }
 
-    my_team = next((t for t in meetup.teams if player_id in t.players), None)
-    team_payload = None
-    if my_team is not None:
-        teammates = [p for p in my_team.players if p != player_id]
-        team_payload = {"name": my_team.name, "teammates": sorted_names(teammates, player_names)}
+    teams_payload = [
+        {
+            "name": team.name,
+            "players": _sorted_players_with_me(team.players, player_names, player_id),
+        }
+        for team in meetup.teams
+    ]
 
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
@@ -196,7 +198,7 @@ def build_signup_meetup_response(container: Container, player_id: "PlayerId") ->
         "signupOpen": False,
         "roster": None,
         "isJoined": is_joined,
-        "team": team_payload,
+        "teams": teams_payload,
     }
 
 
@@ -253,6 +255,20 @@ def sorted_names(player_ids, player_names: dict[str, str]) -> list[str]:
     return sorted(
         [player_names.get(str(pid.value), "(desconocido)") for pid in player_ids],
         key=_sort,
+    )
+
+
+def _sorted_players_with_me(
+    player_ids, player_names: dict[str, str], me: "PlayerId"
+) -> list[dict]:
+    """Return locale-sorted {name, isMe} dicts for a team's players."""
+    _sort = functools.cmp_to_key(locale.strcoll)
+    return sorted(
+        [
+            {"name": player_names.get(str(pid.value), "(desconocido)"), "isMe": pid == me}
+            for pid in player_ids
+        ],
+        key=lambda p: _sort(p["name"]),
     )
 
 
