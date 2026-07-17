@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.0.0 (2026-07-17)
+
+### Features
+
+- **GL-153..GL-176**: Add self-service /signup and unify FastAPI topologies
+  ([`9c64ada`](https://gitlab.com/lulivi/pyball/-/commit/9c64adaac3a340d6b738894f834c4376cdb7d9e7))
+
+
 ## v4.19.0 (2026-07-16)
 
 ### Features
