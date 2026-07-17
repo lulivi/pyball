@@ -6,8 +6,8 @@ This document walks through the full life of a meetup in PyBall: creating it, bu
 teams, playing, and closing it out — covering both match formats PyBall supports. Every
 step can be done from the `/manage` and `/match` web pages; where a Telegram bot command
 exists too (only if you're running the `pyball-telegram` topology), it's noted alongside,
-and where players can act on their own from `/signup` (only if you're running the
-`pyball-web` topology), that's noted too.
+and where players can act on their own from `/signup` (only if `enable_web_signup` is
+set in `config.toml`), that's noted too.
 
 ## The two match formats
 
@@ -49,7 +49,7 @@ usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 
 
 ## Self-service signup via `/signup`
 
-If you're running the `pyball-web` topology, players can join or leave a meetup
+If `enable_web_signup` is set in `config.toml`, players can join or leave a meetup
 themselves at `/signup`, without ever touching `/manage`. Share the page's URL —
 protected by `signup_token`, see [Access tokens](setup.md#6-access-tokens) — once; each
 player then identifies themselves individually with their own 8-character personal code

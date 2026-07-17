@@ -8,25 +8,24 @@ construir PyBall desde el código fuente o contribuir, mira en su lugar la
 
 ## 1. Elige una topología
 
-PyBall se distribuye como tres imágenes Docker, construidas desde el mismo código:
+PyBall se distribuye como dos imágenes Docker, construidas desde el mismo código:
 
 | Imagen | Qué ejecuta | ¿Necesita un bot de Telegram? |
 |---|---|---|
-| `lulivi/pyball` | Solo FastAPI — páginas web `/manage` y `/match` | No |
-| `lulivi/pyball-web` | FastAPI — `/manage`, `/match`, y alta por cuenta propia en `/signup` | No |
+| `lulivi/pyball` | FastAPI — `/manage`, `/match`, y opcionalmente alta por cuenta propia en `/signup` (ver abajo) | No |
 | `lulivi/pyball-telegram` | Bot de Telegram + FastAPI (`/manage` y `/match`) | Sí |
 
 Todas las funciones — crear partidos, generar equipos (clásico o triangular), seguir un
 partido, cerrar una sesión triangular, ver estadísticas — están disponibles desde
-`/manage` y `/match` en cualquiera de las tres imágenes; Telegram y `/signup` son capas
-de conveniencia añadidas encima, nunca un requisito. Si tu grupo no usa Telegram, elige
-entre `pyball` y `pyball-web`: usa `pyball-web` si quieres que los jugadores se apunten o
-se bajen ellos mismos de un partido con su código personal en `/signup` (ver
-[Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup)) sin tocar
-`/manage`; usa la imagen `pyball` a secas si prefieres que el alta siga siendo una tarea
-de admin, hecha desde `/manage`. Usa `pyball-telegram` si quieres que las convocatorias
-se publiquen automáticamente en un grupo, comandos de admin desde Telegram, y
-reacciones/notificaciones en el chat.
+`/manage` y `/match` en cualquiera de las dos imágenes; Telegram y `/signup` son capas
+de conveniencia añadidas encima, nunca un requisito. Si tu grupo no usa Telegram, usa
+`pyball`: pon `enable_web_signup = true` en `config.toml` si quieres que los jugadores
+se apunten o se bajen ellos mismos de un partido con su código personal en `/signup`
+(ver [Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup)) sin
+tocar `/manage`, o déjalo en `false` (por defecto) para que el alta siga siendo una
+tarea de admin, hecha desde `/manage`. Usa `pyball-telegram` si quieres que las
+convocatorias se publiquen automáticamente en un grupo, comandos de admin desde
+Telegram, y reacciones/notificaciones en el chat.
 
 ## 2. Genera un espacio de trabajo
 
@@ -35,8 +34,6 @@ Elige un directorio vacío para la configuración y los datos de esta instancia,
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# o, para la página de alta por cuenta propia /signup:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-web --bootstrap
 # o, para Telegram:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 ```
@@ -79,7 +76,8 @@ despliegue sin editar el archivo.
 | `data_dir` | Directorio para los archivos de datos JSON | `data` |
 | `match_token` | Token de acceso solo para `/match` (opcional, ver [Tokens de acceso](#6-tokens-de-acceso)) | *(vacío)* |
 | `manage_token` | Token de acceso para todo, incluyendo `/manage` (opcional) | *(vacío)* |
-| `signup_token` | Token de acceso solo para `/signup` (opcional; solo relevante en `pyball-web`, inofensivo si se deja vacío en las demás) | *(vacío)* |
+| `enable_web_signup` | Activa la página de alta por cuenta propia `/signup` | `false` |
+| `signup_token` | Token de acceso solo para `/signup` (opcional; solo relevante si `enable_web_signup` está activo, inofensivo si se deja vacío) | *(vacío)* |
 | `theme_color` | Color de tema/fondo de la PWA | `#0f172a` |
 | `icons_dir` | Directorio de iconos PWA personalizados (opcional) | *(vacío)* |
 
@@ -88,7 +86,7 @@ Colores de equipo disponibles: `blanco` `negro` `rojo` `naranja` `amarillo` `ver
 
 ### `[pyball.telegram]` y subsecciones — solo `pyball-telegram`
 
-Estas claves se ignoran en `pyball` y `pyball-web` — ver
+Estas claves se ignoran en `pyball` — ver
 [la configuración de Telegram es solo para el bot](data-directory.es.md#la-configuración-de-telegram-es-solo-para-el-bot)
 para saber por qué.
 
@@ -128,7 +126,7 @@ La interfaz web de PyBall son dos páginas:
   un móvil o tablet durante la sesión — carga automáticamente el partido activo en cada
   momento, sin configuración manual una vez superado el aviso de token (abajo).
 
-En la topología `pyball-web` también existe `/signup`, una página de alta por cuenta
+Con `enable_web_signup = true` también existe `/signup`, una página de alta por cuenta
 propia para jugadores — ver
 [Alta por cuenta propia en `/signup`](workflow.es.md#alta-por-cuenta-propia-en-signup).
 
@@ -147,12 +145,12 @@ VPN, túnel, etc.) depende de ti — estos tokens funcionan igual en cualquier c
 |---|---|
 | `/`, archivos estáticos, manifiestos PWA | Ninguno (siempre público) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **o** `manage_token` |
-| `/signup` y `/api/signup/*` (solo `pyball-web`) | `signup_token` **o** `manage_token` |
+| `/signup` y `/api/signup/*` (solo si `enable_web_signup` está activo) | `signup_token` **o** `manage_token` |
 | `/manage` y todo lo demás bajo `/api/*` | Solo `manage_token` |
 
 Dale el `match_token` (solo marcador) a un dispositivo que solo deba ver `/match` (ej.
-una tablet montada en el campo), el `signup_token` a los jugadores (en `pyball-web`), y
-el `manage_token` a los admins. Visitar una URL con `?token=<valor>` una vez valida el
+una tablet montada en el campo), el `signup_token` a los jugadores (si `/signup` está
+activo), y el `manage_token` a los admins. Visitar una URL con `?token=<valor>` una vez valida el
 token y guarda una cookie `HttpOnly` que dura un año — no hace falta volver a pasar el
 token en ese mismo dispositivo/navegador.
 

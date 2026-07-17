@@ -127,9 +127,8 @@ pyball/
 │       └── static_signup/    #   signup.html + its JS — isolated /signup frontend,
 │                              #   mounted only when enable_web_signup is True
 ├── cmd/
-│   ├── run_pyball.py        #   Topology: FastAPI only, bare   (uv run pyball [--bootstrap])
-│   ├── run_web.py           #   Topology: FastAPI + /signup    (uv run pyball-web [--bootstrap])
-│   └── run_telegram.py      #   Topology: Telegram + FastAPI   (uv run pyball-telegram [--bootstrap])
+│   ├── run_pyball.py        #   Topology: FastAPI, /signup opt-in (uv run pyball [--bootstrap])
+│   └── run_telegram.py      #   Topology: Telegram + FastAPI      (uv run pyball-telegram [--bootstrap])
 ├── settings.py              #   AppSettings, PyballConfig, Paths, load_app_settings()
 └── exceptions.py
 ```
@@ -145,24 +144,22 @@ infrastructure components, and manages graceful shutdown. All three entrypoints 
 accept `--bootstrap`, which just generates a deployment workspace and exits (see
 `init_workspace.py` and `docs/setup.md`) — it never touches the running app.
 
-**Three topologies, one codebase, three `NullMatchNotifier`/`TelegramMatchNotifier` +
-`create_app()` wirings:**
+**Two topologies, one codebase:**
 
-- **`pyball`** (`uv run pyball`, `run_pyball.py`): FastAPI only, bare — `/manage` and
-  `/match`, no Telegram, no `/signup`.
-- **`pyball-web`** (`uv run pyball-web`, `run_web.py`): FastAPI with `/manage`, `/match`,
-  and `/signup` (`enable_web_signup=True`, `signup_token` wired into `create_app()`) — no
+- **`pyball`** (`uv run pyball`, `run_pyball.py`): FastAPI only — `/manage` and
+  `/match` always; `/signup` opt-in via `enable_web_signup` in `config.toml`
+  (`signup_token` is wired into `create_app()` regardless, harmless if unused). No
   Telegram.
 - **`pyball-telegram`** (`uv run pyball-telegram`, `run_telegram.py`): bot polls
   Telegram, FastAPI serves `/manage` and `/match` on port 8000 (no `/signup`). Both run
   in the same asyncio event loop.
 
-None of the three requires `python-telegram-bot` to be installed except
-`pyball-telegram`. Every feature is reachable from `/manage`/`/match` alone on any
-topology — Telegram and `/signup` are convenience layers on top of the same use cases,
-never a requirement for any feature to function: an admin can always add, remove, or
-move a player between teams from `/manage` without a player ever visiting `/signup`, and
-without a Telegram bot configured at all.
+Only `pyball-telegram` requires `python-telegram-bot` to be installed. Every feature is
+reachable from `/manage`/`/match` alone on either topology — Telegram and `/signup` are
+convenience layers on top of the same use cases, never a requirement for any feature to
+function: an admin can always add, remove, or move a player between teams from
+`/manage` without a player ever visiting `/signup`, and without a Telegram bot
+configured at all.
 
 **Match formats:** a `Meetup` holds 2 or 3 `Team`s and a `matches: list[Match]`. 2 teams
 means a single classic match that closes the meetup on its own result; 3 teams means a
@@ -178,22 +175,21 @@ This project uses **uv** for dependency management.
 # Install with Telegram support (default for development)
 uv sync --extra telegram
 
-# Install without Telegram (pyball / pyball-web topologies)
+# Install without Telegram (pyball topology)
 uv sync
 
 # Install all extras including dev tools
 uv sync --all-extras
 
 # Run topologies
-uv run pyball            # FastAPI only, bare
-uv run pyball-web        # FastAPI + /signup
+uv run pyball            # FastAPI only, /signup opt-in via config
 uv run pyball-telegram   # Telegram + FastAPI
 ```
 
 ## Configuration
 
-Run `uv run pyball --bootstrap`, `uv run pyball-web --bootstrap`, or
-`uv run pyball-telegram --bootstrap` to generate a `config.toml` template (there's no
+Run `uv run pyball --bootstrap` or `uv run pyball-telegram --bootstrap` to generate a
+`config.toml` template (there's no
 static `example.config.toml` to copy — the template is generated code, in
 `application/init_workspace.py`, kept in sync with `PyballConfig` and
 `TelegramSettings`). **Do not add a config key to `settings.py` or

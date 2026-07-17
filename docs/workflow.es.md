@@ -7,7 +7,7 @@ equipos, jugarlo, y cerrarlo — cubriendo los dos formatos de partido que sopor
 Todos los pasos se pueden hacer desde las páginas web `/manage` y `/match`; donde
 también existe un comando de Telegram (solo si usas la topología `pyball-telegram`), se
 indica junto al paso, y donde los jugadores pueden actuar por su cuenta desde `/signup`
-(solo si usas la topología `pyball-web`), también se indica.
+(solo si `enable_web_signup` está activo en `config.toml`), también se indica.
 
 ## Los dos formatos de partido
 
@@ -55,8 +55,8 @@ paso 1.
 
 ## Alta por cuenta propia en `/signup`
 
-Si ejecutas la topología `pyball-web`, los jugadores pueden apuntarse o bajarse de un
-partido ellos mismos en `/signup`, sin pasar nunca por `/manage`. Comparte la URL de la
+Si `enable_web_signup` está activo en `config.toml`, los jugadores pueden apuntarse o
+bajarse de un partido ellos mismos en `/signup`, sin pasar nunca por `/manage`. Comparte la URL de la
 página — protegida por `signup_token`, ver
 [Tokens de acceso](setup.es.md#6-tokens-de-acceso) — una vez; cada jugador se identifica
 después individualmente con su propio código personal de 8 caracteres (se muestra una

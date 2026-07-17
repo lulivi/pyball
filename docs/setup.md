@@ -8,25 +8,23 @@ want to build PyBall from source or contribute to it, see the
 
 ## 1. Choose a topology
 
-PyBall ships as three Docker images, built from the same codebase:
+PyBall ships as two Docker images, built from the same codebase:
 
 | Image | What it runs | Needs a Telegram bot? |
 |---|---|---|
-| `lulivi/pyball` | FastAPI only — `/manage` and `/match` web pages | No |
-| `lulivi/pyball-web` | FastAPI — `/manage`, `/match`, and self-service `/signup` | No |
+| `lulivi/pyball` | FastAPI — `/manage`, `/match`, and an optional self-service `/signup` (see below) | No |
 | `lulivi/pyball-telegram` | Telegram bot + FastAPI (`/manage` and `/match`) | Yes |
 
 Every feature — creating meetups, building teams (classic or triangular), tracking a
 match, closing a triangular session, viewing stats — is reachable from `/manage` and
-`/match` on any of the three images; Telegram and `/signup` are convenience layers on
-top, never a requirement. If your group doesn't use Telegram, pick between the two
-`pyball`/`pyball-web` images: use `pyball-web` if you want players to join or leave a
-meetup themselves from a personal code at `/signup` (see
-[Application Workflow](workflow.md#self-service-signup-via-signup)) without
-touching `/manage`; use the bare `pyball` image if you'd rather keep signup an
-admin-only, `/manage`-driven task. Use `pyball-telegram` if you want meetups posted to a
-group chat automatically, admin commands from Telegram, and reactions/notifications in
-the chat.
+`/match` on either image; Telegram and `/signup` are convenience layers on top, never a
+requirement. If your group doesn't use Telegram, use `pyball`: set `enable_web_signup =
+true` in `config.toml` if you want players to join or leave a meetup themselves from a
+personal code at `/signup` (see
+[Application Workflow](workflow.md#self-service-signup-via-signup)) without touching
+`/manage`, or leave it `false` (the default) to keep signup an admin-only,
+`/manage`-driven task. Use `pyball-telegram` if you want meetups posted to a group chat
+automatically, admin commands from Telegram, and reactions/notifications in the chat.
 
 ## 2. Bootstrap a workspace
 
@@ -35,8 +33,6 @@ Pick an empty directory for this instance's config and data, then run:
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# or, for the self-service /signup page:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-web --bootstrap
 # or, for Telegram:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 ```
@@ -77,7 +73,8 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `data_dir` | Directory for JSON data files | `data` |
 | `match_token` | Access token for `/match` only (optional, see [Access tokens](#6-access-tokens)) | *(empty)* |
 | `manage_token` | Access token for everything, including `/manage` (optional) | *(empty)* |
-| `signup_token` | Access token for `/signup` only (optional; only relevant on `pyball-web`, harmless if left unset elsewhere) | *(empty)* |
+| `enable_web_signup` | Enables the self-service `/signup` page | `false` |
+| `signup_token` | Access token for `/signup` only (optional; only relevant if `enable_web_signup` is true, harmless if left unset) | *(empty)* |
 | `theme_color` | PWA theme/background color | `#0f172a` |
 | `icons_dir` | Custom PWA icons directory (optional) | *(empty)* |
 
@@ -86,7 +83,7 @@ Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` `azu
 
 ### `[pyball.telegram]` and sub-sections — `pyball-telegram` only
 
-These are ignored by `pyball` and `pyball-web` — see
+These are ignored by `pyball` — see
 [Telegram config is bot-only](data-directory.md#telegram-config-is-bot-only) for why.
 
 | Key | Description |
@@ -124,8 +121,9 @@ PyBall's web UI is two pages:
   the session — it auto-loads whichever match is currently active, no manual setup
   needed once you're past the token prompt (below).
 
-On the `pyball-web` topology there's also `/signup`, a self-service page for players —
-see [Self-service signup via `/signup`](workflow.md#self-service-signup-via-signup).
+With `enable_web_signup = true` there's also `/signup`, a self-service page for
+players — see
+[Self-service signup via `/signup`](workflow.md#self-service-signup-via-signup).
 
 See [docs/workflow.md](workflow.md) for the full step-by-step flow.
 
@@ -142,12 +140,12 @@ etc.) is up to you — these tokens work the same regardless.
 |---|---|
 | `/`, static assets, PWA manifests | None (always public) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **or** `manage_token` |
-| `/signup` and `/api/signup/*` (`pyball-web` only) | `signup_token` **or** `manage_token` |
+| `/signup` and `/api/signup/*` (only when `enable_web_signup` is true) | `signup_token` **or** `manage_token` |
 | `/manage` and everything else under `/api/*` | `manage_token` only |
 
 Give the scoreboard-only `match_token` to a device that should only ever see `/match`
-(e.g. a tablet mounted at the pitch), the `signup_token` to players (on `pyball-web`),
-and the `manage_token` to admins. Visiting a URL with `?token=<value>` once validates it
+(e.g. a tablet mounted at the pitch), the `signup_token` to players (if `/signup` is
+enabled), and the `manage_token` to admins. Visiting a URL with `?token=<value>` once validates it
 and sets an `HttpOnly` cookie that lasts a year — no need to pass the token again after
 that on the same device/browser.
 

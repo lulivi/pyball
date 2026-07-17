@@ -25,7 +25,7 @@ pyball/
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # one file per meetup, named after its date/time
 │   ├── signup/
-│   │   └── codes.json   # pyball-web only — see below
+│   │   └── codes.json   # only when enable_web_signup is set — see below
 │   └── bot/
 │       └── messages.json   # pyball-telegram only — see below
 └── logs/
@@ -146,11 +146,11 @@ empty file:
 }
 ```
 
-## Web signup is `pyball-web`-only
+## Web signup is opt-in via `enable_web_signup`
 
-The `data/signup/` directory below only exists when the topology has self-service
-`/signup` enabled — `pyball-web`. Running `pyball` (bare) or `pyball-telegram` never
-reads or writes it.
+The `data/signup/` directory below only exists when `enable_web_signup` is set to
+`true` in `config.toml`. With it left at the default `false`, or on `pyball-telegram`,
+nothing reads or writes it.
 
 ### `data/signup/codes.json`
 
@@ -170,16 +170,17 @@ One entry per player who's been issued a personal signup code, keyed by player i
 
 Codes are never stored in plaintext, so an existing code can never be recovered from
 this file — only regenerated (the "Regenerar código" button on a player's row in
-`/manage`, or automatically the first time a player is created while `pyball-web` is
-running; see [docs/workflow.md](workflow.md)). This file is created automatically the
+`/manage`, or automatically the first time a player is created while `enable_web_signup`
+is set; see [docs/workflow.md](workflow.md)). This file is created automatically the
 first time it's needed and is safe to delete: doing so just invalidates every player's
 existing code, forcing everyone to be issued a new one.
 
 ## Telegram config is bot-only
 
 The `[pyball.telegram]` section in `config.toml`, and the `data/bot/` directory below,
-only exist for the `pyball-telegram` topology. Running `pyball` or `pyball-web` never
-reads or writes either of them — neither deployment has a `data/bot/` directory at all.
+only exist for the `pyball-telegram` topology. Running `pyball` (with or without
+`enable_web_signup`) never reads or writes either of them — that deployment has no
+`data/bot/` directory at all.
 
 ### `data/bot/messages.json`
 

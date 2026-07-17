@@ -13,8 +13,6 @@ La mayoría de gente solo quiere ejecutar la app. Lo único que necesitas es Doc
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# o, para la página de alta por cuenta propia /signup:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-web --bootstrap
 # o, para Telegram:
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 
@@ -55,10 +53,8 @@ uv sync --all-extras
 
 ```bash
 uv run pyball --bootstrap       # solo la primera vez, genera config.toml
-uv run pyball                   # /manage + /match, sin Telegram, sin /signup
-
-uv run pyball-web --bootstrap
-uv run pyball-web               # /manage + /match + /signup, sin Telegram
+uv run pyball                   # /manage + /match, sin Telegram; añade /signup con
+                                 # enable_web_signup = true en config.toml
 
 uv run pyball-telegram --bootstrap
 uv run pyball-telegram          # /manage + /match + bot de Telegram
