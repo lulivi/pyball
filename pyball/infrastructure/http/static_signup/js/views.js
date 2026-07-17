@@ -19,9 +19,16 @@ export function buildMainScreen(playerName, meetup) {
     const rosterSection = meetup.signupOpen
         ? buildOpenRoster(meetup)
         : buildClosedTeam(meetup);
+    const myTeam = meetup.teams ? _findMyTeam(meetup.teams) : null;
+    const myTeamTag = myTeam
+        ? `<span class="team-badge" style="background:${myTeam.colorBg};color:${myTeam.colorText}">${escHtml(myTeam.name)}</span>`
+        : '';
     return `
     <div class="card">
-      <div class="player-name">${escHtml(playerName)}</div>
+      <div class="player-name-row">
+        <span class="player-name">${escHtml(playerName)}</span>
+        ${myTeamTag}
+      </div>
       <div class="meetup-info">${escHtml(_formatDate(meetup.date))} · ${escHtml(meetup.location)}</div>
       ${rosterSection}
     </div>
@@ -68,4 +75,13 @@ function _formatDate(iso) {
     const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
+}
+
+function _findMyTeam(teams) {
+    for (const team of teams) {
+        if (team.players.some((p) => p.isMe)) {
+            return team;
+        }
+    }
+    return null;
 }
