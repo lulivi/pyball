@@ -64,8 +64,6 @@ player then identifies themselves individually with their own 8-character person
 - **Once teams exist:** the join/leave button disappears; the player instead sees their
   own team and its list of teammates, read-only, the same view `/manage` and `/match`
   show everyone else.
-- **Changing their code:** "Cambiar mi código" lets a player set a new personal code
-  themselves, given their current one.
 - **Shared devices:** "No soy yo" logs the current player out (clears their identity
   cookie) without touching the `signup_token` cookie, so the next person can enter their
   own code on the same phone or tablet.

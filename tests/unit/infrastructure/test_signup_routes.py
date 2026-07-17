@@ -159,62 +159,6 @@ class TestLogout:
         assert "pyball_signup_player=" in response.headers.get("set-cookie", "")
 
 
-class TestChangeCode:
-    """Tests for POST /api/signup/change-code."""
-
-    @pytest.mark.asyncio
-    async def test_correct_current_code_changes_it(self, tmp_path):
-        player = Player.create("Ana", group="regular")
-        container = _container_with_code_store(tmp_path, player, code="OLDCODE1")
-        app = _make_app(container)
-
-        async with _client(app) as c:
-            c.cookies.set("pyball_signup_player", _identity_cookie(str(player.id.value)))
-            response = await c.post(
-                "/api/signup/change-code",
-                json={"current_code": "OLDCODE1", "new_code": "NEWCODE1"},
-            )
-
-        assert response.status_code == 200
-        store = SignupCodeStore(tmp_path / "signup" / "codes.json")
-        assert store.verify_code("NEWCODE1") == str(player.id.value)
-        assert store.verify_code("OLDCODE1") is None
-
-    @pytest.mark.asyncio
-    async def test_wrong_current_code_returns_401(self, tmp_path):
-        player = Player.create("Ana", group="regular")
-        container = _container_with_code_store(tmp_path, player, code="OLDCODE1")
-        app = _make_app(container)
-
-        async with _client(app) as c:
-            c.cookies.set("pyball_signup_player", _identity_cookie(str(player.id.value)))
-            response = await c.post(
-                "/api/signup/change-code",
-                json={"current_code": "WRONGCODE", "new_code": "NEWCODE1"},
-            )
-
-        assert response.status_code == 401
-
-    @pytest.mark.asyncio
-    async def test_current_code_belonging_to_different_player_returns_401(self, tmp_path):
-        player = Player.create("Ana", group="regular")
-        other = Player.create("Bea", group="regular")
-        container = _container_with_code_store(tmp_path, player, code="PLAYERONE")
-        store = SignupCodeStore(tmp_path / "signup" / "codes.json")
-        store.set_code(str(other.id.value), "PLAYERTWO")
-        app = _make_app(container)
-
-        async with _client(app) as c:
-            c.cookies.set("pyball_signup_player", _identity_cookie(str(player.id.value)))
-            response = await c.post(
-                "/api/signup/change-code",
-                json={"current_code": "PLAYERTWO", "new_code": "NEWCODE1"},
-            )
-
-        assert response.status_code == 401
-        assert store.verify_code("PLAYERONE") == str(player.id.value)
-
-
 class TestSignupMeetup:
     """Tests for GET /api/signup/meetup."""
 

@@ -25,22 +25,7 @@ export function buildMainScreen(playerName, meetup) {
       <div class="meetup-info">${escHtml(meetup.location)} · ${escHtml(_formatDate(meetup.date))}</div>
       ${rosterSection}
     </div>
-    <button class="link-btn" id="change-code-btn">Cambiar mi código</button>
     <button class="link-btn" id="logout-btn">No soy yo</button>
-  `;
-}
-
-export function buildChangeCodeScreen(errorMsg) {
-    return `
-    <div class="card">
-      <div class="field-label">Código actual</div>
-      <input id="current-code-input" class="code-input" type="text" maxlength="8" autocomplete="off">
-      <div class="field-label">Código nuevo</div>
-      <input id="new-code-input" class="code-input" type="text" maxlength="8" autocomplete="off">
-      ${errorMsg ? `<div class="error-msg">${escHtml(errorMsg)}</div>` : ''}
-      <button class="btn btn-green" id="save-code-btn">Guardar</button>
-      <button class="btn btn-gray" id="cancel-code-btn">Cancelar</button>
-    </div>
   `;
 }
 

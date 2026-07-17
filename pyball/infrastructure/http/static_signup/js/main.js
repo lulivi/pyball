@@ -1,5 +1,5 @@
 import { get, post } from '/js/api.js';
-import { buildCodeScreen, buildMainScreen, buildChangeCodeScreen } from './views.js';
+import { buildCodeScreen, buildMainScreen } from './views.js';
 
 const app = document.getElementById('app');
 
@@ -48,7 +48,6 @@ async function showMainScreen(playerName) {
     if (joinBtn) joinBtn.addEventListener('click', () => joinOrLeave('/api/signup/join', playerName));
     const leaveBtn = document.getElementById('leave-btn');
     if (leaveBtn) leaveBtn.addEventListener('click', () => joinOrLeave('/api/signup/leave', playerName));
-    document.getElementById('change-code-btn').addEventListener('click', () => showChangeCodeScreen());
     document.getElementById('logout-btn').addEventListener('click', logout);
 }
 
@@ -60,29 +59,6 @@ async function joinOrLeave(path, playerName) {
         return;
     }
     await showMainScreen(playerName);
-}
-
-function showChangeCodeScreen(errorMsg) {
-    app.innerHTML = buildChangeCodeScreen(errorMsg);
-    document.getElementById('save-code-btn').addEventListener('click', saveNewCode);
-    document.getElementById('cancel-code-btn').addEventListener('click', bootstrap);
-}
-
-async function saveNewCode() {
-    const currentCode = document.getElementById('current-code-input').value.trim().toUpperCase();
-    const newCode = document.getElementById('new-code-input').value.trim().toUpperCase();
-    if (!currentCode || !newCode) return;
-    try {
-        await _postSignupOrThrow('/api/signup/change-code', {
-            current_code: currentCode,
-            new_code: newCode,
-        });
-    } catch (err) {
-        showChangeCodeScreen('Código actual incorrecto.');
-        return;
-    }
-    alert('Código actualizado.');
-    bootstrap();
 }
 
 async function logout() {
@@ -105,9 +81,9 @@ async function _fetchMeOrNull() {
 }
 
 // A POST for signup-flow checks where 401 is an expected, user-facing outcome
-// ("wrong code" / "wrong current code") rather than a revoked site token —
-// same reasoning as _fetchMeOrNull above, bypassing the shared client's
-// global 401 handler so the caller's own catch block can show its message.
+// ("wrong code") rather than a revoked site token — same reasoning as
+// _fetchMeOrNull above, bypassing the shared client's global 401 handler so
+// the caller's own catch block can show its message.
 async function _postSignupOrThrow(path, body) {
     const res = await fetch(path, {
         method: 'POST',

@@ -37,7 +37,7 @@ from pyball.domain.meetup.errors import (
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.http.presenters import build_signup_meetup_response
-from pyball.infrastructure.http.schemas import ChangeCodeInput, VerifyCodeInput
+from pyball.infrastructure.http.schemas import VerifyCodeInput
 from pyball.infrastructure.signup.code_store import SignupCodeStore
 
 if TYPE_CHECKING:
@@ -88,17 +88,6 @@ def register_signup_routes(
         response = JSONResponse({"status": "logged_out"})
         response.delete_cookie(_IDENTITY_COOKIE, path="/")
         return response
-
-    @app.post("/api/signup/change-code")
-    async def change_code_endpoint(request: Request, body: ChangeCodeInput):
-        """Change the identified player's own code, after verifying the current one."""
-        player_id = _require_identity(request, container, signup_token)
-        store = _code_store(container)
-        matched = store.verify_code(body.current_code)
-        if matched is None or matched != str(player_id.value):
-            raise HTTPException(401, "Código actual incorrecto")
-        store.set_code(str(player_id.value), body.new_code)
-        return {"status": "changed"}
 
     @app.get("/api/signup/meetup")
     async def signup_meetup_endpoint(request: Request):

@@ -71,8 +71,6 @@ sola vez al crearlo en `/manage`, o se puede regenerar en cualquier momento con 
 - **Una vez hay equipos:** el botón de apuntarse/bajarse desaparece; el jugador ve en
   su lugar su propio equipo y la lista de compañeros, en modo solo lectura, la misma
   vista que ven todos desde `/manage` o `/match`.
-- **Cambiar su código:** "Cambiar mi código" deja que el jugador fije un código nuevo
-  él mismo, dando el actual.
 - **Dispositivos compartidos:** "No soy yo" cierra la sesión del jugador actual (borra
   su cookie de identidad) sin tocar la cookie del `signup_token`, para que la siguiente
   persona pueda introducir su propio código en el mismo móvil o tablet.
