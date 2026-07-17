@@ -41,6 +41,7 @@ def _container_with_code_store(tmp_path, player: Player, code: str = "ABCD2345")
     store.set_code(str(player.id.value), code)
     container = MagicMock()
     container.data_dir = tmp_path
+    container.team_colors = ("blanco", "negro", "rojo")
     container.player_repository.find_by_id.return_value = player
     container.player_repository.find_all.return_value = [player]
     return container
@@ -206,8 +207,8 @@ class TestSignupMeetup:
         meetup.add_player(bea.id)
         meetup.add_player(carlos.id)
         meetup.teams = [
-            Team.create("blanco", [ana.id, bea.id]),
-            Team.create("negro", [carlos.id]),
+            Team.create("A", [ana.id, bea.id]),
+            Team.create("B", [carlos.id]),
         ]
         container.get_active_meetup.return_value.execute.return_value = meetup
         app = _make_app(container)
@@ -222,13 +223,13 @@ class TestSignupMeetup:
         assert data["roster"] is None
         assert data["teams"] == [
             {
-                "name": "blanco",
+                "name": "Blanco",
                 "players": [
                     {"name": "Ana", "isMe": True},
                     {"name": "Bea", "isMe": False},
                 ],
             },
-            {"name": "negro", "players": [{"name": "Carlos", "isMe": False}]},
+            {"name": "Negro", "players": [{"name": "Carlos", "isMe": False}]},
         ]
 
     @pytest.mark.asyncio
@@ -240,8 +241,8 @@ class TestSignupMeetup:
         meetup.add_player(bea.id)
         meetup.add_player(carlos.id)
         meetup.teams = [
-            Team.create("blanco", [bea.id]),
-            Team.create("negro", [carlos.id]),
+            Team.create("A", [bea.id]),
+            Team.create("B", [carlos.id]),
         ]
         container.get_active_meetup.return_value.execute.return_value = meetup
         app = _make_app(container)
@@ -254,7 +255,7 @@ class TestSignupMeetup:
         data = response.json()
         assert data["isJoined"] is False
         assert all(not p["isMe"] for team in data["teams"] for p in team["players"])
-        assert [team["name"] for team in data["teams"]] == ["blanco", "negro"]
+        assert [team["name"] for team in data["teams"]] == ["Blanco", "Negro"]
 
 
 class TestJoinLeave:

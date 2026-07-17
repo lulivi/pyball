@@ -184,12 +184,13 @@ def build_signup_meetup_response(container: Container, player_id: "PlayerId") ->
             "teams": None,
         }
 
+    colors = container.team_colors
     teams_payload = [
         {
-            "name": team.name,
+            "name": colors[index].capitalize(),
             "players": _sorted_players_with_me(team.players, player_names, player_id),
         }
-        for team in meetup.teams
+        for index, team in enumerate(meetup.teams)
     ]
 
     return {

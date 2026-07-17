@@ -22,7 +22,7 @@ export function buildMainScreen(playerName, meetup) {
     return `
     <div class="card">
       <div class="player-name">${escHtml(playerName)}</div>
-      <div class="meetup-info">${escHtml(meetup.location)} · ${escHtml(_formatDate(meetup.date))}</div>
+      <div class="meetup-info">${escHtml(_formatDate(meetup.date))} · ${escHtml(meetup.location)}</div>
       ${rosterSection}
     </div>
     <button class="link-btn" id="logout-btn">No soy yo</button>
@@ -62,7 +62,8 @@ function buildClosedTeam(meetup) {
 }
 
 function _formatDate(iso) {
-    const [datePart, timePart] = iso.split('T');
-    const [year, month, day] = datePart.split('-');
-    return `${day}/${month}/${year} ${timePart}`;
+    const d = new Date(iso);
+    const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
