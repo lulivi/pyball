@@ -28,7 +28,7 @@ async function verifyCode() {
     const code = document.getElementById('code-input').value.trim().toUpperCase();
     if (!code) return;
     try {
-        const player = await post('/api/signup/verify', { code });
+        const player = await _postSignupOrThrow('/api/signup/verify', { code });
         await showMainScreen(player.name);
     } catch (err) {
         showCodeScreen('Código incorrecto.');
@@ -73,7 +73,10 @@ async function saveNewCode() {
     const newCode = document.getElementById('new-code-input').value.trim().toUpperCase();
     if (!currentCode || !newCode) return;
     try {
-        await post('/api/signup/change-code', { current_code: currentCode, new_code: newCode });
+        await _postSignupOrThrow('/api/signup/change-code', {
+            current_code: currentCode,
+            new_code: newCode,
+        });
     } catch (err) {
         showChangeCodeScreen('Código actual incorrecto.');
         return;
@@ -97,6 +100,20 @@ async function logout() {
 async function _fetchMeOrNull() {
     const res = await fetch('/api/signup/me');
     if (res.status === 401) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
+// A POST for signup-flow checks where 401 is an expected, user-facing outcome
+// ("wrong code" / "wrong current code") rather than a revoked site token —
+// same reasoning as _fetchMeOrNull above, bypassing the shared client's
+// global 401 handler so the caller's own catch block can show its message.
+async function _postSignupOrThrow(path, body) {
+    const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
 }
