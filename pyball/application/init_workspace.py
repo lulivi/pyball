@@ -219,7 +219,7 @@ def init_workspace(topology: str, config_path: Path) -> None:
     """Generate a deployment workspace and exit without starting the app.
 
     Args:
-        topology: "pyball", "web", or "tg" — controls which config/compose/README
+        topology: "pyball" or "tg" — controls which config/compose/README
             template is used.
         config_path: Path where config.toml will be written; all other files go in
             the same directory.
