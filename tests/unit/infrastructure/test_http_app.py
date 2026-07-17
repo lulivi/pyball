@@ -515,7 +515,7 @@ class TestMeetupActive:
 
     @pytest.mark.asyncio
     async def test_uses_match_token_url_when_configured(self):
-        """matchUrl is built by StartNextRound.execute(), which now returns the token URL."""
+        """matchUrl in the active-meetup response comes from MatchLinkBuilder.build()."""
         meetup = MagicMock()
         meetup.date = datetime(2026, 5, 28, 20, 0)
         pid = MagicMock()

@@ -47,7 +47,6 @@ from pyball.application.meetup.parse_callup_text import (
 )
 from pyball.application.meetup.remove_player_by_id import RemovePlayerFromMeetupById
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
-from pyball.application.meetup.start_next_round import StartNextRound
 from pyball.application.meetup.update_meetup_date import UpdateMeetupDate
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
 from pyball.domain.meetup.errors import (
@@ -69,7 +68,6 @@ __all__ = [
     "CloseMeetup",
     "DestroyTeams",
     "LockMeetup",
-    "StartNextRound",
     "MeetupHasNoTeamsError",
     "EditMatchResult",
     "FinishMatch",

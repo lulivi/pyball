@@ -9,11 +9,9 @@ from pyball.application.meetup import CreateMeetup, CreateTeams
 from pyball.application.meetup.create_teams_algorithms import RandomAlgorithm
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.get_active_meetup import GetActiveMeetup
-from pyball.application.meetup.start_next_round import StartNextRound
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
-    MeetupHasNoTeamsError,
     MeetupNotFoundError,
 )
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, MeetupId, PlayerId, Team
@@ -273,59 +271,6 @@ class TestCreateMeetup:
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
 
         repo.save.assert_called_once_with(meetup)
-
-
-class TestStartNextRound:
-    """Tests for StartNextRound use case."""
-
-    def setup_method(self):
-        """Set up a fresh meetup repository for each test."""
-        # pylint: disable=attribute-defined-outside-init
-        self.meetup_repo = FakeMeetupRepository()
-
-    def test_raises_when_meetup_missing(self):
-        """StartNextRound raises MeetupNotFoundError when no meetup exists for the date."""
-        with pytest.raises(MeetupNotFoundError):
-            StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-
-    def test_raises_when_no_teams(self):
-        """StartNextRound raises MeetupHasNoTeamsError when the meetup has no teams yet."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        self.meetup_repo.save(meetup)
-        with pytest.raises(MeetupHasNoTeamsError):
-            StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-
-    def test_classic_two_teams_creates_the_one_match(self):
-        """With 2 teams, the first (only) match is created between them."""
-        self._meetup_with_teams(count=2)
-        result = StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-        assert len(result.matches) == 1
-        assert set(result.matches[0].teams_playing) == set(result.teams)
-        assert result.matches[0].result is None
-
-    def test_calling_again_does_not_duplicate_the_pending_match(self):
-        """Calling execute again while a match is already pending is a no-op."""
-        self._meetup_with_teams(count=2)
-        StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-        result = StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-        assert len(result.matches) == 1
-
-    def test_triangular_creates_first_random_pairing(self):
-        """With 3 teams, the first match pairs 2 of the 3 teams, chosen at random."""
-        self._meetup_with_teams(count=3)
-        result = StartNextRound(self.meetup_repo).execute(datetime(2026, 4, 12, 20, 0))
-        assert len(result.matches) == 1
-        playing = set(result.matches[0].teams_playing)
-        assert playing.issubset(set(result.teams))
-        assert len(playing) == 2
-
-    def _meetup_with_teams(self, count=2):
-        """Create and save a meetup with `count` empty teams."""
-        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-        names = ["A", "B", "C"][:count]
-        meetup.teams = [Team.create(n, []) for n in names]
-        self.meetup_repo.save(meetup)
-        return meetup
 
 
 class TestFinishMatch:
