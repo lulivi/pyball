@@ -60,7 +60,6 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
                 "/manifest-manage.json",
             ]
         )
-        self._manage_page = "/manage"
         self._match_page = "/match"
         self._match_api_routes = frozenset(
             [
