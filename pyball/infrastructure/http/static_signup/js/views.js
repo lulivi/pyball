@@ -54,7 +54,9 @@ function buildClosedTeam(meetup) {
             .map((p) => `<li${p.isMe ? ' class="me"' : ''}>${escHtml(p.name)}</li>`)
             .join('');
         return `
-      <div class="field-label">${escHtml(team.name)}</div>
+      <div class="team-badge" style="background:${team.colorBg};color:${team.colorText}">
+        ${team.emoji} ${escHtml(team.name)}
+      </div>
       <ul class="teammate-list">${players}</ul>
     `;
     }).join('');

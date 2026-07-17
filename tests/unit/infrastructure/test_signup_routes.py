@@ -42,6 +42,9 @@ def _container_with_code_store(tmp_path, player: Player, code: str = "ABCD2345")
     container = MagicMock()
     container.data_dir = tmp_path
     container.team_colors = ("blanco", "negro", "rojo")
+    container.team_hex_bg = ("#e4e4e7", "#27272a", "#b91c1c")
+    container.team_hex_text = ("#27272a", "#e4e4e7", "#fff1f2")
+    container.team_emojis = ("⚪", "⚫", "🔴")
     container.player_repository.find_by_id.return_value = player
     container.player_repository.find_all.return_value = [player]
     return container
@@ -224,12 +227,21 @@ class TestSignupMeetup:
         assert data["teams"] == [
             {
                 "name": "Blanco",
+                "colorBg": "#e4e4e7",
+                "colorText": "#27272a",
+                "emoji": "⚪",
                 "players": [
                     {"name": "Ana", "isMe": True},
                     {"name": "Bea", "isMe": False},
                 ],
             },
-            {"name": "Negro", "players": [{"name": "Carlos", "isMe": False}]},
+            {
+                "name": "Negro",
+                "colorBg": "#27272a",
+                "colorText": "#e4e4e7",
+                "emoji": "⚫",
+                "players": [{"name": "Carlos", "isMe": False}],
+            },
         ]
 
     @pytest.mark.asyncio
@@ -256,6 +268,7 @@ class TestSignupMeetup:
         assert data["isJoined"] is False
         assert all(not p["isMe"] for team in data["teams"] for p in team["players"])
         assert [team["name"] for team in data["teams"]] == ["Blanco", "Negro"]
+        assert [team["emoji"] for team in data["teams"]] == ["⚪", "⚫"]
 
 
 class TestJoinLeave:
