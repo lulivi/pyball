@@ -358,7 +358,7 @@ function renderState2(data) {
 }
 
 function copyTeams() {
-    _copyToClipboard(document.getElementById('teams-text').textContent);
+    copyToClipboard(document.getElementById('teams-text').textContent);
 }
 
 async function lockMeetup() {
@@ -677,7 +677,7 @@ async function toggleConvocatoriaRow(date) {
 }
 
 function copySummary(date) {
-    _copyToClipboard(document.getElementById('summary-msg-' + date).textContent);
+    copyToClipboard(document.getElementById('summary-msg-' + date).textContent);
 }
 
 async function downloadStats(date) {
@@ -947,9 +947,9 @@ async function _loadConvocatoriaDetail(date) {
     }
 }
 
-function _copyToClipboard(text) {
+export function copyToClipboard(text, onDone = () => alert('Copiado al portapapeles ✓')) {
     if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles ✓'));
+        navigator.clipboard.writeText(text).then(onDone);
         return;
     }
     const ta = document.createElement('textarea');
@@ -960,7 +960,7 @@ function _copyToClipboard(text) {
     ta.select();
     try {
         document.execCommand('copy');
-        alert('Copiado al portapapeles ✓');
+        onDone();
     } catch (e) {
         alert('No se pudo copiar. Por favor copia el texto manualmente.');
     }

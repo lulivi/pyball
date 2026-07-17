@@ -1,4 +1,6 @@
 import { post } from '../api.js';
+import { escHtml } from './views.js';
+import { copyToClipboard } from './main.js';
 
 export function initSignupCodes() {
     window.regenerateSignupCode = regenerateSignupCode;
@@ -12,7 +14,33 @@ export function signupCodeCell(player) {
 }
 
 export function showSignupCodeModal(playerName, code) {
-    alert(`Código de ${playerName}: ${code}\n\nApúntalo — no se volverá a mostrar.`);
+    const backdrop = document.createElement('div');
+    backdrop.className = 'signup-code-backdrop';
+    backdrop.innerHTML = `
+    <div class="signup-code-box">
+      <div class="signup-code-title">Código de ${escHtml(playerName)}</div>
+      <div class="signup-code-value">${escHtml(code)}</div>
+      <div class="signup-code-warning">Apúntalo — no se volverá a mostrar.</div>
+      <button class="btn btn-teal signup-code-copy-btn">📋 Copiar código</button>
+      <button class="btn btn-gray signup-code-close-btn">Cerrar</button>
+    </div>
+  `;
+    document.body.appendChild(backdrop);
+
+    const close = () => backdrop.remove();
+    const copyBtn = backdrop.querySelector('.signup-code-copy-btn');
+    const closeBtn = backdrop.querySelector('.signup-code-close-btn');
+
+    backdrop.addEventListener('click', (ev) => {
+        if (ev.target === backdrop) close();
+    });
+    closeBtn.addEventListener('click', close);
+    copyBtn.addEventListener('click', () => {
+        copyToClipboard(code, () => {
+            copyBtn.textContent = '✅ Copiado';
+            setTimeout(close, 1000);
+        });
+    });
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

@@ -19,9 +19,16 @@ export function buildMainScreen(playerName, meetup) {
     const rosterSection = meetup.signupOpen
         ? buildOpenRoster(meetup)
         : buildClosedTeam(meetup);
+    const myTeam = meetup.teams ? _findMyTeam(meetup.teams) : null;
+    const myTeamTag = myTeam
+        ? `<span class="team-badge" style="background:${myTeam.colorBg};color:${myTeam.colorText}">${escHtml(myTeam.name)}</span>`
+        : '';
     return `
     <div class="card">
-      <div class="player-name">${escHtml(playerName)}</div>
+      <div class="player-name-row">
+        <span class="player-name">${escHtml(playerName)}</span>
+        ${myTeamTag}
+      </div>
       <div class="meetup-info">${escHtml(_formatDate(meetup.date))} · ${escHtml(meetup.location)}</div>
       ${rosterSection}
     </div>
@@ -44,7 +51,6 @@ function buildOpenRoster(meetup) {
 }
 
 function buildClosedTeam(meetup) {
-    const note = '<div class="closed-note">El fichaje ya está cerrado — los equipos están hechos.</div>';
     const wasInATeam = meetup.teams.some((team) => team.players.some((p) => p.isMe));
     const notJoinedNote = wasInATeam
         ? ''
@@ -54,13 +60,13 @@ function buildClosedTeam(meetup) {
             .map((p) => `<li${p.isMe ? ' class="me"' : ''}>${escHtml(p.name)}</li>`)
             .join('');
         return `
-      <div class="team-badge" style="background:${team.colorBg};color:${team.colorText}">
-        ${escHtml(team.name)}
+      <div class="team-card">
+        <div class="team-header" style="background:${team.colorBg};color:${team.colorText}">${escHtml(team.name)}</div>
+        <ul class="teammate-list">${players}</ul>
       </div>
-      <ul class="teammate-list">${players}</ul>
     `;
     }).join('');
-    return `${note}${notJoinedNote}${teamsHtml}`;
+    return `${notJoinedNote}${teamsHtml}`;
 }
 
 function _formatDate(iso) {
@@ -68,4 +74,13 @@ function _formatDate(iso) {
     const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
+}
+
+function _findMyTeam(teams) {
+    for (const team of teams) {
+        if (team.players.some((p) => p.isMe)) {
+            return team;
+        }
+    }
+    return null;
 }
