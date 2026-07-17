@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.1.0 (2026-07-17)
+
+### Features
+
+- **GL-177..GL-180**: Add signup code copy modal and improve /signup team visuals
+  ([`40d741b`](https://gitlab.com/lulivi/pyball/-/commit/40d741bee805dc98b5e59ec435270ec09689f237))
+
+
 ## v5.0.0 (2026-07-17)
 
 ### Features
