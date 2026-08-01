@@ -30,6 +30,8 @@ are for, and access tokens.
   finished stats, including the classic (2-team) and triangular (3-team) match formats.
 - **[docs/data-directory.md](docs/data-directory.md)** — the directory structure PyBall
   creates and the JSON file formats it uses.
+- **[docs/deployment.md](docs/deployment.md)** — reaching your instance from outside
+  your local network (no VPS? see the on-demand ngrok option).
 
 ## Development
 
