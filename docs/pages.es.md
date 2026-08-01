@@ -37,14 +37,13 @@ desplegable en su resumen — ver [paso 6](workflow.es.md#6-ver-estadísticas).
 
 ## `/match`
 
-La página de marcador, abierta en el dispositivo que lleva el partido en directo. El
-marcador y la cuadrícula para marcar goles están siempre visibles arriba; debajo, dos
-pestañas:
+La página de marcador, abierta en el dispositivo que lleva el partido en directo. Bajo
+la fecha del partido, dos pestañas:
 
 ### Jugadores
 
-La cuadrícula para marcar: toca a un jugador para registrar un gol, opcionalmente
-eligiendo una asistencia — ver [paso 4](workflow.es.md#4-seguir-el-partido).
+El marcador y la cuadrícula para marcar: toca a un jugador para registrar un gol,
+opcionalmente eligiendo una asistencia — ver [paso 4](workflow.es.md#4-seguir-el-partido).
 
 ### Eventos y Resultados
 

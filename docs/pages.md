@@ -34,13 +34,13 @@ History of every closed meetup, newest first, each expandable into its summary �
 
 ## `/match`
 
-The scoreboard page, opened on whichever device is tracking the live match. The
-scoreboard and tap-to-score grid are always visible at the top; below them, two tabs:
+The scoreboard page, opened on whichever device is tracking the live match. Below the
+match date, two tabs:
 
 ### Jugadores
 
-The tap-to-score grid: tap a player to register a goal, optionally picking an assist —
-see [step 4](workflow.md#4-track-the-match).
+The scoreboard plus the tap-to-score grid: tap a player to register a goal, optionally
+picking an assist — see [step 4](workflow.md#4-track-the-match).
 
 ### Eventos y Resultados
 
