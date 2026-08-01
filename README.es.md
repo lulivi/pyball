@@ -31,6 +31,8 @@ para la guía completa: elegir topología, configurar `config.toml`, para qué s
   triangular (3 equipos).
 - **[docs/data-directory.es.md](docs/data-directory.es.md)** — la estructura de
   directorios que crea PyBall y el formato de sus archivos JSON.
+- **[docs/deployment.es.md](docs/deployment.es.md)** — cómo exponer tu instancia
+  fuera de tu red local (¿sin VPS? mira la opción de ngrok puntual).
 
 ## Desarrollo
 

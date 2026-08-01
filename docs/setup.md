@@ -6,6 +6,10 @@ This guide covers installing, configuring, and running PyBall as an end user. If
 want to build PyBall from source or contribute to it, see the
 [Development section of the main README](../README.md#development) instead.
 
+This guide assumes Linux with Docker installed — the simplest, most-tested way to
+run PyBall. Installing on a Windows PC instead? Follow this guide as written, but
+read [Running on Windows (WSL2)](#running-on-windows-wsl2) before step 1.
+
 ## 1. Choose a topology
 
 PyBall ships as two Docker images, built from the same codebase:
@@ -165,9 +169,40 @@ docker compose up -d
 Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.0` in
 `.env`.
 
+## Running on Windows (WSL2)
+
+PyBall's Docker images are Linux containers; on Windows the simplest way to run
+them is inside WSL2 (Windows Subsystem for Linux), where the rest of this guide
+applies unchanged.
+
+1. **Enable WSL2.** Open PowerShell as Administrator and run:
+
+   ```powershell
+   wsl --install
+   ```
+
+   This installs WSL2 and a default Ubuntu distribution. Reboot if prompted.
+
+2. **Install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/).**
+   Its installer detects WSL2 and enables the WSL2 integration by default — no
+   manual Docker Engine install inside the distro needed.
+
+3. **Open the "Ubuntu" app** from the Start menu — this is a regular WSL2 terminal.
+   Docker Desktop shares its daemon with it, so every `docker`/`docker compose`
+   command in this guide works exactly as written from here, starting at
+   [step 2, "Bootstrap a workspace"](#2-bootstrap-a-workspace).
+
+4. If the app needs to stay reachable (e.g. during a match), disable Windows sleep
+   for that time: Settings → System → Power & battery → Screen and sleep.
+
+See [docs/deployment.md](deployment.md) for reaching this instance from outside the
+PC's local network.
+
 ## Next steps
 
 - [docs/workflow.md](workflow.md) — the full meetup lifecycle: creating a meetup,
   building teams, the classic vs triangular formats, tracking a match, and stats.
 - [docs/data-directory.md](data-directory.md) — what's inside `data/`, and the JSON
   format of each file.
+- [docs/deployment.md](deployment.md) — reaching your instance from outside your
+  local network (no VPS? see the on-demand ngrok option).
