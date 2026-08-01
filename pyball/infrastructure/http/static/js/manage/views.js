@@ -105,8 +105,9 @@ function _buildFreshFlowHTML() {
 }
 
 function buildRosterRow(p) {
+    const label = p.position === 'portero' ? `🧤 ${p.name}` : p.name;
     return `<div class="edit-chip">
-      <span style="flex:1;">${escHtml(p.name)}</span>
+      <span style="flex:1;">${escHtml(label)}</span>
       <button class="remove-btn" data-pid="${escHtml(p.id)}"
         onclick="removeFromRoster(this.dataset.pid)">✕</button>
     </div>`;
@@ -206,10 +207,11 @@ function buildAddPlayerPanel(idPrefix, searchFn) {
 // pickFn is called as pickFn(id, name[, team]).
 function buildAddResults(results, opts) {
     const teamArg = opts.team ? `, '${opts.team}'` : '';
-    return results.map(p =>
-        `<div class="cand-item" data-pid="${escHtml(p.id)}" data-pname="${escHtml(p.name)}"
-       onclick="${opts.pickFn}(this.dataset.pid, this.dataset.pname${teamArg})">${escHtml(p.name)}</div>`
-    ).join('');
+    return results.map(p => {
+        const label = p.position === 'portero' ? `🧤 ${p.name}` : p.name;
+        return `<div class="cand-item" data-pid="${escHtml(p.id)}" data-pname="${escHtml(p.name)}"
+       onclick="${opts.pickFn}(this.dataset.pid, this.dataset.pname${teamArg})">${escHtml(label)}</div>`;
+    }).join('');
 }
 
 function buildRepasteTrigger(open) {

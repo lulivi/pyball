@@ -24,7 +24,7 @@ from __future__ import annotations
 import functools
 import locale
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from fastapi import FastAPI, HTTPException
 
@@ -214,13 +214,18 @@ async def _handle_create_meetup(
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
+    player_positions = {str(p.id.value): p.position for p in all_players}
     _sort = functools.cmp_to_key(locale.strcoll)
     players = sorted(
         [
-            {"id": str(pid.value), "name": player_names.get(str(pid.value), "(desconocido)")}
+            {
+                "id": str(pid.value),
+                "name": player_names.get(str(pid.value), "(desconocido)"),
+                "position": player_positions.get(str(pid.value)),
+            }
             for pid in meetup.players
         ],
-        key=lambda p: _sort(p["name"]),
+        key=lambda p: _sort(cast(str, p["name"])),
     )
     return {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),

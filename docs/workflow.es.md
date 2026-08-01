@@ -189,6 +189,8 @@ necesitas calcular a mano quién juega a continuación:
 
 ## Documentación relacionada
 
+- [docs/pages.es.md](pages.es.md) — un recorrido estructural por las pestañas y
+  pantallas de cada página.
 - [docs/setup.es.md](setup.es.md) — instalar, configurar y ejecutar PyBall.
 - [docs/data-directory.es.md](data-directory.es.md) — dónde se guardan los partidos,
   jugadores y resultados en disco.

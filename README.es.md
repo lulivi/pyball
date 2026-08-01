@@ -29,6 +29,8 @@ para la guía completa: elegir topología, configurar `config.toml`, para qué s
 - **[docs/workflow.es.md](docs/workflow.es.md)** — cómo va un partido desde que se crea
   hasta las estadísticas finales, incluyendo los formatos clásico (2 equipos) y
   triangular (3 equipos).
+- **[docs/pages.es.md](docs/pages.es.md)** — un recorrido estructural por `/manage`,
+  `/match` y `/signup`: sus pestañas, pantallas, y qué muestra cada una.
 - **[docs/data-directory.es.md](docs/data-directory.es.md)** — la estructura de
   directorios que crea PyBall y el formato de sus archivos JSON.
 - **[docs/deployment.es.md](docs/deployment.es.md)** — cómo exponer tu instancia
