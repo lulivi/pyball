@@ -92,11 +92,8 @@ captura la URL que le han asignado, y solo entonces arranca PyBall, para que est
 arranque ya sabiendo su propia dirección pública (usada en el log de arranque y en
 cualquier sitio donde se use `base_url`).
 
-`docker compose up` no tiene flag `-e`/`--env` para fijar una variable de entorno
-puntual (solo `docker compose run` la tiene, y eso salta la política `restart:` y el
-mapeo de puertos que `up` proporciona para el servicio real). En su lugar, añade una
-entrada `environment:` de dos líneas a tu `compose.yaml`, una sola vez, conectando
-el override ya documentado `PYBALL_CORE_BASE_URL` (ver
+Añade una entrada `environment:` de dos líneas a tu `compose.yaml`, una sola vez,
+conectando el override ya documentado `PYBALL_CORE_BASE_URL` (ver
 [el override por variable de entorno en setup.es.md](setup.es.md#3-configura-configtoml))
 hasta el contenedor desde el shell:
 

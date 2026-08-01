@@ -89,11 +89,8 @@ even listening on the target port — so start ngrok *first*, capture the URL it
 given, and only then start PyBall, so it boots already knowing its own public
 address (used in the startup log and anywhere `base_url` is used).
 
-`docker compose up` has no `-e`/`--env` flag for setting a one-off environment
-variable (only `docker compose run` does, and that bypasses the `restart:` policy
-and port mapping `up` provides for the real service). Instead, add a two-line
-`environment:` entry to your `compose.yaml` once, wiring the already-documented
-`PYBALL_CORE_BASE_URL` override (see
+Add a two-line `environment:` entry to your `compose.yaml` once, wiring the
+already-documented `PYBALL_CORE_BASE_URL` override (see
 [setup.md's env var override](setup.md#3-configure-configtoml)) through to the
 container from the shell:
 
