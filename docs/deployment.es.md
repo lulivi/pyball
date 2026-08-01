@@ -13,7 +13,7 @@ disponible.
 | Ningún servidor — solo un PC que ejecuta PyBall a ratos | [ngrok](#ngrok-bajo-demanda) | Túnel puntual, activado solo cuando hace falta |
 
 Uses lo que uses, en cuanto la app sea accesible desde internet, configura los
-tokens de acceso — ver [Tokens de acceso en setup.md](setup.md#6-tokens-de-acceso)
+tokens de acceso — ver [Tokens de acceso en setup.es.md](setup.es.md#6-tokens-de-acceso)
 — o cualquiera que encuentre la URL podrá usar `/manage` libremente.
 
 ## DuckDNS + Caddy
