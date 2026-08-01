@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v5.2.0 (2026-08-01)
+
+### Documentation
+
+- **GL-181**: Document self-hosting without a VPS (Windows WSL2 + deployment guide)
+  ([`cf20078`](https://gitlab.com/lulivi/pyball/-/commit/cf20078a37262761c8e0de1de768519c3d44ecb2))
+
+### Features
+
+- **GL-182..GL-184**: Add pages reference docs and goalkeeper indicators in /manage
+  ([`841f224`](https://gitlab.com/lulivi/pyball/-/commit/841f224c8387ca568ef8e7c1e6d24c724405e9ee))
+
+
 ## v5.1.0 (2026-07-17)
 
 ### Features
