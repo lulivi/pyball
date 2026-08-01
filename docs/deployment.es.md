@@ -39,8 +39,10 @@ de redirigir los puertos 80/443, sin renovación manual de certificados.
    }
    ```
 
-   Sustituye `mipena.duckdns.org` por tu subdominio, y `8000` por el `api_port` de
-   tu instancia (`PORT` en `.env`).
+   Sustituye `mipena.duckdns.org` por tu subdominio, y `8000` por `PORT` en
+   `.env` — el puerto del *host* en el que PyBall queda publicado (no `api_port`,
+   que es el puerto interno del contenedor y sigue siendo `8000` en cualquier
+   caso).
 
 3. Añade el token a `.env` (así queda fuera del propio Caddyfile):
 
@@ -103,7 +105,7 @@ services:
   pyball:
     image: lulivi/pyball:${TAG:-latest}
     environment:
-      - PYBALL_CORE_BASE_URL=${PYBALL_CORE_BASE_URL:-}
+      - PYBALL_CORE_BASE_URL
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"

@@ -39,8 +39,9 @@ certificate renewal.
    }
    ```
 
-   Replace `myteam.duckdns.org` with your subdomain, and `8000` with your instance's
-   `api_port` (`PORT` in `.env`).
+   Replace `myteam.duckdns.org` with your subdomain, and `8000` with `PORT` in
+   `.env` — the *host* port PyBall is published on (not `api_port`, which is the
+   container's internal listening port and stays `8000` regardless).
 
 3. Add the token to `.env` (kept out of the Caddyfile itself):
 
@@ -101,7 +102,7 @@ services:
   pyball:
     image: lulivi/pyball:${TAG:-latest}
     environment:
-      - PYBALL_CORE_BASE_URL=${PYBALL_CORE_BASE_URL:-}
+      - PYBALL_CORE_BASE_URL
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"
