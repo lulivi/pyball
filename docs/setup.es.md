@@ -6,6 +6,10 @@ Esta guía cubre instalar, configurar y ejecutar PyBall como usuario final. Si q
 construir PyBall desde el código fuente o contribuir, mira en su lugar la
 [sección de Desarrollo del README principal](../README.es.md#desarrollo).
 
+Esta guía asume Linux con Docker instalado — la forma más simple y probada de
+ejecutar PyBall. ¿Vas a instalarlo en un PC con Windows? Sigue esta misma guía tal
+cual, pero lee antes [Ejecutar en Windows (WSL2)](#ejecutar-en-windows-wsl2).
+
 ## 1. Elige una topología
 
 PyBall se distribuye como dos imágenes Docker, construidas desde el mismo código:
@@ -170,6 +174,36 @@ docker compose up -d
 Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.0` en
 `.env`.
 
+## Ejecutar en Windows (WSL2)
+
+Las imágenes Docker de PyBall son contenedores Linux; en Windows, la forma más
+simple de ejecutarlas es dentro de WSL2 (Subsistema de Windows para Linux), donde
+el resto de esta guía se aplica sin cambios.
+
+1. **Activa WSL2.** Abre PowerShell como Administrador y ejecuta:
+
+   ```powershell
+   wsl --install
+   ```
+
+   Esto instala WSL2 y una distribución Ubuntu por defecto. Reinicia si se te pide.
+
+2. **Instala [Docker Desktop para Windows](https://www.docker.com/products/docker-desktop/).**
+   Su instalador detecta WSL2 y activa la integración por defecto — no hace falta
+   instalar Docker Engine a mano dentro de la distribución.
+
+3. **Abre la app "Ubuntu"** desde el menú Inicio — es una terminal WSL2 normal.
+   Docker Desktop comparte su daemon con ella, así que todos los comandos
+   `docker`/`docker compose` de esta guía funcionan tal cual desde aquí, empezando
+   en [el paso 2, "Genera un espacio de trabajo"](#2-genera-un-espacio-de-trabajo).
+
+4. Si la aplicación necesita seguir accesible (p. ej. durante un partido),
+   desactiva la suspensión de Windows durante ese tiempo: Configuración → Sistema →
+   Pantalla y suspensión.
+
+Consulta [docs/deployment.es.md](deployment.es.md) para exponer esta instancia
+fuera de la red local del PC.
+
 ## Siguientes pasos
 
 - [docs/workflow.es.md](workflow.es.md) — el ciclo de vida completo de un partido: crear
@@ -177,3 +211,5 @@ Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.
   estadísticas.
 - [docs/data-directory.es.md](data-directory.es.md) — qué hay dentro de `data/`, y el
   formato JSON de cada archivo.
+- [docs/deployment.es.md](deployment.es.md) — cómo exponer tu instancia fuera de tu
+  red local (¿sin VPS? mira la opción de ngrok puntual).
