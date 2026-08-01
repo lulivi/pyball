@@ -177,6 +177,7 @@ work out who plays next by hand:
 
 ## Related documentation
 
+- [docs/pages.md](pages.md) — a structural tour of each page's tabs and screens.
 - [docs/setup.md](setup.md) — installing, configuring, and running PyBall.
 - [docs/data-directory.md](data-directory.md) — where meetups, players, and match
   results are stored on disk.
