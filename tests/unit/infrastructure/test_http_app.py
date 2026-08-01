@@ -1221,6 +1221,33 @@ class TestCreateMeetup:
 
         assert resp.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_create_meetup_players_include_position(self):
+        """POST /api/meetup/create exposes each player's registered position."""
+        keeper = Player.create("Ana", position="portero")
+        outfield = Player.create("Bea")
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        meetup.add_player(keeper.id)
+        meetup.add_player(outfield.id)
+
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = [keeper, outfield]
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={
+                    "date": "2026-06-08T20:00",
+                    "player_ids": [str(keeper.id.value), str(outfield.id.value)],
+                },
+            )
+
+        assert resp.status_code == 200
+        players_by_name = {p["name"]: p["position"] for p in resp.json()["players"]}
+        assert players_by_name == {"Ana": "portero", "Bea": None}
+
 
 class TestGenerateTeams:
     """Tests for POST /api/meetup/generate-teams."""
