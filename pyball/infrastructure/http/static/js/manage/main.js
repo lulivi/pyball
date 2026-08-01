@@ -340,8 +340,17 @@ function renderState2(data) {
     `;
         return;
     }
-    const blocks = [`${t.emojiA} *${t.nameA}*\n${t.teamA.join('\n')}`, `${t.emojiB} *${t.nameB}*\n${t.teamB.join('\n')}`];
-    if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${t.teamC.join('\n')}`);
+    const nameById = {};
+    data.players.forEach(p => { nameById[p.id] = p.name; });
+    const markGoalkeeper = (names, goalkeeperId) => {
+        const goalkeeperName = goalkeeperId ? nameById[goalkeeperId] : null;
+        return names.map(name => name === goalkeeperName ? `🧤 ${name}` : name);
+    };
+    const blocks = [
+        `${t.emojiA} *${t.nameA}*\n${markGoalkeeper(t.teamA, t.goalkeeperA).join('\n')}`,
+        `${t.emojiB} *${t.nameB}*\n${markGoalkeeper(t.teamB, t.goalkeeperB).join('\n')}`,
+    ];
+    if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${markGoalkeeper(t.teamC, t.goalkeeperC).join('\n')}`);
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
