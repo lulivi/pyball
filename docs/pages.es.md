@@ -27,13 +27,13 @@ El partido activo, si existe: pegar y reconocer una convocatoria
 ([paso 2](workflow.es.md#2-gestionar-la-convocatoria)), generar o editar equipos
 ([paso 3](workflow.es.md#3-generar-equipos)), bloquear/destruir equipos, cancelar el
 partido y — en un triangular — cerrar la sesión
-([paso 5](workflow.es.md#5-cerrar-una-sesion-triangular)). Vacía si no hay ningún
+([paso 5](workflow.es.md#5-cerrar-una-sesión-triangular)). Vacía si no hay ningún
 partido activo.
 
 ### Convocatorias
 
 Historial de todos los partidos cerrados, del más reciente al más antiguo, cada uno
-desplegable en su resumen — ver [paso 6](workflow.es.md#6-ver-estadisticas).
+desplegable en su resumen — ver [paso 6](workflow.es.md#6-ver-estadísticas).
 
 ## `/match`
 
