@@ -435,6 +435,7 @@ class TestMeetupActive:
         player = MagicMock()
         player.id.value = "p1"
         player.name = "Juande"
+        player.position = None
 
         container = MagicMock()
         container.get_active_meetup.return_value.execute.return_value = meetup
@@ -448,7 +449,7 @@ class TestMeetupActive:
         data = response.json()
         assert data["date"] == "2026-05-28T20:00"
         assert data["location"] == "Polideportivo Municipal"
-        assert data["players"] == [{"id": "p1", "name": "Juande"}]
+        assert data["players"] == [{"id": "p1", "name": "Juande", "position": None}]
         assert data["teams"] is None
         assert data["locked"] is False
         assert data["signupOpen"] is True
@@ -472,9 +473,11 @@ class TestMeetupActive:
         player_a = MagicMock()
         player_a.id.value = "p1"
         player_a.name = "Juande"
+        player_a.position = "portero"
         player_b = MagicMock()
         player_b.id.value = "p2"
         player_b.name = "David"
+        player_b.position = None
 
         container = MagicMock()
         container.get_active_meetup.return_value.execute.return_value = meetup
@@ -493,8 +496,8 @@ class TestMeetupActive:
         data = response.json()
         assert data["location"] == "Polideportivo Municipal"
         assert data["players"] == [
-            {"id": "p2", "name": "David"},
-            {"id": "p1", "name": "Juande"},
+            {"id": "p2", "name": "David", "position": None},
+            {"id": "p1", "name": "Juande", "position": "portero"},
         ]
         teams = data["teams"]
         assert teams["teamA"] == ["Juande"]
@@ -1482,6 +1485,26 @@ async def test_meetup_active_with_teams_response_shape():
     assert body["teams"]["teamB"] == ["Bea"]
     assert body["teams"]["nameA"] == "Blanco"
     assert body["teams"]["matchUrl"] == "http://x/match?token=t"
+
+
+@pytest.mark.asyncio
+async def test_meetup_active_players_include_position():
+    """GET /api/meetup/active exposes each player's registered position."""
+    container = _container_for_responses()
+    keeper = Player.create("Ana", position="portero")
+    outfield = Player.create("Bea")
+    container.player_repository.find_all.return_value = [keeper, outfield]
+    meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="X")
+    meetup.add_player(keeper.id)
+    meetup.add_player(outfield.id)
+    container.get_active_meetup.return_value.execute.return_value = meetup
+    app, _ = _make_app(container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/meetup/active")
+
+    players_by_name = {p["name"]: p["position"] for p in response.json()["players"]}
+    assert players_by_name == {"Ana": "portero", "Bea": None}
 
 
 @pytest.mark.asyncio
