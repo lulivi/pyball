@@ -66,7 +66,7 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     register_static_routes(app, static_dir, container, enable_web_signup=enable_web_signup)
     register_match_routes(app, container, notifier)
     register_player_routes(app, container, enable_web_signup=enable_web_signup)
-    register_meetup_routes(app, container, notifier)
+    register_meetup_routes(app, container, notifier, enable_web_signup=enable_web_signup)
     if enable_web_signup:
         register_signup_routes(app, container, signup_token, static_dir=signup_static_dir)
 

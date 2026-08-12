@@ -149,7 +149,7 @@ async function createPlayer() {
         const created = await post('/api/players', { name, group, position });
         players.push(created);
         if (created.signup_code && window.__showSignupCode) {
-            window.__showSignupCode(created.name, created.signup_code);
+            window.__showSignupCode(created.name, created.signup_code, created.signup_url);
         }
     } catch (err) {
         alert('Error al crear jugador: ' + (err.detail || err.message));

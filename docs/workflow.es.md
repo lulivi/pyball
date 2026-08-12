@@ -56,12 +56,16 @@ paso 1.
 ## Alta por cuenta propia en `/signup`
 
 Si `enable_web_signup` está activo en `config.toml`, los jugadores pueden apuntarse o
-bajarse de un partido ellos mismos en `/signup`, sin pasar nunca por `/manage`. Comparte la URL de la
-página — protegida por `signup_token`, ver
-[Tokens de acceso](setup.es.md#6-tokens-de-acceso) — una vez; cada jugador se identifica
-después individualmente con su propio código personal de 8 caracteres (se muestra una
+bajarse de un partido ellos mismos en `/signup`, sin pasar nunca por `/manage`. Cada
+jugador se identifica con su propio código personal de 8 caracteres, que se muestra una
 sola vez al crearlo en `/manage`, o se puede regenerar en cualquier momento con el botón
-"Regenerar código" de su fila).
+"Regenerar código" de su fila — ese mismo modal ofrece también "📤 Compartir" (donde el
+navegador lo soporte) y "📋 Copiar mensaje", que juntan el código del jugador con la URL
+de `/signup` (protegida por `signup_token`, ver
+[Tokens de acceso](setup.es.md#6-tokens-de-acceso)) en un único mensaje listo para
+enviar. La URL de `/signup` sola también se puede copiar desde "Convocatoria actual" con
+"🔗 Copiar link apuntarse", visible hasta que empieza el partido — tanto mientras
+todavía estás formando la convocatoria como después de generar los equipos.
 
 - **Introducir el código:** la primera pantalla solo pide el código. Uno correcto
   saluda al jugador por su nombre y muestra el partido activo, si lo hay.
@@ -109,16 +113,17 @@ suplentes, y pulsar "🔎 Buscar jugadores" (o el comando `/meetup_search`) se r
 ya nadie puede apuntarse ni bajarse una vez que hay equipos.
 
 Si además quieres proteger los equipos de más cambios en `/manage`, pulsa
-"🔒 Bloquear equipos" cuando la convocatoria te convenza — oculta "Regenerar equipos",
-"📋 Repegar convocatoria" y "🗑 Cancelar partido" para que nadie edite la convocatoria
-por accidente después de decidirla. "✏️ Editar equipos" (reasignar jugadores entre los
-equipos ya generados) sigue funcionando igual, esté bloqueado o no.
+"▶️ Empezar partido" cuando la convocatoria te convenza — oculta "Regenerar equipos" y
+"🗑 Cancelar partido", y muestra "🔗 Copiar link partido" (copia de un toque la URL de
+`/match`, con `match_token` incluido si está configurado) y, en un triangular,
+"🏁 Cerrar triangular". "✏️ Editar equipos" (reasignar jugadores entre los equipos ya
+generados) sigue funcionando igual, haya empezado el partido o no.
 
-¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales (estén
-bloqueados o no) y vuelve a la vista de convocatoria, para que puedas editarla y, en
-Telegram, volver a buscar suplentes. Está disponible hasta que se registre el primer
-resultado — a partir de ahí, la única forma de deshacer la sesión es corregir el
-resultado después (ver [paso 6](#6-ver-estadísticas)).
+¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales (haya
+empezado el partido o no) y vuelve a la vista de convocatoria, para que puedas
+editarla y, en Telegram, volver a buscar suplentes. Está disponible hasta que se
+registre el primer resultado — a partir de ahí, la única forma de deshacer la sesión
+es corregir el resultado después (ver [paso 6](#6-ver-estadísticas)).
 
 ## 4. Seguir el partido
 

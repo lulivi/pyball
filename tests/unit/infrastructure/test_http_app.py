@@ -986,6 +986,7 @@ class TestPlayerSignupCode:
             response = await c.post("/api/players", json={"name": "Nueva", "group": "regular"})
         assert response.status_code == 201
         assert len(response.json()["signup_code"]) == 8
+        assert response.json()["signup_url"] == "http://x/signup?token=t"
 
     @pytest.mark.asyncio
     async def test_create_player_excludes_signup_code_when_disabled(self):
@@ -996,6 +997,7 @@ class TestPlayerSignupCode:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.post("/api/players", json={"name": "Nueva", "group": "regular"})
         assert "signup_code" not in response.json()
+        assert "signup_url" not in response.json()
 
     @pytest.mark.asyncio
     async def test_regenerate_signup_code_returns_new_code(self, tmp_path):
@@ -1008,6 +1010,7 @@ class TestPlayerSignupCode:
             response = await c.post(f"/api/players/{player.id.value}/signup-code/regenerate")
         assert response.status_code == 200
         assert len(response.json()["code"]) == 8
+        assert response.json()["signup_url"] == "http://x/signup?token=t"
 
     @pytest.mark.asyncio
     async def test_regenerate_signup_code_404_when_disabled(self):
@@ -1248,6 +1251,47 @@ class TestCreateMeetup:
         players_by_name = {p["name"]: p["position"] for p in resp.json()["players"]}
         assert players_by_name == {"Ana": "portero", "Bea": None}
 
+    @pytest.mark.asyncio
+    async def test_create_meetup_includes_signup_url_when_enabled(self):
+        """POST /api/meetup/create includes signupUrl from SignupLinkBuilder when enabled."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+        container.signup_link_builder.return_value.build.return_value = "http://x/signup?token=t"
+
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert resp.json()["signupUrl"] == "http://x/signup?token=t"
+
+    @pytest.mark.asyncio
+    async def test_create_meetup_excludes_signup_url_when_disabled(self):
+        """POST /api/meetup/create omits signupUrl when signup is not enabled."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+
+        container = MagicMock()
+        container.set_meetup_players.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post(
+                "/api/meetup/create",
+                json={"date": "2026-06-08T20:00", "player_ids": []},
+            )
+
+        assert "signupUrl" not in resp.json()
+
 
 class TestGenerateTeams:
     """Tests for POST /api/meetup/generate-teams."""
@@ -1341,7 +1385,7 @@ class TestGenerateTeams:
 
         assert resp.status_code == 200
         container.create_teams.assert_called_once_with("balanceado")
-        mock_build.assert_called_once_with(container)
+        mock_build.assert_called_once_with(container, False)
 
     @pytest.mark.asyncio
     async def test_generate_teams_defaults_team_count_to_two(self):
@@ -1450,6 +1494,7 @@ def _container_for_responses():
     container.team_hex_text = ("#27272a", "#e4e4e7")
     container.name = "tensores"
     container.match_link_builder.return_value.build.return_value = "http://x/match?token=t"
+    container.signup_link_builder.return_value.build.return_value = "http://x/signup?token=t"
     return container
 
 
@@ -2292,6 +2337,109 @@ class TestDestroyTeamsEndpoint:
 
         assert notifier.updated == []
 
+    @pytest.mark.asyncio
+    async def test_destroy_teams_includes_signup_url_when_enabled(self):
+        """POST /api/meetup/destroy-teams includes signupUrl when enable_web_signup=True."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.return_value = meetup
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+        container.signup_link_builder.return_value.build.return_value = "http://x/signup?token=t"
+
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert resp.json()["signupUrl"] == "http://x/signup?token=t"
+
+    @pytest.mark.asyncio
+    async def test_destroy_teams_excludes_signup_url_when_disabled(self):
+        """POST /api/meetup/destroy-teams omits signupUrl when signup is not enabled."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 8, 20, 0), location="Parque")
+        container = MagicMock()
+        container.destroy_teams.return_value.execute.return_value = meetup
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        container.player_repository.find_all.return_value = []
+
+        app, _ = _make_app(container=container)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/destroy-teams", json={"date": "2026-06-08T20:00"})
+
+        assert "signupUrl" not in resp.json()
+
+
+class TestSignupUrlLifecycle:
+    """Integration-style test: signupUrl/matchUrl across roster -> teams -> lock."""
+
+    @pytest.mark.asyncio
+    async def test_signup_url_present_through_teams_generation_and_lock(self):
+        """signupUrl stays present (and matchUrl appears) across create, generate, lock."""
+        from pyball.domain.meetup.models import Meetup, Team
+        from pyball.domain.player.models import PlayerId
+
+        meetup_date = datetime(2026, 6, 8, 20, 0)
+        pid_a = PlayerId.generate()
+        pid_b = PlayerId.generate()
+
+        roster_meetup = Meetup.create(date=meetup_date, location="Parque")
+        roster_meetup.add_player(pid_a)
+        roster_meetup.add_player(pid_b)
+
+        teams_meetup = Meetup.create(date=meetup_date, location="Parque")
+        teams_meetup.add_player(pid_a)
+        teams_meetup.add_player(pid_b)
+        teams_meetup.set_teams([Team.create("blanco", [pid_a]), Team.create("negro", [pid_b])])
+
+        locked_meetup = Meetup.create(date=meetup_date, location="Parque")
+        locked_meetup.add_player(pid_a)
+        locked_meetup.add_player(pid_b)
+        locked_meetup.set_teams(teams_meetup.teams)
+        locked_meetup.lock()
+
+        container = _container_for_responses()
+        container.set_meetup_players.return_value.execute.return_value = roster_meetup
+        container.player_repository.find_all.return_value = []
+        container.meetup_repository.find_by_datetime.return_value = roster_meetup
+        container.create_teams.return_value.execute.return_value = teams_meetup
+        container.get_active_meetup.return_value.execute.side_effect = [
+            teams_meetup,
+            locked_meetup,
+        ]
+
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            create_resp = await c.post(
+                "/api/meetup/create",
+                json={
+                    "date": "2026-06-08T20:00",
+                    "player_ids": [str(pid_a.value), str(pid_b.value)],
+                },
+            )
+            assert create_resp.status_code == 200
+            assert create_resp.json()["signupUrl"] == "http://x/signup?token=t"
+            assert create_resp.json()["teams"] is None
+
+            generate_resp = await c.post(
+                "/api/meetup/generate-teams",
+                json={"date": "2026-06-08T20:00", "algorithm": "balanceado"},
+            )
+            assert generate_resp.status_code == 200
+            generate_data = generate_resp.json()
+            assert generate_data["signupUrl"] == "http://x/signup?token=t"
+            assert generate_data["teams"]["matchUrl"] == "http://x/match?token=t"
+            assert generate_data["locked"] is False
+
+            lock_resp = await c.post("/api/meetup/lock", json={"date": "2026-06-08T20:00"})
+            assert lock_resp.status_code == 200
+            lock_data = lock_resp.json()
+            assert lock_data["locked"] is True
+            assert lock_data["signupUrl"] == "http://x/signup?token=t"
+
 
 class TestCloseMeetupEndpoint:
     """Tests for POST /api/meetup/close."""
@@ -2682,3 +2830,21 @@ class TestCreateNextMeetup:
 
         assert resp.status_code == 409
         assert notifier.created == []
+
+    @pytest.mark.asyncio
+    async def test_includes_signup_url_when_enabled(self):
+        """POST /api/meetup/create-next includes signupUrl from SignupLinkBuilder when enabled."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(date=datetime(2026, 6, 10, 20, 0), location="Parque Central")
+        container = MagicMock()
+        container.default_week_day = "wednesday"
+        container.default_hour = "20:00"
+        container.create_meetup.return_value.execute.return_value = meetup
+        container.signup_link_builder.return_value.build.return_value = "http://x/signup?token=t"
+
+        app = create_app(container, _StubNotifier(), enable_web_signup=True)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.post("/api/meetup/create-next")
+
+        assert resp.json()["signupUrl"] == "http://x/signup?token=t"

@@ -91,6 +91,7 @@ def register_player_routes(  # pylint: disable=too-many-statements
             code = generate_code()
             _code_store(container).set_code(str(player.id.value), code)
             response["signup_code"] = code
+            response["signup_url"] = container.signup_link_builder().build()
         return response
 
     @app.post("/api/players/{player_id}/edit")
@@ -146,7 +147,7 @@ def register_player_routes(  # pylint: disable=too-many-statements
             raise HTTPException(404, f"Player with id '{player_id}' not found")
         code = generate_code()
         _code_store(container).set_code(str(parsed_id.value), code)
-        return {"code": code}
+        return {"code": code, "signup_url": container.signup_link_builder().build()}
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────

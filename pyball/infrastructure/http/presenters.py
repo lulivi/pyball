@@ -71,7 +71,7 @@ def build_active_match_response(container: Container) -> dict:
     }
 
 
-def build_meetup_active_response(container: Container) -> dict:
+def build_meetup_active_response(container: Container, enable_web_signup: bool = False) -> dict:
     """Build the response for GET /api/meetup/active, or raise 404.
 
     Returns the most recent unfinished meetup regardless of whether teams exist.
@@ -81,6 +81,8 @@ def build_meetup_active_response(container: Container) -> dict:
         meetup = container.get_active_meetup().execute()
     except MeetupNotFoundError as exc:
         raise HTTPException(404, "No active meetup found") from exc
+
+    signup_url = container.signup_link_builder().build() if enable_web_signup else None
 
     all_players = container.player_repository.find_all()
     player_names = {str(p.id.value): p.name for p in all_players}
@@ -101,7 +103,7 @@ def build_meetup_active_response(container: Container) -> dict:
     )
 
     if meetup.teams is None:
-        return {
+        no_teams_response: dict = {
             "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
             "location": meetup.location,
             "players": players,
@@ -109,6 +111,9 @@ def build_meetup_active_response(container: Container) -> dict:
             "locked": meetup.locked,
             "signupOpen": meetup.is_signup_open(),
         }
+        if signup_url is not None:
+            no_teams_response["signupUrl"] = signup_url
+        return no_teams_response
 
     colors = container.team_colors
     hex_bg = container.team_hex_bg
@@ -154,7 +159,7 @@ def build_meetup_active_response(container: Container) -> dict:
             }
         )
 
-    return {
+    response: dict = {
         "date": meetup.date.strftime("%Y-%m-%dT%H:%M"),
         "location": meetup.location,
         "players": players,
@@ -162,6 +167,9 @@ def build_meetup_active_response(container: Container) -> dict:
         "locked": meetup.locked,
         "signupOpen": meetup.is_signup_open(),
     }
+    if signup_url is not None:
+        response["signupUrl"] = signup_url
+    return response
 
 
 def build_signup_meetup_response(container: Container, player_id: "PlayerId") -> dict:

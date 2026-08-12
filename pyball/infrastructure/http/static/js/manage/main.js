@@ -2,7 +2,7 @@ import { get, post, del, ApiError } from '../api.js';
 import {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor,
+    buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor, copyLinkButton,
     buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
@@ -36,7 +36,6 @@ let rosterAddVisible = false;   // State 1: add-player search panel open?
 let rosterSearchQuery = '';     // State 1: current add-player search text
 let editAddOpenTeam = null;     // State 2 edit panel: 'A' | 'B' | 'C' | null — which column's add widget is open
 let editAddQuery = '';          // State 2 edit panel: current add search text
-let repastePanelOpen = false;   // collapsed re-paste section open?
 let manualCreateOpen = false;   // manual create-date/location form open?
 let pasteFlowOpen = false;      // paste-a-callup textarea revealed?
 let dateLocationEditOpen = false; // date/location edit panel open?
@@ -225,7 +224,7 @@ function renderState1(data) {
     <button class="btn-sm gray" style="margin-top:6px;margin-bottom:10px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
     ${addPanel}
     ${buildTeamButtonsRow()}
-    ${buildRepasteTrigger(repastePanelOpen)}
+    ${data.signupUrl ? copyLinkButton('🔗 Copiar link apuntarse', data.signupUrl) : ''}
     ${buildCancelTrigger()}
   `;
     if (rosterAddVisible) {
@@ -354,13 +353,14 @@ function renderState2(data) {
     const teamsText = blocks.join('\n\n');
     document.getElementById('tab-equipos').innerHTML = `
     ${buildDateLocationEditor(data, dateLocationEditOpen)}
-    ${data.locked ? '' : buildRepasteTrigger(repastePanelOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
     ${data.locked ? '' : buildTeamButtonsRow()}
     <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
-    ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
-    ${data.locked ? '' : '<button class="btn btn-amber" onclick="lockMeetup()">🔒 Bloquear equipos</button>'}
+    ${!data.locked && data.signupUrl ? copyLinkButton('🔗 Copiar link apuntarse', data.signupUrl) : ''}
+    ${data.locked && t.matchUrl ? copyLinkButton('🔗 Copiar link partido', t.matchUrl) : ''}
+    ${data.locked && t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
+    ${data.locked ? '' : '<button class="btn btn-amber" onclick="lockMeetup()">▶️ Empezar partido</button>'}
     ${t.hasRecordedResults ? '' : '<button class="btn btn-amber" onclick="destroyTeams()">♻️ Destruir equipos</button>'}
     ${data.locked ? '' : buildCancelTrigger()}
   `;
@@ -368,6 +368,10 @@ function renderState2(data) {
 
 function copyTeams() {
     copyToClipboard(document.getElementById('teams-text').textContent);
+}
+
+function copyManageLink(url) {
+    copyToClipboard(url);
 }
 
 async function lockMeetup() {
@@ -551,73 +555,6 @@ async function saveTeams() {
     renderState2(activeMatchData);
 }
 
-function toggleRepaste() {
-    repastePanelOpen = !repastePanelOpen;
-    _rerenderActiveState();
-}
-
-async function parseRepaste() {
-    const text = document.getElementById('repaste-input').value.trim();
-    if (!text) { alert('Pega la convocatoria primero.'); return; }
-    try {
-        const [playersRes, parseRes] = await Promise.all([
-            get('/api/players'),
-            post('/api/meetup/parse-callup', { text }),
-        ]);
-        allPlayers = playersRes;
-        lastParsedDate = parseRes.date || null;
-        parsedPlayers = [
-            ...parseRes.titulars.map(p => ({ ...p, excluded: false })),
-            ...parseRes.reserves.map(p => ({ ...p, excluded: true })),
-        ];
-        expandedIdx = null;
-        const dateBadge = lastParsedDate
-            ? `<div class="date-badge">📅 <span>${_formatDate(lastParsedDate)}</span></div>` : '';
-        document.getElementById('repaste-review').innerHTML = `
-      ${dateBadge}
-      <div id="chip-container"></div>
-      <button class="btn btn-green" onclick="confirmRepaste()">✔ Confirmar convocatoria</button>`;
-        renderChips();
-    } catch (e) { alert('Error al reconocer jugadores: ' + e.message); }
-}
-
-async function confirmRepaste() {
-    const confirmed = parsedPlayers.filter(p => !p.excluded && p.player_id);
-    if (confirmed.length < 2) {
-        alert('Necesitas al menos 2 jugadores reconocidos.');
-        return;
-    }
-    const unresolved = parsedPlayers.filter(p => !p.excluded && !p.player_id);
-    if (unresolved.length > 0) {
-        const names = unresolved.map(p => p.raw).join(', ');
-        if (!confirm(`Hay ${unresolved.length} jugador(es) sin resolver: ${names}.\n¿Continuar igualmente?`)) return;
-    }
-    const newDate = lastParsedDate || activeMatchData.date;
-    const dateChanged = newDate !== activeMatchData.date;
-    let data;
-    try {
-        if (dateChanged) {
-            await del('/api/meetup/active');
-        }
-        data = await post('/api/meetup/create', { date: newDate, player_ids: confirmed.map(p => p.player_id) });
-    } catch (err) {
-        alert('Error: ' + (err.detail || err.message));
-        if (dateChanged || (err instanceof ApiError && err.status === 409)) {
-            activeMatchData = null;
-            repastePanelOpen = false;
-            rosterAddVisible = false;
-            manualCreateOpen = false;
-            pasteFlowOpen = false;
-            _buildFreshFlowHTML();
-            showStep('paste');
-        }
-        return;
-    }
-    activeMatchData = data;
-    repastePanelOpen = false;
-    renderState1(activeMatchData);
-}
-
 async function cancelMeetup() {
     if (!confirm('¿Seguro que quieres cancelar el partido? Esta acción no se puede deshacer.')) return;
     try {
@@ -627,7 +564,6 @@ async function cancelMeetup() {
         return;
     }
     activeMatchData = null;
-    repastePanelOpen = false;
     rosterAddVisible = false;
     manualCreateOpen = false;
     pasteFlowOpen = false;
@@ -644,7 +580,6 @@ async function closeMeetup() {
         return;
     }
     activeMatchData = null;
-    repastePanelOpen = false;
     rosterAddVisible = false;
     manualCreateOpen = false;
     pasteFlowOpen = false;
@@ -983,6 +918,7 @@ Object.assign(window, {
     generateTeams,
     createOrRegenerateTeams,
     copyTeams,
+    copyManageLink,
     lockMeetup,
     destroyTeams,
     toggleTeamsEditPanel,
@@ -996,9 +932,6 @@ Object.assign(window, {
     searchEditAdd,
     pickEditAdd,
     saveTeams,
-    toggleRepaste,
-    parseRepaste,
-    confirmRepaste,
     createNextMeetup,
     toggleManualCreate,
     confirmManualCreate,

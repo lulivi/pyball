@@ -50,11 +50,15 @@ usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 
 ## Self-service signup via `/signup`
 
 If `enable_web_signup` is set in `config.toml`, players can join or leave a meetup
-themselves at `/signup`, without ever touching `/manage`. Share the page's URL —
-protected by `signup_token`, see [Access tokens](setup.md#6-access-tokens) — once; each
-player then identifies themselves individually with their own 8-character personal code
-(shown once when an admin creates them in `/manage`, or regenerated anytime with the
-"Regenerar código" button on their row).
+themselves at `/signup`, without ever touching `/manage`. Each player identifies
+themselves with their own 8-character personal code, shown once when an admin creates
+them in `/manage`, or regenerated anytime with the "Regenerar código" button on their
+row — that modal also offers "📤 Compartir" (where the browser supports it) and
+"📋 Copiar mensaje", bundling the player's code together with the `/signup` URL
+(protected by `signup_token`, see [Access tokens](setup.md#6-access-tokens)) into one
+ready-to-send message. The bare `/signup` URL can also be copied on its own from
+"Convocatoria actual" via "🔗 Copiar link apuntarse", shown until the match starts —
+both while you're still assembling the roster and after teams have been generated.
 
 - **Entering the code:** the first screen just asks for the code. A correct one greets
   the player by name and shows the currently active meetup, if any.
@@ -100,12 +104,13 @@ The moment teams exist, signup closes automatically: Telegram's "✔ Unirse" /
 or leave the roster anymore once teams exist.
 
 If you also want to protect the teams from further changes in `/manage`, click
-"🔒 Bloquear equipos" once the lineup looks right — it hides "Regenerar equipos",
-"📋 Repegar convocatoria", and "🗑 Cancelar partido" so nobody accidentally edits the
-roster after you've settled on it. "✏️ Editar equipos" (reassigning players between
-the already-generated teams) keeps working either way, locked or not.
+"▶️ Empezar partido" once the lineup looks right — it hides "Regenerar equipos" and
+"🗑 Cancelar partido", and reveals "🔗 Copiar link partido" (a one-click copy of the
+`/match` URL, with `match_token` embedded if configured) plus, for a triangular,
+"🏁 Cerrar triangular". "✏️ Editar equipos" (reassigning players between the
+already-generated teams) keeps working either way, started or not.
 
-Changed your mind? "🗑️ Destruir equipos" discards the current teams (locked or not)
+Changed your mind? "🗑️ Destruir equipos" discards the current teams (started or not)
 and returns to the roster view, so you can edit the convocatoria and, on Telegram,
 search for substitutes again. It's available until the first match result is
 recorded — after that, the only way to undo the session is correcting the result

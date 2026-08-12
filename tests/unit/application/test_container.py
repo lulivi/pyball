@@ -7,6 +7,7 @@ import pytest
 from pyball.application.container import Container
 from pyball.application.meetup import AddPlayerToMeetupById, RemovePlayerFromMeetupById
 from pyball.application.notifier import NullMatchNotifier
+from pyball.infrastructure.http.links import SignupLinkBuilder
 
 
 class TestContainerInit:
@@ -61,6 +62,20 @@ class TestContainerAddRemovePlayerById:
         use_case = container.remove_player_from_meetup_by_id()
         assert isinstance(use_case, RemovePlayerFromMeetupById)
         assert use_case.meetup_repository is container.meetup_repository
+
+
+class TestContainerSignupLinkBuilder:
+    """Tests for Container wiring of the signup link builder."""
+
+    def test_signup_link_builder_uses_base_url_and_token(self):
+        """signup_link_builder returns a SignupLinkBuilder wired to base_url and signup_token."""
+        settings = MagicMock()
+        settings.pyball.base_url = "http://pyball:8000"
+        settings.pyball.signup_token = "tok-456"
+        container = Container(settings)
+        builder = container.signup_link_builder()
+        assert isinstance(builder, SignupLinkBuilder)
+        assert builder.build() == "http://pyball:8000/signup?token=tok-456"
 
 
 class TestNullMatchNotifier:

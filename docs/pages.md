@@ -23,9 +23,10 @@ is set in `config.toml` — generate or regenerate a player's personal signup co
 The active meetup, if one exists: pasting and recognizing a callup
 ([step 1](workflow.md#1-create-a-meetup)), managing the roster
 ([step 2](workflow.md#2-manage-the-roster)), generating or editing teams
-([step 3](workflow.md#3-generate-teams)), locking/destroying teams, canceling the match,
-and — for a triangular — closing the session
-([step 5](workflow.md#5-close-a-triangular-session)). Empty if no meetup is active.
+([step 3](workflow.md#3-generate-teams)), starting the match or destroying teams,
+canceling the match, copying the signup and match links, and — for a triangular —
+closing the session ([step 5](workflow.md#5-close-a-triangular-session)). Empty if no
+meetup is active.
 
 ### Convocatorias
 
@@ -44,9 +45,8 @@ picking an assist — see [step 4](workflow.md#4-track-the-match).
 
 ### Eventos y Resultados
 
-The chronological event log for the current match (edit or delete a previously recorded
-goal here), and the "Finalizar partido" action to close out the match with a final
-score.
+The chronological event log for the current match (edit or delete a previously recorded goal here),
+and the "Finalizar partido" action to close out the match with a final score.
 
 ## `/signup`
 

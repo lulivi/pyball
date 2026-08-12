@@ -214,19 +214,12 @@ function buildAddResults(results, opts) {
     }).join('');
 }
 
-function buildRepasteTrigger(open) {
-    const body = open ? `
-      <textarea id="repaste-input" class="paste-area"
-        placeholder="Pega aquí la nueva convocatoria..."></textarea>
-      <button class="btn btn-blue" onclick="parseRepaste()">🔍 Reconocer jugadores</button>
-      <div id="repaste-review"></div>` : '';
-    return `
-    <button class="btn btn-teal" onclick="toggleRepaste()">📋 Repegar convocatoria</button>
-    <div id="repaste-container">${body}</div>`;
-}
-
 function buildCancelTrigger() {
     return `<button class="cancel-match-btn" onclick="cancelMeetup()">🗑 Cancelar partido</button>`;
+}
+
+function copyLinkButton(label, url) {
+    return `<button class="btn btn-teal" data-url="${escHtml(url)}" onclick="copyManageLink(this.dataset.url)">${escHtml(label)}</button>`;
 }
 
 function buildTeamButtonsRow() {
@@ -240,7 +233,7 @@ function buildTeamButtonsRow() {
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
-    buildRepasteTrigger, buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor,
+    buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor, copyLinkButton,
     buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

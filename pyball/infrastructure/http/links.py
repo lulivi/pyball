@@ -33,3 +33,18 @@ class MatchLinkBuilder:
         if self._match_token:
             return f"{self._base_url}/match?token={self._match_token}"
         return f"{self._base_url}/match"
+
+
+class SignupLinkBuilder:
+    """Build the public signup-page URL for this instance."""
+
+    def __init__(self, base_url: str, signup_token: str = "") -> None:
+        """Initialize with the instance base URL and optional signup token."""
+        self._base_url = base_url
+        self._signup_token = signup_token
+
+    def build(self) -> str:
+        """Return the signup URL, embedding the access token when configured."""
+        if self._signup_token:
+            return f"{self._base_url}/signup?token={self._signup_token}"
+        return f"{self._base_url}/signup"
