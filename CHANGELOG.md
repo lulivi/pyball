@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.3.0 (2026-08-12)
+
+### Features
+
+- **GL-185..GL-189**: Simplify sharing signup codes and links from /manage
+  ([`89c8026`](https://gitlab.com/lulivi/pyball/-/commit/89c802669b1735405e2701d240cd81fc913748c2))
+
+
 ## v5.2.0 (2026-08-01)
 
 ### Documentation
