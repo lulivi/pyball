@@ -1,13 +1,17 @@
 const CACHE_NAME = 'pyball-__VERSION__';
 const PRECACHE = [
+    '/match',
+    '/manage',
     '/manifest-match.json',
     '/manifest-manage.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
 ];
 
-// Precache public assets only; auth-gated pages are cached on first successful
-// fetch. allSettled: one failed entry must not break the whole install.
+// Precache the page shells so offline fallback works from the very first launch,
+// not only after a successful online visit. allSettled: an auth-gated page that
+// can't be fetched yet (no cookie set) must not break the whole install — it
+// falls back to being cached on first successful online fetch instead.
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache =>
@@ -43,7 +47,10 @@ self.addEventListener('fetch', event => {
                     if (response.ok) cache.put(event.request, response.clone());
                     return response;
                 } catch {
-                    const cached = await cache.match(event.request);
+                    // Exact match first; ignoreSearch as a fallback in case the
+                    // navigation URL picked up query params the cached entry lacks.
+                    const cached = await cache.match(event.request)
+                        || await cache.match(event.request, { ignoreSearch: true });
                     return cached || new Response('Offline', { status: 503 });
                 }
             })

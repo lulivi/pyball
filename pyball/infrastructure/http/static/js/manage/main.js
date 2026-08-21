@@ -665,8 +665,24 @@ function openEditMode(date) {
     window.location.href = '/match?edit=1&date=' + encodeURIComponent(date);
 }
 
+function showOffline() {
+    document.getElementById('tab-equipos').innerHTML = `
+      <div class="no-match">
+        <div class="no-match-icon">📡</div>
+        <div class="no-match-title">PyBall</div>
+        <div class="no-match-msg">Sin conexión.<br>Se reintentará al recuperar internet.</div>
+      </div>
+    `;
+}
+
 // ── BOOTSTRAP ─────────────────────────────────────────────────────────────
 async function bootstrap() {
+    if (!navigator.onLine) {
+        showOffline();
+        window.addEventListener('online', () => bootstrap(), { once: true });
+        return;
+    }
+
     let attempts = 0;
 
     const showConnecting = () => {
@@ -686,6 +702,11 @@ async function bootstrap() {
     showConnecting();
 
     while (true) {
+        if (!navigator.onLine) {
+            showOffline();
+            window.addEventListener('online', () => bootstrap(), { once: true });
+            return;
+        }
         try {
             let data;
             try {
