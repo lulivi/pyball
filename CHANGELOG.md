@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.3.1 (2026-08-21)
+
+### Bug Fixes
+
+- **GL-190**: Precache page shells and add /manage offline screen
+  ([`998c5fb`](https://gitlab.com/lulivi/pyball/-/commit/998c5fb2652bda76b664e752089d83d7d08ec08e))
+
+
 ## v5.3.0 (2026-08-12)
 
 ### Features
