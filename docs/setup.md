@@ -70,7 +70,7 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `default_week_day` | Default day (`monday`–`sunday`) for new meetups | `wednesday` |
 | `default_hour` | Default start time (`HH:MM`) | `20:00` |
 | `display_date_format` | Date format used in messages | `%Y-%m-%d %H:%M` |
-| `team_colors` | Three color names: the first two are the classic-match teams, the third is only used for triangulars | `["blanco", "negro", "rojo"]` |
+| `team_colors` | Two or three color names: the first two are the classic-match teams, the third is only used for triangulars (auto-filled if you list just two) | `["blanco", "negro", "rojo"]` |
 | `base_url` | Public URL used to build the `/match` link | *(required)* |
 | `api_port` | HTTP server port | `8000` |
 | `locale` | Locale used to sort player names | `es_ES.UTF-8` |

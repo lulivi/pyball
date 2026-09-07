@@ -106,6 +106,25 @@ class TestLoadAppSettings:
         assert settings.pyball.team_emojis == ("🟡", "⚫", "🔵")
         assert settings.pyball.team_hex_bg == ("#fbbf24", "#27272a", "#1d4ed8")
 
+    def test_two_team_colors_from_config_are_honoured(self, tmp_path):
+        """A 2-color team_colors list is used as configured, not silently replaced."""
+        config = _FULL_CORE.replace(
+            'team_colors = ["blanco", "negro"]',
+            'team_colors = ["amarillo", "negro"]',
+        )
+        settings = load_app_settings(_write(tmp_path, config))
+        assert settings.pyball.team_colors == ("amarillo", "negro", "blanco")
+        assert settings.pyball.team_emojis == ("🟡", "⚫", "⚪")
+
+    def test_invalid_team_colors_length_raises_at_load(self, tmp_path):
+        """A 1-element team_colors list fails loudly at startup."""
+        config = _FULL_CORE.replace(
+            'team_colors = ["blanco", "negro"]',
+            'team_colors = ["amarillo"]',
+        )
+        with pytest.raises(SettingsValidationError, match="2 o 3 colores"):
+            load_app_settings(_write(tmp_path, config))
+
     def test_display_date_format_from_config(self, tmp_path):
         """display_date_format is read from config when set."""
         config = _FULL_CORE.replace(
@@ -141,10 +160,29 @@ class TestPyballConfigColors:
 
     def test_custom_colors_resolve_correctly(self):
         """Custom team_colors resolve to the correct palette values."""
+        s = PyballConfig(team_colors=("amarillo", "negro", "azul"))
+        assert s.team_emojis == ("🟡", "⚫", "🔵")
+        assert s.team_hex_bg == ("#fbbf24", "#27272a", "#1d4ed8")
+        assert s.team_hex_text == ("#422006", "#e4e4e7", "#eff6ff")
+
+    def test_two_colors_auto_fill_a_distinct_third(self):
+        """Listing 2 colors keeps them and appends the first unused palette color."""
         s = PyballConfig(team_colors=("amarillo", "negro"))
-        assert s.team_emojis == ("🟡", "⚫")
-        assert s.team_hex_bg == ("#fbbf24", "#27272a")
-        assert s.team_hex_text == ("#422006", "#e4e4e7")
+        assert s.team_colors == ("amarillo", "negro", "blanco")
+        assert s.team_emojis == ("🟡", "⚫", "⚪")
+
+    def test_default_two_colors_fill_with_rojo(self):
+        """The classic ('blanco', 'negro') pair fills its third slot with 'rojo'."""
+        assert PyballConfig(team_colors=("blanco", "negro")).team_colors == (
+            "blanco",
+            "negro",
+            "rojo",
+        )
+
+    def test_wrong_number_of_colors_raises(self):
+        """A single color (or 4+) raises rather than being silently accepted."""
+        with pytest.raises(ValueError, match="2 o 3 colores"):
+            PyballConfig(team_colors=("blanco",))
 
     def test_invalid_color_raises_value_error(self):
         """An unknown color name raises ValueError at construction time."""
@@ -172,10 +210,25 @@ class TestPyballConfigColors:
         """A three-element comma-separated env string is parsed correctly."""
         assert _parse_team_colors("blanco,negro,verde") == ("blanco", "negro", "verde")
 
-    def test_parse_team_colors_falls_back_on_wrong_length(self):
-        """A list or string with a length other than three falls back to the default."""
-        assert _parse_team_colors(["blanco", "negro"]) == ("blanco", "negro", "rojo")
-        assert _parse_team_colors("blanco,negro,verde,azul") == ("blanco", "negro", "rojo")
+    def test_parse_team_colors_from_toml_list_of_two(self):
+        """A two-element TOML list is kept as-is (the third is filled in later)."""
+        assert _parse_team_colors(["Amarillo", "Negro"]) == ("amarillo", "negro")
+
+    def test_parse_team_colors_from_env_string_of_two(self):
+        """A two-element comma-separated env string is kept as-is."""
+        assert _parse_team_colors("amarillo,negro") == ("amarillo", "negro")
+
+    def test_parse_team_colors_raises_on_wrong_length(self):
+        """A list or string with a length other than 2 or 3 raises, never falls back."""
+        with pytest.raises(SettingsValidationError, match="2 o 3 colores"):
+            _parse_team_colors(["blanco"])
+        with pytest.raises(SettingsValidationError, match="2 o 3 colores"):
+            _parse_team_colors("blanco,negro,verde,azul")
+
+    def test_parse_team_colors_raises_on_non_sequence(self):
+        """A non-list/non-string value raises instead of silently defaulting."""
+        with pytest.raises(SettingsValidationError, match="lista de 2 o 3"):
+            _parse_team_colors(42)
 
 
 class TestTokenSettings:

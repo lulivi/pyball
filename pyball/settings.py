@@ -95,7 +95,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         default_week_day=raw["default_week_day"],
         default_hour=raw["default_hour"],
         base_url=raw["base_url"],
-        team_colors=_parse_team_colors(raw["team_colors"]),
+        team_colors=cast("tuple[str, str, str]", _parse_team_colors(raw["team_colors"])),
         locale=raw["locale"],
         display_date_format=raw["display_date_format"],
         data_dir=raw["data_dir"],
@@ -157,11 +157,25 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     icons_dir: str = ""
 
     def __post_init__(self) -> None:
-        """Resolve team_colors into derived emoji and hex fields."""
-        for color_name in self.team_colors:
+        """Resolve team_colors into derived emoji and hex fields.
+
+        Accepts 2 or 3 color names. When only 2 are given, a third (used solely
+        for triangulars) is filled in with the first palette color not already
+        in use, so the classic-match teams stay exactly as configured.
+        """
+        colors = tuple(self.team_colors)
+        for color_name in colors:
             if color_name not in COLOR_PALETTE:
                 valid = ", ".join(COLOR_PALETTE)
                 raise ValueError(f"Color de equipo desconocido: '{color_name}'. Opciones: {valid}")
+        if len(colors) == 2:
+            colors = (*colors, next(c for c in COLOR_PALETTE if c not in colors))
+        elif len(colors) != 3:
+            raise ValueError(
+                f"team_colors debe tener 2 o 3 colores, se encontraron {len(colors)}: "
+                f"{list(colors)}."
+            )
+        self.team_colors = cast("tuple[str, str, str]", colors)
         self.team_emojis = cast(
             "tuple[str, str, str]", tuple(COLOR_PALETTE[c]["emoji"] for c in self.team_colors)
         )
@@ -215,19 +229,27 @@ def _parse_bool(value) -> bool:
     return False
 
 
-def _parse_team_colors(value) -> tuple[str, str, str]:
-    """Parse team_colors from config list or comma-separated env string."""
-    if isinstance(value, list) and len(value) == 3:
-        return (
-            str(value[0]).strip().lower(),
-            str(value[1]).strip().lower(),
-            str(value[2]).strip().lower(),
-        )
+def _parse_team_colors(value) -> tuple[str, ...]:
+    """Parse team_colors from a config list or comma-separated env string.
+
+    Accepts 2 or 3 color names. Names are lowercased and stripped; a missing
+    third color is filled in later by ``PyballConfig``. Any other shape (0, 1 or
+    4+ names, or a non-list/non-string value) raises ``SettingsValidationError``
+    instead of silently falling back to a default.
+    """
     if isinstance(value, str):
-        parts = [p.strip().lower() for p in value.split(",") if p.strip()]
-        if len(parts) == 3:
-            return (parts[0], parts[1], parts[2])
-    return ("blanco", "negro", "rojo")
+        names = [part.strip().lower() for part in value.split(",") if part.strip()]
+    elif isinstance(value, (list, tuple)):
+        names = [str(item).strip().lower() for item in value if str(item).strip()]
+    else:
+        raise SettingsValidationError(
+            f"team_colors debe ser una lista de 2 o 3 colores, se recibió: {value!r}."
+        )
+    if len(names) not in (2, 3):
+        raise SettingsValidationError(
+            f"team_colors debe tener 2 o 3 colores, se encontraron {len(names)}: {names}."
+        )
+    return tuple(names)
 
 
 def _get_env_override(section: str, key: str, default):

@@ -46,7 +46,8 @@ default_hour = "20:00"
 # Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
 display_date_format = "%Y-%m-%d %H:%M"
 
-# Colors for the teams (2 for classic matches, a 3rd for triangulars)
+# Colors for the teams: 2 or 3 names. The first two are the classic-match teams;
+# a 3rd (only used for triangulars) is auto-filled when you list just 2.
 # Override with PYBALL_CORE_TEAM_COLORS (comma-separated, e.g. "amarillo,negro,rojo")
 # Available: blanco  negro  rojo  naranja  amarillo  verde  azul  morado  marron
 team_colors = ["blanco", "negro", "rojo"]
