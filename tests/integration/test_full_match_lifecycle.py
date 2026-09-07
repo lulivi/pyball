@@ -2,10 +2,11 @@
 
 # pylint: disable=redefined-outer-name
 
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 
 import pytest
 
+from pyball.application.meetup.compute_stats import _season_start
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
@@ -14,9 +15,11 @@ from pyball.domain.meetup.errors import (
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.bot.handlers.meetup import search_handler, stats_handler
 
-_DATE_ARGS = ["2026-06-15", "20:00"]
-_ISO_DATE = "2026-06-15T20:00"
-_MATCH_DATE = datetime(2026, 6, 15, 20, 0)
+# A fixed point ~2 weeks into the current season, so season-scoped stats
+# assertions stay valid no matter when the suite runs.
+_MATCH_DATE = datetime.combine(_season_start(date.today()) + timedelta(days=14), time(20, 0))
+_ISO_DATE = _MATCH_DATE.strftime("%Y-%m-%dT%H:%M")
+_DATE_ARGS = [_MATCH_DATE.strftime("%Y-%m-%d"), _MATCH_DATE.strftime("%H:%M")]
 
 _REGULARS = [f"Regular_{i:02d}" for i in range(1, 11)]  # Regular_01..Regular_10
 _SUBS = [f"Sub_{i:02d}" for i in range(1, 5)]  # Sub_01..Sub_04

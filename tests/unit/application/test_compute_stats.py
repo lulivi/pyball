@@ -1,9 +1,9 @@
 """Tests for ComputeStats use case."""
 
-from datetime import datetime, time
+from datetime import date, datetime, time, timedelta
 from unittest.mock import MagicMock
 
-from pyball.application.meetup.compute_stats import ComputeStats, StatsReport
+from pyball.application.meetup.compute_stats import ComputeStats, StatsReport, _season_start
 from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
 from pyball.domain.player.models import Player
 from pyball.infrastructure.persistence import LegacyStats
@@ -12,6 +12,16 @@ from pyball.infrastructure.persistence import LegacyStats
 def make_player(name: str) -> Player:
     """Create a player with a generated ID."""
     return Player.create(name=name, group="regular")
+
+
+def in_season(offset_days: int = 30) -> datetime:
+    """Return a datetime comfortably inside the current season (Sep 1 onwards)."""
+    return datetime.combine(_season_start(date.today()) + timedelta(days=offset_days), time(20, 0))
+
+
+def before_season(offset_days: int = 30) -> datetime:
+    """Return a datetime before the current season start."""
+    return datetime.combine(_season_start(date.today()) - timedelta(days=offset_days), time(20, 0))
 
 
 def make_meetup(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -189,11 +199,10 @@ class TestComputeStatsSeasonFilter:
     """Season boundary filtering."""
 
     def test_meetup_in_season_is_included(self):
-        """A meetup after season start (Sep 1 of current year) is in the season scope."""
+        """A meetup after the current season start is in the season scope."""
         alice = make_player("Alice")
         bob = make_player("Bob")
-        # Season 2025/2026: starts 2025-09-01
-        meetup = make_meetup(datetime(2025, 10, 5, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup = make_meetup(in_season(), [alice.id], [bob.id], 1, 0)
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         assert len(report.season.players) > 0
@@ -202,12 +211,26 @@ class TestComputeStatsSeasonFilter:
         """A meetup before season start is excluded from season scope but not all-time."""
         alice = make_player("Alice")
         bob = make_player("Bob")
-        # On test date 2026-04-13, season starts 2025-09-01, so 2024-05-01 is excluded
-        meetup = make_meetup(datetime(2024, 5, 1, 20, 0), [alice.id], [bob.id], 1, 0)
+        meetup = make_meetup(before_season(), [alice.id], [bob.id], 1, 0)
         meetup_repo, player_repo = make_repos([meetup], [alice, bob])
         report = ComputeStats(meetup_repo, player_repo).execute()
         assert len(report.season.players) == 0
         assert len(report.all_time.players) > 0
+
+
+class TestSeasonStart:
+    """Direct tests for the Sep 1 season-boundary helper."""
+
+    def test_september_onwards_starts_this_years_season(self):
+        """From September to December the season year is the current year."""
+        assert _season_start(date(2026, 9, 1)) == date(2026, 9, 1)
+        assert _season_start(date(2026, 12, 31)) == date(2026, 9, 1)
+
+    def test_before_september_uses_last_years_season(self):
+        """From January to August the season started on Sep 1 of the previous year."""
+        assert _season_start(date(2026, 8, 31)) == date(2025, 9, 1)
+        assert _season_start(date(2026, 1, 15)) == date(2025, 9, 1)
+        assert _season_start(date(2024, 2, 29)) == date(2023, 9, 1)
 
 
 class TestComputeStatsChemistry:
@@ -568,9 +591,9 @@ class TestComputeStatsLegacyAssistsInRankDelta:
         alice = make_player("Alice")
         bob = make_player("Bob")
 
-        # Both meetups are in the 2025-2026 season (starts 2025-09-01)
-        meetup1 = make_meetup(datetime(2025, 10, 5, 20, 0), [alice.id], [bob.id], 1, 0)
-        meetup2 = make_meetup(datetime(2025, 10, 12, 20, 0), [alice.id], [bob.id], 1, 0)
+        # Both meetups are inside the current season
+        meetup1 = make_meetup(in_season(30), [alice.id], [bob.id], 1, 0)
+        meetup2 = make_meetup(in_season(37), [alice.id], [bob.id], 1, 0)
 
         alice_id = str(alice.id.value)
         legacy = MagicMock(spec=LegacyStats)
