@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.4.0 (2026-09-07)
+
+### Features
+
+- **GL-193..GL-196**: Self-contained copy-teams message + swap-teams in /manage
+  ([`f2a0ca0`](https://gitlab.com/lulivi/pyball/-/commit/f2a0ca0fd4fac49a7cc10490e2a14bdb2a8e9c64))
+
+
 ## v5.3.2 (2026-09-07)
 
 ### Bug Fixes
