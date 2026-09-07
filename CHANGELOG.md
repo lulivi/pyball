@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v5.4.1 (2026-09-07)
+
+### Bug Fixes
+
+- **GL-197..GL-200**: Remove suppressed native dialogs from the match page and make it
+  offline-capable
+  ([`36f121d`](https://gitlab.com/lulivi/pyball/-/commit/36f121d7ca099ca3900be1e419b9d686dd2bb938))
+
+
 ## v5.4.0 (2026-09-07)
 
 ### Features
