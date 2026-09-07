@@ -82,8 +82,9 @@ This is where you choose the match format:
 - **`/manage`:** click "⚽ Generar 2 equipos" for a classic match, or "⚽ Generar 3
   equipos" for a triangular. Teams are built with a balanced algorithm (weighted by
   recent results and legacy stats, if configured) or randomly. You can also open
-  "✏️ Editar equipos" afterward to manually move, replace, add, or remove players from
-  any team — the same panel works for 2 or 3 teams.
+  "✏️ Editar convocatoria" afterward to manually move, replace, add, or remove players
+  from any team (the same panel works for 2 or 3 teams), swap two teams' squads with the
+  "🔄" buttons, or change the meetup's date and location.
 
 As soon as teams are assigned, the first match is ready to track — no separate "start"
 step needed.
@@ -96,7 +97,7 @@ goals-conceded score, so a team is never guaranteed one but the strongest availa
 keepers tend to end up on different teams. The other three positions
 (`defensa`/`centrocampista`/`delantero`) are used as a softer signal to avoid stacking
 one team with every player of the same position. You can always see or override which
-player is a team's goalkeeper from "✏️ Editar equipos".
+player is a team's goalkeeper from "✏️ Editar convocatoria".
 
 The moment teams exist, signup closes automatically: Telegram's "✔ Unirse" /
 "✖ Salir" buttons disappear from the callup and substitutes messages, and tapping
@@ -107,8 +108,9 @@ If you also want to protect the teams from further changes in `/manage`, click
 "▶️ Empezar partido" once the lineup looks right — it hides "Regenerar equipos" and
 "🗑 Cancelar partido", and reveals "🔗 Copiar link partido" (a one-click copy of the
 `/match` URL, with `match_token` embedded if configured) plus, for a triangular,
-"🏁 Cerrar triangular". "✏️ Editar equipos" (reassigning players between the
-already-generated teams) keeps working either way, started or not.
+"🏁 Cerrar triangular". "✏️ Editar convocatoria" (reassigning players between the
+already-generated teams, or changing the date and location) keeps working either way,
+started or not.
 
 Changed your mind? "🗑️ Destruir equipos" discards the current teams (started or not)
 and returns to the roster view, so you can edit the convocatoria and, on Telegram,

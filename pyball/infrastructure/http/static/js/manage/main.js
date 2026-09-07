@@ -332,11 +332,16 @@ async function pickRosterAdd(id) {
 function renderState2(data) {
     const t = data.teams;
     if (teamsEditPanelOpen) {
+        if (dateLocationEditOpen) {
+            document.getElementById('tab-equipos').innerHTML = buildDateLocationEditor(data, true);
+            return;
+        }
         document.getElementById('tab-equipos').innerHTML = `
-      ${buildDateLocationEditor(data, dateLocationEditOpen)}
+      ${buildDateLocationEditor(data, false)}
       <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✕ Cancelar edición</button>
       <div id="edit-panel-container"></div>
     `;
+        _renderTeamsEditPanel();
         return;
     }
     const nameById = {};
@@ -350,12 +355,14 @@ function renderState2(data) {
         `${t.emojiB} *${t.nameB}*\n${markGoalkeeper(t.teamB, t.goalkeeperB).join('\n')}`,
     ];
     if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${markGoalkeeper(t.teamC, t.goalkeeperC).join('\n')}`);
-    const teamsText = blocks.join('\n\n');
+    const header = data.location
+        ? `📅 *${_formatDate(data.date)}*\n📍 *${data.location}*`
+        : `📅 *${_formatDate(data.date)}*`;
+    const teamsText = `${header}\n\n${blocks.join('\n\n')}`;
     document.getElementById('tab-equipos').innerHTML = `
-    ${buildDateLocationEditor(data, dateLocationEditOpen)}
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
     ${data.locked ? '' : buildTeamButtonsRow()}
-    <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar equipos</button>
+    <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar convocatoria</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
     ${!data.locked && data.signupUrl ? copyLinkButton('🔗 Copiar link apuntarse', data.signupUrl) : ''}
     ${data.locked && t.matchUrl ? copyLinkButton('🔗 Copiar link partido', t.matchUrl) : ''}
@@ -427,9 +434,9 @@ async function toggleTeamsEditPanel() {
             return;
         }
         editReplacingPlayer = null;
+        dateLocationEditOpen = false;
         teamsEditPanelOpen = true;
         renderState2(activeMatchData);
-        _renderTeamsEditPanel();
     };
     if (!allPlayers.length) {
         try {
@@ -448,6 +455,15 @@ function moveToOtherTeam(id, fromTeam, toTeam) {
     const [player] = fromArr.splice(idx, 1);
     if (editGoalkeepers[fromTeam] === id) editGoalkeepers[fromTeam] = null;
     editTeams[toTeam].push(player);
+    _renderTeamsEditPanel();
+}
+
+function swapEditTeams(x, y) {
+    editReplacingPlayer = null;
+    editAddOpenTeam = null;
+    editAddQuery = '';
+    [editTeams[x], editTeams[y]] = [editTeams[y], editTeams[x]];
+    [editGoalkeepers[x], editGoalkeepers[y]] = [editGoalkeepers[y], editGoalkeepers[x]];
     _renderTeamsEditPanel();
 }
 
@@ -803,6 +819,15 @@ function _renderTeamsEditPanel() {
     const nameByLetter = { A: t.nameA, B: t.nameB, C: t.nameC };
     const emojiByLetter = { A: t.emojiA, B: t.emojiB, C: t.emojiC };
 
+    const swapRow = t.hasRecordedResults ? '' : `
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+      ${editTeamLetters.slice(0, -1).map((letter, i) => {
+          const other = editTeamLetters[i + 1];
+          return `<button class="btn-sm gray" style="flex:1;padding:5px 8px;font-size:0.78rem;white-space:nowrap;"
+           onclick="swapEditTeams('${letter}','${other}')">🔄 ${escHtml(nameByLetter[letter])} ↔ ${escHtml(nameByLetter[other])}</button>`;
+      }).join('')}
+    </div>`;
+
     const row = (p, team) => {
         const hl = editReplacingPlayer && editReplacingPlayer.id === p.id
             ? 'background:#431407;border-color:#ef4444;' : '';
@@ -871,9 +896,7 @@ function _renderTeamsEditPanel() {
 
     document.getElementById('edit-panel-container').innerHTML = `
     <div class="edit-panel" id="teams-edit-panel">
-      <div class="edit-panel-header">
-        <div class="step-label" style="margin:0;">✏️ Editar equipos</div>
-      </div>
+      ${swapRow}
       ${replaceSearch}
       ${teamsSection}
       ${addPanel}
@@ -944,6 +967,7 @@ Object.assign(window, {
     destroyTeams,
     toggleTeamsEditPanel,
     moveToOtherTeam,
+    swapEditTeams,
     setEditGoalkeeper,
     startReplacePlayer,
     pickReplacement,

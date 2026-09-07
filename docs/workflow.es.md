@@ -89,9 +89,10 @@ Aquí es donde eliges el formato del partido:
 - **`/manage`:** pulsa "⚽ Generar 2 equipos" para un partido clásico, o "⚽ Generar 3
   equipos" para un triangular. Los equipos se generan con un algoritmo equilibrado
   (ponderado por resultados recientes y estadísticas heredadas, si están configuradas) o
-  de forma aleatoria. También puedes abrir "✏️ Editar equipos" después para mover,
-  reemplazar, añadir o quitar jugadores de cualquier equipo manualmente — el mismo panel
-  funciona con 2 o 3 equipos.
+  de forma aleatoria. También puedes abrir "✏️ Editar convocatoria" después para mover,
+  reemplazar, añadir o quitar jugadores de cualquier equipo manualmente (el mismo panel
+  funciona con 2 o 3 equipos), intercambiar las plantillas de dos equipos con los botones
+  "🔄", o cambiar la fecha y la ubicación del partido.
 
 En cuanto se asignan los equipos, el primer partido ya está listo para seguir — no hace
 falta ningún paso extra de "arrancar".
@@ -105,7 +106,7 @@ garantizado, pero los mejores porteros disponibles tienden a acabar en equipos
 distintos. El resto de posiciones (`defensa`/`centrocampista`/`delantero`) se usan como
 una señal más suave para evitar amontonar en un mismo equipo a todos los jugadores de
 una misma posición. Siempre puedes ver o cambiar quién es el portero de un equipo desde
-"✏️ Editar equipos".
+"✏️ Editar convocatoria".
 
 Nada más existir los equipos, la convocatoria se cierra automáticamente: los
 botones "✔ Unirse" / "✖ Salir" de Telegram desaparecen de los mensajes de titulares y
@@ -116,8 +117,9 @@ Si además quieres proteger los equipos de más cambios en `/manage`, pulsa
 "▶️ Empezar partido" cuando la convocatoria te convenza — oculta "Regenerar equipos" y
 "🗑 Cancelar partido", y muestra "🔗 Copiar link partido" (copia de un toque la URL de
 `/match`, con `match_token` incluido si está configurado) y, en un triangular,
-"🏁 Cerrar triangular". "✏️ Editar equipos" (reasignar jugadores entre los equipos ya
-generados) sigue funcionando igual, haya empezado el partido o no.
+"🏁 Cerrar triangular". "✏️ Editar convocatoria" (reasignar jugadores entre los equipos
+ya generados, o cambiar la fecha y la ubicación) sigue funcionando igual, haya empezado
+el partido o no.
 
 ¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales (haya
 empezado el partido o no) y vuelve a la vista de convocatoria, para que puedas
