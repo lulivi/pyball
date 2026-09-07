@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v5.3.2 (2026-09-07)
+
+### Bug Fixes
+
+- **GL-191**: Honor a 2-color team_colors list instead of silently defaulting
+  ([`c88c9de`](https://gitlab.com/lulivi/pyball/-/commit/c88c9def2c203a9775e8d9a4d4021f13e9fec1cd))
+
+### Testing
+
+- **GL-192**: Derive season-boundary test dates from the current season
+  ([`ed510ca`](https://gitlab.com/lulivi/pyball/-/commit/ed510ca7eaeacb49497365a71bc6815e986c89bc))
+
+
 ## v5.3.1 (2026-08-21)
 
 ### Bug Fixes
