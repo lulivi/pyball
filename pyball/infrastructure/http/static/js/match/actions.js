@@ -1,8 +1,13 @@
-import { ctx, store, getGoals, clearSaved, applyTeamColors, saveTeamsSnapshot } from './state.js';
+import {
+    ctx, store, getGoals, clearSaved, applyTeamColors, saveTeamsSnapshot, persistStateNow,
+} from './state.js';
 import { post } from '../api.js';
 
+let _saveArmTimer = null;
+
 export function setTab(tabName) {
-    store.set({ activeTab: tabName });
+    clearTimeout(_saveArmTimer);
+    store.set({ activeTab: tabName, saveArmed: false, saveError: null });
 }
 
 export function selectPlayer(playerName, teamId) {
@@ -75,37 +80,41 @@ export function clearAssist(eventIndex) {
     store.set({ events, editingEvent: null });
 }
 
-export async function finishMatch() {
-    if (!confirm('¿Seguro que quieres guardar el partido?')) return;
-    const saveBtn = document.getElementById('save-btn');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Enviando datos...';
+export function requestSave() {
+    const s = store.get();
+    if (s.saving) return;
+    if (!s.saveArmed) {
+        store.set({ saveArmed: true, saveError: null });
+        clearTimeout(_saveArmTimer);
+        _saveArmTimer = setTimeout(() => store.set({ saveArmed: false }), 4000);
+        return;
+    }
+    clearTimeout(_saveArmTimer);
+    store.set({ saveArmed: false, saving: true, saveError: null });
+    if (ctx.isEditMode) _submitEdit();
+    else _submitFinish();
+}
+
+async function _submitFinish() {
     try {
-        const data = await post('/api/match/finish', {
-            meetup_date: ctx.meetupDate,
-            events: [...store.get().events].reverse(),
-            finalScore: { A: getGoals('A'), B: getGoals('B') },
-        });
+        const data = await post('/api/match/finish', _payload());
         if (data.next_round) {
             _continueToNextRound(data.next_round);
             return;
         }
         clearSaved();
-        document.getElementById('app').innerHTML = `
-            <div class="no-match">
-                <div class="success-banner">✅ Partido guardado</div>
-                <div class="no-match-icon">⚽</div>
-                <div class="no-match-title">PyBall</div>
-                <div class="no-match-msg">Vuelve a /manage<br>para el próximo partido.</div>
-            </div>`;
+        _renderDone('✅ Partido guardado', 'Vuelve a /manage<br>para el próximo partido.');
     } catch (err) {
-        if (err.status === 0) {
-            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
-        } else {
-            alert(`❌ Error del servidor: ${err.detail || err.message}`);
-        }
-        saveBtn.disabled = false;
-        saveBtn.textContent = '💾 CONFIRMAR Y GUARDAR PARTIDO';
+        store.set({ saving: false, saveError: _errMsg(err) });
+    }
+}
+
+async function _submitEdit() {
+    try {
+        await post('/api/match/' + encodeURIComponent(ctx.meetupDate) + '/edit', _payload());
+        _renderDone('✅ Corrección guardada', 'Resultado corregido correctamente.');
+    } catch (err) {
+        store.set({ saving: false, saveError: _errMsg(err) });
     }
 }
 
@@ -119,46 +128,37 @@ function _continueToNextRound(nextRound) {
         colorA: nextRound.colorA, colorB: nextRound.colorB,
         colorTextA: nextRound.colorTextA, colorTextB: nextRound.colorTextB,
     });
-    store.set({ events: [], currentStep: 1, tempScorer: null, tempScorerTeam: null, editingEvent: null });
-}
-
-export async function editMatch() {
-    if (!confirm('¿Guardar la corrección del resultado?')) return;
-    await _submit('/api/match/' + encodeURIComponent(ctx.meetupDate) + '/edit', {
-        success: '✅ Corrección guardada',
-        message: 'Resultado corregido correctamente.',
-        idleLabel: '💾 GUARDAR CORRECCIÓN',
-        clear: false,
+    store.set({
+        events: [], currentStep: 1, tempScorer: null, tempScorerTeam: null,
+        editingEvent: null, saveArmed: false, saving: false, saveError: null,
     });
+    // Redundant with persistTo's subscriber (store.set above already wrote STATE_KEY);
+    // kept as an explicit invariant that the new round is persisted before any await.
+    persistStateNow();
 }
 
-async function _submit(url, { success, message, idleLabel, clear }) {
-    const saveBtn = document.getElementById('save-btn');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Enviando datos...';
-    try {
-        await post(url, {
-            meetup_date: ctx.meetupDate,
-            events: [...store.get().events].reverse(),
-            finalScore: { A: getGoals('A'), B: getGoals('B') },
-        });
-        if (clear) clearSaved();
-        document.getElementById('app').innerHTML = `
+function _payload() {
+    return {
+        meetup_date: ctx.meetupDate,
+        events: [...store.get().events].reverse(),
+        finalScore: { A: getGoals('A'), B: getGoals('B') },
+    };
+}
+
+function _renderDone(banner, message) {
+    document.getElementById('app').innerHTML = `
             <div class="no-match">
-                <div class="success-banner">${success}</div>
+                <div class="success-banner">${banner}</div>
                 <div class="no-match-icon">⚽</div>
                 <div class="no-match-title">PyBall</div>
                 <div class="no-match-msg">${message}</div>
             </div>`;
-    } catch (err) {
-        if (err.status === 0) {
-            alert('❌ Error de red. Revisa la conexión e inténtalo de nuevo.');
-        } else {
-            alert(`❌ Error del servidor: ${err.detail || err.message}`);
-        }
-        saveBtn.disabled = false;
-        saveBtn.textContent = idleLabel;
-    }
+}
+
+function _errMsg(err) {
+    return err.status === 0
+        ? '❌ Error de red. Revisa la conexión e inténtalo de nuevo.'
+        : `❌ Error del servidor: ${err.detail || err.message}`;
 }
 
 function _now() {

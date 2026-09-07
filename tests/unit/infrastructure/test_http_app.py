@@ -1,6 +1,7 @@
 """Tests for the FastAPI HTTP application."""
 
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -1785,6 +1786,20 @@ async def test_sw_js_embeds_package_version():
     assert response.status_code == 200
     assert "__VERSION__" not in response.text
     assert "pyball-" in response.text
+
+
+@pytest.mark.asyncio
+async def test_sw_js_precaches_js_modules():
+    """/sw.js precache array lists every static JS module actually on disk."""
+    app, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/sw.js")
+    assert response.status_code == 200
+    static_js = Path(__file__).resolve().parents[3] / "pyball/infrastructure/http/static/js"
+    js_modules = sorted(p.relative_to(static_js).as_posix() for p in static_js.rglob("*.js"))
+    assert js_modules, "no JS modules found on disk"
+    for rel in js_modules:
+        assert f"'/js/{rel}'," in response.text
 
 
 @pytest.mark.asyncio

@@ -133,8 +133,23 @@ function renderEventsTab() {
         ? state.events.map((e, i) => renderEventRow(e, i)).join('')
         : `<div class="event-log" style="color:#64748b;justify-content:center;"><em>No hay eventos aún...</em></div>`;
 
-    const saveLabel = ctx.isEditMode ? '💾 GUARDAR CORRECCIÓN' : '💾 CONFIRMAR Y GUARDAR PARTIDO';
-    const saveAction = ctx.isEditMode ? 'editMatch()' : 'finishMatch()';
+    const idleLabel = ctx.isEditMode ? '💾 GUARDAR CORRECCIÓN' : '💾 CONFIRMAR Y GUARDAR PARTIDO';
+    const armedLabel = ctx.isEditMode
+        ? '⚠️ Pulsa otra vez para guardar la corrección'
+        : '⚠️ Pulsa otra vez para guardar el partido';
+
+    let btnLabel = idleLabel;
+    let btnClass = 'save-btn';
+    if (state.saving) {
+        btnLabel = 'Enviando datos...';
+    } else if (state.saveArmed) {
+        btnLabel = armedLabel;
+        btnClass = 'save-btn save-btn-armed';
+    }
+    const disabledAttr = state.saving ? ' disabled' : '';
+    const errorHtml = state.saveError
+        ? `<div class="save-error">${escHtml(state.saveError)}</div>`
+        : '';
 
     return `
             <div>
@@ -148,7 +163,8 @@ function renderEventsTab() {
                     </div>
                     ${eventsHtml}
                 </div>
-                <button id="save-btn" class="save-btn" onclick="${saveAction}">${saveLabel}</button>
+                ${errorHtml}
+                <button id="save-btn" class="${btnClass}" onclick="requestSave()"${disabledAttr}>${btnLabel}</button>
             </div>
         `;
 }
@@ -170,6 +186,19 @@ function renderOffline() {
             <div class="no-match-title">PyBall</div>
             <div class="no-match-msg">Sin conexión.<br>Se reintentará al recuperar internet.</div>
         </div>`;
+}
+
+function renderStaleMatchChoice(oldDateLabel, onKeep, onFresh) {
+    document.getElementById('app').innerHTML = `
+            <div class="no-match">
+                <div class="no-match-icon">⚽</div>
+                <div class="no-match-title">PyBall</div>
+                <div class="no-match-msg">Hay un partido del <strong>${escHtml(oldDateLabel)}</strong><br>sin guardar en este dispositivo.</div>
+                <button class="save-btn" style="max-width:280px;" id="stale-keep">▶️ Seguir con ese partido</button>
+                <button class="save-btn save-btn-armed" style="max-width:280px;" id="stale-fresh">🆕 Empezar el de hoy</button>
+            </div>`;
+    document.getElementById('stale-keep').addEventListener('click', onKeep, { once: true });
+    document.getElementById('stale-fresh').addEventListener('click', onFresh, { once: true });
 }
 
 function renderApp() {
@@ -196,4 +225,4 @@ function formatMatchDate(dateStr) {
     return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
 
-export { renderApp, renderNoMatch, renderOffline, formatMatchDate };
+export { renderApp, renderNoMatch, renderOffline, renderStaleMatchChoice, formatMatchDate };

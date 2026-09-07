@@ -19,6 +19,9 @@ export const store = createStore({
     tempScorerTeam: null,
     editingEvent: null,
     activeTab: 'players',
+    saveArmed: false,
+    saving: false,
+    saveError: null,
 });
 
 // Persistence mirrors the old persistState(): skipped entirely in edit mode.
@@ -26,18 +29,31 @@ export function enablePersistence() {
     persistTo(store, STATE_KEY, { when: () => !ctx.isEditMode });
 }
 
+// One-shot persist of the current store, for the initial write that a
+// change-triggered subscription (see enablePersistence) would otherwise miss:
+// without a first goal, only the teams snapshot exists and an offline reopen
+// cannot restore the match. Skipped in edit mode, same as enablePersistence.
+export function persistStateNow() {
+    if (ctx.isEditMode) return;
+    try {
+        localStorage.setItem(STATE_KEY, JSON.stringify(store.get()));
+    } catch { /* ignore */ }
+}
+
 export function getGoals(teamId) {
     return store.get().events.filter(e => e.team === teamId).length;
 }
 
 export function saveTeamsSnapshot(colors = {}) {
-    localStorage.setItem(TEAMS_KEY, JSON.stringify({
-        teamA: ctx.teamA, teamB: ctx.teamB,
-        nameA: ctx.nameA, nameB: ctx.nameB,
-        meetupDate: ctx.meetupDate,
-        colorA: colors.colorA ?? null, colorB: colors.colorB ?? null,
-        colorTextA: colors.colorTextA ?? null, colorTextB: colors.colorTextB ?? null,
-    }));
+    try {
+        localStorage.setItem(TEAMS_KEY, JSON.stringify({
+            teamA: ctx.teamA, teamB: ctx.teamB,
+            nameA: ctx.nameA, nameB: ctx.nameB,
+            meetupDate: ctx.meetupDate,
+            colorA: colors.colorA ?? null, colorB: colors.colorB ?? null,
+            colorTextA: colors.colorTextA ?? null, colorTextB: colors.colorTextB ?? null,
+        }));
+    } catch { /* ignore */ }
 }
 
 export function clearSaved() {

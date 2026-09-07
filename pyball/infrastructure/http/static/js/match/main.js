@@ -1,11 +1,13 @@
 import { get, ApiError } from '../api.js';
 import { loadPersisted } from '../store.js';
 import {
-    ctx, store, enablePersistence, saveTeamsSnapshot, clearSaved,
+    ctx, store, enablePersistence, persistStateNow, saveTeamsSnapshot, clearSaved,
     applyTeamColors, STATE_KEY, TEAMS_KEY,
 } from './state.js';
 import * as actions from './actions.js';
-import { renderApp, renderNoMatch, renderOffline, formatMatchDate } from './views.js';
+import {
+    renderApp, renderNoMatch, renderOffline, renderStaleMatchChoice, formatMatchDate,
+} from './views.js';
 
 function initializeApp() {
     const params = new URLSearchParams(window.location.search);
@@ -32,31 +34,15 @@ function initializeApp() {
             if (navigator.onLine) loadActiveMatch(true);
             return;
         }
-        const oldDate = formatMatchDate(savedTeams.meetupDate);
-        if (!confirm(`Hay un partido del ${oldDate} sin guardar.\n¿Empezar el de hoy y descartar el anterior?`)) {
-            adoptSaved(savedState, savedTeams);
-            return;
-        }
-        clearSaved();
-    }
-
-    const teamAParam = params.get('teamA');
-    const teamBParam = params.get('teamB');
-    if (!teamAParam || !teamBParam) {
-        waitForMatch();
+        renderStaleMatchChoice(
+            formatMatchDate(savedTeams.meetupDate),
+            () => adoptSaved(savedState, savedTeams),
+            () => { clearSaved(); startFreshFlow(); },
+        );
         return;
     }
 
-    ctx.meetupDate = urlDate;
-    ctx.nameA = params.get('nameA') || 'A';
-    ctx.nameB = params.get('nameB') || 'B';
-    ctx.teamA = teamAParam.split(',');
-    ctx.teamB = teamBParam.split(',');
-    saveTeamsSnapshot({
-        colorA: params.get('colorA'), colorB: params.get('colorB'),
-        colorTextA: params.get('colorTextA'), colorTextB: params.get('colorTextB'),
-    });
-    renderApp();
+    startFreshFlow();
 }
 
 function adoptSaved(savedState, savedTeams) {
@@ -69,7 +55,29 @@ function adoptSaved(savedState, savedTeams) {
         savedTeams.colorA, savedTeams.colorTextA,
         savedTeams.colorB, savedTeams.colorTextB,
     );
-    store.set({ ...savedState, editingEvent: null });
+    store.set({ ...savedState, editingEvent: null, saveArmed: false, saving: false, saveError: null });
+}
+
+function startFreshFlow() {
+    const params = new URLSearchParams(window.location.search);
+    const teamAParam = params.get('teamA');
+    const teamBParam = params.get('teamB');
+    if (!teamAParam || !teamBParam) {
+        waitForMatch();
+        return;
+    }
+
+    ctx.meetupDate = params.get('date') || '';
+    ctx.nameA = params.get('nameA') || 'A';
+    ctx.nameB = params.get('nameB') || 'B';
+    ctx.teamA = teamAParam.split(',');
+    ctx.teamB = teamBParam.split(',');
+    saveTeamsSnapshot({
+        colorA: params.get('colorA'), colorB: params.get('colorB'),
+        colorTextA: params.get('colorTextA'), colorTextB: params.get('colorTextB'),
+    });
+    persistStateNow();
+    renderApp();
 }
 
 async function waitForMatch() {
@@ -156,6 +164,7 @@ function applyMatchData(data) {
         colorA: data.colorA, colorB: data.colorB,
         colorTextA: data.colorTextA, colorTextB: data.colorTextB,
     });
+    persistStateNow();
     renderApp();
 }
 
@@ -170,8 +179,7 @@ Object.assign(window, {
     togglePicker: actions.togglePicker,
     updateEventPlayer: actions.updateEventPlayer,
     clearAssist: actions.clearAssist,
-    finishMatch: actions.finishMatch,
-    editMatch: actions.editMatch,
+    requestSave: actions.requestSave,
     waitForMatch,
 });
 
