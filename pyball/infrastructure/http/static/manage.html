@@ -110,6 +110,11 @@
   button.edit-chip { width: 100%; text-align: left; cursor: pointer; color: #f8fafc; font-family: inherit; }
   .chip-text-col { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 5px; }
   .chip-primary { color: #f8fafc; font-weight: 600; }
+
+  /* Expanded detail panel for a past convocatoria — nested under its row */
+  .convocatoria-detail:empty { display: none; }
+  .convocatoria-detail { margin-left: 10px; padding-left: 10px; border-left: 2px solid #334155; }
+
   .remove-btn { background: transparent; border: none; color: #ef4444; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 2px; }
   .remove-btn:hover { color: #fca5a5; }
   .regen-note { font-size: 0.78rem; color: #64748b; text-align: center; margin-bottom: 6px; }

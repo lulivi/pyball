@@ -128,7 +128,7 @@ function buildConvocatoriaRow(item, open) {
       </div>
       <span id="convocatoria-arrow-${escHtml(item.date)}">${open ? '▾' : '▸'}</span>
     </button>
-    <div id="convocatoria-detail-${escHtml(item.date)}"></div>`;
+    <div class="convocatoria-detail" id="convocatoria-detail-${escHtml(item.date)}"></div>`;
 }
 
 // Detail panel for one expanded row — identical content to the old Resumen tab,
@@ -139,9 +139,9 @@ function buildConvocatoriaDetail(date, message) {
     <button class="btn btn-teal" data-date="${escHtml(date)}" onclick="copySummary(this.dataset.date)">📋 Copiar texto</button>
     <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="shareStats(this, this.dataset.date, document.getElementById('summary-msg-' + this.dataset.date).textContent)">📤 Compartir imagen con texto</button>
     <button class="btn btn-purple" data-date="${escHtml(date)}" onclick="downloadStats(this.dataset.date)">📥 Descargar imagen</button>
-    <hr class="divider">
     <button class="btn-sm green" data-date="${escHtml(date)}"
-      onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>`;
+      onclick="openEditMode(this.dataset.date)">✏️ Corregir resultado</button>
+    <hr class="divider">`;
 }
 
 // Date/location editor shown next to the date badge in "Convocatoria actual".
