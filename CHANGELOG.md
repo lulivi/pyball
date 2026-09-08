@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.4.2 (2026-09-08)
+
+### Bug Fixes
+
+- **GL-201**: Agrupar el panel de detalle de convocatoria pasada en /manage
+  ([`407243a`](https://gitlab.com/lulivi/pyball/-/commit/407243a5f35a9ee1aa665ad41ec78c65569137ce))
+
+
 ## v5.4.1 (2026-09-07)
 
 ### Bug Fixes
