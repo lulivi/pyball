@@ -116,6 +116,15 @@ chat_id = -1000000000001
 # Management channel ID for operational log messages (0 to disable)
 # Override with PYBALL_TELEGRAM_MANAGEMENT_CHAT_ID
 chat_id = 0
+
+[pyball.telegram.activity]
+# Player activity feed (join/leave notifications), fully optional (0 to disable)
+# Override with PYBALL_TELEGRAM_ACTIVITY_CHAT_ID
+chat_id = 0
+
+# Forum topic thread for activity messages (empty string to disable)
+# Override with PYBALL_TELEGRAM_ACTIVITY_THREAD_ID
+thread_id = ""
 """
 
 _PYBALL_COMPOSE = """\

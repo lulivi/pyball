@@ -99,6 +99,8 @@ These are ignored by `pyball` — see
 | `telegram.regulars.stats_thread_id` | Forum topic thread for post-match stats (empty to disable) |
 | `telegram.substitutes.chat_id` | Substitutes group chat ID (negative number for groups) |
 | `telegram.management.chat_id` | Operational log channel ID (`0` to disable) |
+| `telegram.activity.chat_id` | Player activity feed chat ID for join/leave notifications (optional, `0` to disable) |
+| `telegram.activity.thread_id` | Forum topic thread for activity messages (optional, empty to disable) |
 
 To find a chat ID: add the bot to the group, send any message, then check
 `https://api.telegram.org/bot<TOKEN>/getUpdates` for the `chat.id` field.

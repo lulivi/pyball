@@ -85,11 +85,13 @@ async def _main_async(config_path: Path) -> None:
     application.bot_data["container"] = container
     application.bot_data["settings"] = tg_settings
 
+    notifier = TelegramMatchNotifier(application.bot, tg_settings, container)
+    application.bot_data["notifier"] = notifier
+
     setup_player_handlers(application)
     setup_meetup_handlers(application)
     setup_general_handlers(application)
 
-    notifier = TelegramMatchNotifier(application.bot, tg_settings, container)
     fastapi_app = create_app(
         container,
         notifier,

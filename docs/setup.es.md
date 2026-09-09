@@ -103,6 +103,8 @@ para saber por qué.
 | `telegram.regulars.stats_thread_id` | Hilo de foro para las estadísticas post-partido (vacío para desactivar) |
 | `telegram.substitutes.chat_id` | ID del chat de grupo de suplentes (número negativo para grupos) |
 | `telegram.management.chat_id` | ID del canal de log operacional (`0` para desactivar) |
+| `telegram.activity.chat_id` | ID del chat de feed de actividad para notificaciones de altas/bajas (opcional, `0` para desactivar) |
+| `telegram.activity.thread_id` | Hilo de foro para los mensajes de actividad (opcional, vacío para desactivar) |
 
 Para encontrar un ID de chat: añade el bot al grupo, envía cualquier mensaje, y luego
 consulta `https://api.telegram.org/bot<TOKEN>/getUpdates` buscando el campo `chat.id`.

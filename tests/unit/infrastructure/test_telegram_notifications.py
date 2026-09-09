@@ -8,6 +8,7 @@ import pytest
 import telegram
 
 from pyball.domain.meetup.models import Meetup
+from pyball.domain.player.models import Player
 from pyball.infrastructure.telegram import notifications
 from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
@@ -24,6 +25,8 @@ def _make_notifier(tmp_path):
     settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
     settings.telegram.regulars.chat_id = -100
     settings.telegram.regulars.meetups_thread_id = ""
+    settings.telegram.activity.chat_id = -300
+    settings.telegram.activity.thread_id = ""
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     return TelegramMatchNotifier(bot, settings, container), bot
@@ -275,3 +278,99 @@ async def test_on_meetup_cancelled_does_nothing_when_no_tracked_messages(tmp_pat
     await notifier.on_meetup_cancelled(meetup)
 
     bot.edit_message_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_player_joined_sends_activity_message_titular(tmp_path):
+    """on_player_joined posts an Alta message with titular status to the activity chat."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Carlos", "regular")
+
+    await notifier.on_player_joined(meetup, player, False)
+
+    bot.send_message.assert_called_once()
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["chat_id"] == -300
+    assert "Alta" in kwargs["text"]
+    assert "Carlos" in kwargs["text"]
+    assert "titular" in kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_on_player_joined_sends_activity_message_suplente(tmp_path):
+    """on_player_joined labels the player as suplente when is_substitute is True."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Ana", "regular")
+
+    await notifier.on_player_joined(meetup, player, True)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert "suplente" in kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_on_player_joined_escapes_backtick_in_player_name(tmp_path):
+    """A backtick in the player's name is escaped so it can't break the MarkdownV2 code span."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Carlos`DROP", "regular")
+
+    await notifier.on_player_joined(meetup, player, False)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert "Carlos\\`DROP" in kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_on_player_left_sends_activity_message(tmp_path):
+    """on_player_left posts a Baja message to the activity chat."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Carlos", "regular")
+
+    await notifier.on_player_left(meetup, player, False)
+
+    bot.send_message.assert_called_once()
+    kwargs = bot.send_message.call_args.kwargs
+    assert "Baja" in kwargs["text"]
+    assert "Carlos" in kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_on_player_joined_uses_configured_thread_id(tmp_path):
+    """message_thread_id is set (as an int) when activity.thread_id is configured."""
+    notifier, bot = _make_notifier(tmp_path)
+    notifier._settings.telegram.activity.thread_id = "9"  # pylint: disable=protected-access
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Carlos", "regular")
+
+    await notifier.on_player_joined(meetup, player, False)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["message_thread_id"] == 9
+
+
+@pytest.mark.asyncio
+async def test_on_player_joined_does_nothing_when_activity_chat_unset(tmp_path):
+    """No message is sent when telegram.activity.chat_id is not configured."""
+    notifier, bot = _make_notifier(tmp_path)
+    notifier._settings.telegram.activity.chat_id = 0  # pylint: disable=protected-access
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Carlos", "regular")
+
+    await notifier.on_player_joined(meetup, player, False)
+
+    bot.send_message.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_player_left_swallows_telegram_error(tmp_path):
+    """A Telegram send failure is logged and swallowed, not raised."""
+    notifier, bot = _make_notifier(tmp_path)
+    bot.send_message.side_effect = telegram.error.TelegramError("boom")
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    player = Player.create("Carlos", "regular")
+
+    await notifier.on_player_left(meetup, player, False)  # must not raise

@@ -91,6 +91,12 @@ class _StubNotifier(MatchNotifier):
         """Record the old date and the updated meetup."""
         self.date_changed.append((old_date, meetup))
 
+    async def on_player_joined(self, meetup, player, is_substitute):
+        """Do nothing."""
+
+    async def on_player_left(self, meetup, player, is_substitute):
+        """Do nothing."""
+
 
 def _make_app(container=None, finish_side_effect=None, finish_return=None):
     if container is None:

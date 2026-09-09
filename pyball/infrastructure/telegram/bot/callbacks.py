@@ -38,6 +38,7 @@ from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
 
 if TYPE_CHECKING:
+    from pyball.application.notifier import MatchNotifier
     from pyball.domain.player.models import Player
     from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
@@ -53,6 +54,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
+    notifier: "MatchNotifier" = context.bot_data["notifier"]
 
     callback_data = query.data
     if callback_data is None:
@@ -85,7 +87,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             settings.paths.data_dir / "bot" / "telegram-uuid.json"
         )
         await _handle_player_action(
-            action, meetup, meetup_date, query, container, mapping_store, context.bot, settings
+            action,
+            meetup,
+            meetup_date,
+            query,
+            container,
+            mapping_store,
+            context.bot,
+            settings,
+            notifier,
         )
     elif action == "search":
         await _handle_search_callback(
@@ -103,6 +113,7 @@ async def _handle_player_action(
     mapping_store: TelegramMappingStore,
     bot: telegram.Bot,
     settings: "TelegramAppSettings",
+    notifier: "MatchNotifier",
 ) -> None:
     """Handle join/leave/join_sub/leave_sub callback actions.
 
@@ -157,6 +168,11 @@ async def _handle_player_action(
         updated_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if updated_meetup:
             await refresh_callup_messages(bot, settings, container, updated_meetup)
+            is_substitute = "_sub" in action
+            if "join" in action:
+                await notifier.on_player_joined(updated_meetup, player, is_substitute)
+            else:
+                await notifier.on_player_left(updated_meetup, player, is_substitute)
         await query.answer()
 
 

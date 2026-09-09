@@ -23,6 +23,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from pyball.domain.meetup.models import Meetup
+from pyball.domain.player.models import Player
 
 
 class MatchNotifier(ABC):
@@ -52,6 +53,14 @@ class MatchNotifier(ABC):
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
         """Handle a cancelled meetup by editing platform messages to show cancellation."""
 
+    @abstractmethod
+    async def on_player_joined(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
+        """Handle a player joining a meetup by notifying the activity feed."""
+
+    @abstractmethod
+    async def on_player_left(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
+        """Handle a player leaving a meetup by notifying the activity feed."""
+
 
 class NullMatchNotifier(MatchNotifier):
     """No-op notifier used by topologies that have no notification channel."""
@@ -72,4 +81,10 @@ class NullMatchNotifier(MatchNotifier):
         """Do nothing."""
 
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
+        """Do nothing."""
+
+    async def on_player_joined(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
+        """Do nothing."""
+
+    async def on_player_left(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
         """Do nothing."""

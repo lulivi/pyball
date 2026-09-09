@@ -124,6 +124,86 @@ async def test_leave_not_in_meetup_answers(
 
 
 @pytest.mark.asyncio
+async def test_join_notifies_player_joined_as_titular(
+    callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
+):
+    """Join callback notifies on_player_joined with is_substitute=False."""
+    callback_update.callback_query.data = "join:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    notifier = bot_context.bot_data["notifier"]
+    notifier.on_player_joined.assert_called_once()
+    args = notifier.on_player_joined.call_args.args
+    assert args[1].name == linked_player.name
+    assert args[2] is False
+
+
+@pytest.mark.asyncio
+async def test_join_sub_notifies_player_joined_as_suplente(
+    callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
+):
+    """Join-sub callback notifies on_player_joined with is_substitute=True."""
+    callback_update.callback_query.data = "join_sub:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    notifier = bot_context.bot_data["notifier"]
+    notifier.on_player_joined.assert_called_once()
+    assert notifier.on_player_joined.call_args.args[2] is True
+
+
+@pytest.mark.asyncio
+async def test_leave_notifies_player_left_as_titular(
+    callback_update, bot_context, linked_player, saved_meetup
+):
+    """Leave callback notifies on_player_left with is_substitute=False."""
+    container = bot_context.bot_data["container"]
+    saved_meetup.add_player(linked_player.id)
+    container.meetup_repository.save(saved_meetup)
+    callback_update.callback_query.data = "leave:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    notifier = bot_context.bot_data["notifier"]
+    notifier.on_player_left.assert_called_once()
+    assert notifier.on_player_left.call_args.args[2] is False
+
+
+@pytest.mark.asyncio
+async def test_leave_sub_notifies_player_left_as_suplente(
+    callback_update, bot_context, linked_player, saved_meetup
+):
+    """Leave-sub callback notifies on_player_left with is_substitute=True."""
+    container = bot_context.bot_data["container"]
+    saved_meetup.add_player(linked_player.id)
+    container.meetup_repository.save(saved_meetup)
+    callback_update.callback_query.data = "leave_sub:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    notifier = bot_context.bot_data["notifier"]
+    notifier.on_player_left.assert_called_once()
+    assert notifier.on_player_left.call_args.args[2] is True
+
+
+@pytest.mark.asyncio
+async def test_join_duplicate_does_not_notify(
+    callback_update, bot_context, linked_player, saved_meetup
+):
+    """Rejecting an already-joined player never calls the notifier."""
+    container = bot_context.bot_data["container"]
+    saved_meetup.add_player(linked_player.id)
+    container.meetup_repository.save(saved_meetup)
+    callback_update.callback_query.data = "join:2026-04-25T20:00"
+
+    await callback_handler(callback_update, bot_context)
+
+    notifier = bot_context.bot_data["notifier"]
+    notifier.on_player_joined.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_unlinked_player_answers_registration_message(
     callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
 ):

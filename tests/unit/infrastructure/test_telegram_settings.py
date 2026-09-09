@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 
 from pyball.infrastructure.telegram.settings import (
+    ActivityChatSettings,
     ManagementChatSettings,
     RegularsChatSettings,
     TelegramAppSettings,
@@ -106,6 +107,16 @@ class TestTelegramSettings:
         m = ManagementChatSettings(chat_id=-1)
         assert not hasattr(m, "meetups_thread_id")
 
+    def test_activity_is_subclass_of_telegram_chat_settings(self):
+        """ActivityChatSettings inherits TelegramChatSettings."""
+        assert issubclass(ActivityChatSettings, TelegramChatSettings)
+
+    def test_activity_defaults_to_disabled(self):
+        """ActivityChatSettings defaults to chat_id=0 and empty thread_id."""
+        activity = ActivityChatSettings()
+        assert activity.chat_id == 0
+        assert activity.thread_id == ""
+
 
 class TestTelegramAppSettings:
     """Tests for TelegramAppSettings dataclass."""
@@ -155,6 +166,33 @@ class TestLoadTelegramAppSettings:
         cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
         settings = load_telegram_app_settings(base, cfg)
         assert settings.telegram.substitutes.chat_id == -100222
+
+    def test_activity_chat_id_defaults_to_zero_when_absent(self, tmp_path):
+        """activity.chat_id defaults to 0 (disabled) when the section is absent."""
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
+        settings = load_telegram_app_settings(base, cfg)
+        assert settings.telegram.activity.chat_id == 0
+        assert settings.telegram.activity.thread_id == ""
+
+    def test_loads_activity_chat_id_and_thread_id(self, tmp_path):
+        """activity.chat_id and activity.thread_id are read from config when present."""
+        config = _MINIMAL_CONFIG + (
+            "\n[pyball.telegram.activity]\nchat_id = -100333\nthread_id = '9'\n"
+        )
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, config)
+        settings = load_telegram_app_settings(base, cfg)
+        assert settings.telegram.activity.chat_id == -100333
+        assert settings.telegram.activity.thread_id == "9"
+
+    def test_env_override_activity_chat_id(self, tmp_path, monkeypatch):
+        """PYBALL_TELEGRAM_ACTIVITY_CHAT_ID overrides config value."""
+        base = _base(tmp_path)
+        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
+        monkeypatch.setenv("PYBALL_TELEGRAM_ACTIVITY_CHAT_ID", "-100444")
+        settings = load_telegram_app_settings(base, cfg)
+        assert settings.telegram.activity.chat_id == -100444
 
     def test_management_chat_id_zero_is_valid(self, tmp_path):
         """management.chat_id = 0 is valid (means disabled)."""

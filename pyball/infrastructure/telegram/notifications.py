@@ -35,6 +35,7 @@ from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
     escape_summary_for_telegram,
+    format_display,
     format_main_message,
     format_subs_message,
 )
@@ -42,6 +43,7 @@ from pyball.infrastructure.telegram.message_store import MessageTracking, Telegr
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
+    from pyball.domain.player.models import Player
     from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
@@ -133,6 +135,30 @@ class TelegramMatchNotifier(MatchNotifier):
             asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
         except Exception as error:  # pylint: disable=broad-except
             logger.error("Error sending corrected result message: %s", error)
+
+    async def on_player_joined(
+        self, meetup: Meetup, player: "Player", is_substitute: bool
+    ) -> None:
+        """Handle a player joining a meetup by posting to the activity chat."""
+        status = "suplente" if is_substitute else "titular"
+        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
+        name = _escape_code_span(player.name)
+        text = (
+            f"✅ *Alta* — `{name}` se apunta como {status} a la convocatoria del "
+            f"`{date_str}`\\."
+        )
+        await _send_activity_message(self._bot, self._settings, text)
+
+    async def on_player_left(self, meetup: Meetup, player: "Player", is_substitute: bool) -> None:
+        """Handle a player leaving a meetup by posting to the activity chat."""
+        status = "suplente" if is_substitute else "titular"
+        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
+        name = _escape_code_span(player.name)
+        text = (
+            f"❌ *Baja* — `{name}` se desapunta como {status} de la convocatoria del "
+            f"`{date_str}`\\."
+        )
+        await _send_activity_message(self._bot, self._settings, text)
 
 
 async def refresh_callup_messages(
@@ -345,3 +371,27 @@ async def _post_match_stats(
         )
     except Exception:  # pylint: disable=broad-except
         logger.exception("Error posting match stats")
+
+
+def _escape_code_span(text: str) -> str:
+    """Escape backslash and backtick so text is safe inside a MarkdownV2 code span."""
+    return text.replace("\\", "\\\\").replace("`", "\\`")
+
+
+async def _send_activity_message(
+    bot: telegram.Bot, settings: "TelegramAppSettings", text: str
+) -> None:
+    """Send a message to the activity chat, if one is configured."""
+    chat_id = settings.telegram.activity.chat_id
+    if not chat_id:
+        return
+    thread_id = settings.telegram.activity.thread_id or None
+    try:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            message_thread_id=int(thread_id) if thread_id else None,
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+    except Exception as error:  # pylint: disable=broad-except
+        logger.error("Error sending activity message: %s", error)

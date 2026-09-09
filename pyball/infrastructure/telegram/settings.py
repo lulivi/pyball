@@ -50,6 +50,13 @@ class RegularsChatSettings(TelegramChatSettings):
 
 
 @dataclass
+class ActivityChatSettings(TelegramChatSettings):
+    """Telegram chat configuration for the player activity feed (joins/leaves)."""
+
+    thread_id: str | int = ""
+
+
+@dataclass
 class TelegramSettings:
     """Telegram bot and chat configuration."""
 
@@ -58,6 +65,7 @@ class TelegramSettings:
     regulars: RegularsChatSettings = field(default_factory=RegularsChatSettings)
     substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
     management: ManagementChatSettings = field(default_factory=ManagementChatSettings)
+    activity: ActivityChatSettings = field(default_factory=ActivityChatSettings)
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
@@ -99,6 +107,7 @@ def load_telegram_app_settings(
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
     management_cfg = telegram_cfg.get("management", {})
+    activity_cfg = telegram_cfg.get("activity", {})
 
     raw_meetups_thread = _get_env_override(
         "telegram.regulars", "meetups_thread_id", regulars_cfg.get("meetups_thread_id")
@@ -125,6 +134,15 @@ def load_telegram_app_settings(
     management = ManagementChatSettings(
         chat_id=_parse_chat_id(raw_management_chat if raw_management_chat is not None else 0),
     )
+    raw_activity_thread = _get_env_override(
+        "telegram.activity", "thread_id", activity_cfg.get("thread_id")
+    )
+    activity = ActivityChatSettings(
+        chat_id=_parse_chat_id(
+            _get_env_override("telegram.activity", "chat_id", activity_cfg.get("chat_id", 0))
+        ),
+        thread_id=raw_activity_thread if raw_activity_thread is not None else "",
+    )
     telegram = TelegramSettings(
         bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
         admins_ids=_parse_admins_ids(
@@ -133,6 +151,7 @@ def load_telegram_app_settings(
         regulars=regulars,
         substitutes=substitutes,
         management=management,
+        activity=activity,
     )
 
     missing = []

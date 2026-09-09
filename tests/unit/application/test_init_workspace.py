@@ -78,6 +78,13 @@ class TestInitWorkspaceTg:
         content = (tmp_path / "config.toml").read_text()
         assert "[pyball.telegram]" in content
 
+    def test_config_includes_activity_section(self, tmp_path):
+        """Telegram config.toml contains the optional [pyball.telegram.activity] section."""
+        init_workspace("tg", tmp_path / "config.toml")
+
+        content = (tmp_path / "config.toml").read_text()
+        assert "[pyball.telegram.activity]" in content
+
     def test_compose_references_tg_image(self, tmp_path):
         """Telegram compose.yaml references the pyball-telegram image."""
         init_workspace("tg", tmp_path / "config.toml")
