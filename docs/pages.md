@@ -36,14 +36,26 @@ History of every closed meetup, newest first, each expandable into its summary �
 ## `/match`
 
 The scoreboard page, opened on whichever device is tracking the live match. Below the
-match date, two tabs:
+match date, three tabs:
+
+### Tiempo
+
+A rotation countdown for peñas that swap goalkeepers on a timer. Pick a shift length
+(1–15 minutes, default 6) and tap "Iniciar cronómetro"; it counts down, plays a sound
+and flashes the screen at zero, then restarts on its own for the next shift — no need to
+touch it between rotations. The first tap is also what unlocks sound on mobile, and the
+timer keeps the screen awake while it runs. It is device-local (not shared with other
+`/match` devices) and survives a page reload. Hidden while editing a past result.
+While it runs, a small countdown pill sits next to the match date on the other tabs —
+tap it to jump back here. A page reload re-locks audio (a browser rule); the pill then
+shows 🔇 until any tap re-enables the sound.
 
 ### Jugadores
 
 The scoreboard plus the tap-to-score grid: tap a player to register a goal, optionally
 picking an assist — see [step 4](workflow.md#4-track-the-match).
 
-### Eventos y Resultados
+### Resultados
 
 The chronological event log for the current match (edit or delete a previously recorded goal here),
 and the "Finalizar partido" action to close out the match with a final score.

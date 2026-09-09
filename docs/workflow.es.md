@@ -135,6 +135,9 @@ que escanear.
 
 - Toca a un jugador para registrar un gol, opcionalmente eligiendo una asistencia.
 - Toca "Finalizar partido" cuando termine y escribe el marcador final.
+- Si rotáis porteros por tiempo, la pestaña **Tiempo** lleva una cuenta atrás que se
+  repite (6 minutos por defecto) y suena y parpadea en cada intervalo — ponla en marcha
+  al empezar el partido y cambia de portero en la siguiente parada cuando la oigas.
 
 **En un partido clásico**, finalizar el único partido cierra el meetup
 automáticamente — se publica un resumen (en Telegram, si está configurado) y el partido

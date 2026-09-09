@@ -125,6 +125,9 @@ shows the currently pending match — no manual setup, no QR code to scan.
 
 - Tap a player to register a goal, optionally picking an assist.
 - Tap "Finalizar partido" when the match is over and enter the final score.
+- If you rotate goalkeepers on a timer, the **Tiempo** tab runs a repeating countdown
+  (default 6 minutes) that beeps and flashes at each interval — set it once when the
+  match kicks off and swap keepers on the next dead ball whenever you hear it.
 
 **For a classic meetup**, finishing the one match closes the meetup automatically — a
 summary is posted (to Telegram, if configured) and the meetup moves into the

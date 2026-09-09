@@ -20,6 +20,7 @@ const PRECACHE_ASSETS = [
     '/js/match/state.js',
     '/js/match/actions.js',
     '/js/match/views.js',
+    '/js/match/timer.js',
     '/js/manage/main.js',
     '/js/manage/views.js',
     '/js/manage/players.js',

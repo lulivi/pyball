@@ -2,12 +2,41 @@ import {
     ctx, store, getGoals, clearSaved, applyTeamColors, saveTeamsSnapshot, persistStateNow,
 } from './state.js';
 import { post } from '../api.js';
+import { startAudio, requestWakeLock, releaseWakeLock, clampMinutes } from './timer.js';
 
 let _saveArmTimer = null;
 
 export function setTab(tabName) {
     clearTimeout(_saveArmTimer);
     store.set({ activeTab: tabName, saveArmed: false, saveError: null });
+}
+
+export function startTimer() {
+    if (store.get().timerRunning) return;
+    startAudio();
+    store.set({
+        timerRunning: true, timerStartedAt: Date.now(), lastCycleFired: 0, audioArmed: true,
+    });
+    requestWakeLock();
+}
+
+// Unlock audio from a user gesture after a reload re-locked it — wired to the
+// muted pill, the "Activar sonido" button, and a one-shot page-wide tap.
+export function armAudio() {
+    if (store.get().audioArmed) return;
+    startAudio();
+    store.set({ audioArmed: true });
+}
+
+export function resetTimer() {
+    if (!store.get().timerRunning) return;
+    releaseWakeLock();
+    store.set({ timerRunning: false, timerStartedAt: null, lastCycleFired: 0 });
+}
+
+export function setTimerMinutes(delta) {
+    if (store.get().timerRunning) return;
+    store.set({ timerMinutes: clampMinutes(store.get().timerMinutes + delta) });
 }
 
 export function selectPlayer(playerName, teamId) {
@@ -102,6 +131,7 @@ async function _submitFinish() {
             _continueToNextRound(data.next_round);
             return;
         }
+        resetTimer();
         clearSaved();
         _renderDone('✅ Partido guardado', 'Vuelve a /manage<br>para el próximo partido.');
     } catch (err) {

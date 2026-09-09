@@ -22,6 +22,14 @@ export const store = createStore({
     saveArmed: false,
     saving: false,
     saveError: null,
+    timerRunning: false,
+    timerMinutes: 6,
+    timerStartedAt: null,
+    lastCycleFired: 0,
+    // Whether the browser's audio has been unlocked by a user gesture this
+    // page load. Reset to false on every load (a reload re-locks audio), so
+    // a resumed timer knows to prompt for a tap before it can beep.
+    audioArmed: false,
 });
 
 // Persistence mirrors the old persistState(): skipped entirely in edit mode.

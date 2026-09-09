@@ -1,4 +1,5 @@
 import { ctx, store, getGoals } from './state.js';
+import { remainingMs, formatCountdown } from './timer.js';
 
 function escHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -70,6 +71,53 @@ function renderEventRow(e, i) {
                 ${assistOpen ? renderPickerDropdown(i, 'assistant') : ''}
             </div>
         `;
+}
+
+function renderTimerTab() {
+    const state = store.get();
+
+    if (state.timerRunning) {
+        const ms = remainingMs(state.timerStartedAt, state.timerMinutes, Date.now());
+        const soundBtn = state.audioArmed
+            ? ''
+            : `<button class="timer-btn timer-sound-btn" onclick="armAudio();playCue()">🔊 Activar sonido</button>`;
+        return `
+            <div class="timer-tab">
+                <div class="timer-countdown" id="timer-countdown-value">${formatCountdown(ms)}</div>
+                ${soundBtn}
+                <button class="timer-btn timer-btn-reset" onclick="resetTimer()">⟲ Reiniciar</button>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="timer-tab">
+            <div class="timer-stepper">
+                <button class="timer-step" onclick="setTimerMinutes(-1)">−</button>
+                <span class="timer-step-value">${state.timerMinutes}<small>min</small></span>
+                <button class="timer-step" onclick="setTimerMinutes(1)">+</button>
+            </div>
+            <button class="timer-btn timer-btn-start" onclick="startTimer()">▶️ Iniciar cronómetro</button>
+        </div>
+    `;
+}
+
+// Small live countdown next to the match date, on every tab except the timer
+// tab itself (where the big countdown already shows it). The tick loop in
+// main.js refreshes #timer-pill-time in place each second. When audio is still
+// locked (e.g. right after a reload) the pill shows a 🔇 and a tap on it — or
+// anywhere on the page — unlocks the sound.
+function renderTimerPill() {
+    const state = store.get();
+    if (!state.timerRunning) return '';
+    if (state.activeTab === 'timer' && !ctx.isEditMode) return '';
+    const ms = remainingMs(state.timerStartedAt, state.timerMinutes, Date.now());
+    const muted = !state.audioArmed;
+    const cls = muted ? 'timer-pill timer-pill-muted' : 'timer-pill';
+    const icon = muted ? '🔇' : '⏱';
+    const tap = muted ? "armAudio();playCue();setTab('timer')" : "setTab('timer')";
+    return ` <button class="${cls}" onclick="${tap}">`
+        + `${icon} <span id="timer-pill-time">${formatCountdown(ms)}</span></button>`;
 }
 
 function renderPlayersTab() {
@@ -205,11 +253,13 @@ function renderApp() {
     const state = store.get();
     document.getElementById('app').innerHTML = `
             <div style="height:100vh;height:100svh;display:flex;flex-direction:column;padding:8px 12px 12px;">
-                <div class="match-date">${formatMatchDate(ctx.meetupDate)}</div>
+                <div class="match-date">${formatMatchDate(ctx.meetupDate)}${renderTimerPill()}</div>
                 <div class="tab-bar">
+                    ${ctx.isEditMode ? '' : `<button class="tab-btn ${state.activeTab === 'timer' ? 'active' : ''}" onclick="setTab('timer')">Tiempo</button>`}
                     <button class="tab-btn ${state.activeTab === 'players' ? 'active' : ''}" onclick="setTab('players')">Jugadores</button>
-                    <button class="tab-btn ${state.activeTab === 'events' ? 'active' : ''}" onclick="setTab('events')">Eventos y Resultados</button>
+                    <button class="tab-btn ${state.activeTab === 'events' ? 'active' : ''}" onclick="setTab('events')">Resultados</button>
                 </div>
+                ${state.activeTab === 'timer' && !ctx.isEditMode ? renderTimerTab() : ''}
                 ${state.activeTab === 'players' ? renderPlayersTab() : ''}
                 ${state.activeTab === 'events' ? renderEventsTab() : ''}
             </div>

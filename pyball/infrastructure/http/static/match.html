@@ -284,6 +284,98 @@
             text-align: center;
         }
 
+        /* ── TIMER ───────────────────────────────────────── */
+        .timer-tab {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 28px;
+        }
+
+        .timer-countdown, .timer-step-value {
+            font-size: clamp(4rem, 30vw, 9rem);
+            font-weight: bold;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+        }
+
+        .timer-stepper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 4vw, 24px);
+            width: 100%;
+        }
+
+        .timer-step {
+            flex-shrink: 0;
+            width: clamp(52px, 15vw, 92px);
+            height: clamp(52px, 15vw, 92px);
+            font-size: clamp(1.8rem, 7vw, 3rem);
+            font-weight: bold;
+            color: #f8fafc; background: #334155;
+            border: none; border-radius: 12px; cursor: pointer;
+        }
+
+        .timer-step-value small {
+            font-size: clamp(0.9rem, 4.5vw, 1.5rem);
+            color: #94a3b8;
+            margin-left: 6px;
+        }
+
+        .timer-btn {
+            width: 100%; max-width: 320px;
+            padding: 16px;
+            font-size: 1.2rem; font-weight: bold;
+            color: white; border: none; border-radius: 8px; cursor: pointer;
+        }
+        .timer-btn-start { background: #16a34a; }
+        .timer-btn-reset { background: #b45309; }
+        .timer-sound-btn { background: #0369a1; }
+
+        /* Added to <body> by flashApp() only while flashing, then removed —
+           no permanent top layer to leave compositing ghosts on reload. */
+        #timer-flash-overlay {
+            position: fixed;
+            inset: 0;
+            background: #f59e0b;
+            pointer-events: none;
+            z-index: 9999;
+            animation: timer-flash 1.2s ease-in-out;
+        }
+        @keyframes timer-flash {
+            0%, 33.3%, 66.6%, 100% { opacity: 0; }
+            16.6%, 50%, 83.3% { opacity: 0.72; }
+        }
+
+        .timer-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 2px 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            color: #fef3c7;
+            background: #b45309;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        .timer-pill-muted {
+            background: #7c2d12;
+            color: #fecaca;
+            animation: timer-pill-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes timer-pill-pulse { 50% { opacity: 0.55; } }
+
         /* ── NO MATCH / SUCCESS ──────────────────────────── */
         .no-match {
             height: 100vh;
