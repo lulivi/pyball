@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.5.0 (2026-09-09)
+
+### Features
+
+- **GL-203..GL-206**: Add a rotation timer to the /match wall
+  ([`9145eed`](https://gitlab.com/lulivi/pyball/-/commit/9145eedbaf2d6284f42015e6490436bebd88183a))
+
+
 ## v5.4.2 (2026-09-08)
 
 ### Bug Fixes
