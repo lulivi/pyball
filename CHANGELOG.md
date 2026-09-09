@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v5.6.0 (2026-09-09)
+
+### Features
+
+- **GL-207..GL-209**: Notify activity chat on player join/leave
+  ([`b359420`](https://gitlab.com/lulivi/pyball/-/commit/b359420bcb7684e220e864b4fe56521aa9c017e6))
+
+
 ## v5.5.0 (2026-09-09)
 
 ### Features
