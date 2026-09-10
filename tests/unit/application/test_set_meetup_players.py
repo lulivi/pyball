@@ -1,5 +1,6 @@
 """Tests for the SetMeetupPlayers use case."""
 
+import logging
 from datetime import datetime
 
 import pytest
@@ -101,6 +102,28 @@ def test_raises_when_meetup_is_locked():
         _use_case(repo).execute(DATE, [_pid()])
 
     assert existing.players == [pid_a]
+
+
+def test_execute_logs_creation_when_meetup_is_new(caplog):
+    """Creating a new meetup via SetMeetupPlayers logs a creation INFO record."""
+    repo = FakeMeetupRepository()
+    with caplog.at_level(logging.INFO, logger="pyball.application.meetup.set_meetup_players"):
+        _use_case(repo).execute(DATE, [])
+    recs = [r for r in caplog.records if r.name == "pyball.application.meetup.set_meetup_players"]
+    assert len(recs) == 1 and recs[0].levelno == logging.INFO
+    assert "created" in recs[0].getMessage().lower()
+
+
+def test_execute_logs_roster_set_when_meetup_exists(caplog):
+    """Resetting an existing meetup's roster logs a roster-set DEBUG record."""
+    repo = FakeMeetupRepository()
+    _use_case(repo).execute(DATE, [])
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG, logger="pyball.application.meetup.set_meetup_players"):
+        _use_case(repo).execute(DATE, [])
+    recs = [r for r in caplog.records if r.name == "pyball.application.meetup.set_meetup_players"]
+    assert len(recs) == 1 and recs[0].levelno == logging.DEBUG
+    assert "roster set" in recs[0].getMessage().lower()
 
 
 def test_invalid_player_id_leaves_repository_untouched():

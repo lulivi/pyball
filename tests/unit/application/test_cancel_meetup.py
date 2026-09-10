@@ -1,5 +1,6 @@
 """Tests for CancelMeetup use case."""
 
+import logging
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -62,3 +63,17 @@ class TestCancelMeetup:
             CancelMeetup(repo).execute()
 
         repo.delete.assert_not_called()
+
+    def test_execute_logs_cancellation_at_info(self, caplog):
+        """Cancelling a meetup emits one INFO record on its logger."""
+        meetup = _active_meetup(datetime(2026, 6, 8, 20, 0))
+        repo = MagicMock()
+        repo.find_all.return_value = [meetup]
+
+        with caplog.at_level(logging.INFO, logger="pyball.application.meetup.cancel_meetup"):
+            CancelMeetup(repo).execute()
+
+        recs = [r for r in caplog.records if r.name == "pyball.application.meetup.cancel_meetup"]
+        assert len(recs) == 1
+        assert recs[0].levelno == logging.INFO
+        assert "cancelled" in recs[0].getMessage().lower()

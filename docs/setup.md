@@ -102,7 +102,7 @@ These are ignored by `pyball` — see
 | `telegram.substitutes.meetups.message_thread_id` | Forum topic for the substitutes message (empty = none) | No |
 | `telegram.management.logging.chat_id` | Operational log channel (`0` / omit to disable) | No |
 | `telegram.management.logging.message_thread_id` | Forum topic for log records (empty = none) | No |
-| `telegram.management.activity.chat_id` | Player join/leave feed chat (`0` / omit to disable) | No |
+| `telegram.management.activity.chat_id` | Meetup activity feed chat — joins, leaves, created/closed/cancelled (`0` / omit to disable) | No |
 | `telegram.management.activity.message_thread_id` | Forum topic for the activity feed (empty = none) | No |
 
 To find a chat ID: add the bot to the group, send any message, then check

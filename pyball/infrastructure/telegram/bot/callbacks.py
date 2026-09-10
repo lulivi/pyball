@@ -232,7 +232,7 @@ def _process_action(
     if "join" in action:
         try:
             container.add_player_to_meetup_by_id().execute(meetup_date, player.id)
-            logger.info("Player '%s' joined meetup %s", player.name, meetup_date)
+            logger.debug("Player '%s' joined meetup %s", player.name, meetup_date)
             return True
         except Exception:  # pylint: disable=broad-except
             logger.exception("Unexpected error processing join for player '%s'", player.name)
@@ -240,7 +240,7 @@ def _process_action(
     if "leave" in action:
         try:
             container.remove_player_from_meetup_by_id().execute(meetup_date, player.id)
-            logger.info("Player '%s' left meetup %s", player.name, meetup_date)
+            logger.debug("Player '%s' left meetup %s", player.name, meetup_date)
             return True
         except Exception:  # pylint: disable=broad-except
             logger.exception("Unexpected error processing leave for player '%s'", player.name)

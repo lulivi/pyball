@@ -280,43 +280,47 @@ async def test_invalid_callback_data_answers_error(callback_update, bot_context)
 
 
 @pytest.mark.asyncio
-async def test_join_logs_info_event(
+async def test_join_logs_debug_event(
     callback_update,
     bot_context,
     linked_player,  # pylint: disable=unused-argument
     saved_meetup,  # pylint: disable=unused-argument
     caplog,
 ):
-    """Join callback logs an INFO event with player name."""
+    """Join callback logs a DEBUG event with player name."""
     callback_update.callback_query.data = "join:2026-04-25T20:00"
 
-    with caplog.at_level(logging.INFO, logger="pyball.infrastructure.telegram.bot.callbacks"):
+    with caplog.at_level(logging.DEBUG, logger="pyball.infrastructure.telegram.bot.callbacks"):
         await callback_handler(callback_update, bot_context)
 
-    assert any(
-        "joined" in r.message.lower() or "luis" in r.message.lower() for r in caplog.records
-    )
+    join_records = [
+        r for r in caplog.records if "joined" in r.message.lower() or "luis" in r.message.lower()
+    ]
+    assert join_records and all(r.levelno == logging.DEBUG for r in join_records)
 
 
 @pytest.mark.asyncio
-async def test_leave_logs_info_event(
+async def test_leave_logs_debug_event(
     callback_update,
     bot_context,
     linked_player,
     saved_meetup,
     caplog,
 ):
-    """Leave callback logs an INFO event with player name."""
+    """Leave callback logs a DEBUG event with player name."""
     container = bot_context.bot_data["container"]
     saved_meetup.add_player(linked_player.id)
     container.meetup_repository.save(saved_meetup)
 
     callback_update.callback_query.data = "leave:2026-04-25T20:00"
 
-    with caplog.at_level(logging.INFO, logger="pyball.infrastructure.telegram.bot.callbacks"):
+    with caplog.at_level(logging.DEBUG, logger="pyball.infrastructure.telegram.bot.callbacks"):
         await callback_handler(callback_update, bot_context)
 
-    assert any("left" in r.message.lower() or "luis" in r.message.lower() for r in caplog.records)
+    leave_records = [
+        r for r in caplog.records if "left" in r.message.lower() or "luis" in r.message.lower()
+    ]
+    assert leave_records and all(r.levelno == logging.DEBUG for r in leave_records)
 
 
 @pytest.mark.asyncio

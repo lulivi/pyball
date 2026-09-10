@@ -1,5 +1,6 @@
 """Tests for the CreateTeams use case."""
 
+import logging
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -112,6 +113,25 @@ class TestCreateTeams:
 
         assert result.current_match() is not None
         assert set(result.current_match().teams_playing) == set(result.teams)
+
+    def test_execute_logs_team_generation_at_info(self, caplog):
+        """Generating teams emits one INFO record on its logger."""
+        players = [PlayerId.generate() for _ in range(4)]
+        meetup = Meetup.create(datetime(2026, 5, 6, 20, 0), "Campo")
+        for p in players:
+            meetup.add_player(p)
+
+        repo = MagicMock()
+        repo.find_by_datetime.return_value = meetup
+        repo.find_all.return_value = []
+
+        with caplog.at_level(logging.INFO, logger="pyball.application.meetup.create_teams"):
+            CreateTeams(repo, StubAlgorithm()).execute(datetime(2026, 5, 6, 20, 0))
+
+        recs = [r for r in caplog.records if r.name == "pyball.application.meetup.create_teams"]
+        assert len(recs) == 1
+        assert recs[0].levelno == logging.INFO
+        assert "teams generated" in recs[0].getMessage().lower()
 
     def test_raises_when_meetup_is_locked(self):
         """MeetupLockedError is raised when the meetup is locked, teams untouched."""

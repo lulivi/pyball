@@ -35,20 +35,37 @@ def _make_notifier(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_on_meetup_created_sends_only_regulars_message(tmp_path):
-    """on_meetup_created posts to the regulars chat and tracks the message, never subs."""
+async def test_on_meetup_created_sends_regulars_and_activity_messages(tmp_path):
+    """on_meetup_created posts the regulars callup and a 'creada' line to the activity feed."""
     notifier, bot = _make_notifier(tmp_path)
     meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
 
     await notifier.on_meetup_created(meetup)
 
-    bot.send_message.assert_called_once()
-    kwargs = bot.send_message.call_args.kwargs
-    assert kwargs["reply_markup"] is not None
+    assert bot.send_message.call_count == 2
+    assert bot.send_message.call_args_list[0].kwargs["reply_markup"] is not None
+    activity_call = bot.send_message.call_args_list[1]
+    assert activity_call.kwargs["chat_id"] == -300
+    assert "Convocatoria creada" in activity_call.kwargs["text"]
 
     store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
     assert store.get_message(meetup.date, "regular") is not None
     assert store.get_message(meetup.date, "substitute") is None
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_created_skips_activity_when_unconfigured(tmp_path):
+    """With no activity chat, on_meetup_created sends only the regulars callup."""
+    from pyball.infrastructure.telegram.settings import ChatConfig
+
+    notifier, bot = _make_notifier(tmp_path)
+    # pylint: disable-next=protected-access
+    notifier._settings.telegram.management.activity = ChatConfig()
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+
+    await notifier.on_meetup_created(meetup)
+
+    assert bot.send_message.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -182,6 +199,25 @@ async def test_on_match_closed_deletes_tracking_entries(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_on_match_closed_posts_closed_line_to_activity(tmp_path):
+    """on_match_closed posts a 'cerrada' line to the activity feed."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        meetup.date,
+        "regular",
+        MessageTracking(chat_id=-100, thread_id=None, message_id=1),
+    )
+    with patch.object(notifications, "_post_match_stats", new=AsyncMock()):
+        await notifier.on_match_closed(meetup)
+
+    texts = [c.kwargs.get("text", "") for c in bot.send_message.call_args_list]
+    assert any("Convocatoria cerrada" in t for t in texts)
+    assert any(c.kwargs.get("chat_id") == -300 for c in bot.send_message.call_args_list)
+
+
+@pytest.mark.asyncio
 async def test_on_match_edited_sends_new_message_and_reposts_stats(monkeypatch):
     """on_match_edited sends a fresh corrected-result message and refreshes stats."""
     stats_calls = []
@@ -280,6 +316,23 @@ async def test_on_meetup_cancelled_does_nothing_when_no_tracked_messages(tmp_pat
     await notifier.on_meetup_cancelled(meetup)
 
     bot.edit_message_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_cancelled_posts_cancelled_line_to_activity(tmp_path):
+    """on_meetup_cancelled posts a 'cancelada' line to the activity feed."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        meetup.date,
+        "regular",
+        MessageTracking(chat_id=-100, thread_id=None, message_id=1),
+    )
+    await notifier.on_meetup_cancelled(meetup)
+
+    texts = [c.kwargs.get("text", "") for c in bot.send_message.call_args_list]
+    assert any("Convocatoria cancelada" in t for t in texts)
 
 
 @pytest.mark.asyncio

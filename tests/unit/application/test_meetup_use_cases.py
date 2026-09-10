@@ -1,5 +1,6 @@
 """Tests for meetup use cases."""
 
+import logging
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -272,6 +273,18 @@ class TestCreateMeetup:
 
         repo.save.assert_called_once_with(meetup)
 
+    def test_execute_logs_creation_at_info(self, caplog):
+        """Creating a meetup emits one INFO record on its logger."""
+        repo = MagicMock()
+        repo.find_by_datetime.return_value = None
+        use_case = CreateMeetup(repo, default_location="Parque Central")
+        with caplog.at_level(logging.INFO, logger="pyball.application.meetup.create_meetup"):
+            use_case.execute(datetime(2026, 5, 1, 20, 0))
+        recs = [r for r in caplog.records if r.name == "pyball.application.meetup.create_meetup"]
+        assert len(recs) == 1
+        assert recs[0].levelno == logging.INFO
+        assert "created" in recs[0].getMessage().lower()
+
 
 class TestFinishMatch:
     """Tests for FinishMatch use case."""
@@ -406,6 +419,44 @@ class TestFinishMatch:
         ]
         with pytest.raises(ValueError, match="Player not found"):
             self.use_case.execute("2026-04-12 20:00", events, {"A": 1, "B": 0})
+
+    def test_finish_match_logs_result_and_close_for_classic(self, caplog):
+        """A classic (2-team) finish logs the recorded result and the auto-close."""
+        self._meetup_with_teams()
+        with caplog.at_level(logging.INFO, logger="pyball.application.meetup.finish_match"):
+            self.use_case.execute("2026-04-12 20:00", [], {"A": 3, "B": 1})
+        msgs = [
+            r.getMessage()
+            for r in caplog.records
+            if r.name == "pyball.application.meetup.finish_match"
+        ]
+        assert any("result recorded" in m.lower() for m in msgs)
+        assert any("meetup closed" in m.lower() for m in msgs)
+
+    def test_finish_match_logs_result_only_for_triangular(self, caplog):
+        """A triangular (3-team) finish logs the result but no close."""
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        p1 = Player(id=PlayerId.generate(), name="Dani", group="regular")
+        p2 = Player(id=PlayerId.generate(), name="Rafa", group="regular")
+        p3 = Player(id=PlayerId.generate(), name="Nico", group="regular")
+        self.player_repo.players.extend([p1, p2, p3])
+        team_a, team_b, team_c = (
+            Team.create("A", [p1.id]),
+            Team.create("B", [p2.id]),
+            Team.create("C", [p3.id]),
+        )
+        meetup.teams = [team_a, team_b, team_c]
+        meetup.add_match(Match(teams_playing=(team_a, team_b)))
+        self.meetup_repo.save(meetup)
+        with caplog.at_level(logging.INFO, logger="pyball.application.meetup.finish_match"):
+            self.use_case.execute("2026-04-12 20:00", [], {"A": 2, "B": 2})
+        msgs = [
+            r.getMessage()
+            for r in caplog.records
+            if r.name == "pyball.application.meetup.finish_match"
+        ]
+        assert any("result recorded" in m.lower() for m in msgs)
+        assert not any("meetup closed" in m.lower() for m in msgs)
 
 
 class TestGetActiveMeetup:

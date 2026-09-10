@@ -19,11 +19,14 @@
 # SOFTWARE.
 """Close meetup use case (explicit close for triangulars)."""
 
+import logging
 from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
+
+logger = logging.getLogger(__name__)
 
 
 class CloseMeetup:
@@ -51,4 +54,5 @@ class CloseMeetup:
 
         meetup.close()
         self.meetup_repository.save(meetup)
+        logger.info("Meetup closed for %s", meetup_date)
         return meetup

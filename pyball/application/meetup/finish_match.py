@@ -19,6 +19,7 @@
 # SOFTWARE.
 """Finish match use case."""
 
+import logging
 from datetime import datetime, time
 
 from pyball.application.fuzzy_match import fuzzy_match_player
@@ -27,6 +28,8 @@ from pyball.domain.meetup.models import GoalEvent, Match, MatchResult
 from pyball.domain.meetup.next_round_calculator import calculate_next_round
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.repository import PlayerRepository
+
+logger = logging.getLogger(__name__)
 
 
 class FinishMatch:
@@ -101,6 +104,14 @@ class FinishMatch:
             meetup.add_match(Match(teams_playing=next_pairing))
 
         self.meetup_repository.save(meetup)
+        logger.info(
+            "Match result recorded for %s: %d-%d",
+            meetup_date,
+            result.score_a,
+            result.score_b,
+        )
+        if len(teams) == 2:
+            logger.info("Meetup closed for %s (classic match finished)", meetup_date)
         return meetup
 
 

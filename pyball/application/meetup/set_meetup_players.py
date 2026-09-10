@@ -19,12 +19,15 @@
 # SOFTWARE.
 """Set meetup players use case."""
 
+import logging
 from datetime import datetime
 
 from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupLockedError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.models import PlayerId
+
+logger = logging.getLogger(__name__)
 
 
 class SetMeetupPlayers:
@@ -54,6 +57,7 @@ class SetMeetupPlayers:
         meetup = self.meetup_repository.find_by_datetime(date)
         if meetup is not None and meetup.is_closed():
             raise MeetupAlreadyClosedError("Match already finished, cannot reset")
+        created = meetup is None
         if meetup is None:
             meetup = Meetup.create(date=date, location=self.default_location)
         else:
@@ -64,4 +68,8 @@ class SetMeetupPlayers:
         for pid in ids:
             meetup.add_player(pid)
         self.meetup_repository.save(meetup)
+        if created:
+            logger.info("Meetup created for %s with %d players", date, len(meetup.players))
+        else:
+            logger.debug("Meetup roster set for %s: %d players", date, len(meetup.players))
         return meetup

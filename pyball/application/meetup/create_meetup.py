@@ -19,11 +19,14 @@
 # SOFTWARE.
 """Create meetup use case."""
 
+import logging
 from datetime import datetime
 
 from pyball.domain.meetup.errors import DuplicateMeetupError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
+
+logger = logging.getLogger(__name__)
 
 
 class CreateMeetup:
@@ -59,4 +62,5 @@ class CreateMeetup:
 
         meetup = Meetup.create(date=date, location=location or self.default_location)
         self.meetup_repository.save(meetup)
+        logger.info("Meetup created for %s at %s", date, meetup.location)
         return meetup

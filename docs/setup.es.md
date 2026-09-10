@@ -106,7 +106,7 @@ para saber por qué.
 | `telegram.substitutes.meetups.message_thread_id` | Hilo de foro para el mensaje de suplentes (vacío = ninguno) | No |
 | `telegram.management.logging.chat_id` | Canal de log operacional (`0` / omitir para desactivar) | No |
 | `telegram.management.logging.message_thread_id` | Hilo de foro para los registros de log (vacío = ninguno) | No |
-| `telegram.management.activity.chat_id` | Chat del feed de altas/bajas de jugadores (`0` / omitir para desactivar) | No |
+| `telegram.management.activity.chat_id` | Chat del feed de actividad de la convocatoria — altas, bajas, creada/cerrada/cancelada (`0` / omitir para desactivar) | No |
 | `telegram.management.activity.message_thread_id` | Hilo de foro para el feed de actividad (vacío = ninguno) | No |
 
 Para encontrar un ID de chat: añade el bot al grupo, envía cualquier mensaje, y luego

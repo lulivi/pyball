@@ -92,7 +92,7 @@ async def _handle_finish_match(
     body: FinishMatchInput,
 ) -> dict:
     """Execute the finish-match use case, notify if closed, and return the result."""
-    logger.info(
+    logger.debug(
         "finish_match called: meetup_date=%s, finalScore=%s",
         body.meetup_date,
         body.finalScore,

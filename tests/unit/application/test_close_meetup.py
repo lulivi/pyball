@@ -1,5 +1,6 @@
 """Tests for CloseMeetup use case."""
 
+import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -71,6 +72,27 @@ class TestCloseMeetup:
         assert result.is_closed()
         assert len(result.matches) == 1
         assert result.matches[0].result is not None
+
+    def test_closing_logs_at_info(self, caplog) -> None:
+        """Closing a meetup emits one INFO record on its logger."""
+        repo: MeetupRepository = FakeMeetupRepository()  # type: ignore
+        meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
+        team_a, team_b, team_c = (
+            Team.create("A", [PlayerId.generate()]),
+            Team.create("B", [PlayerId.generate()]),
+            Team.create("C", [PlayerId.generate()]),
+        )
+        meetup.teams = [team_a, team_b, team_c]
+        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(2, 0, ())))
+        repo.save(meetup)
+
+        with caplog.at_level(logging.INFO, logger="pyball.application.meetup.close_meetup"):
+            CloseMeetup(repo).execute(datetime(2026, 4, 12, 20, 0))
+
+        recs = [r for r in caplog.records if r.name == "pyball.application.meetup.close_meetup"]
+        assert len(recs) == 1
+        assert recs[0].levelno == logging.INFO
+        assert "closed" in recs[0].getMessage().lower()
 
     def test_raises_if_meetup_not_found(self) -> None:
         """Test that closing a nonexistent meetup raises MeetupNotFoundError."""

@@ -127,7 +127,7 @@ chat_id = 0
 message_thread_id = ""
 
 [pyball.telegram.management.activity]
-# Player join/leave feed. chat_id = 0 disables it.
+# Meetup activity feed — joins, leaves, created/closed/cancelled. chat_id = 0 disables it.
 # Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID
 chat_id = 0
 # Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_MESSAGE_THREAD_ID

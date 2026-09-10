@@ -19,6 +19,7 @@
 # SOFTWARE.
 """Create balanced teams use case."""
 
+import logging
 from datetime import date, datetime
 
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignmentAlgorithm
@@ -26,6 +27,8 @@ from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
+
+logger = logging.getLogger(__name__)
 
 
 class CreateTeams:
@@ -73,6 +76,13 @@ class CreateTeams:
         )
         ensure_first_match(meetup)
         self.meetup_repository.save(meetup)
+        logger.info(
+            "Teams generated for %s: %d teams from %d players (%s)",
+            meetup_date,
+            team_count,
+            len(meetup.players),
+            type(self.algorithm).__name__,
+        )
         return meetup
 
 

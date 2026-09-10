@@ -64,13 +64,19 @@ class TelegramMatchNotifier(MatchNotifier):
         self._container = container
 
     async def on_meetup_created(self, meetup: Meetup) -> None:
-        """Handle a brand-new meetup by posting the callup message to regulars only.
+        """Handle a brand-new meetup by posting the regulars callup and the activity line.
 
         The substitutes chat is never notified here — that stays a manual,
         separate action (the "🔎 Buscar jugadores" button / /meetup_search),
         so regulars get priority for a few days before subs are searched.
         """
         await _send_regulars_callup_message(self._bot, self._settings, self._container, meetup)
+        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
+        await _send_activity_message(
+            self._bot,
+            self._settings,
+            f"🆕 *Convocatoria creada* — nueva convocatoria para el `{date_str}`\\.",
+        )
 
     async def on_meetup_updated(self, meetup: Meetup) -> None:
         """Handle a meetup update by refreshing platform messages.
@@ -93,8 +99,14 @@ class TelegramMatchNotifier(MatchNotifier):
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
 
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
-        """Handle a cancelled meetup by marking messages as cancelled and clearing tracking."""
+        """Edit a cancelled meetup's messages and post the cancellation to the activity feed."""
         await _cancel_callup_messages(self._bot, self._settings, self._container, meetup)
+        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
+        await _send_activity_message(
+            self._bot,
+            self._settings,
+            f"🚫 *Convocatoria cancelada* — se ha cancelado la convocatoria del `{date_str}`\\.",
+        )
 
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Handle a closed match by updating messages, clearing tracking, and posting stats."""
@@ -106,6 +118,12 @@ class TelegramMatchNotifier(MatchNotifier):
         )
         message_store.delete_message(meetup.date, "regular")
         message_store.delete_message(meetup.date, "substitute")
+        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
+        await _send_activity_message(
+            self._bot,
+            self._settings,
+            f"🏁 *Convocatoria cerrada* — la convocatoria del `{date_str}` ha finalizado\\.",
+        )
         asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
 
     async def on_match_edited(self, meetup: Meetup) -> None:

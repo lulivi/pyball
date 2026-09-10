@@ -19,9 +19,13 @@
 # SOFTWARE.
 """Cancel (delete) the active meetup use case."""
 
+import logging
+
 from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
+
+logger = logging.getLogger(__name__)
 
 
 class CancelMeetup:
@@ -51,4 +55,5 @@ class CancelMeetup:
         if meetup.locked:
             raise MeetupLockedError(f"Meetup at {meetup.date} is locked, cannot cancel.")
         self.meetup_repository.delete(meetup.id)
+        logger.info("Meetup cancelled for %s", meetup.date)
         return meetup
