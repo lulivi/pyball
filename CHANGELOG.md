@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.1.0 (2026-09-10)
+
+### Features
+
+- **GL-214..GL-216**: Meetup lifecycle activity feed and logging review
+  ([`a7e706f`](https://gitlab.com/lulivi/pyball/-/commit/a7e706f0ef60e58c29b5cdca3d7a4e636168f56c))
+
+
 ## v6.0.0 (2026-09-10)
 
 ### Features
