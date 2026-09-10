@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v6.0.0 (2026-09-10)
+
+### Features
+
+- **GL-210..GL-213**: Uniform Telegram ChatConfig tree for every message destination
+  ([`4f6bb2a`](https://gitlab.com/lulivi/pyball/-/commit/4f6bb2a3ceed5673fbcc15be246291960027afb5))
+
+### Breaking Changes
+
+- **GL-210..GL-213**: Telegram `config.toml` keys change. `[pyball.telegram.regulars]`
+  (`chat_id`/`meetups_thread_id`/`stats_thread_id`), `[pyball.telegram.substitutes]` `chat_id`,
+  `[pyball.telegram.management]` `chat_id` and `[pyball.telegram.activity]` are replaced by
+  `[pyball.telegram.regulars.meetups]`, `[pyball.telegram.regulars.stats]`,
+  `[pyball.telegram.substitutes.meetups]`, `[pyball.telegram.management.logging]` and
+  `[pyball.telegram.management.activity]`, each with `chat_id` + optional `message_thread_id`.
+  Required: `telegram.regulars.meetups.chat_id` and `telegram.substitutes.meetups.chat_id`.
+
+
 ## v5.6.0 (2026-09-09)
 
 ### Features
