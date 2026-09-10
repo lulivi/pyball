@@ -12,10 +12,15 @@ ENV_FILE="$HOME/pyball/cfg/notify/tg_notify.env"
 
 notify() {
     [ -z "${TELEGRAM_TOKEN:-}" ] && return 0
-    curl --silent --request POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-        --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-        --data-urlencode 'parse_mode=MarkdownV2' \
-        --data-urlencode "text=$1" 1>/dev/null | true
+    set -- --data-urlencode "chat_id=${TELEGRAM_CHAT_ID:-}" \
+           --data-urlencode 'parse_mode=MarkdownV2' \
+           --data-urlencode "text=$1"
+    if [ -n "${TELEGRAM_MESSAGE_THREAD_ID:-}" ]; then
+        set -- "$@" --data-urlencode "message_thread_id=${TELEGRAM_MESSAGE_THREAD_ID}"
+    fi
+    curl --silent --request POST \
+        "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+        "$@" 1>/dev/null | true
 }
 
 health_http() {

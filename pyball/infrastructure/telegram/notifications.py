@@ -124,12 +124,12 @@ class TelegramMatchNotifier(MatchNotifier):
             team_emojis=self._settings.pyball.team_emojis,
             legacy_stats=self._container.legacy_stats,
         )
-        thread_id = self._settings.telegram.regulars.meetups_thread_id or None
+        meetups = self._settings.telegram.regulars.meetups
         try:
             await self._bot.send_message(
-                chat_id=self._settings.telegram.regulars.chat_id,
+                chat_id=meetups.chat_id,
                 text=f"✏️ Resultado corregido\n\n{escape_summary_for_telegram(summary)}",
-                message_thread_id=int(thread_id) if thread_id else None,
+                message_thread_id=meetups.message_thread_id,
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
             asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
@@ -319,14 +319,14 @@ async def _send_regulars_callup_message(
         date_fmt=settings.pyball.display_date_format,
     )
     keyboard = build_main_keyboard(meetup.date)
-    thread_id = settings.telegram.regulars.meetups_thread_id or None
+    meetups = settings.telegram.regulars.meetups
 
     try:
         msg = await bot.send_message(
-            chat_id=settings.telegram.regulars.chat_id,
+            chat_id=meetups.chat_id,
             text=text,
             reply_markup=keyboard,
-            message_thread_id=int(thread_id) if thread_id else None,
+            message_thread_id=meetups.message_thread_id,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
@@ -334,8 +334,8 @@ async def _send_regulars_callup_message(
             meetup.date,
             "regular",
             MessageTracking(
-                chat_id=settings.telegram.regulars.chat_id,
-                thread_id=thread_id,
+                chat_id=meetups.chat_id,
+                thread_id=meetups.message_thread_id,
                 message_id=msg.message_id,
             ),
         )
@@ -352,8 +352,12 @@ async def _post_match_stats(
 ) -> None:
     """Compute and post the season stats image to the regulars stats topic.
 
-    Runs as a background asyncio task. Errors are logged and swallowed.
+    Runs as a background asyncio task. Does nothing when no stats chat is
+    configured. Errors are logged and swallowed.
     """
+    stats = settings.telegram.regulars.stats
+    if not stats:
+        return
     try:
         report = ComputeStats(
             container.meetup_repository,
@@ -361,13 +365,11 @@ async def _post_match_stats(
             container.legacy_stats,
         ).execute()
         season_png = await StatsHtmlRenderer().render(report, scope="season")
-        stats_thread_id = settings.telegram.regulars.stats_thread_id or None
-        chat_id = settings.telegram.regulars.chat_id
         await bot.send_photo(
-            chat_id=chat_id,
+            chat_id=stats.chat_id,
             photo=season_png,
             caption="📊 Estadísticas",
-            message_thread_id=int(stats_thread_id) if stats_thread_id else None,
+            message_thread_id=stats.message_thread_id,
         )
     except Exception:  # pylint: disable=broad-except
         logger.exception("Error posting match stats")
@@ -382,15 +384,14 @@ async def _send_activity_message(
     bot: telegram.Bot, settings: "TelegramAppSettings", text: str
 ) -> None:
     """Send a message to the activity chat, if one is configured."""
-    chat_id = settings.telegram.activity.chat_id
-    if not chat_id:
+    activity = settings.telegram.management.activity
+    if not activity:
         return
-    thread_id = settings.telegram.activity.thread_id or None
     try:
         await bot.send_message(
-            chat_id=chat_id,
+            chat_id=activity.chat_id,
             text=text,
-            message_thread_id=int(thread_id) if thread_id else None,
+            message_thread_id=activity.message_thread_id,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
     except Exception as error:  # pylint: disable=broad-except

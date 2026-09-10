@@ -31,7 +31,7 @@ from pyball.infrastructure.telegram.logging import (
     _ManagementFilter,
     config_telegram_logging,
 )
-from pyball.infrastructure.telegram.settings import ManagementChatSettings, TelegramSettings
+from pyball.infrastructure.telegram.settings import ChatConfig, ManagementChats, TelegramSettings
 
 
 class TestManagementFilter:
@@ -199,6 +199,20 @@ class TestTelegramLogHandler:
             handler.emit(record)
         mock_handle_error.assert_called_once_with(record)
 
+    def test_includes_message_thread_id_when_set(self):
+        """emit() adds message_thread_id to the payload when configured."""
+        handler = TelegramLogHandler("tok", -100999, message_thread_id=77)
+        with patch(self._PATCH) as m:
+            handler.emit(self._make_record())
+        assert self._payload(m)["message_thread_id"] == 77
+
+    def test_omits_message_thread_id_when_none(self):
+        """emit() leaves message_thread_id out of the payload when not configured."""
+        handler = TelegramLogHandler("tok", -100999)
+        with patch(self._PATCH) as m:
+            handler.emit(self._make_record())
+        assert "message_thread_id" not in self._payload(m)
+
 
 class TestConfigTelegramLogging:
     """Tests for config_telegram_logging."""
@@ -207,7 +221,7 @@ class TestConfigTelegramLogging:
         """config_telegram_logging adds a TelegramLogHandler to the root logger."""
         tg = TelegramSettings(
             bot_token="tok",
-            management=ManagementChatSettings(chat_id=-100111),
+            management=ManagementChats(logging=ChatConfig(chat_id=-100111)),
         )
         root_logger = logging.getLogger()
         before = list(root_logger.handlers)
@@ -221,10 +235,32 @@ class TestConfigTelegramLogging:
                     root_logger.removeHandler(h)
 
     def test_does_not_add_handler_when_chat_id_zero(self):
-        """config_telegram_logging does nothing when management.chat_id is 0."""
+        """config_telegram_logging does nothing when management.logging.chat_id is 0."""
         tg = TelegramSettings(bot_token="tok")
         root_logger = logging.getLogger()
         before = list(root_logger.handlers)
         config_telegram_logging(tg)
         after = list(root_logger.handlers)
         assert before == after
+
+    def test_handler_gets_logging_thread_id(self):
+        """config_telegram_logging passes management.logging.message_thread_id through."""
+        tg = TelegramSettings(
+            bot_token="tok",
+            management=ManagementChats(logging=ChatConfig(chat_id=-100111, message_thread_id=5)),
+        )
+        root_logger = logging.getLogger()
+        before = list(root_logger.handlers)
+        try:
+            config_telegram_logging(tg)
+            handler = next(
+                h
+                for h in root_logger.handlers
+                if isinstance(h, TelegramLogHandler) and h not in before
+            )
+            # pylint: disable=protected-access
+            assert handler._message_thread_id == 5
+        finally:
+            for h in root_logger.handlers[:]:
+                if h not in before:
+                    root_logger.removeHandler(h)

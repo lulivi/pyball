@@ -78,12 +78,49 @@ class TestInitWorkspaceTg:
         content = (tmp_path / "config.toml").read_text()
         assert "[pyball.telegram]" in content
 
-    def test_config_includes_activity_section(self, tmp_path):
-        """Telegram config.toml contains the optional [pyball.telegram.activity] section."""
+    def test_config_includes_new_chat_sections(self, tmp_path):
+        """Telegram config.toml contains the five nested chat sections."""
         init_workspace("tg", tmp_path / "config.toml")
 
         content = (tmp_path / "config.toml").read_text()
-        assert "[pyball.telegram.activity]" in content
+        for section in (
+            "[pyball.telegram.regulars.meetups]",
+            "[pyball.telegram.regulars.stats]",
+            "[pyball.telegram.substitutes.meetups]",
+            "[pyball.telegram.management.logging]",
+            "[pyball.telegram.management.activity]",
+        ):
+            assert section in content
+        assert "message_thread_id" in content
+
+    def test_config_has_no_legacy_chat_keys(self, tmp_path):
+        """The old flat keys are gone from the generated template."""
+        init_workspace("tg", tmp_path / "config.toml")
+
+        content = (tmp_path / "config.toml").read_text()
+        assert "meetups_thread_id" not in content
+        assert "stats_thread_id" not in content
+        assert "[pyball.telegram.activity]" not in content
+
+    def test_substitutes_meetups_has_message_thread_id_line(self, tmp_path):
+        """The substitutes.meetups section ships a message_thread_id placeholder line."""
+        init_workspace("tg", tmp_path / "config.toml")
+
+        content = (tmp_path / "config.toml").read_text()
+        subs = content.split("[pyball.telegram.substitutes.meetups]", 1)[1]
+        subs = subs.split("[pyball.telegram.", 1)[0]
+        assert "message_thread_id" in subs
+
+    def test_regulars_stats_ships_nonzero_chat_id_placeholder(self, tmp_path):
+        """regulars.stats keeps prior behaviour: a real (non-zero) chat_id placeholder."""
+        init_workspace("tg", tmp_path / "config.toml")
+
+        content = (tmp_path / "config.toml").read_text()
+        stats = content.split("[pyball.telegram.regulars.stats]", 1)[1]
+        stats = stats.split("[pyball.telegram.", 1)[0]
+        stat_lines = [ln.strip() for ln in stats.splitlines() if not ln.strip().startswith("#")]
+        assert "chat_id = 0" not in stat_lines
+        assert "chat_id = -1000000000000" in stat_lines
 
     def test_compose_references_tg_image(self, tmp_path):
         """Telegram compose.yaml references the pyball-telegram image."""

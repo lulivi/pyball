@@ -31,9 +31,13 @@ if TYPE_CHECKING:
 
 
 def config_telegram_logging(tg: TelegramSettings) -> None:
-    """Add a TelegramLogHandler to the root logger if management.chat_id is set."""
-    if tg.management.chat_id:
-        handler = TelegramLogHandler(tg.bot_token, tg.management.chat_id)
+    """Add a TelegramLogHandler to the root logger if a management logging chat is set."""
+    if tg.management.logging:
+        handler = TelegramLogHandler(
+            tg.bot_token,
+            tg.management.logging.chat_id,
+            tg.management.logging.message_thread_id,
+        )
         handler.addFilter(_ManagementFilter())
         logging.getLogger().addHandler(handler)
 
@@ -49,11 +53,12 @@ class TelegramLogHandler(logging.Handler):
         logging.CRITICAL: "💀",
     }
 
-    def __init__(self, bot_token: str, chat_id: int) -> None:
-        """Initialize the handler with Telegram credentials."""
+    def __init__(self, bot_token: str, chat_id: int, message_thread_id: int | None = None) -> None:
+        """Initialize the handler with Telegram credentials and optional topic."""
         super().__init__()
         self._token = bot_token
         self._chat_id = chat_id
+        self._message_thread_id = message_thread_id
 
     def emit(self, record: logging.LogRecord) -> None:
         """Send the formatted log record to the Telegram management channel."""
@@ -67,9 +72,14 @@ class TelegramLogHandler(logging.Handler):
                 f"{emoji} {record.levelname}\n`{record.name}:{record.lineno}`\n"
                 f"```{safe_message}\n```"
             )
-            payload = json.dumps(
-                {"chat_id": self._chat_id, "text": text, "parse_mode": "MarkdownV2"}
-            ).encode()
+            payload_data: dict[str, object] = {
+                "chat_id": self._chat_id,
+                "text": text,
+                "parse_mode": "MarkdownV2",
+            }
+            if self._message_thread_id is not None:
+                payload_data["message_thread_id"] = self._message_thread_id
+            payload = json.dumps(payload_data).encode()
             req = urllib.request.Request(
                 f"https://api.telegram.org/bot{self._token}/sendMessage",
                 data=payload,

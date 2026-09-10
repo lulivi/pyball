@@ -46,9 +46,12 @@ def bot_settings(tmp_data):
     settings = MagicMock()
     settings.telegram.is_authorized.return_value = True
     settings.telegram.admins_ids = [99999]
-    settings.telegram.regulars.chat_id = -100111
-    settings.telegram.regulars.meetups_thread_id = None
-    settings.telegram.substitutes.chat_id = -100222
+    settings.telegram.regulars.meetups.chat_id = -100111
+    settings.telegram.regulars.meetups.message_thread_id = None
+    settings.telegram.regulars.stats.chat_id = -100111
+    settings.telegram.regulars.stats.message_thread_id = None
+    settings.telegram.substitutes.meetups.chat_id = -100222
+    settings.telegram.substitutes.meetups.message_thread_id = None
     settings.paths.data_dir = tmp_data
     settings.pyball.location = "Test Field"
     settings.pyball.default_week_day = "wednesday"

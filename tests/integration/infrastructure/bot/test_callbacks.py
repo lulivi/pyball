@@ -11,6 +11,7 @@ from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.telegram.bot.callbacks import callback_handler
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
+from pyball.infrastructure.telegram.settings import ChatConfig
 
 # pylint: disable=redefined-outer-name
 
@@ -357,7 +358,7 @@ async def test_search_callback_no_substitutes_chat_answers_alert(
 ):
     """Search callback alerts when no substitutes chat is configured."""
     bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    bot_context.bot_data["settings"].telegram.substitutes.chat_id = None
+    bot_context.bot_data["settings"].telegram.substitutes.meetups = ChatConfig()
     callback_update.callback_query.data = "search:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)

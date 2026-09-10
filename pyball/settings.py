@@ -256,13 +256,10 @@ def _get_env_override(section: str, key: str, default):
     """Get environment variable override for config value.
 
     Env var format: PYBALL_<SECTION>_<KEY>
-    Example: PYBALL_TELEGRAM_BOT_TOKEN, PYBALL_CORE_LOCATION
+    Example: section="core", key="location" -> PYBALL_CORE_LOCATION
 
-    The section maps from TOML to env var:
-    - "pyball.telegram" -> "telegram"
-    - "pyball.telegram.regulars" -> "telegram.regulars"
-    - "pyball.telegram.substitutes" -> "telegram.substitutes"
-    - "core" -> "core"
+    This core loader is only ever called with section "core"; the nested
+    Telegram sections are handled by ``infrastructure/telegram/settings.py``.
     """
     section_for_env = section.replace("pyball.", "")
     env_key = f"PYBALL_{section_for_env.upper()}_{key.upper()}"

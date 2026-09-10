@@ -96,35 +96,42 @@ bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 # Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
 admins_ids = [123456789, 987654321]
 
-[pyball.telegram.regulars]
-# Override with PYBALL_TELEGRAM_REGULARS_CHAT_ID (negative number for groups)
+[pyball.telegram.regulars.meetups]
+# Meetup callup + corrected-result messages.
+# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_CHAT_ID (negative for groups)
 chat_id = -1000000000000
+# Forum topic thread (empty string = no topic)
+# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_MESSAGE_THREAD_ID
+message_thread_id = ""
 
-# Forum topic thread for meetup callup messages (empty string to disable)
-# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_THREAD_ID
-meetups_thread_id = ""
+[pyball.telegram.regulars.stats]
+# Post-match statistics image + /meetup_stats. Set chat_id = 0 to disable stats posting.
+# Override with PYBALL_TELEGRAM_REGULARS_STATS_CHAT_ID (negative for groups)
+chat_id = -1000000000000
+# Override with PYBALL_TELEGRAM_REGULARS_STATS_MESSAGE_THREAD_ID
+message_thread_id = ""
 
-# Forum topic thread where post-match statistics are posted (empty string to disable)
-# Override with PYBALL_TELEGRAM_REGULARS_STATS_THREAD_ID
-stats_thread_id = ""
-
-[pyball.telegram.substitutes]
-# Override with PYBALL_TELEGRAM_SUBSTITUTES_CHAT_ID (negative number for groups)
+[pyball.telegram.substitutes.meetups]
+# Substitutes callup message.
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID (negative for groups)
 chat_id = -1000000000001
+# Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_MESSAGE_THREAD_ID
+message_thread_id = ""
 
-[pyball.telegram.management]
-# Management channel ID for operational log messages (0 to disable)
-# Override with PYBALL_TELEGRAM_MANAGEMENT_CHAT_ID
+[pyball.telegram.management.logging]
+# Operational log records. chat_id = 0 disables the log handler.
+# Point deploy/deploy.sh (TELEGRAM_CHAT_ID / TELEGRAM_MESSAGE_THREAD_ID) here too.
+# Override with PYBALL_TELEGRAM_MANAGEMENT_LOGGING_CHAT_ID
 chat_id = 0
+# Override with PYBALL_TELEGRAM_MANAGEMENT_LOGGING_MESSAGE_THREAD_ID
+message_thread_id = ""
 
-[pyball.telegram.activity]
-# Player activity feed (join/leave notifications), fully optional (0 to disable)
-# Override with PYBALL_TELEGRAM_ACTIVITY_CHAT_ID
+[pyball.telegram.management.activity]
+# Player join/leave feed. chat_id = 0 disables it.
+# Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID
 chat_id = 0
-
-# Forum topic thread for activity messages (empty string to disable)
-# Override with PYBALL_TELEGRAM_ACTIVITY_THREAD_ID
-thread_id = ""
+# Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_MESSAGE_THREAD_ID
+message_thread_id = ""
 """
 
 _PYBALL_COMPOSE = """\

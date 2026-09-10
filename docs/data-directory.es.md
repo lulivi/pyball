@@ -206,8 +206,9 @@ cuando cambia la convocatoria, o cuando el partido se cierra):
 
 La clave es la fecha/hora del partido (`YYYY-MM-DDTHH:MM`, coincidiendo con el nombre
 del archivo del meetup sin la extensión `.json`). `thread_id` es `null` a menos que el
-chat use temas de foro (ver `telegram.regulars.meetups_thread_id` en
-[docs/setup.es.md](setup.es.md)).
+chat use temas de foro (ver `telegram.regulars.meetups.message_thread_id` en
+[docs/setup.es.md](setup.es.md); la entrada `substitute` toma igualmente
+`telegram.substitutes.meetups.message_thread_id`).
 
 ## Documentación relacionada
 

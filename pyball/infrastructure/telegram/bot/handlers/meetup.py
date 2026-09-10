@@ -82,7 +82,7 @@ async def show_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             for p in container.player_repository.find_all()
             if p.id in player_ids
         )
-        if has_substitutes and settings.telegram.substitutes.chat_id:
+        if has_substitutes and settings.telegram.substitutes.meetups:
             await _do_search(meetup, container, context.bot, settings)
 
         await react_ok(context.bot, message)
@@ -104,7 +104,7 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     container: Container = context.bot_data["container"]
     settings = context.bot_data["settings"]
 
-    if not settings.telegram.substitutes.chat_id:
+    if not settings.telegram.substitutes.meetups:
         await message.reply_text("El chat de suplentes no está configurado.")
         return
 
@@ -146,9 +146,9 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     container: Container = context.bot_data["container"]
     telegram_settings: TelegramSettings = context.bot_data["settings"].telegram
 
-    message_thread_id: str | int | None = None
-    if message.chat_id == telegram_settings.regulars.chat_id:
-        message_thread_id = telegram_settings.regulars.stats_thread_id
+    message_thread_id: int | None = None
+    if message.chat_id == telegram_settings.regulars.stats.chat_id:
+        message_thread_id = telegram_settings.regulars.stats.message_thread_id
 
     caption = "📊 Esta temporada" if scope == "season" else "📊 Histórico"
 
@@ -161,7 +161,7 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         png = await StatsHtmlRenderer().render(report, scope=scope)
         await context.bot.send_photo(
             chat_id=message.chat_id,
-            message_thread_id=int(message_thread_id) if message_thread_id else None,
+            message_thread_id=message_thread_id,
             photo=png,
             caption=caption,
         )
@@ -191,10 +191,12 @@ async def _do_search(
     )
     keyboard = build_subs_keyboard(meetup.date) if meetup.is_signup_open() else None
 
+    subs = settings.telegram.substitutes.meetups
     msg = await bot.send_message(
-        chat_id=settings.telegram.substitutes.chat_id,
+        chat_id=subs.chat_id,
         text=text,
         reply_markup=keyboard,
+        message_thread_id=subs.message_thread_id,
         parse_mode=ParseMode.MARKDOWN_V2,
     )
     store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
@@ -202,7 +204,8 @@ async def _do_search(
         meetup.date,
         "substitute",
         MessageTracking(
-            chat_id=settings.telegram.substitutes.chat_id,
+            chat_id=subs.chat_id,
+            thread_id=subs.message_thread_id,
             message_id=msg.message_id,
         ),
     )
@@ -225,13 +228,13 @@ async def _show_regulars_message(
         legacy_stats=container.legacy_stats,
     )
     keyboard = build_main_keyboard(meetup.date) if meetup.is_signup_open() else None
-    thread_id = settings.telegram.regulars.meetups_thread_id or None
+    meetups = settings.telegram.regulars.meetups
 
     msg = await bot.send_message(
-        chat_id=settings.telegram.regulars.chat_id,
+        chat_id=meetups.chat_id,
         text=text,
         reply_markup=keyboard,
-        message_thread_id=int(thread_id) if thread_id else None,
+        message_thread_id=meetups.message_thread_id,
         parse_mode=ParseMode.MARKDOWN_V2,
     )
     store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
@@ -239,8 +242,8 @@ async def _show_regulars_message(
         meetup.date,
         "regular",
         MessageTracking(
-            chat_id=settings.telegram.regulars.chat_id,
-            thread_id=thread_id,
+            chat_id=meetups.chat_id,
+            thread_id=meetups.message_thread_id,
             message_id=msg.message_id,
         ),
     )

@@ -196,7 +196,7 @@ async def _handle_search_callback(
             "Los equipos ya están hechos, no se puede buscar más jugadores.", show_alert=True
         )
         return
-    if not settings.telegram.substitutes.chat_id:
+    if not settings.telegram.substitutes.meetups:
         await query.answer("El chat de suplentes no está configurado.", show_alert=True)
         return
     try:

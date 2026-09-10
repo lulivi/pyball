@@ -23,10 +23,12 @@ def _make_notifier(tmp_path):
     settings.pyball.team_colors = ("blanco", "negro")
     settings.pyball.team_emojis = ("⚪", "⚫")
     settings.pyball.display_date_format = "%Y-%m-%d %H:%M"
-    settings.telegram.regulars.chat_id = -100
-    settings.telegram.regulars.meetups_thread_id = ""
-    settings.telegram.activity.chat_id = -300
-    settings.telegram.activity.thread_id = ""
+    settings.telegram.regulars.meetups.chat_id = -100
+    settings.telegram.regulars.meetups.message_thread_id = None
+    settings.telegram.regulars.stats.chat_id = -200
+    settings.telegram.regulars.stats.message_thread_id = None
+    settings.telegram.management.activity.chat_id = -300
+    settings.telegram.management.activity.message_thread_id = None
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     return TelegramMatchNotifier(bot, settings, container), bot
@@ -193,8 +195,8 @@ async def test_on_match_edited_sends_new_message_and_reposts_stats(monkeypatch):
     settings = MagicMock()
     settings.pyball.team_colors = ("blanco", "negro")
     settings.pyball.team_emojis = ("⚪", "⚫")
-    settings.telegram.regulars.chat_id = -100123
-    settings.telegram.regulars.meetups_thread_id = ""
+    settings.telegram.regulars.meetups.chat_id = -100123
+    settings.telegram.regulars.meetups.message_thread_id = None
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     container.format_match_summary.return_value.execute.return_value = "resumen"
@@ -340,9 +342,10 @@ async def test_on_player_left_sends_activity_message(tmp_path):
 
 @pytest.mark.asyncio
 async def test_on_player_joined_uses_configured_thread_id(tmp_path):
-    """message_thread_id is set (as an int) when activity.thread_id is configured."""
+    """message_thread_id is passed through when management.activity has a topic."""
     notifier, bot = _make_notifier(tmp_path)
-    notifier._settings.telegram.activity.thread_id = "9"  # pylint: disable=protected-access
+    # pylint: disable-next=protected-access
+    notifier._settings.telegram.management.activity.message_thread_id = 9
     meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
     player = Player.create("Carlos", "regular")
 
@@ -354,9 +357,12 @@ async def test_on_player_joined_uses_configured_thread_id(tmp_path):
 
 @pytest.mark.asyncio
 async def test_on_player_joined_does_nothing_when_activity_chat_unset(tmp_path):
-    """No message is sent when telegram.activity.chat_id is not configured."""
+    """No message is sent when the activity chat is not configured."""
+    from pyball.infrastructure.telegram.settings import ChatConfig
+
     notifier, bot = _make_notifier(tmp_path)
-    notifier._settings.telegram.activity.chat_id = 0  # pylint: disable=protected-access
+    # pylint: disable-next=protected-access
+    notifier._settings.telegram.management.activity = ChatConfig()
     meetup = Meetup.create(datetime(2026, 8, 3, 20, 0), "Campo")
     player = Player.create("Carlos", "regular")
 
@@ -374,3 +380,43 @@ async def test_on_player_left_swallows_telegram_error(tmp_path):
     player = Player.create("Carlos", "regular")
 
     await notifier.on_player_left(meetup, player, False)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_post_match_stats_noop_when_stats_chat_unset(tmp_path):
+    """_post_match_stats returns immediately when regulars.stats is not configured."""
+    from pyball.infrastructure.telegram.settings import ChatConfig
+
+    _, bot = _make_notifier(tmp_path)
+    settings = MagicMock()
+    settings.telegram.regulars.stats = ChatConfig()
+    container = MagicMock()
+
+    await notifications._post_match_stats(bot, container, settings)
+
+    bot.send_photo.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_match_stats_posts_to_stats_chat_not_meetups_chat(tmp_path):
+    """_post_match_stats sends the image to regulars.stats, with its own thread id."""
+    from pyball.infrastructure.telegram.settings import ChatConfig
+
+    _, bot = _make_notifier(tmp_path)
+    settings = MagicMock()
+    settings.telegram.regulars.meetups = ChatConfig(chat_id=-100)
+    settings.telegram.regulars.stats = ChatConfig(chat_id=-200, message_thread_id=99)
+    container = MagicMock()
+
+    cs_path = "pyball.infrastructure.telegram.notifications.ComputeStats"
+    renderer_path = "pyball.infrastructure.telegram.notifications.StatsHtmlRenderer"
+    with patch(cs_path) as mock_cs, patch(renderer_path) as mock_renderer:
+        mock_cs.return_value.execute.return_value = MagicMock()
+        mock_renderer.return_value.render = AsyncMock(return_value=b"fakepng")
+
+        await notifications._post_match_stats(bot, container, settings)
+
+    bot.send_photo.assert_called_once()
+    kwargs = bot.send_photo.call_args.kwargs
+    assert kwargs["chat_id"] == -200
+    assert kwargs["message_thread_id"] == 99

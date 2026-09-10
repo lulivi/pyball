@@ -53,7 +53,8 @@ async def test_do_search_sends_message_and_tracks_it(mock_context):
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     settings = mock_context.bot_data["settings"]
-    settings.telegram.substitutes.chat_id = -1001234567
+    settings.telegram.substitutes.meetups.chat_id = -1001234567
+    settings.telegram.substitutes.meetups.message_thread_id = None
     bot = AsyncMock()
     bot.send_message = AsyncMock(return_value=MagicMock(message_id=7))
 
@@ -76,6 +77,7 @@ async def test_do_search_sends_message_and_tracks_it(mock_context):
         chat_id=-1001234567,
         text="msg",
         reply_markup=None,
+        message_thread_id=None,
         parse_mode=ParseMode.MARKDOWN_V2,
     )
     mock_store_cls.return_value.save_message.assert_called_once()
@@ -93,7 +95,7 @@ async def test_do_search_omits_keyboard_when_signup_closed(mock_context):
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     settings = mock_context.bot_data["settings"]
-    settings.telegram.substitutes.chat_id = -1001234567
+    settings.telegram.substitutes.meetups.chat_id = -1001234567
     bot = AsyncMock()
     bot.send_message = AsyncMock(return_value=MagicMock(message_id=7))
 
@@ -119,8 +121,8 @@ async def test_show_regulars_message_sends_and_tracks_with_keyboard(mock_context
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     settings = mock_context.bot_data["settings"]
-    settings.telegram.regulars.chat_id = -1009876543
-    settings.telegram.regulars.meetups_thread_id = ""
+    settings.telegram.regulars.meetups.chat_id = -1009876543
+    settings.telegram.regulars.meetups.message_thread_id = None
     settings.pyball.team_colors = ("blanco", "negro")
     settings.pyball.team_emojis = ("⚪", "⚫")
     bot = AsyncMock()
@@ -158,8 +160,8 @@ async def test_show_regulars_message_omits_keyboard_when_signup_closed(mock_cont
     container = MagicMock()
     container.player_repository.find_all.return_value = []
     settings = mock_context.bot_data["settings"]
-    settings.telegram.regulars.chat_id = -1009876543
-    settings.telegram.regulars.meetups_thread_id = ""
+    settings.telegram.regulars.meetups.chat_id = -1009876543
+    settings.telegram.regulars.meetups.message_thread_id = None
     settings.pyball.team_colors = ("blanco", "negro")
     settings.pyball.team_emojis = ("⚪", "⚫")
     bot = AsyncMock()
@@ -201,7 +203,7 @@ async def test_show_handler_posts_to_both_chats_when_substitutes_present(
     container.meetup_repository.find_by_datetime.return_value = meetup
     container.player_repository.find_all.return_value = [regular, substitute]
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.bot_data["settings"].telegram.substitutes.meetups.chat_id = -100
     mock_context.args = ["2026-04-25", "20:00"]
 
     with (
@@ -244,7 +246,7 @@ async def test_show_handler_skips_substitutes_message_when_none_in_roster(
     container.meetup_repository.find_by_datetime.return_value = meetup
     container.player_repository.find_all.return_value = [regular]
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.bot_data["settings"].telegram.substitutes.meetups.chat_id = -100
     mock_context.args = ["2026-04-25", "20:00"]
 
     with (
@@ -282,7 +284,9 @@ async def test_show_handler_skips_substitutes_message_when_chat_not_configured(
     container.meetup_repository.find_by_datetime.return_value = meetup
     container.player_repository.find_all.return_value = [substitute]
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = None
+    from pyball.infrastructure.telegram.settings import ChatConfig
+
+    mock_context.bot_data["settings"].telegram.substitutes.meetups = ChatConfig()
     mock_context.args = ["2026-04-25", "20:00"]
 
     with (
@@ -327,7 +331,7 @@ async def test_search_handler_success_reacts(mock_update, mock_context):
     container.meetup_repository.find_by_datetime.return_value = mock_meetup
     container.player_repository.find_all.return_value = []
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -1001234567
+    mock_context.bot_data["settings"].telegram.substitutes.meetups.chat_id = -1001234567
     mock_context.args = ["2026-04-25", "20:00"]
     mock_context.bot.send_message = AsyncMock(return_value=MagicMock(message_id=1))
 
@@ -364,7 +368,7 @@ async def test_search_handler_no_args_uses_active_meetup(mock_update, mock_conte
     container.get_active_meetup.return_value.execute.return_value = meetup
     container.player_repository.find_all.return_value = []
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.bot_data["settings"].telegram.substitutes.meetups.chat_id = -100
     mock_context.bot = AsyncMock()
     mock_context.args = []
 
@@ -390,7 +394,7 @@ async def test_search_handler_no_args_no_active_meetup_replies_error(mock_update
     container = MagicMock()
     container.get_active_meetup.return_value.execute.side_effect = MeetupNotFoundError("active")
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -100
+    mock_context.bot_data["settings"].telegram.substitutes.meetups.chat_id = -100
     mock_context.args = []
 
     await search_handler(mock_update, mock_context)
@@ -413,7 +417,7 @@ async def test_search_handler_signup_closed_replies_error(mock_update, mock_cont
     container = MagicMock()
     container.meetup_repository.find_by_datetime.return_value = meetup
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.substitutes.chat_id = -1001234567
+    mock_context.bot_data["settings"].telegram.substitutes.meetups.chat_id = -1001234567
     mock_context.args = ["2026-04-25", "20:00"]
     mock_context.bot.send_message = AsyncMock()
 
@@ -429,7 +433,7 @@ async def test_stats_handler_success_reacts(mock_update, mock_context):
     """stats reacts ✅ after sending the stats photo."""
     container = MagicMock()
     mock_context.bot_data["container"] = container
-    mock_context.bot_data["settings"].telegram.regulars.chat_id = 0
+    mock_context.bot_data["settings"].telegram.regulars.stats.chat_id = 0
     mock_context.args = ["temporada"]
     mock_context.bot.send_photo = AsyncMock()
 
@@ -447,3 +451,49 @@ async def test_stats_handler_success_reacts(mock_update, mock_context):
         message_id=mock_update.message.message_id,
         reaction=ReactionEmoji.OK_HAND_SIGN,
     )
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_uses_stats_topic_when_sent_from_stats_chat(mock_update, mock_context):
+    """When invoked from the regulars.stats chat, the photo carries its thread id."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    tg = mock_context.bot_data["settings"].telegram
+    tg.regulars.stats.chat_id = -100777
+    tg.regulars.stats.message_thread_id = 55
+    mock_update.message.chat_id = -100777
+    mock_context.args = ["temporada"]
+    mock_context.bot.send_photo = AsyncMock()
+
+    cs_path = "pyball.infrastructure.telegram.bot.handlers.meetup.ComputeStats"
+    renderer_path = "pyball.infrastructure.telegram.bot.handlers.meetup.StatsHtmlRenderer"
+    with patch(cs_path) as mock_cs, patch(renderer_path) as mock_renderer:
+        mock_cs.return_value.execute.return_value = MagicMock()
+        mock_renderer.return_value.render = AsyncMock(return_value=b"fakepng")
+
+        await stats_handler(mock_update, mock_context)
+
+    assert mock_context.bot.send_photo.call_args.kwargs["message_thread_id"] == 55
+
+
+@pytest.mark.asyncio
+async def test_stats_handler_no_topic_when_sent_from_other_chat(mock_update, mock_context):
+    """Invoked outside the regulars.stats chat, the photo carries no thread id."""
+    container = MagicMock()
+    mock_context.bot_data["container"] = container
+    tg = mock_context.bot_data["settings"].telegram
+    tg.regulars.stats.chat_id = -100777
+    tg.regulars.stats.message_thread_id = 55
+    mock_update.message.chat_id = -100999
+    mock_context.args = ["temporada"]
+    mock_context.bot.send_photo = AsyncMock()
+
+    cs_path = "pyball.infrastructure.telegram.bot.handlers.meetup.ComputeStats"
+    renderer_path = "pyball.infrastructure.telegram.bot.handlers.meetup.StatsHtmlRenderer"
+    with patch(cs_path) as mock_cs, patch(renderer_path) as mock_renderer:
+        mock_cs.return_value.execute.return_value = MagicMock()
+        mock_renderer.return_value.render = AsyncMock(return_value=b"fakepng")
+
+        await stats_handler(mock_update, mock_context)
+
+    assert mock_context.bot.send_photo.call_args.kwargs["message_thread_id"] is None

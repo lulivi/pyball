@@ -94,20 +94,31 @@ Estas claves se ignoran en `pyball` — ver
 [la configuración de Telegram es solo para el bot](data-directory.es.md#la-configuración-de-telegram-es-solo-para-el-bot)
 para saber por qué.
 
-| Clave | Descripción |
-|---|---|
-| `telegram.bot_token` | Token del bot desde [@BotFather](https://t.me/BotFather) |
-| `telegram.admins_ids` | IDs de usuario de Telegram autorizados a ejecutar comandos de admin |
-| `telegram.regulars.chat_id` | ID del chat de grupo principal (número negativo para grupos) |
-| `telegram.regulars.meetups_thread_id` | Hilo de foro para los mensajes de convocatoria (vacío para desactivar) |
-| `telegram.regulars.stats_thread_id` | Hilo de foro para las estadísticas post-partido (vacío para desactivar) |
-| `telegram.substitutes.chat_id` | ID del chat de grupo de suplentes (número negativo para grupos) |
-| `telegram.management.chat_id` | ID del canal de log operacional (`0` para desactivar) |
-| `telegram.activity.chat_id` | ID del chat de feed de actividad para notificaciones de altas/bajas (opcional, `0` para desactivar) |
-| `telegram.activity.thread_id` | Hilo de foro para los mensajes de actividad (opcional, vacío para desactivar) |
+| Clave | Descripción | Requerido |
+|---|---|---|
+| `telegram.bot_token` | Token del bot desde [@BotFather](https://t.me/BotFather) | **Sí** |
+| `telegram.admins_ids` | IDs de usuario de Telegram autorizados a ejecutar comandos de admin | **Sí** |
+| `telegram.regulars.meetups.chat_id` | Chat para la convocatoria y el resultado corregido (negativo para grupos) | **Sí** |
+| `telegram.regulars.meetups.message_thread_id` | Hilo de foro para esos mensajes (vacío = ninguno) | No |
+| `telegram.regulars.stats.chat_id` | Chat para estadísticas post-partido y `/meetup_stats` (`0` / omitir desactiva su publicación) | No |
+| `telegram.regulars.stats.message_thread_id` | Hilo de foro para las estadísticas (vacío = ninguno) | No |
+| `telegram.substitutes.meetups.chat_id` | Chat para el mensaje de suplentes (negativo para grupos) | **Sí** |
+| `telegram.substitutes.meetups.message_thread_id` | Hilo de foro para el mensaje de suplentes (vacío = ninguno) | No |
+| `telegram.management.logging.chat_id` | Canal de log operacional (`0` / omitir para desactivar) | No |
+| `telegram.management.logging.message_thread_id` | Hilo de foro para los registros de log (vacío = ninguno) | No |
+| `telegram.management.activity.chat_id` | Chat del feed de altas/bajas de jugadores (`0` / omitir para desactivar) | No |
+| `telegram.management.activity.message_thread_id` | Hilo de foro para el feed de actividad (vacío = ninguno) | No |
 
 Para encontrar un ID de chat: añade el bot al grupo, envía cualquier mensaje, y luego
 consulta `https://api.telegram.org/bot<TOKEN>/getUpdates` buscando el campo `chat.id`.
+
+Cada uno puede apuntar al mismo grupo/hilo o a uno distinto. Los overrides por
+variable de entorno siguen `PYBALL_<RUTA>_<CLAVE>`, p. ej.
+`PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID`.
+
+`deploy/deploy.sh` envía sus propias notificaciones de despliegue mediante
+`TELEGRAM_CHAT_ID` y `TELEGRAM_MESSAGE_THREAD_ID` en el `tg_notify.env` del
+servidor — apúntalos al mismo chat y tema que `telegram.management.logging`.
 
 ## 4. Arranca la aplicación
 

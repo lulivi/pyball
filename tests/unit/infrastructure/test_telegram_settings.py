@@ -19,16 +19,17 @@
 # SOFTWARE.
 """Tests for Telegram-specific settings and loader."""
 
+import logging
 from pathlib import Path
 
 import pytest
 
 from pyball.infrastructure.telegram.settings import (
-    ActivityChatSettings,
-    ManagementChatSettings,
-    RegularsChatSettings,
+    ChatConfig,
+    ManagementChats,
+    RegularsChats,
+    SubstitutesChats,
     TelegramAppSettings,
-    TelegramChatSettings,
     TelegramSettings,
     load_telegram_app_settings,
 )
@@ -58,16 +59,14 @@ api_port = 8000
 bot_token = "tok"
 admins_ids = [1]
 
-[pyball.telegram.regulars]
+[pyball.telegram.regulars.meetups]
 chat_id = -100111
-meetups_thread_id = ""
-stats_thread_id = ""
 
-[pyball.telegram.substitutes]
+[pyball.telegram.regulars.stats]
+chat_id = -100111
+
+[pyball.telegram.substitutes.meetups]
 chat_id = -100222
-
-[pyball.telegram.management]
-chat_id = 0
 """
 
 
@@ -77,45 +76,59 @@ def _base(tmp_path: Path) -> AppSettings:
     return load_app_settings(_write_config(tmp_path, _MINIMAL_CONFIG))
 
 
+class TestChatConfig:
+    """Tests for the ChatConfig value object."""
+
+    def test_defaults_to_disabled(self):
+        """A default ChatConfig has no chat and no topic."""
+        cfg = ChatConfig()
+        assert cfg.chat_id == 0
+        assert cfg.message_thread_id is None
+
+    def test_is_falsy_when_chat_id_is_zero(self):
+        """bool(ChatConfig) is False when no chat is configured."""
+        assert not ChatConfig()
+        assert not ChatConfig(message_thread_id=5)
+
+    def test_is_truthy_when_chat_id_is_set(self):
+        """bool(ChatConfig) is True once chat_id is non-zero."""
+        assert ChatConfig(chat_id=-100123)
+
+    def test_keeps_message_thread_id(self):
+        """message_thread_id is stored as given."""
+        assert ChatConfig(chat_id=-1, message_thread_id=27246).message_thread_id == 27246
+
+
 class TestTelegramSettings:
     """Tests for TelegramSettings dataclass."""
 
     def test_is_authorized_true_for_admin(self):
         """User ID in admins_ids is authorized."""
-        s = TelegramSettings(admins_ids=(10, 20))
-        assert s.is_authorized(10) is True
+        assert TelegramSettings(admins_ids=(10, 20)).is_authorized(10) is True
 
     def test_is_authorized_false_for_non_admin(self):
         """User ID not in admins_ids is not authorized."""
-        s = TelegramSettings(admins_ids=(10, 20))
-        assert s.is_authorized(99) is False
+        assert TelegramSettings(admins_ids=(10, 20)).is_authorized(99) is False
 
     def test_is_authorized_false_when_empty(self):
         """Empty admins_ids means no one is authorized."""
         assert TelegramSettings().is_authorized(1) is False
 
-    def test_regulars_is_subclass_of_telegram_chat_settings(self):
-        """RegularsChatSettings inherits TelegramChatSettings."""
-        assert issubclass(RegularsChatSettings, TelegramChatSettings)
-
-    def test_management_is_subclass_of_telegram_chat_settings(self):
-        """ManagementChatSettings inherits TelegramChatSettings."""
-        assert issubclass(ManagementChatSettings, TelegramChatSettings)
-
-    def test_management_has_no_thread_ids(self):
-        """ManagementChatSettings has only chat_id."""
-        m = ManagementChatSettings(chat_id=-1)
-        assert not hasattr(m, "meetups_thread_id")
-
-    def test_activity_is_subclass_of_telegram_chat_settings(self):
-        """ActivityChatSettings inherits TelegramChatSettings."""
-        assert issubclass(ActivityChatSettings, TelegramChatSettings)
-
-    def test_activity_defaults_to_disabled(self):
-        """ActivityChatSettings defaults to chat_id=0 and empty thread_id."""
-        activity = ActivityChatSettings()
-        assert activity.chat_id == 0
-        assert activity.thread_id == ""
+    def test_default_tree_is_all_disabled_chat_configs(self):
+        """A default TelegramSettings has every leaf as a falsy ChatConfig."""
+        s = TelegramSettings()
+        assert isinstance(s.regulars, RegularsChats)
+        assert isinstance(s.substitutes, SubstitutesChats)
+        assert isinstance(s.management, ManagementChats)
+        for leaf in (
+            s.regulars.meetups,
+            s.regulars.stats,
+            s.substitutes.meetups,
+            s.management.logging,
+            s.management.activity,
+        ):
+            assert isinstance(leaf, ChatConfig)
+            assert not leaf
 
 
 class TestTelegramAppSettings:
@@ -124,177 +137,155 @@ class TestTelegramAppSettings:
     def test_is_subtype_of_app_settings(self, tmp_path):
         """TelegramAppSettings is an AppSettings."""
         base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
+        settings = load_telegram_app_settings(base, _write_config(tmp_path, _MINIMAL_CONFIG))
         assert isinstance(settings, AppSettings)
 
     def test_carries_pyball_and_paths(self, tmp_path):
         """Inherited pyball and paths fields are accessible."""
         base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
+        settings = load_telegram_app_settings(base, _write_config(tmp_path, _MINIMAL_CONFIG))
         assert settings.pyball.location == "Test Park"
 
 
 class TestLoadTelegramAppSettings:
     """Tests for load_telegram_app_settings."""
 
-    def test_loads_bot_token(self, tmp_path):
-        """bot_token is read from config."""
+    def _load(self, tmp_path, config=_MINIMAL_CONFIG):
         base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.bot_token == "tok"
+        return load_telegram_app_settings(base, _write_config(tmp_path, config))
 
-    def test_loads_admins_ids(self, tmp_path):
-        """admins_ids is read from config."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.admins_ids == (1,)
+    def test_loads_bot_token_and_admins(self, tmp_path):
+        """bot_token and admins_ids are read from config."""
+        s = self._load(tmp_path).telegram
+        assert s.bot_token == "tok"
+        assert s.admins_ids == (1,)
 
-    def test_loads_regulars_chat_id(self, tmp_path):
-        """regulars.chat_id is read from config."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.regulars.chat_id == -100111
+    def test_loads_required_chat_ids(self, tmp_path):
+        """regulars.meetups, regulars.stats and substitutes.meetups chat ids load."""
+        s = self._load(tmp_path).telegram
+        assert s.regulars.meetups.chat_id == -100111
+        assert s.regulars.stats.chat_id == -100111
+        assert s.substitutes.meetups.chat_id == -100222
 
-    def test_loads_substitutes_chat_id(self, tmp_path):
-        """substitutes.chat_id is read from config."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.substitutes.chat_id == -100222
+    def test_leaves_default_to_disabled_when_section_absent(self, tmp_path):
+        """Optional sections default to a falsy ChatConfig when not in the file."""
+        s = self._load(tmp_path).telegram
+        assert not s.management.logging
+        assert not s.management.activity
+        assert s.regulars.meetups.message_thread_id is None
 
-    def test_activity_chat_id_defaults_to_zero_when_absent(self, tmp_path):
-        """activity.chat_id defaults to 0 (disabled) when the section is absent."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.activity.chat_id == 0
-        assert settings.telegram.activity.thread_id == ""
-
-    def test_loads_activity_chat_id_and_thread_id(self, tmp_path):
-        """activity.chat_id and activity.thread_id are read from config when present."""
+    def test_parses_message_thread_id_as_int(self, tmp_path):
+        """message_thread_id is parsed to int from both bare int and quoted string."""
         config = _MINIMAL_CONFIG + (
-            "\n[pyball.telegram.activity]\nchat_id = -100333\nthread_id = '9'\n"
+            "\n[pyball.telegram.management.activity]\n"
+            "chat_id = -100333\nmessage_thread_id = 2\n"
+            "\n[pyball.telegram.management.logging]\n"
+            "chat_id = -100333\nmessage_thread_id = '77'\n"
         )
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.activity.chat_id == -100333
-        assert settings.telegram.activity.thread_id == "9"
+        s = self._load(tmp_path, config).telegram
+        assert s.management.activity.message_thread_id == 2
+        assert s.management.logging.message_thread_id == 77
 
-    def test_env_override_activity_chat_id(self, tmp_path, monkeypatch):
-        """PYBALL_TELEGRAM_ACTIVITY_CHAT_ID overrides config value."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        monkeypatch.setenv("PYBALL_TELEGRAM_ACTIVITY_CHAT_ID", "-100444")
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.activity.chat_id == -100444
+    def test_zero_message_thread_id_is_none(self, tmp_path):
+        """message_thread_id = 0 (and "0") means no topic, never a literal 0."""
+        config = _MINIMAL_CONFIG + (
+            "\n[pyball.telegram.management.activity]\n"
+            "chat_id = -100333\nmessage_thread_id = 0\n"
+            "\n[pyball.telegram.management.logging]\n"
+            "chat_id = -100333\nmessage_thread_id = '0'\n"
+        )
+        s = self._load(tmp_path, config).telegram
+        assert s.management.activity.message_thread_id is None
+        assert s.management.logging.message_thread_id is None
 
-    def test_management_chat_id_zero_is_valid(self, tmp_path):
-        """management.chat_id = 0 is valid (means disabled)."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.management.chat_id == 0
-
-    def test_missing_management_chat_id_raises(self, tmp_path):
-        """Absent management.chat_id raises SettingsValidationError."""
-        config = _MINIMAL_CONFIG.replace("\n[pyball.telegram.management]\nchat_id = 0\n", "")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        with pytest.raises(SettingsValidationError, match="management.chat_id"):
-            load_telegram_app_settings(base, cfg)
-
-    def test_missing_meetups_thread_id_raises(self, tmp_path):
-        """Absent meetups_thread_id raises SettingsValidationError."""
-        config = _MINIMAL_CONFIG.replace('meetups_thread_id = ""\n', "")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        with pytest.raises(SettingsValidationError, match="meetups_thread_id"):
-            load_telegram_app_settings(base, cfg)
-
-    def test_missing_stats_thread_id_raises(self, tmp_path):
-        """Absent stats_thread_id raises SettingsValidationError."""
-        config = _MINIMAL_CONFIG.replace('stats_thread_id = ""\n', "")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        with pytest.raises(SettingsValidationError, match="stats_thread_id"):
-            load_telegram_app_settings(base, cfg)
-
-    def test_loads_management_chat_id(self, tmp_path):
-        """management.chat_id is read when present."""
-        config = _MINIMAL_CONFIG.replace("chat_id = 0", "chat_id = -999")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.management.chat_id == -999
-
-    def test_loads_thread_ids(self, tmp_path):
-        """meetups_thread_id and stats_thread_id are read from config."""
+    def test_empty_message_thread_id_is_none(self, tmp_path):
+        """message_thread_id = '' means no topic."""
         config = _MINIMAL_CONFIG.replace(
-            'meetups_thread_id = ""\nstats_thread_id = ""',
-            "meetups_thread_id = '42'\nstats_thread_id = '7'",
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\n",
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\nmessage_thread_id = ''\n",
         )
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.regulars.meetups_thread_id == "42"
-        assert settings.telegram.regulars.stats_thread_id == "7"
+        s = self._load(tmp_path, config).telegram
+        assert s.regulars.meetups.message_thread_id is None
+
+    def test_env_override_nested_chat_id(self, tmp_path, monkeypatch):
+        """PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID overrides config."""
+        monkeypatch.setenv("PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID", "-100444")
+        s = self._load(tmp_path).telegram
+        assert s.management.activity.chat_id == -100444
+
+    def test_env_override_nested_message_thread_id(self, tmp_path, monkeypatch):
+        """PYBALL_TELEGRAM_REGULARS_MEETUPS_MESSAGE_THREAD_ID overrides config."""
+        monkeypatch.setenv("PYBALL_TELEGRAM_REGULARS_MEETUPS_MESSAGE_THREAD_ID", "999")
+        s = self._load(tmp_path).telegram
+        assert s.regulars.meetups.message_thread_id == 999
+
+    def test_env_override_bot_token(self, tmp_path, monkeypatch):
+        """PYBALL_TELEGRAM_BOT_TOKEN overrides config value."""
+        monkeypatch.setenv("PYBALL_TELEGRAM_BOT_TOKEN", "env_tok")
+        assert self._load(tmp_path).telegram.bot_token == "env_tok"
+
+    def test_env_override_admins_ids(self, tmp_path, monkeypatch):
+        """PYBALL_TELEGRAM_ADMINS_IDS comma-separated overrides config."""
+        monkeypatch.setenv("PYBALL_TELEGRAM_ADMINS_IDS", "5,6,7")
+        assert self._load(tmp_path).telegram.admins_ids == (5, 6, 7)
 
     def test_missing_config_file_raises(self, tmp_path):
         """Missing config file raises SettingsValidationError immediately."""
-        base = _base(tmp_path)
         with pytest.raises(SettingsValidationError, match="No se encontró"):
-            load_telegram_app_settings(base, tmp_path / "nonexistent.toml")
+            load_telegram_app_settings(_base(tmp_path), tmp_path / "nonexistent.toml")
 
     def test_missing_bot_token_raises(self, tmp_path):
         """Empty bot_token raises SettingsValidationError."""
         config = _MINIMAL_CONFIG.replace('bot_token = "tok"', 'bot_token = ""')
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        with pytest.raises(SettingsValidationError):
-            load_telegram_app_settings(base, cfg)
+        with pytest.raises(SettingsValidationError, match="telegram.bot_token"):
+            self._load(tmp_path, config)
 
     def test_missing_admins_ids_raises(self, tmp_path):
         """Empty admins_ids raises SettingsValidationError."""
         config = _MINIMAL_CONFIG.replace("admins_ids = [1]", "admins_ids = []")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
         with pytest.raises(SettingsValidationError, match="admins_ids"):
-            load_telegram_app_settings(base, cfg)
+            self._load(tmp_path, config)
 
-    def test_missing_regulars_chat_id_raises(self, tmp_path):
-        """Missing regulars.chat_id raises SettingsValidationError."""
-        config = _MINIMAL_CONFIG.replace("chat_id = -100111", "chat_id = 0")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        with pytest.raises(SettingsValidationError):
-            load_telegram_app_settings(base, cfg)
+    def test_missing_regulars_meetups_chat_id_raises(self, tmp_path):
+        """Missing regulars.meetups.chat_id raises SettingsValidationError."""
+        config = _MINIMAL_CONFIG.replace(
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\n", ""
+        )
+        with pytest.raises(SettingsValidationError, match="regulars.meetups.chat_id"):
+            self._load(tmp_path, config)
 
-    def test_missing_substitutes_chat_id_raises(self, tmp_path):
-        """Missing substitutes.chat_id raises SettingsValidationError."""
-        config = _MINIMAL_CONFIG.replace("chat_id = -100222", "chat_id = 0")
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, config)
-        with pytest.raises(SettingsValidationError):
-            load_telegram_app_settings(base, cfg)
+    def test_missing_substitutes_meetups_chat_id_raises(self, tmp_path):
+        """Missing substitutes.meetups.chat_id raises SettingsValidationError."""
+        config = _MINIMAL_CONFIG.replace(
+            "[pyball.telegram.substitutes.meetups]\nchat_id = -100222\n", ""
+        )
+        with pytest.raises(SettingsValidationError, match="substitutes.meetups.chat_id"):
+            self._load(tmp_path, config)
 
-    def test_env_override_bot_token(self, tmp_path, monkeypatch):
-        """PYBALL_TELEGRAM_BOT_TOKEN overrides config value."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        monkeypatch.setenv("PYBALL_TELEGRAM_BOT_TOKEN", "env_tok")
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.bot_token == "env_tok"
+    def test_regulars_stats_is_optional(self, tmp_path):
+        """Absent regulars.stats section is allowed and yields a disabled ChatConfig."""
+        config = _MINIMAL_CONFIG.replace(
+            "[pyball.telegram.regulars.stats]\nchat_id = -100111\n", ""
+        )
+        assert not self._load(tmp_path, config).telegram.regulars.stats
 
-    def test_env_override_admins_ids(self, tmp_path, monkeypatch):
-        """PYBALL_TELEGRAM_ADMINS_IDS comma-separated overrides config."""
-        base = _base(tmp_path)
-        cfg = _write_config(tmp_path, _MINIMAL_CONFIG)
-        monkeypatch.setenv("PYBALL_TELEGRAM_ADMINS_IDS", "5,6,7")
-        settings = load_telegram_app_settings(base, cfg)
-        assert settings.telegram.admins_ids == (5, 6, 7)
+    def test_warns_when_regulars_stats_unconfigured(self, tmp_path, caplog):
+        """A minimal (but valid) config without regulars.stats warns at load time."""
+        config = _MINIMAL_CONFIG.replace(
+            "[pyball.telegram.regulars.stats]\nchat_id = -100111\n", ""
+        )
+        with caplog.at_level(logging.WARNING, logger="pyball.infrastructure.telegram.settings"):
+            self._load(tmp_path, config)
+        assert any("telegram.regulars.stats no está configurado" in m for m in caplog.messages)
+
+    def test_no_warning_when_regulars_stats_configured(self, tmp_path, caplog):
+        """A config with regulars.stats set does not emit the stats warning."""
+        with caplog.at_level(logging.WARNING, logger="pyball.infrastructure.telegram.settings"):
+            self._load(tmp_path)
+        assert not any("telegram.regulars.stats no está configurado" in m for m in caplog.messages)
+
+    def test_warns_when_management_logging_unconfigured(self, tmp_path, caplog):
+        """A config without management.logging warns that operational logs stay local."""
+        with caplog.at_level(logging.WARNING, logger="pyball.infrastructure.telegram.settings"):
+            self._load(tmp_path)
+        assert any("telegram.management.logging no está configurado" in m for m in caplog.messages)

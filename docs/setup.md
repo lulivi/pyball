@@ -90,20 +90,31 @@ Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` `azu
 These are ignored by `pyball` — see
 [Telegram config is bot-only](data-directory.md#telegram-config-is-bot-only) for why.
 
-| Key | Description |
-|---|---|
-| `telegram.bot_token` | Bot token from [@BotFather](https://t.me/BotFather) |
-| `telegram.admins_ids` | Telegram user IDs allowed to run admin commands |
-| `telegram.regulars.chat_id` | Main group chat ID (negative number for groups) |
-| `telegram.regulars.meetups_thread_id` | Forum topic thread for callup messages (empty to disable) |
-| `telegram.regulars.stats_thread_id` | Forum topic thread for post-match stats (empty to disable) |
-| `telegram.substitutes.chat_id` | Substitutes group chat ID (negative number for groups) |
-| `telegram.management.chat_id` | Operational log channel ID (`0` to disable) |
-| `telegram.activity.chat_id` | Player activity feed chat ID for join/leave notifications (optional, `0` to disable) |
-| `telegram.activity.thread_id` | Forum topic thread for activity messages (optional, empty to disable) |
+| Key | Description | Required |
+|---|---|---|
+| `telegram.bot_token` | Bot token from [@BotFather](https://t.me/BotFather) | **Yes** |
+| `telegram.admins_ids` | Telegram user IDs allowed to run admin commands | **Yes** |
+| `telegram.regulars.meetups.chat_id` | Chat for meetup callup + corrected-result messages (negative for groups) | **Yes** |
+| `telegram.regulars.meetups.message_thread_id` | Forum topic for those messages (empty = none) | No |
+| `telegram.regulars.stats.chat_id` | Chat for post-match stats + `/meetup_stats` (`0` / omit disables stats posting) | No |
+| `telegram.regulars.stats.message_thread_id` | Forum topic for stats (empty = none) | No |
+| `telegram.substitutes.meetups.chat_id` | Chat for the substitutes callup message (negative for groups) | **Yes** |
+| `telegram.substitutes.meetups.message_thread_id` | Forum topic for the substitutes message (empty = none) | No |
+| `telegram.management.logging.chat_id` | Operational log channel (`0` / omit to disable) | No |
+| `telegram.management.logging.message_thread_id` | Forum topic for log records (empty = none) | No |
+| `telegram.management.activity.chat_id` | Player join/leave feed chat (`0` / omit to disable) | No |
+| `telegram.management.activity.message_thread_id` | Forum topic for the activity feed (empty = none) | No |
 
 To find a chat ID: add the bot to the group, send any message, then check
 `https://api.telegram.org/bot<TOKEN>/getUpdates` for the `chat.id` field.
+
+Each of these can point at the same or a different group/topic. Env overrides
+follow `PYBALL_<PATH>_<KEY>`, e.g.
+`PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID`.
+
+`deploy/deploy.sh` sends its own deploy notifications via `TELEGRAM_CHAT_ID` and
+`TELEGRAM_MESSAGE_THREAD_ID` in the server-side `tg_notify.env` — point those at
+the same chat and topic as `telegram.management.logging`.
 
 ## 4. Start the app
 

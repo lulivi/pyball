@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tomllib
 from dataclasses import dataclass, field
@@ -28,32 +29,42 @@ from pathlib import Path
 
 from pyball.settings import AppSettings, SettingsValidationError
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
-class TelegramChatSettings:
-    """Base Telegram chat configuration."""
+class ChatConfig:
+    """A single Telegram message destination: a chat and an optional forum topic."""
 
     chat_id: int = 0
+    message_thread_id: int | None = None
+
+    def __bool__(self) -> bool:
+        """Return True when a chat is configured (chat_id is non-zero)."""
+        return bool(self.chat_id)
 
 
 @dataclass
-class ManagementChatSettings(TelegramChatSettings):
-    """Telegram chat configuration for the management channel."""
+class RegularsChats:
+    """Message destinations for the regulars audience."""
+
+    meetups: ChatConfig = field(default_factory=ChatConfig)
+    stats: ChatConfig = field(default_factory=ChatConfig)
 
 
 @dataclass
-class RegularsChatSettings(TelegramChatSettings):
-    """Telegram chat configuration for the regulars group."""
+class SubstitutesChats:
+    """Message destinations for the substitutes audience."""
 
-    meetups_thread_id: str | int = ""
-    stats_thread_id: str | int = ""
+    meetups: ChatConfig = field(default_factory=ChatConfig)
 
 
 @dataclass
-class ActivityChatSettings(TelegramChatSettings):
-    """Telegram chat configuration for the player activity feed (joins/leaves)."""
+class ManagementChats:
+    """Message destinations for operational and management output."""
 
-    thread_id: str | int = ""
+    logging: ChatConfig = field(default_factory=ChatConfig)
+    activity: ChatConfig = field(default_factory=ChatConfig)
 
 
 @dataclass
@@ -62,10 +73,9 @@ class TelegramSettings:
 
     bot_token: str = ""
     admins_ids: tuple[int, ...] = ()
-    regulars: RegularsChatSettings = field(default_factory=RegularsChatSettings)
-    substitutes: TelegramChatSettings = field(default_factory=TelegramChatSettings)
-    management: ManagementChatSettings = field(default_factory=ManagementChatSettings)
-    activity: ActivityChatSettings = field(default_factory=ActivityChatSettings)
+    regulars: RegularsChats = field(default_factory=RegularsChats)
+    substitutes: SubstitutesChats = field(default_factory=SubstitutesChats)
+    management: ManagementChats = field(default_factory=ManagementChats)
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
@@ -107,51 +117,31 @@ def load_telegram_app_settings(
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
     management_cfg = telegram_cfg.get("management", {})
-    activity_cfg = telegram_cfg.get("activity", {})
 
-    raw_meetups_thread = _get_env_override(
-        "telegram.regulars", "meetups_thread_id", regulars_cfg.get("meetups_thread_id")
-    )
-    raw_stats_thread = _get_env_override(
-        "telegram.regulars", "stats_thread_id", regulars_cfg.get("stats_thread_id")
-    )
-    raw_management_chat = _get_env_override(
-        "telegram.management", "chat_id", management_cfg.get("chat_id")
-    )
-
-    regulars = RegularsChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override("telegram.regulars", "chat_id", regulars_cfg.get("chat_id", 0))
-        ),
-        meetups_thread_id=raw_meetups_thread if raw_meetups_thread is not None else "",
-        stats_thread_id=raw_stats_thread if raw_stats_thread is not None else "",
-    )
-    substitutes = TelegramChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override("telegram.substitutes", "chat_id", substitutes_cfg.get("chat_id", 0))
-        ),
-    )
-    management = ManagementChatSettings(
-        chat_id=_parse_chat_id(raw_management_chat if raw_management_chat is not None else 0),
-    )
-    raw_activity_thread = _get_env_override(
-        "telegram.activity", "thread_id", activity_cfg.get("thread_id")
-    )
-    activity = ActivityChatSettings(
-        chat_id=_parse_chat_id(
-            _get_env_override("telegram.activity", "chat_id", activity_cfg.get("chat_id", 0))
-        ),
-        thread_id=raw_activity_thread if raw_activity_thread is not None else "",
-    )
     telegram = TelegramSettings(
         bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
         admins_ids=_parse_admins_ids(
             _get_env_override("telegram", "admins_ids", telegram_cfg.get("admins_ids", []))
         ),
-        regulars=regulars,
-        substitutes=substitutes,
-        management=management,
-        activity=activity,
+        regulars=RegularsChats(
+            meetups=_load_chat_config(
+                regulars_cfg.get("meetups", {}), "telegram.regulars.meetups"
+            ),
+            stats=_load_chat_config(regulars_cfg.get("stats", {}), "telegram.regulars.stats"),
+        ),
+        substitutes=SubstitutesChats(
+            meetups=_load_chat_config(
+                substitutes_cfg.get("meetups", {}), "telegram.substitutes.meetups"
+            ),
+        ),
+        management=ManagementChats(
+            logging=_load_chat_config(
+                management_cfg.get("logging", {}), "telegram.management.logging"
+            ),
+            activity=_load_chat_config(
+                management_cfg.get("activity", {}), "telegram.management.activity"
+            ),
+        ),
     )
 
     missing = []
@@ -159,21 +149,26 @@ def load_telegram_app_settings(
         missing.append("telegram.bot_token")
     if not telegram.admins_ids:
         missing.append("telegram.admins_ids")
-    if not telegram.regulars.chat_id:
-        missing.append("telegram.regulars.chat_id")
-    if not telegram.substitutes.chat_id:
-        missing.append("telegram.substitutes.chat_id")
-    if raw_meetups_thread is None:
-        missing.append("telegram.regulars.meetups_thread_id")
-    if raw_stats_thread is None:
-        missing.append("telegram.regulars.stats_thread_id")
-    if raw_management_chat is None:
-        missing.append("telegram.management.chat_id")
+    if not telegram.regulars.meetups.chat_id:
+        missing.append("telegram.regulars.meetups.chat_id")
+    if not telegram.substitutes.meetups.chat_id:
+        missing.append("telegram.substitutes.meetups.chat_id")
 
     if missing:
         raise SettingsValidationError(
             f"Faltan parámetros requeridos: {', '.join(missing)}. "
             "Ejecuta 'pyball-telegram --bootstrap' para generar un config.toml de ejemplo."
+        )
+
+    if not telegram.regulars.stats.chat_id:
+        logger.warning(
+            "telegram.regulars.stats no está configurado: no se publicarán "
+            "estadísticas tras los partidos."
+        )
+    if not telegram.management.logging.chat_id:
+        logger.warning(
+            "telegram.management.logging no está configurado: los registros "
+            "operativos no se enviarán a Telegram."
         )
 
     return TelegramAppSettings(
@@ -183,11 +178,33 @@ def load_telegram_app_settings(
     )
 
 
+def _load_chat_config(section: dict, env_path: str) -> ChatConfig:
+    """Build a ChatConfig from a config sub-section plus PYBALL_* env overrides.
+
+    Args:
+        section: The parsed TOML table for this destination (may be empty).
+        env_path: Dotted path used to derive env var names, e.g.
+            "telegram.regulars.meetups" -> PYBALL_TELEGRAM_REGULARS_MEETUPS_CHAT_ID.
+    """
+    chat_id = _parse_chat_id(_get_env_override(env_path, "chat_id", section.get("chat_id", 0)))
+    raw_thread = _get_env_override(env_path, "message_thread_id", section.get("message_thread_id"))
+    return ChatConfig(chat_id=chat_id, message_thread_id=_parse_thread_id(raw_thread))
+
+
 def _parse_chat_id(value) -> int:
     """Parse chat_id from config or env, handling empty strings."""
     if isinstance(value, str) and not value:
         return 0
     return int(value)
+
+
+def _parse_thread_id(value) -> int | None:
+    """Parse a forum topic id from config or env; empty/absent/zero becomes None."""
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    return int(value) or None
 
 
 def _parse_admins_ids(value) -> tuple[int, ...]:
@@ -200,10 +217,11 @@ def _parse_admins_ids(value) -> tuple[int, ...]:
 
 
 def _get_env_override(section: str, key: str, default):
-    """Get environment variable override for Telegram config value.
+    """Get environment variable override for a Telegram config value.
 
     Env var format: PYBALL_<SECTION>_<KEY> with dots replaced by underscores.
-    Example: section='telegram.regulars', key='chat_id' -> PYBALL_TELEGRAM_REGULARS_CHAT_ID
+    Example: section='telegram.regulars.meetups', key='chat_id'
+    -> PYBALL_TELEGRAM_REGULARS_MEETUPS_CHAT_ID
     """
     env_key = f"PYBALL_{section.upper().replace('.', '_')}_{key.upper()}"
     env_value = os.environ.get(env_key)

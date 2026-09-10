@@ -199,7 +199,8 @@ when the meetup closes):
 
 The key is the meetup's date/time (`YYYY-MM-DDTHH:MM`, matching the meetup filename
 without the `.json` extension). `thread_id` is `null` unless the chat uses forum topics
-(see `telegram.regulars.meetups_thread_id` in [docs/setup.md](setup.md)).
+(see `telegram.regulars.meetups.message_thread_id` in [docs/setup.md](setup.md); the
+`substitute` entry likewise picks up `telegram.substitutes.meetups.message_thread_id`).
 
 ## Related documentation
 
