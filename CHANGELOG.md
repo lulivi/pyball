@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.1.1 (2026-09-15)
+
+### Bug Fixes
+
+- **GL-217**: Pin match save button as fixed footer with scrollable events list
+  ([`a637b4d`](https://gitlab.com/lulivi/pyball/-/commit/a637b4d1b0539438855ade61dbcc32f8cae86fab))
+
+
 ## v6.1.0 (2026-09-10)
 
 ### Features
