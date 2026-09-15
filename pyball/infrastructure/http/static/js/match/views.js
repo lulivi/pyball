@@ -200,19 +200,23 @@ function renderEventsTab() {
         : '';
 
     return `
-            <div>
+            <div class="events-tab">
                 ${ctx.isEditMode ? '<div class="edit-mode-banner">✏️ Modo edición — corrección de resultado</div>' : ''}
-                <div id="event-list">
-                    <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
-                        <span style="flex: 0 0 42px;"></span>
-                        <span style="flex: 1; text-align:center;">Goleador</span>
-                        <span style="flex: 1; text-align:center;">Asistente</span>
-                        <span style="flex: 0 0 35px;"></span>
+                <div class="events-scroll">
+                    <div id="event-list">
+                        <div class="event-log" style="display:flex;align-items:center;gap:4px;padding:8px 4px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
+                            <span style="flex: 0 0 42px;"></span>
+                            <span style="flex: 1; text-align:center;">Goleador</span>
+                            <span style="flex: 1; text-align:center;">Asistente</span>
+                            <span style="flex: 0 0 35px;"></span>
+                        </div>
+                        ${eventsHtml}
                     </div>
-                    ${eventsHtml}
                 </div>
-                ${errorHtml}
-                <button id="save-btn" class="${btnClass}" onclick="requestSave()"${disabledAttr}>${btnLabel}</button>
+                <div class="events-footer">
+                    ${errorHtml}
+                    <button id="save-btn" class="${btnClass}" onclick="requestSave()"${disabledAttr}>${btnLabel}</button>
+                </div>
             </div>
         `;
 }
@@ -251,6 +255,7 @@ function renderStaleMatchChoice(oldDateLabel, onKeep, onFresh) {
 
 function renderApp() {
     const state = store.get();
+    const prevScrollTop = document.querySelector('.events-scroll')?.scrollTop ?? 0;
     document.getElementById('app').innerHTML = `
             <div style="height:100vh;height:100svh;display:flex;flex-direction:column;padding:8px 12px 12px;">
                 <div class="match-date">${formatMatchDate(ctx.meetupDate)}${renderTimerPill()}</div>
@@ -264,6 +269,8 @@ function renderApp() {
                 ${state.activeTab === 'events' ? renderEventsTab() : ''}
             </div>
         `;
+    const scrollEl = document.querySelector('.events-scroll');
+    if (scrollEl) scrollEl.scrollTop = prevScrollTop;
 }
 
 function formatMatchDate(dateStr) {
