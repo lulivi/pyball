@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.2.0 (2026-09-16)
+
+### Features
+
+- **GL-218..GL-221**: Add copyable roster panel with unified convocatoria header format
+  ([`f27af01`](https://gitlab.com/lulivi/pyball/-/commit/f27af01eb91acee2948e6c346b36a7d2bc06d293))
+
+
 ## v6.1.1 (2026-09-15)
 
 ### Bug Fixes
