@@ -77,3 +77,21 @@ def test_date_more_than_a_week_past_bumps_to_next_year():
     outcome = _use_case().execute(f"{line}\n")
 
     assert outcome.date.year == datetime.now().year + 1
+
+
+def test_roster_panel_header_line_is_parsed():
+    """A callup pasted straight from /manage's copy panels still yields the date.
+
+    The roster/teams-box header wraps the date in emoji and markdown
+    ("📅 *Convocatoria: <fecha>*"), unlike a plain typed header line — this
+    locks in that pasting one of those panels' own generated text back into
+    "Pegar convocatoria" recovers the original date instead of silently
+    falling back to today.
+    """
+    target = datetime.now() + timedelta(days=3)
+    line = target.strftime("%A %d %B").lower()
+
+    outcome = _use_case().execute(f"📅 *Convocatoria: {line}*\n📍 *Parque*\n\n1. Juande\n")
+
+    assert (outcome.date.month, outcome.date.day) == (target.month, target.day)
+    assert (outcome.date.hour, outcome.date.minute) == (20, 0)

@@ -4,6 +4,7 @@ import {
     buildRosterList, buildAddPlayerPanel, buildAddResults,
     buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor, copyLinkButton,
     buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
+    buildConvocatoriaHeader, buildRosterText,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
@@ -79,6 +80,10 @@ async function confirmManualCreate() {
     const location = document.getElementById('create-location-input').value.trim();
     if (!date || !time || !location) {
         alert('Completa fecha, hora y ubicación.');
+        return;
+    }
+    if (!_isValidTime24h(time)) {
+        alert('Hora inválida. Usa formato 24h HH:MM (ej. 20:00).');
         return;
     }
     const iso = `${date}T${time}`;
@@ -218,7 +223,10 @@ function renderState1(data) {
         ? buildAddPlayerPanel('roster-add', 'searchRosterAdd()')
         : '';
     document.getElementById('tab-equipos').innerHTML = `
-    ${buildDateLocationEditor(data, dateLocationEditOpen)}
+    ${dateLocationEditOpen ? buildDateLocationEditor(data, true) : ''}
+    <div id="roster-text" class="summary-box">${escHtml(buildRosterText(data))}</div>
+    <button class="btn btn-teal" onclick="copyRosterText()">📋 Copiar convocatoria</button>
+    <button class="btn btn-gray" onclick="toggleDateLocationEdit()">✏️ Editar convocatoria</button>
     <div class="step-label">Jugadores convocados (${data.players.length})</div>
     <div id="roster-list">${buildRosterList(data.players)}</div>
     <button class="btn-sm gray" style="margin-top:6px;margin-bottom:10px;" onclick="toggleRosterAdd()">${addBtnLabel}</button>
@@ -278,6 +286,10 @@ async function saveDateLocationEdit() {
     const newLocation = document.getElementById('edit-location-input').value.trim();
     if (!newDate || !newTime || !newLocation) {
         alert('Completa fecha, hora y ubicación.');
+        return;
+    }
+    if (!_isValidTime24h(newTime)) {
+        alert('Hora inválida. Usa formato 24h HH:MM (ej. 20:00).');
         return;
     }
     const newIso = `${newDate}T${newTime}`;
@@ -355,9 +367,7 @@ function renderState2(data) {
         `${t.emojiB} *${t.nameB}*\n${markGoalkeeper(t.teamB, t.goalkeeperB).join('\n')}`,
     ];
     if (t.teamC) blocks.push(`${t.emojiC} *${t.nameC}*\n${markGoalkeeper(t.teamC, t.goalkeeperC).join('\n')}`);
-    const header = data.location
-        ? `📅 *${_formatDate(data.date)}*\n📍 *${data.location}*`
-        : `📅 *${_formatDate(data.date)}*`;
+    const header = buildConvocatoriaHeader(data.date, data.location);
     const teamsText = `${header}\n\n${blocks.join('\n\n')}`;
     document.getElementById('tab-equipos').innerHTML = `
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
@@ -375,6 +385,10 @@ function renderState2(data) {
 
 function copyTeams() {
     copyToClipboard(document.getElementById('teams-text').textContent);
+}
+
+function copyRosterText() {
+    copyToClipboard(document.getElementById('roster-text').textContent);
 }
 
 function copyManageLink(url) {
@@ -791,6 +805,12 @@ async function _saveRoster(playerIds) {
     renderState1(activeMatchData);
 }
 
+// Strict 24h "HH:MM" check — the time fields are plain text (not <input type="time">)
+// so no browser can silently swap in a 12h AM/PM format.
+function _isValidTime24h(value) {
+    return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
+}
+
 // Re-render whichever state matches the current activeMatchData.
 function _rerenderActiveState() {
     if (!activeMatchData) return;
@@ -808,7 +828,7 @@ function _renderPasteContainer() {
     if (!el) return;
     el.innerHTML = pasteFlowOpen ? `
     <div class="step-label" style="margin-top:12px;">Pega la convocatoria</div>
-    <textarea id="callup-input" class="paste-area" placeholder="Lunes 18 Mayo&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
+    <textarea id="callup-input" class="paste-area" placeholder="📅 *Convocatoria: Lunes 18 Mayo*&#10;📍 *Parque*&#10;&#10;1. Juande&#10;2. David Quesada&#10;...&#10;&#10;Reservas&#10;- Manu&#10;..."></textarea>
     <button class="btn btn-blue" onclick="parseCallup()">🔍 Reconocer jugadores</button>` : '';
 }
 
@@ -962,6 +982,7 @@ Object.assign(window, {
     generateTeams,
     createOrRegenerateTeams,
     copyTeams,
+    copyRosterText,
     copyManageLink,
     lockMeetup,
     destroyTeams,

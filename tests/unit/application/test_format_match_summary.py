@@ -76,15 +76,15 @@ class TestFormatMatchSummary:
             team_emojis=("🟡", "⚫"),
             date_label="18 Mayo",
         )
-        assert msg.startswith("🎉 *Partido terminado:* 18 Mayo\n📍 *Lugar:* Parque")
+        assert msg.startswith("🎉 *Convocatoria: 18 Mayo*\n📍 *Parque")
 
     def test_header_uses_iso_date_and_time_by_default(self):
         """Without an explicit date_label, the header shows "YYYY-MM-DD HH:MM"."""
         msg = self.use_case.execute(self.meetup, self.player_names)
-        assert "🎉 *Partido terminado:* 2026-05-18 20:00" in msg
+        assert "🎉 *Convocatoria: 2026-05-18 20:00*" in msg
 
     def test_header_omits_location_line_when_meetup_has_none(self):
-        """A meetup with no location has no "📍 Lugar:" line."""
+        """A meetup with no location has no "📍" line."""
         meetup = Meetup.create(date=datetime(2026, 5, 18, 20, 0), location="Parque")
         a1 = PlayerId.from_string(self.pid_a1)
         b1 = PlayerId.from_string(self.pid_b1)

@@ -82,6 +82,18 @@ function _formatDate(iso) {
     return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
 
+function buildConvocatoriaHeader(date, location) {
+    return location
+        ? `📅 *Convocatoria: ${_formatDate(date)}*\n📍 *${location}*`
+        : `📅 *Convocatoria: ${_formatDate(date)}*`;
+}
+
+function buildRosterText(data) {
+    const header = buildConvocatoriaHeader(data.date, data.location);
+    const roster = data.players.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+    return roster ? `${header}\n\n${roster}` : header;
+}
+
 function _buildFreshFlowHTML() {
     document.getElementById('tab-equipos').innerHTML = `
     <div id="step-paste">
@@ -146,6 +158,9 @@ function buildConvocatoriaDetail(date, message) {
 
 // Date/location editor shown next to the date badge in "Convocatoria actual".
 // `data` is activeMatchData ({date, location, ...}); `open` toggles edit mode.
+// State 1 (main.js renderState1) only ever renders this while `open` is true —
+// the closed-state pencil badge below is State 2's nested usage only, reached
+// from inside its own "Editar convocatoria" team-edit panel.
 function buildDateLocationEditor(data, open) {
     if (!open) {
         return `<button class="date-badge-btn" onclick="toggleDateLocationEdit()">
@@ -159,7 +174,8 @@ function buildDateLocationEditor(data, open) {
       <div class="field-label">Fecha</div>
       <input class="search-box" id="edit-date-input" type="date" value="${escHtml(datePart || '')}">
       <div class="field-label">Hora</div>
-      <input class="search-box" id="edit-time-input" type="time" value="${escHtml(timePart || '')}">
+      <input class="search-box" id="edit-time-input" type="text" inputmode="numeric"
+        placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" value="${escHtml(timePart || '')}">
       <div class="field-label">Ubicación</div>
       <input class="search-box" id="edit-location-input" type="text" value="${escHtml(data.location || '')}">
       <div class="edit-actions">
@@ -181,7 +197,8 @@ function buildManualCreatePanel(open) {
       <div class="field-label">Fecha</div>
       <input class="search-box" id="create-date-input" type="date" value="${escHtml(defaultDate)}">
       <div class="field-label">Hora</div>
-      <input class="search-box" id="create-time-input" type="time" value="20:00">
+      <input class="search-box" id="create-time-input" type="text" inputmode="numeric"
+        placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" value="20:00">
       <div class="field-label">Ubicación</div>
       <input class="search-box" id="create-location-input" type="text" placeholder="Ubicación...">
       <div class="edit-actions">
@@ -235,5 +252,6 @@ export {
     buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
     buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor, copyLinkButton,
     buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
+    buildConvocatoriaHeader, buildRosterText,
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 };

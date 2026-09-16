@@ -70,9 +70,9 @@ class FormatMatchSummary:
 
         is_triangular = len(meetup.teams) == 3
         label = date_label or meetup.date.strftime("%Y-%m-%d %H:%M")
-        lines = [f"🎉 *Partido terminado:* {label}"]
+        lines = [f"🎉 *Convocatoria: {label}*"]
         if meetup.location:
-            lines.append(f"📍 *Lugar:* {meetup.location}")
+            lines.append(f"📍 *{meetup.location}*")
 
         if is_triangular:
             lines.append("")

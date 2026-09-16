@@ -19,6 +19,7 @@
 # SOFTWARE.
 """Parse callup use case: fuzzy-match players and extract the meetup date."""
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -67,7 +68,7 @@ def _extract_callup_date(text: str, default_hour: str) -> datetime:
         hour, minute = 20, 0
     today = datetime.now()
     for line in text.splitlines():
-        parts = line.strip().split()
+        parts = _clean_header_line(line).split()
         if len(parts) < 3:
             continue
         try:
@@ -79,3 +80,16 @@ def _extract_callup_date(text: str, default_hour: str) -> datetime:
             candidate = candidate.replace(year=today.year + 1)
         return candidate
     return datetime(today.year, today.month, today.day, hour, minute)
+
+
+def _clean_header_line(line: str) -> str:
+    """Strip the roster/teams-box header's leading emoji, markdown, and label.
+
+    "📅 *Convocatoria: Lunes 18 Mayo*" -> "Lunes 18 Mayo", so a callup pasted
+    straight from the /manage copy panels still yields a parseable date line.
+    A plain, unprefixed line (as typed directly in a chat) passes through
+    unchanged.
+    """
+    line = re.sub(r"^[^\w]+", "", line.strip())
+    line = line.rstrip("*").strip()
+    return re.sub(r"(?i)^convocatoria:\s*", "", line)

@@ -82,6 +82,21 @@ class TestSplitSections:
         assert not titulars
         assert not reserves
 
+    def test_ignores_convocatoria_copy_panel_header_lines(self):
+        """The /manage roster copy panel's emoji header lines are ignored, not misparsed.
+
+        Verifies only the player-list half of the round trip: that
+        _split_sections() correctly extracts the numbered player list and
+        doesn't mistake the emoji/markdown header lines for player names. The
+        date half is covered separately by
+        test_parse_callup.test_roster_panel_header_line_is_parsed, which
+        exercises the full ParseCallup.execute() including date extraction.
+        """
+        text = "📅 *Convocatoria: Lunes 18 Mayo*\n📍 *Parque*\n\n1. Juande\n2. Luvo\n"
+        titulars, reserves = _split_sections(text)
+        assert titulars == ["Juande", "Luvo"]
+        assert not reserves
+
 
 class TestCleanName:
     """Tests for the _clean_name helper function."""
