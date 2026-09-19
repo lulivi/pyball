@@ -7,7 +7,7 @@ import {
 import * as actions from './actions.js';
 import {
     completedCycles, clampMinutes, playCue, requestWakeLock, startAudio,
-    remainingMs, formatCountdown,
+    remainingMs, formatCountdown, hourWarnFireAt, playHourCue,
 } from './timer.js';
 import {
     renderApp, renderNoMatch, renderOffline, renderStaleMatchChoice, formatMatchDate,
@@ -65,7 +65,7 @@ function adoptSaved(savedState, savedTeams) {
         audioArmed: false,
         editingEvent: null, saveArmed: false, saving: false, saveError: null,
     });
-    if (store.get().timerRunning) {
+    if (store.get().timerRunning || store.get().hourWarnEnabled) {
         requestWakeLock();
         // A reload re-locks audio; the next real tap anywhere unlocks it.
         // Use 'click' (not 'pointerdown') — Chromium/Brave on Android only
@@ -147,6 +147,7 @@ async function loadActiveMatch(silent = false) {
     } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
             actions.resetTimer();
+            if (store.get().hourWarnEnabled) actions.toggleHourWarn();
             clearSaved();
             renderNoMatch();
             return;
@@ -191,6 +192,9 @@ function normalizeTimer(savedState) {
         timerMinutes: clampMinutes(savedState.timerMinutes ?? 6),
         timerStartedAt: savedState.timerStartedAt ?? null,
         lastCycleFired: savedState.lastCycleFired ?? 0,
+        hourWarnEnabled: savedState.hourWarnEnabled ?? false,
+        hourWarnMinutes: clampMinutes(savedState.hourWarnMinutes ?? 5),
+        hourWarnLastFired: savedState.hourWarnLastFired ?? null,
     };
 }
 
@@ -209,8 +213,11 @@ Object.assign(window, {
     startTimer: actions.startTimer,
     resetTimer: actions.resetTimer,
     setTimerMinutes: actions.setTimerMinutes,
+    toggleHourWarn: actions.toggleHourWarn,
+    setHourWarnMinutes: actions.setHourWarnMinutes,
     armAudio: actions.armAudio,
     playCue,
+    playHourCue,
     waitForMatch,
 });
 
@@ -222,7 +229,7 @@ document.addEventListener('click', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && store.get().timerRunning) {
+    if (document.visibilityState === 'visible' && (store.get().timerRunning || store.get().hourWarnEnabled)) {
         requestWakeLock();
         if (store.get().audioArmed) startAudio();
         renderApp();
@@ -236,8 +243,18 @@ if ('serviceWorker' in navigator) {
 
 function timerTick() {
     const s = store.get();
-    if (!s.timerRunning) return;
     const now = Date.now();
+
+    if (s.hourWarnEnabled) {
+        const fireAt = hourWarnFireAt(now, s.hourWarnMinutes);
+        if (fireAt && fireAt !== s.hourWarnLastFired) {
+            store.set({ hourWarnLastFired: fireAt });
+            playHourCue();
+            flashApp();
+        }
+    }
+
+    if (!s.timerRunning) return;
     const done = completedCycles(s.timerStartedAt, s.timerMinutes, now);
     if (done > s.lastCycleFired) {
         store.set({ lastCycleFired: done });

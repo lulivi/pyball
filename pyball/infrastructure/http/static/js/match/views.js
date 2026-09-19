@@ -73,6 +73,32 @@ function renderEventRow(e, i) {
         `;
 }
 
+function renderHourWarnSection(state) {
+    if (state.hourWarnEnabled) {
+        const soundBtn = state.audioArmed
+            ? ''
+            : `<button class="timer-btn timer-sound-btn" onclick="armAudio();playHourCue()">🔊 Activar sonido</button>`;
+        return `
+            <div class="hourwarn-section">
+                <div class="hourwarn-label">Aviso de fin de franja (${state.hourWarnMinutes} min antes de la hora)</div>
+                ${soundBtn}
+                <button class="timer-btn hourwarn-btn-on" onclick="toggleHourWarn()">🔕 Desactivar aviso</button>
+            </div>
+        `;
+    }
+    return `
+        <div class="hourwarn-section">
+            <div class="hourwarn-label">Aviso de fin de franja</div>
+            <div class="timer-stepper hourwarn-stepper">
+                <button class="timer-step" onclick="setHourWarnMinutes(-1)">−</button>
+                <span class="timer-step-value">${state.hourWarnMinutes}<small>min</small></span>
+                <button class="timer-step" onclick="setHourWarnMinutes(1)">+</button>
+            </div>
+            <button class="timer-btn" onclick="toggleHourWarn()">🔔 Avisar antes de la hora</button>
+        </div>
+    `;
+}
+
 function renderTimerTab() {
     const state = store.get();
 
@@ -86,6 +112,7 @@ function renderTimerTab() {
                 <div class="timer-countdown" id="timer-countdown-value">${formatCountdown(ms)}</div>
                 ${soundBtn}
                 <button class="timer-btn timer-btn-reset" onclick="resetTimer()">⟲ Reiniciar</button>
+                ${renderHourWarnSection(state)}
             </div>
         `;
     }
@@ -98,6 +125,7 @@ function renderTimerTab() {
                 <button class="timer-step" onclick="setTimerMinutes(1)">+</button>
             </div>
             <button class="timer-btn timer-btn-start" onclick="startTimer()">▶️ Iniciar cronómetro</button>
+            ${renderHourWarnSection(state)}
         </div>
     `;
 }

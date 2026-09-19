@@ -138,6 +138,10 @@ que escanear.
 - Si rotáis porteros por tiempo, la pestaña **Tiempo** lleva una cuenta atrás que se
   repite (6 minutos por defecto) y suena y parpadea en cada intervalo — ponla en marcha
   al empezar el partido y cambia de portero en la siguiente parada cuando la oigas.
+- Para que te avise antes de que se acabe la hora de pista reservada, activa el aviso
+  en la misma pestaña **Tiempo** — suena N minutos antes de cada hora en punto (5 por
+  defecto, ajustable entre 1 y 15) con un sonido distinto al de la cuenta atrás de
+  rotación; los dos pueden estar activos a la vez.
 
 **En un partido clásico**, finalizar el único partido cierra el meetup
 automáticamente — se publica un resumen (en Telegram, si está configurado) y el partido

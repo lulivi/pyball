@@ -30,13 +30,30 @@ export function armAudio() {
 
 export function resetTimer() {
     if (!store.get().timerRunning) return;
-    releaseWakeLock();
     store.set({ timerRunning: false, timerStartedAt: null, lastCycleFired: 0 });
+    if (!store.get().hourWarnEnabled) releaseWakeLock();
 }
 
 export function setTimerMinutes(delta) {
     if (store.get().timerRunning) return;
     store.set({ timerMinutes: clampMinutes(store.get().timerMinutes + delta) });
+}
+
+export function toggleHourWarn() {
+    const enabling = !store.get().hourWarnEnabled;
+    if (enabling) {
+        startAudio();
+        requestWakeLock();
+        store.set({ hourWarnEnabled: true, hourWarnLastFired: null, audioArmed: true });
+        return;
+    }
+    store.set({ hourWarnEnabled: false });
+    if (!store.get().timerRunning) releaseWakeLock();
+}
+
+export function setHourWarnMinutes(delta) {
+    if (store.get().hourWarnEnabled) return;
+    store.set({ hourWarnMinutes: clampMinutes(store.get().hourWarnMinutes + delta) });
 }
 
 export function selectPlayer(playerName, teamId) {
@@ -132,6 +149,7 @@ async function _submitFinish() {
             return;
         }
         resetTimer();
+        if (store.get().hourWarnEnabled) toggleHourWarn();
         clearSaved();
         _renderDone('✅ Partido guardado', 'Vuelve a /manage<br>para el próximo partido.');
     } catch (err) {

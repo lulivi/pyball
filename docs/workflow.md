@@ -128,6 +128,10 @@ shows the currently pending match — no manual setup, no QR code to scan.
 - If you rotate goalkeepers on a timer, the **Tiempo** tab runs a repeating countdown
   (default 6 minutes) that beeps and flashes at each interval — set it once when the
   match kicks off and swap keepers on the next dead ball whenever you hear it.
+- To get a heads-up before the pitch's booked hour runs out, turn on the alarm in the
+  same **Tiempo** tab — it fires N minutes before every clock hour (5 by default,
+  adjustable 1–15) with its own distinct beep, independent of the rotation countdown;
+  both can run at the same time.
 
 **For a classic meetup**, finishing the one match closes the meetup automatically — a
 summary is posted (to Telegram, if configured) and the meetup moves into the

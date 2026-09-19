@@ -178,3 +178,4 @@ tests/integration/test_migrate_to_triangular.py
 .superpowers/
 docs/superpowers
 configs/
+graphify-out/

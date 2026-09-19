@@ -30,6 +30,10 @@ export const store = createStore({
     // page load. Reset to false on every load (a reload re-locks audio), so
     // a resumed timer knows to prompt for a tap before it can beep.
     audioArmed: false,
+    // Independent "pitch slot ending" alarm — off by default per match.
+    hourWarnEnabled: false,
+    hourWarnMinutes: 5,
+    hourWarnLastFired: null,
 });
 
 // Persistence mirrors the old persistState(): skipped entirely in edit mode.
