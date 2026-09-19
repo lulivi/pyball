@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.3.0 (2026-09-19)
+
+### Features
+
+- **GL-222..GL-227**: Add pitch-time warning alarm to /match Tiempo tab
+  ([`3ac0434`](https://gitlab.com/lulivi/pyball/-/commit/3ac0434cd3c73f17ef755a5ba71d0bd34fc7cbf8))
+
+
 ## v6.2.0 (2026-09-16)
 
 ### Features
