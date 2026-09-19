@@ -3,8 +3,9 @@
 from datetime import date, datetime, time, timedelta
 from unittest.mock import MagicMock
 
-from pyball.application.meetup.compute_stats import ComputeStats, StatsReport, _season_start
+from pyball.application.meetup.compute_stats import ComputeStats, StatsReport
 from pyball.domain.meetup.models import GoalEvent, Match, MatchResult, Meetup, PlayerId, Team
+from pyball.domain.meetup.season import _season_start
 from pyball.domain.player.models import Player
 from pyball.infrastructure.persistence import LegacyStats
 
@@ -216,21 +217,6 @@ class TestComputeStatsSeasonFilter:
         report = ComputeStats(meetup_repo, player_repo).execute()
         assert len(report.season.players) == 0
         assert len(report.all_time.players) > 0
-
-
-class TestSeasonStart:
-    """Direct tests for the Sep 1 season-boundary helper."""
-
-    def test_september_onwards_starts_this_years_season(self):
-        """From September to December the season year is the current year."""
-        assert _season_start(date(2026, 9, 1)) == date(2026, 9, 1)
-        assert _season_start(date(2026, 12, 31)) == date(2026, 9, 1)
-
-    def test_before_september_uses_last_years_season(self):
-        """From January to August the season started on Sep 1 of the previous year."""
-        assert _season_start(date(2026, 8, 31)) == date(2025, 9, 1)
-        assert _season_start(date(2026, 1, 15)) == date(2025, 9, 1)
-        assert _season_start(date(2024, 2, 29)) == date(2023, 9, 1)
 
 
 class TestComputeStatsChemistry:

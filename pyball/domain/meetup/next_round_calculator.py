@@ -89,13 +89,14 @@ def calculate_next_round(
     entering = _resting_team(teams, last)
     streaks = {t: _consecutive_streak(t, matches) for t in (team_x, team_y)}
 
-    if last.result.score_a == last.result.score_b:
+    winner_index = last.result.winner_index()
+    if winner_index is None:
         if streaks[team_x] == streaks[team_y]:
             stays = (rng or random_module).choice([team_x, team_y])
         else:
             stays = team_x if streaks[team_x] < streaks[team_y] else team_y
     else:
-        winner = team_x if last.result.score_a > last.result.score_b else team_y
+        winner = team_x if winner_index == 0 else team_y
         loser = team_y if winner is team_x else team_x
         stays = loser if streaks[winner] >= _MAX_CONSECUTIVE else winner
 

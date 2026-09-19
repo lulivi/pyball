@@ -13,7 +13,6 @@ from pyball.application.meetup.create_teams_algorithms.balanced import (
     _snake_draft,
     compute_goalkeeper_scores,
     compute_player_scores,
-    extract_winning_counts,
     optimize_teams,
 )
 from pyball.domain.meetup.errors import UnknownAlgorithmError
@@ -211,37 +210,6 @@ class TestComputeGoalkeeperScores:
         )
         scores = compute_goalkeeper_scores([gk1], [meetup], [meetup])
         assert scores[gk1] == pytest.approx(0.5)  # no goalkeeper history at all -> neutral
-
-
-class TestExtractWinningCounts:
-    """Tests for extract_winning_counts."""
-
-    def test_counts_shared_wins_for_pairs(self):
-        """Players who win together accumulate a shared win count."""
-        p1, p2, p3, p4 = [PlayerId.generate() for _ in range(4)]
-        meetups = [
-            _finished_meetup("2025-10-01 20:00", [p1, p2], [p3, p4], 2, 0),
-            _finished_meetup("2025-10-08 20:00", [p1, p2], [p3, p4], 2, 0),
-            _finished_meetup("2025-10-15 20:00", [p3, p4], [p1, p2], 2, 0),
-        ]
-        counts = extract_winning_counts(meetups)
-        key_12 = tuple(sorted([str(p1.value), str(p2.value)]))
-        key_34 = tuple(sorted([str(p3.value), str(p4.value)]))
-        assert counts[key_12] == 2
-        assert counts[key_34] == 1
-
-    def test_empty_when_no_meetups(self):
-        """An empty meetup list returns empty counts."""
-        assert not extract_winning_counts([])
-
-    def test_keys_are_sorted_string_pairs(self):
-        """All dict keys are (str, str) tuples with the smaller UUID string first."""
-        p1, p2 = PlayerId.generate(), PlayerId.generate()
-        meetup = _finished_meetup("2025-10-01 20:00", [p1, p2], [], 2, 0)
-        counts = extract_winning_counts([meetup])
-        for key in counts:
-            assert isinstance(key, tuple) and len(key) == 2
-            assert key[0] <= key[1]
 
 
 class TestOptimizeTeams:

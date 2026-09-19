@@ -20,13 +20,14 @@
 """Create balanced teams use case."""
 
 import logging
-from datetime import date, datetime
+from datetime import datetime
 
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignmentAlgorithm
 from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.meetup.next_round_calculator import ensure_first_match
 from pyball.domain.meetup.repository import MeetupRepository
+from pyball.domain.meetup.season import season_scope
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +59,10 @@ class CreateTeams:
             raise ValueError(f"Need at least {team_count} players to create teams.")
 
         all_meetups = self.meetup_repository.find_all()
-        finished = [m for m in all_meetups if m.matches and m.matches[-1].result is not None]
-        season_start = _season_start(date.today())
-        season_start_dt = datetime.combine(season_start, datetime.min.time())
-        season_meetups = [m for m in finished if m.date.date() >= season_start]
+        scope = season_scope(all_meetups)
 
         assignments = self.algorithm.assign(
-            meetup.players, finished, season_meetups, season_start_dt, team_count
+            meetup.players, scope.finished, scope.season_meetups, scope.season_start, team_count
         )
 
         names = ["A", "B", "C"][:team_count]
@@ -84,10 +82,3 @@ class CreateTeams:
             type(self.algorithm).__name__,
         )
         return meetup
-
-
-def _season_start(today: date) -> date:
-    """Return Sep 1 of the current season year."""
-    if today.month >= 9:
-        return date(today.year, 9, 1)
-    return date(today.year - 1, 9, 1)

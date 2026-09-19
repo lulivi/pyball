@@ -237,14 +237,13 @@ def _team_record(team: Team, matches: list[Match]) -> tuple[int, int, int]:
         if match.result is None or team not in match.teams_playing:
             continue
         index = match.teams_playing.index(team)
-        score = match.result.score_a if index == 0 else match.result.score_b
-        opponent_score = match.result.score_b if index == 0 else match.result.score_a
-        if score > opponent_score:
-            wins += 1
-        elif score < opponent_score:
-            losses += 1
-        else:
+        winner_index = match.result.winner_index()
+        if winner_index is None:
             draws += 1
+        elif winner_index == index:
+            wins += 1
+        else:
+            losses += 1
     return wins, draws, losses
 
 

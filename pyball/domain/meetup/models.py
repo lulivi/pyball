@@ -145,6 +145,12 @@ class MatchResult(ValueObject):
     score_b: int
     events: tuple[GoalEvent, ...]
 
+    def winner_index(self) -> int | None:
+        """Return the winning team's index in teams_playing (0 or 1), or None on a draw."""
+        if self.score_a == self.score_b:
+            return None
+        return 0 if self.score_a > self.score_b else 1
+
 
 @dataclass(frozen=True)
 class Team(ValueObject):

@@ -21,12 +21,13 @@
 
 from __future__ import annotations
 
-import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 
+from pyball.domain.meetup.match_stats import winning_pair_counts
 from pyball.domain.meetup.repository import MeetupRepository
+from pyball.domain.meetup.season import season_scope
 from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence import LegacyStats
 
@@ -101,13 +102,6 @@ class StatsReport:
     latest_match_date: datetime | None = None
 
 
-def _season_start(today: date) -> date:
-    """Return Sep 1 of the current season year."""
-    if today.month >= 9:
-        return date(today.year, 9, 1)
-    return date(today.year - 1, 9, 1)
-
-
 def _points_from_counters(counters: _PlayerCounters) -> int:
     """Return league points from a raw counter."""
     return counters.w * 3 + counters.d
@@ -128,11 +122,10 @@ def _aggregate(
     """
     player_data: dict[str, _PlayerCounters] = {}
     chemistry_counts: dict[tuple[str, str], int] = {}
-    winning_counts: dict[tuple[str, str], int] = {}
 
     for meetup in meetups:
         for match in meetup.matches:
-            _aggregate_match(match, player_data, chemistry_counts, winning_counts)
+            _aggregate_match(match, player_data, chemistry_counts)
 
     if legacy_stats:
         for pid, data in player_data.items():
@@ -144,6 +137,7 @@ def _aggregate(
                     player_data[pid] = _PlayerCounters()
                     player_data[pid].assists = leg_assists
 
+    winning_counts = winning_pair_counts(meetups)
     return player_data, chemistry_counts, winning_counts
 
 
@@ -151,20 +145,16 @@ def _aggregate_match(
     match,
     player_data: dict[str, _PlayerCounters],
     chemistry_counts: dict[tuple[str, str], int],
-    winning_counts: dict[tuple[str, str], int],
 ) -> None:
     """Aggregate one match's per-team win/draw/loss and goal-event stats into the counters."""
     if match.result is None:
         return
 
-    score_a = match.result.score_a
-    score_b = match.result.score_b
+    winner_index = match.result.winner_index()
 
     for i, team in enumerate(match.teams_playing):
-        team_score = score_a if i == 0 else score_b
-        opponent_score = score_b if i == 0 else score_a
-        team_wins = team_score > opponent_score
-        team_draws = team_score == opponent_score
+        team_wins = i == winner_index
+        team_draws = winner_index is None
 
         for player_id in team.players:
             pid = str(player_id.value)
@@ -177,11 +167,6 @@ def _aggregate_match(
                 player_data[pid].d += 1
             else:
                 player_data[pid].losses += 1
-
-        if team_wins:
-            for pid_a, pid_b in itertools.combinations(team.players, 2):
-                a, b = sorted([str(pid_a.value), str(pid_b.value)])
-                winning_counts[(a, b)] = winning_counts.get((a, b), 0) + 1
 
     for event in match.result.events:
         _aggregate_goal_event(event, player_data, chemistry_counts)
@@ -367,11 +352,8 @@ class ComputeStats:
         all_players = self.player_repository.find_all()
         player_names = {str(p.id.value): p.name for p in all_players}
 
-        today = date.today()
-        season_start = _season_start(today)
-
-        finished = [m for m in all_meetups if m.matches and m.matches[-1].result is not None]
-        season_meetups = [m for m in finished if m.date.date() >= season_start]
+        scope = season_scope(all_meetups)
+        finished, season_meetups = scope.finished, scope.season_meetups
 
         latest_match_date: datetime | None = None
         if finished:
@@ -383,11 +365,9 @@ class ComputeStats:
             prev_all = None
             prev_season = None
 
-        season_start_dt = datetime.combine(season_start, datetime.min.time())
-
         return StatsReport(
             season=_build_scoped_report(
-                season_meetups, player_names, prev_season, self.legacy_stats, season_start_dt
+                season_meetups, player_names, prev_season, self.legacy_stats, scope.season_start
             ),
             all_time=_build_scoped_report(finished, player_names, prev_all, self.legacy_stats),
             latest_match_date=latest_match_date,

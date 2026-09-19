@@ -45,10 +45,10 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
 
 from pyball.application.meetup.create_teams_algorithms.algorithm import TeamAssignment
-from pyball.domain.meetup.models import MatchResult, Meetup, PlayerId
+from pyball.domain.meetup.match_stats import pair_key, winning_pair_counts
+from pyball.domain.meetup.models import Meetup, PlayerId
 from pyball.domain.player.repository import PlayerRepository
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
 
@@ -109,7 +109,7 @@ class BalancedAlgorithm:
             remaining_players, season_meetups, finished_meetups, self.legacy_stats, season_start
         )
         if team_count == 2:
-            winning_counts = extract_winning_counts(finished_meetups)
+            winning_counts = winning_pair_counts(finished_meetups)
             team_a, team_b = optimize_teams(
                 remaining_players,
                 player_scores,
@@ -258,22 +258,6 @@ def compute_goalkeeper_scores(
     return {pid: known_scores.get(pid, mean_score) for pid in candidate_ids}
 
 
-def extract_winning_counts(meetups: list[Meetup]) -> dict[tuple[str, str], int]:
-    """Return sorted (pid_a, pid_b) -> shared win count for all player pairs."""
-    counts: dict[tuple[str, str], int] = {}
-    for meetup in meetups:
-        for match in meetup.matches:
-            if match.result is None:
-                continue
-            for i, team in enumerate(match.teams_playing):
-                if not _team_won(i, match.result):
-                    continue
-                for pid_a, pid_b in itertools.combinations(team.players, 2):
-                    key = _pair_key(pid_a, pid_b)
-                    counts[key] = counts.get(key, 0) + 1
-    return counts
-
-
 def _selection_pool(
     candidates: list[tuple[float, list[PlayerId], list[PlayerId]]],
 ) -> list[tuple[float, list[PlayerId], list[PlayerId]]]:
@@ -408,7 +392,7 @@ def _pair_repeat_penalty(
     total_pairs = 0
     for team in (team_a, team_b):
         for pid_a, pid_b in itertools.combinations(team, 2):
-            repeated_strength += winning_counts.get(_pair_key(pid_a, pid_b), 0) / max_pair_wins
+            repeated_strength += winning_counts.get(pair_key(pid_a, pid_b), 0) / max_pair_wins
             total_pairs += 1
 
     if total_pairs == 0:
@@ -463,7 +447,7 @@ def _player_stats(
             for i, team in enumerate(match.teams_playing):
                 if player_id in team.players:
                     mp += 1
-                    if _team_won(i, match.result):
+                    if match.result.winner_index() == i:
                         wins += 1
             for event in match.result.events:
                 if event.scorer_id == player_id:
@@ -596,24 +580,6 @@ def _apply_position_fit_boost(
         w * _POSITION_FIT_BOOST if _lacks_position(pid) else w
         for w, pid in zip(weights, remaining)
     ]
-
-
-@lru_cache(maxsize=65536)
-def _pair_key(pid_a: PlayerId, pid_b: PlayerId) -> tuple[str, str]:
-    """Return the canonical (smaller, larger) string-id key for a player pair.
-
-    Cached: exhaustive partition scoring recomputes the same few hundred pairs
-    millions of times, and the UUID-to-string conversion dominates its runtime.
-    """
-    key_a, key_b = str(pid_a.value), str(pid_b.value)
-    return (key_a, key_b) if key_a <= key_b else (key_b, key_a)
-
-
-def _team_won(team_index: int, result: MatchResult) -> bool:
-    """Return whether the team at team_index in teams_playing won the match."""
-    if team_index == 0:
-        return result.score_a > result.score_b
-    return result.score_b > result.score_a
 
 
 def _rank_weights(count: int) -> list[float]:

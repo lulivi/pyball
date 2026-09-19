@@ -1,13 +1,7 @@
 """Tests for team assignment algorithms with team_count generalization."""
 
-from datetime import datetime
-
-from pyball.application.meetup.create_teams_algorithms.balanced import (
-    BalancedAlgorithm,
-    extract_winning_counts,
-)
+from pyball.application.meetup.create_teams_algorithms.balanced import BalancedAlgorithm
 from pyball.application.meetup.create_teams_algorithms.random import RandomAlgorithm
-from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
 from pyball.domain.player.models import PlayerId
 
 
@@ -60,20 +54,3 @@ class TestBalancedAlgorithmTeamCount:
         assignments = BalancedAlgorithm().assign(players, [], [], None, team_count=3)
         sizes = sorted(len(a.players) for a in assignments)
         assert sizes[-1] - sizes[0] <= 1
-
-
-class TestExtractWinningCountsReadsMatches:
-    """extract_winning_counts must read Meetup.matches, not the removed Meetup.result."""
-
-    def test_extract_winning_counts_reads_matches_not_result(self):
-        """extract_winning_counts must read meetup.matches, not the removed meetup.result."""
-        meetup = Meetup.create(datetime(2024, 1, 1, 20, 0), "Campo")
-        p1, p2 = PlayerId.generate(), PlayerId.generate()
-        team_a, team_b = Team.create("A", [p1, p2]), Team.create("B", [])
-        meetup.teams = [team_a, team_b]
-        meetup.add_match(Match(teams_playing=(team_a, team_b), result=MatchResult(3, 0, ())))
-
-        counts = extract_winning_counts([meetup])
-
-        key = tuple(sorted([str(p1.value), str(p2.value)]))
-        assert counts[key] == 1

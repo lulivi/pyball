@@ -6,12 +6,12 @@ from datetime import date, datetime, time, timedelta
 
 import pytest
 
-from pyball.application.meetup.compute_stats import _season_start
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
     MeetupAlreadyClosedError,
     PlayerNotInMeetupError,
 )
+from pyball.domain.meetup.season import _season_start
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram.bot.handlers.meetup import search_handler, stats_handler
 

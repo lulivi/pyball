@@ -102,6 +102,21 @@ class TestMatchResult:
         assert result.score_b == 0
         assert len(result.events) == 1
 
+    def test_winner_index_returns_zero_when_team_a_wins(self):
+        """winner_index() returns 0 when score_a is higher."""
+        result = MatchResult(score_a=2, score_b=1, events=())
+        assert result.winner_index() == 0
+
+    def test_winner_index_returns_one_when_team_b_wins(self):
+        """winner_index() returns 1 when score_b is higher."""
+        result = MatchResult(score_a=0, score_b=3, events=())
+        assert result.winner_index() == 1
+
+    def test_winner_index_returns_none_on_draw(self):
+        """winner_index() returns None when scores are equal."""
+        result = MatchResult(score_a=2, score_b=2, events=())
+        assert result.winner_index() is None
+
 
 class TestSetTeams:
     """Tests for Meetup.set_teams."""
