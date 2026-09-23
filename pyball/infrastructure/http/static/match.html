@@ -310,11 +310,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 28px;
+            gap: 16px;
         }
 
         .timer-countdown, .timer-step-value {
-            font-size: clamp(4rem, 30vw, 9rem);
+            font-size: clamp(3rem, 18vw, 5rem);
             font-weight: bold;
             line-height: 1;
             font-variant-numeric: tabular-nums;
@@ -331,9 +331,9 @@
 
         .timer-step {
             flex-shrink: 0;
-            width: clamp(52px, 15vw, 92px);
-            height: clamp(52px, 15vw, 92px);
-            font-size: clamp(1.8rem, 7vw, 3rem);
+            width: clamp(48px, 13vw, 64px);
+            height: clamp(48px, 13vw, 64px);
+            font-size: clamp(1.6rem, 6vw, 2.2rem);
             font-weight: bold;
             color: #f8fafc; background: #334155;
             border: none; border-radius: 12px; cursor: pointer;
@@ -394,27 +394,29 @@
         }
         @keyframes timer-pill-pulse { 50% { opacity: 0.55; } }
 
-        .hourwarn-section {
+        .timer-card {
             width: 100%;
             max-width: 320px;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 14px;
-            padding-top: 20px;
-            border-top: 1px solid #334155;
+            padding: 16px;
+            background: #1e293b;
+            border-radius: 14px;
+            box-sizing: border-box;
         }
 
-        .hourwarn-label {
-            font-size: 0.95rem;
+        .timer-card-title {
+            font-size: 0.8rem;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
             color: #94a3b8;
             text-align: center;
         }
 
-        .hourwarn-stepper .timer-step-value {
-            font-size: 2rem;
-        }
-
+        .hourwarn-btn-off { background: #4f46e5; }
         .hourwarn-btn-on { background: #7c2d12; }
 
         /* ── NO MATCH / SUCCESS ──────────────────────────── */

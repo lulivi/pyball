@@ -79,22 +79,23 @@ function renderHourWarnSection(state) {
             ? ''
             : `<button class="timer-btn timer-sound-btn" onclick="armAudio();playHourCue()">🔊 Activar sonido</button>`;
         return `
-            <div class="hourwarn-section">
-                <div class="hourwarn-label">Aviso de fin de franja (${state.hourWarnMinutes} min antes de la hora)</div>
+            <div class="timer-card">
+                <div class="timer-card-title">Aviso de fin de partido</div>
+                <span class="timer-step-value">${state.hourWarnMinutes}<small>min</small></span>
                 ${soundBtn}
                 <button class="timer-btn hourwarn-btn-on" onclick="toggleHourWarn()">🔕 Desactivar aviso</button>
             </div>
         `;
     }
     return `
-        <div class="hourwarn-section">
-            <div class="hourwarn-label">Aviso de fin de franja</div>
-            <div class="timer-stepper hourwarn-stepper">
+        <div class="timer-card">
+            <div class="timer-card-title">Aviso de fin de partido</div>
+            <div class="timer-stepper">
                 <button class="timer-step" onclick="setHourWarnMinutes(-1)">−</button>
                 <span class="timer-step-value">${state.hourWarnMinutes}<small>min</small></span>
                 <button class="timer-step" onclick="setHourWarnMinutes(1)">+</button>
             </div>
-            <button class="timer-btn" onclick="toggleHourWarn()">🔔 Avisar antes de la hora</button>
+            <button class="timer-btn hourwarn-btn-off" onclick="toggleHourWarn()">🔔 Activar aviso</button>
         </div>
     `;
 }
@@ -109,9 +110,12 @@ function renderTimerTab() {
             : `<button class="timer-btn timer-sound-btn" onclick="armAudio();playCue()">🔊 Activar sonido</button>`;
         return `
             <div class="timer-tab">
-                <div class="timer-countdown" id="timer-countdown-value">${formatCountdown(ms)}</div>
-                ${soundBtn}
-                <button class="timer-btn timer-btn-reset" onclick="resetTimer()">⟲ Reiniciar</button>
+                <div class="timer-card">
+                    <div class="timer-card-title">Cronómetro</div>
+                    <div class="timer-countdown" id="timer-countdown-value">${formatCountdown(ms)}</div>
+                    ${soundBtn}
+                    <button class="timer-btn timer-btn-reset" onclick="resetTimer()">⟲ Reiniciar</button>
+                </div>
                 ${renderHourWarnSection(state)}
             </div>
         `;
@@ -119,12 +123,15 @@ function renderTimerTab() {
 
     return `
         <div class="timer-tab">
-            <div class="timer-stepper">
-                <button class="timer-step" onclick="setTimerMinutes(-1)">−</button>
-                <span class="timer-step-value">${state.timerMinutes}<small>min</small></span>
-                <button class="timer-step" onclick="setTimerMinutes(1)">+</button>
+            <div class="timer-card">
+                <div class="timer-card-title">Cronómetro</div>
+                <div class="timer-stepper">
+                    <button class="timer-step" onclick="setTimerMinutes(-1)">−</button>
+                    <span class="timer-step-value">${state.timerMinutes}<small>min</small></span>
+                    <button class="timer-step" onclick="setTimerMinutes(1)">+</button>
+                </div>
+                <button class="timer-btn timer-btn-start" onclick="startTimer()">▶️ Iniciar cronómetro</button>
             </div>
-            <button class="timer-btn timer-btn-start" onclick="startTimer()">▶️ Iniciar cronómetro</button>
             ${renderHourWarnSection(state)}
         </div>
     `;
