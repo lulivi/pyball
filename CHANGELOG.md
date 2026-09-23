@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.5.0 (2026-09-23)
+
+### Features
+
+- **GL-232**: Restyle timer tab into titled cards with matching time size
+  ([`ac363aa`](https://gitlab.com/lulivi/pyball/-/commit/ac363aa5667f87b19305a46a06e08d5c2a70dc8e))
+
+
 ## v6.4.0 (2026-09-23)
 
 ### Features
