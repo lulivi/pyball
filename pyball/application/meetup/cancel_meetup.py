@@ -21,7 +21,7 @@
 
 import logging
 
-from pyball.domain.meetup.errors import MeetupLockedError, MeetupNotFoundError
+from pyball.domain.meetup.errors import MeetupHasRecordedResultsError, MeetupNotFoundError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 
@@ -45,15 +45,17 @@ class CancelMeetup:
 
         Raises:
             MeetupNotFoundError: No active meetup exists.
-            MeetupLockedError: The active meetup is locked.
+            MeetupHasRecordedResultsError: A match already has a recorded result.
         """
         all_meetups = self.meetup_repository.find_all()
         active = [m for m in all_meetups if not m.closed]
         if not active:
             raise MeetupNotFoundError("active")
         meetup = max(active, key=lambda m: m.date)
-        if meetup.locked:
-            raise MeetupLockedError(f"Meetup at {meetup.date} is locked, cannot cancel.")
+        if meetup.has_recorded_results():
+            raise MeetupHasRecordedResultsError(
+                f"Meetup at {meetup.date} already has a recorded result, cannot cancel."
+            )
         self.meetup_repository.delete(meetup.id)
         logger.info("Meetup cancelled for %s", meetup.date)
         return meetup

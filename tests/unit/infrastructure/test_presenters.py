@@ -39,7 +39,7 @@ def _meetup_without_teams():
     meetup.teams = None
     meetup.date = datetime(2026, 5, 28, 20, 0)
     meetup.location = "X"
-    meetup.locked = False
+    meetup.has_recorded_results.return_value = False
     meetup.is_signup_open.return_value = True
     meetup.players = []
     return meetup
@@ -53,7 +53,7 @@ def _meetup_with_teams():
     meetup.location = "X"
     meetup.players = [pid]
     meetup.teams = [MagicMock(players=[pid]), MagicMock(players=[])]
-    meetup.locked = False
+    meetup.has_recorded_results.return_value = False
     meetup.matches = []
     meetup.is_signup_open.return_value = False
     return meetup

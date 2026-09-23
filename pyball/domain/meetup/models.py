@@ -41,7 +41,6 @@ class Meetup(Entity["MeetupId"]):  # pylint: disable=too-many-instance-attribute
     teams: list[Team] | None = None
     matches: list[Match] = field(default_factory=list)
     closed: bool = False
-    locked: bool = False
 
     @classmethod
     def create(cls, date: datetime, location: str) -> "Meetup":
@@ -68,15 +67,14 @@ class Meetup(Entity["MeetupId"]):  # pylint: disable=too-many-instance-attribute
         self.teams = teams
 
     def clear_teams(self) -> None:
-        """Clear any assigned teams, and any matches/closed/locked state tied to them."""
+        """Clear any assigned teams, and any matches/closed state tied to them."""
         self.teams = None
         self.matches = []
         self.closed = False
-        self.locked = False
 
-    def lock(self) -> None:
-        """Lock the meetup, disabling /manage's convocatoria-editing actions."""
-        self.locked = True
+    def has_recorded_results(self) -> bool:
+        """Return True once any match in this meetup has a recorded result."""
+        return any(match.result is not None for match in self.matches)
 
     def add_match(self, match: "Match") -> None:
         """Append a new pending (or already-resolved) match to this meetup."""

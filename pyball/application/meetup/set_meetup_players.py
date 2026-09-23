@@ -22,7 +22,7 @@
 import logging
 from datetime import datetime
 
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupLockedError
+from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupHasRecordedResultsError
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.meetup.repository import MeetupRepository
 from pyball.domain.player.models import PlayerId
@@ -50,7 +50,7 @@ class SetMeetupPlayers:
 
         Raises:
             MeetupAlreadyClosedError: If the existing meetup already has a result.
-            MeetupLockedError: If the existing meetup is locked.
+            MeetupHasRecordedResultsError: If the existing meetup already has a recorded result.
             InvalidPlayerIdError: If any player id is malformed.
         """
         ids = [PlayerId.from_string(pid) for pid in player_ids]
@@ -61,8 +61,10 @@ class SetMeetupPlayers:
         if meetup is None:
             meetup = Meetup.create(date=date, location=self.default_location)
         else:
-            if meetup.locked:
-                raise MeetupLockedError(f"Meetup at {date} is locked, cannot reset the roster.")
+            if meetup.has_recorded_results():
+                raise MeetupHasRecordedResultsError(
+                    f"Meetup at {date} already has a recorded result, cannot reset the roster."
+                )
             meetup.players.clear()
             meetup.clear_teams()
         for pid in ids:

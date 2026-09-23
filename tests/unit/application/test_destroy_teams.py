@@ -26,10 +26,9 @@ def _meetup_with_teams():
 class TestDestroyTeams:
     """Tests for DestroyTeams use case."""
 
-    def test_clears_teams_matches_closed_and_locked(self):
-        """execute() resets teams/matches/closed/locked and persists the meetup."""
+    def test_clears_teams_matches_and_closed(self):
+        """execute() resets teams/matches/closed and persists the meetup."""
         meetup = _meetup_with_teams()
-        meetup.lock()
         repo = MagicMock()
         repo.find_by_datetime.return_value = meetup
 
@@ -38,7 +37,6 @@ class TestDestroyTeams:
         assert result.teams is None
         assert result.matches == []
         assert not result.closed
-        assert not result.locked
         repo.save.assert_called_once_with(meetup)
 
     def test_raises_when_meetup_not_found(self):

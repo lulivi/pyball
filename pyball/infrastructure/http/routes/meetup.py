@@ -33,7 +33,6 @@ from pyball.domain.meetup.errors import (
     MeetupAlreadyClosedError,
     MeetupHasNoTeamsError,
     MeetupHasRecordedResultsError,
-    MeetupLockedError,
     MeetupNotFoundError,
     UnknownAlgorithmError,
 )
@@ -81,13 +80,13 @@ def register_meetup_routes(
 
     @app.delete("/api/meetup/active")
     async def cancel_meetup_endpoint():
-        """Delete the active meetup, or 404/409 if none exists or it's locked."""
+        """Delete the active meetup, or 404/409 if none exists or it has a recorded result."""
         try:
             meetup = container.cancel_meetup().execute()
         except MeetupNotFoundError as exc:
             raise HTTPException(404, "No active meetup to cancel") from exc
-        except MeetupLockedError as exc:
-            raise HTTPException(409, "Meetup is locked, cannot cancel") from exc
+        except MeetupHasRecordedResultsError as exc:
+            raise HTTPException(409, "Meetup has a recorded result, cannot cancel") from exc
         await notifier.on_meetup_cancelled(meetup)
         return {"status": "cancelled", "date": meetup.date.strftime("%Y-%m-%dT%H:%M")}
 
@@ -156,11 +155,6 @@ def register_meetup_routes(
         await notifier.on_meetup_updated(meetup)
         return build_meetup_active_response(container, enable_web_signup)
 
-    @app.post("/api/meetup/lock")
-    async def lock_meetup_endpoint(body: MeetupDateInput):
-        """Lock the meetup's convocatoria-editing actions in /manage, or 404/409."""
-        return await _handle_lock_meetup(container, body, enable_web_signup)
-
     @app.post("/api/meetup/destroy-teams")
     async def destroy_teams_endpoint(body: MeetupDateInput):
         """Destroy the meetup's teams and reopen signup, or 404/409."""
@@ -208,8 +202,8 @@ async def _handle_create_meetup(
         meetup = container.set_meetup_players().execute(meetup_date, body.player_ids)
     except MeetupAlreadyClosedError as exc:
         raise HTTPException(409, "Match already finished, cannot reset") from exc
-    except MeetupLockedError as exc:
-        raise HTTPException(409, "Meetup is locked, cannot reset the roster") from exc
+    except MeetupHasRecordedResultsError as exc:
+        raise HTTPException(409, "Meetup has a recorded result, cannot reset the roster") from exc
     except InvalidPlayerIdError as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -288,29 +282,10 @@ async def _handle_generate_teams(
         meetup = container.create_teams(body.algorithm).execute(meetup_date, body.team_count)
     except (UnknownAlgorithmError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
-    except MeetupLockedError as exc:
-        raise HTTPException(409, "Meetup is locked, cannot regenerate teams") from exc
+    except MeetupHasRecordedResultsError as exc:
+        raise HTTPException(409, "Meetup has a recorded result, cannot regenerate teams") from exc
 
     await notifier.on_meetup_updated(meetup)
-    return build_meetup_active_response(container, enable_web_signup)
-
-
-async def _handle_lock_meetup(
-    container: "Container", body: MeetupDateInput, enable_web_signup: bool
-) -> dict:
-    """Validate, lock the meetup, and return the active meetup response."""
-    try:
-        meetup_date = datetime.fromisoformat(body.date)
-    except ValueError as exc:
-        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
-
-    try:
-        container.lock_meetup().execute(meetup_date)
-    except MeetupNotFoundError as exc:
-        raise HTTPException(404, "No meetup found at the given date") from exc
-    except MeetupHasNoTeamsError as exc:
-        raise HTTPException(409, "Cannot lock a meetup with no teams") from exc
-
     return build_meetup_active_response(container, enable_web_signup)
 
 

@@ -244,6 +244,8 @@ function renderState1(data) {
 }
 
 async function createOrRegenerateTeams(teamCount, btn) {
+    if (activeMatchData?.teams
+        && !confirm('¿Regenerar los equipos? Se perderá la composición actual.')) return;
     const buttons = document.querySelectorAll('.gen-btn');
     const originalLabels = Array.from(buttons).map(b => b.textContent);
     buttons.forEach(b => { b.disabled = true; });
@@ -371,15 +373,13 @@ function renderState2(data) {
     const teamsText = `${header}\n\n${blocks.join('\n\n')}`;
     document.getElementById('tab-equipos').innerHTML = `
     <div id="teams-text" class="teams-box">${escHtml(teamsText)}</div>
-    ${data.locked ? '' : buildTeamButtonsRow()}
+    ${t.hasRecordedResults ? '' : buildTeamButtonsRow()}
     <button class="btn btn-gray" onclick="toggleTeamsEditPanel()">✏️ Editar convocatoria</button>
     <button class="btn btn-teal" onclick="copyTeams()">📋 Copiar equipos</button>
-    ${!data.locked && data.signupUrl ? copyLinkButton('🔗 Copiar link apuntarse', data.signupUrl) : ''}
-    ${data.locked && t.matchUrl ? copyLinkButton('🔗 Copiar link partido', t.matchUrl) : ''}
-    ${data.locked && t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
-    ${data.locked ? '' : '<button class="btn btn-amber" onclick="lockMeetup()">▶️ Empezar partido</button>'}
+    ${t.matchUrl ? copyLinkButton('🔗 Copiar link partido', t.matchUrl) : ''}
+    ${t.teamC ? '<button class="btn btn-amber" onclick="closeMeetup()">🏁 Cerrar triangular</button>' : ''}
     ${t.hasRecordedResults ? '' : '<button class="btn btn-amber" onclick="destroyTeams()">♻️ Destruir equipos</button>'}
-    ${data.locked ? '' : buildCancelTrigger()}
+    ${t.hasRecordedResults ? '' : buildCancelTrigger()}
   `;
 }
 
@@ -393,16 +393,6 @@ function copyRosterText() {
 
 function copyManageLink(url) {
     copyToClipboard(url);
-}
-
-async function lockMeetup() {
-    try {
-        activeMatchData = await post('/api/meetup/lock', { date: activeMatchData.date });
-    } catch (err) {
-        alert('Error: ' + (err.detail || err.message));
-        return;
-    }
-    _rerenderActiveState();
 }
 
 async function destroyTeams() {
@@ -984,7 +974,6 @@ Object.assign(window, {
     copyTeams,
     copyRosterText,
     copyManageLink,
-    lockMeetup,
     destroyTeams,
     toggleTeamsEditPanel,
     moveToOtherTeam,

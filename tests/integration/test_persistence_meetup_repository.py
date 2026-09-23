@@ -183,21 +183,8 @@ def test_round_trips_closed_flag(tmp_path):
     assert loaded.is_closed()
 
 
-def test_round_trips_locked_flag(tmp_path):
-    """A locked meetup reloads with locked == True."""
-    repo = JsonMeetupRepository(tmp_path)
-    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
-    meetup.set_teams([Team.create("A", []), Team.create("B", [])])
-    meetup.lock()
-
-    repo.save(meetup)
-    loaded = repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
-
-    assert loaded.locked
-
-
-def test_loads_legacy_meetup_file_without_locked_key(tmp_path):
-    """A meetup JSON file saved before the locked field existed loads with locked == False."""
+def test_ignores_stale_locked_key_and_drops_it_on_save(tmp_path):
+    """A meetup file still carrying the removed "locked" key loads, and re-saving drops it."""
     repo = JsonMeetupRepository(tmp_path)
     file_path = tmp_path / "2026-04-12T20:00.json"
     file_path.write_text(
@@ -210,14 +197,16 @@ def test_loads_legacy_meetup_file_without_locked_key(tmp_path):
                 "teams": None,
                 "matches": [],
                 "closed": False,
+                "locked": True,
             }
         )
     )
 
     loaded = repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
-
     assert loaded is not None
-    assert loaded.locked is False
+    repo.save(loaded)
+
+    assert "locked" not in json.loads(file_path.read_text())
 
 
 class TestJsonMeetupRepositoryResult:

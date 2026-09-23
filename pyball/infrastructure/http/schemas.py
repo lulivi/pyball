@@ -54,7 +54,7 @@ class ParseCallupInput(BaseModel):
 
 
 class MeetupDateInput(BaseModel):
-    """Request body for POST /api/meetup/lock and POST /api/meetup/destroy-teams."""
+    """Request body for POST /api/meetup/destroy-teams."""
 
     date: str
 

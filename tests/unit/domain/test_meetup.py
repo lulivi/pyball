@@ -252,15 +252,8 @@ class TestClearTeamsResetsMatches:
         assert not meetup.is_closed()
 
 
-class TestLock:
-    """Tests for Meetup.lock / is_signup_open."""
-
-    def test_lock_sets_locked_true(self):
-        """lock() marks the meetup as locked."""
-        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
-        assert not meetup.locked
-        meetup.lock()
-        assert meetup.locked
+class TestSignupOpenAndRecordedResults:
+    """Tests for Meetup.is_signup_open / has_recorded_results."""
 
     def test_is_signup_open_true_when_no_teams(self):
         """is_signup_open returns True while teams is None."""
@@ -268,22 +261,32 @@ class TestLock:
         assert meetup.is_signup_open()
 
     def test_is_signup_open_false_once_teams_assigned(self):
-        """is_signup_open returns False once teams are set, regardless of locked."""
+        """is_signup_open returns False once teams are set."""
         meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
         p1, p2 = PlayerId.generate(), PlayerId.generate()
         meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
         assert not meetup.is_signup_open()
 
-    def test_clear_teams_also_resets_locked(self):
-        """clear_teams resets locked to False along with teams/matches/closed."""
+    def test_has_recorded_results_false_with_only_pending_matches(self):
+        """has_recorded_results is False when no match has a result yet."""
         meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
         p1, p2 = PlayerId.generate(), PlayerId.generate()
         meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
-        meetup.lock()
+        meetup.add_match(Match(teams_playing=(meetup.teams[0], meetup.teams[1])))
+        assert not meetup.has_recorded_results()
 
-        meetup.clear_teams()
-
-        assert not meetup.locked
+    def test_has_recorded_results_true_once_a_match_has_a_result(self):
+        """has_recorded_results is True once any match has a result."""
+        meetup = Meetup.create(datetime(2024, 3, 20, 20, 0), "Parque Central")
+        p1, p2 = PlayerId.generate(), PlayerId.generate()
+        meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+        meetup.add_match(
+            Match(
+                teams_playing=(meetup.teams[0], meetup.teams[1]),
+                result=MatchResult(score_a=1, score_b=0, events=()),
+            )
+        )
+        assert meetup.has_recorded_results()
 
 
 class TestGoalEventOwnGoal:

@@ -9,24 +9,23 @@ const MIN_MINUTES = 1;
 const MAX_MINUTES = 15;
 const DEFAULT_MINUTES = 6;
 
-// End-of-interval alarm: square-wave beeps, loud enough to carry across a
-// noisy pitch. Tune the count / spacing / length / volume / pitch here.
-const BEEP_COUNT = 3;
-const BEEP_LEN = 0.30;   // seconds of sustain per beep
-const BEEP_GAP = BEEP_LEN + 0.05;   // seconds, start-to-start
-const BEEP_GAIN = 0.60;
-const BEEP_HZ = 850;
+// Goalkeeper-change alarm (rotation cronómetro): one long, flat square-wave
+// tone — no trill — loud enough to carry across a noisy pitch.
+const CUE_LEN = 1.0;     // seconds of sustain
+const CUE_GAIN = 0.60;
+const CUE_HZ = 850;
 
 const HOUR_MS = 3600000;
 
-// Pitch-time-ending alarm: slower, lower-pitched pair of beeps — deliberately
-// distinct from the rotation cronómetro's BEEP_* pattern above, so either
-// alarm is tellable apart by ear alone.
-const HOUR_BEEP_COUNT = 2;
-const HOUR_BEEP_LEN = 0.45;
-const HOUR_BEEP_GAP = HOUR_BEEP_LEN + 0.15;
-const HOUR_BEEP_GAIN = 0.60;
-const HOUR_BEEP_HZ = 500;
+// Pitch-time-ending alarm: referee whistle "pi · pi · piiiiii" — two short
+// blasts and a long one, each trilled (carrier frequency wobbled by an LFO),
+// so it is tellable apart from the flat goalkeeper tone by count, rhythm and
+// timbre. Blasts are [start offset, sustain] in seconds.
+const WHISTLE_BLASTS = [[0, 0.35], [0.5, 0.35], [1.0, 1.0]];
+const WHISTLE_GAIN = 0.60;
+const WHISTLE_HZ = 2500;
+const WHISTLE_TRILL_HZ = 25;      // LFO rate
+const WHISTLE_TRILL_DEPTH = 150;  // ± Hz swing of the carrier
 
 // ── Zone 1 — side effects (implemented in GL-205) ──────────────────────────
 
@@ -51,11 +50,11 @@ export function startAudio() {
 }
 
 export function playCue() {
-    _playBeeps(BEEP_COUNT, BEEP_LEN, BEEP_GAP, BEEP_GAIN, BEEP_HZ);
+    _playBlasts([[0, CUE_LEN]], CUE_HZ, CUE_GAIN, 0);
 }
 
 export function playHourCue() {
-    _playBeeps(HOUR_BEEP_COUNT, HOUR_BEEP_LEN, HOUR_BEEP_GAP, HOUR_BEEP_GAIN, HOUR_BEEP_HZ);
+    _playBlasts(WHISTLE_BLASTS, WHISTLE_HZ, WHISTLE_GAIN, WHISTLE_TRILL_DEPTH);
 }
 
 export function requestWakeLock() {
@@ -123,17 +122,26 @@ export function hourWarnFireAt(now, minutesBefore) {
 
 // ── Zone 2 (private) — shared oscillator loop for playCue/playHourCue ──────
 
-function _playBeeps(count, len, gap, gain, hz) {
+function _playBlasts(blasts, hz, gain, trillDepth) {
     if (!_audioCtx) return;
     try {
         if (_audioCtx.state !== 'running') _audioCtx.resume().catch(() => {});
         const start = _audioCtx.currentTime + 0.06;
-        for (let i = 0; i < count; i += 1) {
-            const at = start + i * gap;
+        for (const [offset, len] of blasts) {
+            const at = start + offset;
             const osc = _audioCtx.createOscillator();
             const gainNode = _audioCtx.createGain();
             osc.type = 'square';
             osc.frequency.value = hz;
+            if (trillDepth > 0) {
+                const lfo = _audioCtx.createOscillator();
+                const lfoGain = _audioCtx.createGain();
+                lfo.frequency.value = WHISTLE_TRILL_HZ;
+                lfoGain.gain.value = trillDepth;
+                lfo.connect(lfoGain).connect(osc.frequency);
+                lfo.start(at);
+                lfo.stop(at + len + 0.05);
+            }
             gainNode.gain.setValueAtTime(0, at);
             gainNode.gain.linearRampToValueAtTime(gain, at + 0.015);
             gainNode.gain.setValueAtTime(gain, at + len);

@@ -37,7 +37,6 @@ from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.meetup.get_active_meetup import GetActiveMeetup
-from pyball.application.meetup.lock_meetup import LockMeetup
 from pyball.application.meetup.parse_callup import CallupParseOutcome, ParseCallup
 from pyball.application.meetup.parse_callup_text import (
     MatchedPlayer,
@@ -67,7 +66,6 @@ __all__ = [
     "CancelMeetup",
     "CloseMeetup",
     "DestroyTeams",
-    "LockMeetup",
     "MeetupHasNoTeamsError",
     "EditMatchResult",
     "FinishMatch",

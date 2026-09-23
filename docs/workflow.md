@@ -104,15 +104,15 @@ The moment teams exist, signup closes automatically: Telegram's "✔ Unirse" /
 "🔎 Buscar jugadores" (or the `/meetup_search` command) is rejected — nobody can join
 or leave the roster anymore once teams exist.
 
-If you also want to protect the teams from further changes in `/manage`, click
-"▶️ Empezar partido" once the lineup looks right — it hides "Regenerar equipos" and
-"🗑 Cancelar partido", and reveals "🔗 Copiar link partido" (a one-click copy of the
-`/match` URL, with `match_token` embedded if configured) plus, for a triangular,
-"🏁 Cerrar triangular". "✏️ Editar convocatoria" (reassigning players between the
-already-generated teams, or changing the date and location) keeps working either way,
-started or not.
+Once teams exist, "🔗 Copiar link partido" (a one-click copy of the `/match` URL, with
+`match_token` embedded if configured) and, for a triangular, "🏁 Cerrar triangular" are
+always available. Regenerating teams asks for confirmation, and so do "🗑 Cancelar
+partido" and "🗑️ Destruir equipos". As soon as the first match result is recorded,
+regenerating, cancelling and destroying disappear altogether. "✏️ Editar convocatoria"
+(reassigning players between the already-generated teams, or changing the date and
+location) keeps working throughout.
 
-Changed your mind? "🗑️ Destruir equipos" discards the current teams (started or not)
+Changed your mind? "🗑️ Destruir equipos" discards the current teams
 and returns to the roster view, so you can edit the convocatoria and, on Telegram,
 search for substitutes again. It's available until the first match result is
 recorded — after that, the only way to undo the session is correcting the result
@@ -126,12 +126,13 @@ shows the currently pending match — no manual setup, no QR code to scan.
 - Tap a player to register a goal, optionally picking an assist.
 - Tap "Finalizar partido" when the match is over and enter the final score.
 - If you rotate goalkeepers on a timer, the **Tiempo** tab runs a repeating countdown
-  (default 6 minutes) that beeps and flashes at each interval — set it once when the
-  match kicks off and swap keepers on the next dead ball whenever you hear it.
+  (default 6 minutes) that sounds one long, flat beep and flashes at each interval — set
+  it once when the match kicks off and swap keepers on the next dead ball whenever you
+  hear it.
 - To get a heads-up before the pitch's booked hour runs out, turn on the alarm in the
   same **Tiempo** tab — it fires N minutes before every clock hour (5 by default,
-  adjustable 1–15) with its own distinct beep, independent of the rotation countdown;
-  both can run at the same time.
+  adjustable 1–15) with a referee-style whistle ("pi · pi · piiiii"), clearly different
+  from the rotation beep; both can run at the same time.
 
 **For a classic meetup**, finishing the one match closes the meetup automatically — a
 summary is posted (to Telegram, if configured) and the meetup moves into the

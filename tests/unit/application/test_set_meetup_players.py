@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
-from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupLockedError
+from pyball.domain.meetup.errors import MeetupAlreadyClosedError, MeetupHasRecordedResultsError
 from pyball.domain.meetup.models import Match, MatchResult, Meetup, Team
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
@@ -88,17 +88,22 @@ def test_raises_when_meetup_is_closed():
         _use_case(repo).execute(DATE, [_pid()])
 
 
-def test_raises_when_meetup_is_locked():
-    """MeetupLockedError is raised when the existing meetup is locked."""
+def test_raises_when_meetup_has_recorded_results():
+    """MeetupHasRecordedResultsError is raised once the existing meetup has a result."""
     repo = FakeMeetupRepository()
     existing = Meetup.create(date=DATE, location="Old")
     pid_a, pid_b = PlayerId.generate(), PlayerId.generate()
     existing.add_player(pid_a)
     existing.set_teams([Team.create("A", [pid_a]), Team.create("B", [pid_b])])
-    existing.lock()
+    existing.add_match(
+        Match(
+            teams_playing=(existing.teams[0], existing.teams[1]),
+            result=MatchResult(score_a=1, score_b=0, events=()),
+        )
+    )
     repo.save(existing)
 
-    with pytest.raises(MeetupLockedError):
+    with pytest.raises(MeetupHasRecordedResultsError):
         _use_case(repo).execute(DATE, [_pid()])
 
     assert existing.players == [pid_a]

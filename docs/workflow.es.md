@@ -113,16 +113,16 @@ botones "✔ Unirse" / "✖ Salir" de Telegram desaparecen de los mensajes de ti
 suplentes, y pulsar "🔎 Buscar jugadores" (o el comando `/meetup_search`) se rechaza —
 ya nadie puede apuntarse ni bajarse una vez que hay equipos.
 
-Si además quieres proteger los equipos de más cambios en `/manage`, pulsa
-"▶️ Empezar partido" cuando la convocatoria te convenza — oculta "Regenerar equipos" y
-"🗑 Cancelar partido", y muestra "🔗 Copiar link partido" (copia de un toque la URL de
-`/match`, con `match_token` incluido si está configurado) y, en un triangular,
-"🏁 Cerrar triangular". "✏️ Editar convocatoria" (reasignar jugadores entre los equipos
-ya generados, o cambiar la fecha y la ubicación) sigue funcionando igual, haya empezado
-el partido o no.
+En cuanto hay equipos, "🔗 Copiar link partido" (copia de un toque la URL de `/match`,
+con `match_token` incluido si está configurado) y, en un triangular, "🏁 Cerrar
+triangular" están siempre disponibles. Regenerar equipos pide confirmación, igual que
+"🗑 Cancelar partido" y "🗑️ Destruir equipos". En cuanto se registra el primer
+resultado, regenerar, cancelar y destruir desaparecen del todo. "✏️ Editar convocatoria"
+(reasignar jugadores entre los equipos ya generados, o cambiar la fecha y la ubicación)
+sigue funcionando en todo momento.
 
-¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales (haya
-empezado el partido o no) y vuelve a la vista de convocatoria, para que puedas
+¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales
+y vuelve a la vista de convocatoria, para que puedas
 editarla y, en Telegram, volver a buscar suplentes. Está disponible hasta que se
 registre el primer resultado — a partir de ahí, la única forma de deshacer la sesión
 es corregir el resultado después (ver [paso 6](#6-ver-estadísticas)).
@@ -136,12 +136,13 @@ que escanear.
 - Toca a un jugador para registrar un gol, opcionalmente eligiendo una asistencia.
 - Toca "Finalizar partido" cuando termine y escribe el marcador final.
 - Si rotáis porteros por tiempo, la pestaña **Tiempo** lleva una cuenta atrás que se
-  repite (6 minutos por defecto) y suena y parpadea en cada intervalo — ponla en marcha
-  al empezar el partido y cambia de portero en la siguiente parada cuando la oigas.
+  repite (6 minutos por defecto) y en cada intervalo suena un pitido largo y plano y
+  parpadea — ponla en marcha al empezar el partido y cambia de portero en la siguiente
+  parada cuando la oigas.
 - Para que te avise antes de que se acabe la hora de pista reservada, activa el aviso
   en la misma pestaña **Tiempo** — suena N minutos antes de cada hora en punto (5 por
-  defecto, ajustable entre 1 y 15) con un sonido distinto al de la cuenta atrás de
-  rotación; los dos pueden estar activos a la vez.
+  defecto, ajustable entre 1 y 15) con un silbato de árbitro ("pi · pi · piiiii"), bien
+  distinto del pitido de rotación; los dos pueden estar activos a la vez.
 
 **En un partido clásico**, finalizar el único partido cierra el meetup
 automáticamente — se publica un resumen (en Telegram, si está configurado) y el partido

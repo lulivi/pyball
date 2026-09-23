@@ -75,9 +75,5 @@ class SignupClosedError(MeetupError):
     """Raised when trying to join, leave, or search a meetup once teams are assigned."""
 
 
-class MeetupLockedError(MeetupError):
-    """Raised when trying to edit a locked meetup's convocatoria from /manage."""
-
-
 class MeetupHasRecordedResultsError(MeetupError):
-    """Raised when trying to destroy a meetup's teams after a match result is recorded."""
+    """Raised when trying to change a meetup's teams or roster after a match result is recorded."""

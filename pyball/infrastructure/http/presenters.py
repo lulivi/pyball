@@ -108,7 +108,6 @@ def build_meetup_active_response(container: Container, enable_web_signup: bool =
             "location": meetup.location,
             "players": players,
             "teams": None,
-            "locked": meetup.locked,
             "signupOpen": meetup.is_signup_open(),
         }
         if signup_url is not None:
@@ -143,7 +142,7 @@ def build_meetup_active_response(container: Container, enable_web_signup: bool =
             str(meetup.teams[1].goalkeeper.value) if meetup.teams[1].goalkeeper else None
         ),
         "matchUrl": match_url,
-        "hasRecordedResults": any(match.result is not None for match in meetup.matches),
+        "hasRecordedResults": meetup.has_recorded_results(),
     }
     if len(meetup.teams) == 3:
         teams_payload.update(
@@ -164,7 +163,6 @@ def build_meetup_active_response(container: Container, enable_web_signup: bool =
         "location": meetup.location,
         "players": players,
         "teams": teams_payload,
-        "locked": meetup.locked,
         "signupOpen": meetup.is_signup_open(),
     }
     if signup_url is not None:

@@ -23,7 +23,7 @@ is set in `config.toml` — generate or regenerate a player's personal signup co
 The active meetup, if one exists: pasting and recognizing a callup
 ([step 1](workflow.md#1-create-a-meetup)), managing the roster
 ([step 2](workflow.md#2-manage-the-roster)), generating or editing teams
-([step 3](workflow.md#3-generate-teams)), starting the match or destroying teams,
+([step 3](workflow.md#3-generate-teams)), destroying teams,
 canceling the match, copying the signup and match links, and — for a triangular —
 closing the session ([step 5](workflow.md#5-close-a-triangular-session)). Empty if no
 meetup is active.

@@ -38,7 +38,7 @@ class DestroyTeams:
         self.meetup_repository = meetup_repository
 
     def execute(self, meetup_date: datetime) -> Meetup:
-        """Clear the meetup's teams, matches, closed, and locked state.
+        """Clear the meetup's teams, matches and closed state.
 
         Raises:
             MeetupNotFoundError: No meetup exists at meetup_date.
@@ -50,7 +50,7 @@ class DestroyTeams:
             raise MeetupNotFoundError(str(meetup_date))
         if meetup.teams is None:
             raise MeetupHasNoTeamsError(f"Meetup at {meetup_date} has no teams to destroy.")
-        if any(match.result is not None for match in meetup.matches):
+        if meetup.has_recorded_results():
             raise MeetupHasRecordedResultsError(
                 f"Meetup at {meetup_date} already has a recorded match result."
             )
