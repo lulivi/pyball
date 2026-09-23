@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v6.4.0 (2026-09-23)
+
+### Features
+
+- **GL-230..GL-231**: Distinct match whistles and remove meetup lock
+  ([`cee5247`](https://gitlab.com/lulivi/pyball/-/commit/cee52470fd643f2081d8f7f4de3d18927380ce59))
+
+### Refactoring
+
+- **GL-228..GL-229**: Unify season-boundary and match-outcome duplication
+  ([`1df9698`](https://gitlab.com/lulivi/pyball/-/commit/1df96983bc48f634a83b2ded0bdf8e98d81f103c))
+
+
 ## v6.3.0 (2026-09-19)
 
 ### Features
