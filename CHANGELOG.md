@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.6.0 (2026-09-28)
+
+### Features
+
+- **GL-233..GL-234**: Close the substitute search automatically when its target is reached
+  ([`6f4117b`](https://gitlab.com/lulivi/pyball/-/commit/6f4117b5dcdcaf49e5fe1f40f2f69a3d7a18e254))
+
+
 ## v6.5.0 (2026-09-23)
 
 ### Features
