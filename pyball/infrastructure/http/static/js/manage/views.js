@@ -116,19 +116,6 @@ function _buildFreshFlowHTML() {
   `;
 }
 
-function buildRosterRow(p) {
-    const label = p.position === 'portero' ? `🧤 ${p.name}` : p.name;
-    return `<div class="edit-chip">
-      <span style="flex:1;">${escHtml(label)}</span>
-      <button class="remove-btn" data-pid="${escHtml(p.id)}"
-        onclick="removeFromRoster(this.dataset.pid)">✕</button>
-    </div>`;
-}
-
-function buildRosterList(players) {
-    return players.map(buildRosterRow).join('');
-}
-
 // One collapsed row in the Convocatorias list. `open` = detail panel expanded.
 function buildConvocatoriaRow(item, open) {
     return `
@@ -156,11 +143,9 @@ function buildConvocatoriaDetail(date, message) {
     <hr class="divider">`;
 }
 
-// Date/location editor shown next to the date badge in "Convocatoria actual".
-// `data` is activeMatchData ({date, location, ...}); `open` toggles edit mode.
-// State 1 (main.js renderState1) only ever renders this while `open` is true —
-// the closed-state pencil badge below is State 2's nested usage only, reached
-// from inside its own "Editar convocatoria" team-edit panel.
+// Date/location editor for "Convocatoria actual". `data` is activeMatchData
+// ({date, location, ...}); `open` toggles edit mode. The closed state is the pencil
+// badge shown at the top of the "Editar convocatoria" edit mode (states 1 and 2).
 function buildDateLocationEditor(data, open) {
     if (!open) {
         return `<button class="date-badge-btn" onclick="toggleDateLocationEdit()">
@@ -210,7 +195,7 @@ function buildManualCreatePanel(open) {
 
 // Search input + results container for the add-player widget.
 // idPrefix yields #<idPrefix>-search and #<idPrefix>-results; searchFn is the
-// oninput handler call as a string, e.g. 'searchRosterAdd()'.
+// oninput handler call as a string, e.g. 'searchEditAdd()'.
 function buildAddPlayerPanel(idPrefix, searchFn) {
     return `
     <div style="margin-top:6px;">
@@ -249,7 +234,7 @@ function buildTeamButtonsRow() {
 
 export {
     chipClass, chipLabel, buildChip, buildPanel, buildCandidateList, buildSearch,
-    buildRosterRow, buildRosterList, buildAddPlayerPanel, buildAddResults,
+    buildAddPlayerPanel, buildAddResults,
     buildCancelTrigger, buildTeamButtonsRow, buildDateLocationEditor, copyLinkButton,
     buildManualCreatePanel, buildConvocatoriaRow, buildConvocatoriaDetail,
     buildConvocatoriaHeader, buildRosterText,

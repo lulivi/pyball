@@ -46,7 +46,8 @@ Antes de generar los equipos todavía puedes ajustar quién juega. En Telegram, 
 titulares normalmente lo hacen ellos mismos con los botones "✔ Unirse" / "✖ Salir" del
 paso 1.
 
-- **`/manage`:** la lista de convocados permite quitar un jugador o buscar y añadir otro.
+- **`/manage`:** "✏️ Editar convocatoria" abre el mismo modo de edición que los equipos:
+  quitar, reemplazar o buscar y añadir jugadores, y luego "💾 Guardar convocatoria".
 - **Telegram:** un admin puede pulsar el botón "🔎 Buscar jugadores" del mensaje de
   convocatoria de titulares (o volver a tocarlo más tarde) para publicar un mensaje
   aparte en el chat de suplentes con sus propios botones "✔ Unirse" / "✖ Salir" — es un

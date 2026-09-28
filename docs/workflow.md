@@ -41,7 +41,8 @@ A meetup is one scheduled session: a date, a time, a location, and a roster of p
 Before generating teams you can still adjust who's playing. On Telegram, regulars
 usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 1.
 
-- **`/manage`:** the roster list lets you remove a player or search-and-add another one.
+- **`/manage`:** "✏️ Editar convocatoria" opens the same edit mode used for teams —
+  remove, replace or search-and-add players, then "💾 Guardar convocatoria".
 - **Telegram:** an admin can open the "🔎 Buscar jugadores" button on the regulars
   callup message (or tap it again later) to post a separate message to the substitutes
   chat with its own "✔ Unirse" / "✖ Salir" buttons — this is a deliberate, manual step so
