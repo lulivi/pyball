@@ -105,6 +105,8 @@ def test_format_subs_message_with_teams_shows_team_assignment():
     assert "⚫" in text
     assert "Pedro" in text
     assert "Juan" in text
+    assert "Jugadores apuntados 4" in text
+    assert "/10" not in text
 
 
 def test_format_subs_message_with_result_simple():
@@ -416,3 +418,58 @@ def test_parse_display_invalid_raises():
     """parse_display raises ValueError on bad input."""
     with pytest.raises(ValueError):
         parse_display("not-a-date")
+
+
+def _subs_meetup(n_regulars: int, n_subs: int):
+    meetup = Meetup.create(datetime(2024, 1, 15, 20, 0), "Parque Central")
+    names, groups = {}, {}
+    for i in range(n_regulars + n_subs):
+        pid = PlayerId.generate()
+        meetup.add_player(pid)
+        names[str(pid.value)] = f"P{i}"
+        groups[str(pid.value)] = "regular" if i < n_regulars else "substitute"
+    return meetup, names, groups
+
+
+def test_format_subs_message_open_search_shows_target():
+    """An open search shows the roster size against the search target."""
+    meetup, names, groups = _subs_meetup(9, 0)
+
+    text = format_subs_message(meetup, names, groups, search_target=10)
+
+    assert "Jugadores apuntados 9/10" in text
+    assert "*No hay suplentes*" in text
+    assert "Completo" not in text
+
+
+def test_format_subs_message_closed_below_first_threshold_shows_count():
+    """A closed search with fewer than the first threshold shows the plain count, no Completo."""
+    meetup, names, groups = _subs_meetup(5, 0)
+
+    text = format_subs_message(meetup, names, groups, search_target=None)
+
+    assert "Jugadores apuntados 5" in text
+    assert "Completo" not in text
+    assert "*No hay suplentes*" in text
+
+
+def test_format_subs_message_closed_without_subs_shows_completo():
+    """A closed search with no substitutes shows only the Completo line."""
+    meetup, names, groups = _subs_meetup(10, 0)
+
+    text = format_subs_message(meetup, names, groups, search_target=None)
+
+    assert r"✅ *Completo* \(10 jugadores\)" in text
+    assert "No hay suplentes" not in text
+    assert "Jugadores apuntados" not in text
+
+
+def test_format_subs_message_closed_with_subs_keeps_list():
+    """A closed search that got substitutes keeps their list under Completo."""
+    meetup, names, groups = _subs_meetup(9, 1)
+
+    text = format_subs_message(meetup, names, groups, search_target=None)
+
+    assert r"✅ *Completo* \(10 jugadores\)" in text
+    assert r"*Suplentes \(1\):*" in text
+    assert "P9" in text

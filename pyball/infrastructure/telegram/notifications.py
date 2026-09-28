@@ -40,6 +40,7 @@ from pyball.infrastructure.telegram.formatters import (
     format_subs_message,
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
+from pyball.infrastructure.telegram.search import update_search_target
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
@@ -96,7 +97,13 @@ class TelegramMatchNotifier(MatchNotifier):
         """Handle a meetup date change by re-keying tracked messages and refreshing them."""
         store = TelegramMessageStore(self._settings.paths.data_dir / "bot" / "messages.json")
         store.rename_date(old_date, meetup.date)
-        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
+        await refresh_callup_messages(
+            self._bot,
+            self._settings,
+            self._container,
+            meetup,
+            include_keyboard=meetup.is_signup_open(),
+        )
 
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
         """Edit a cancelled meetup's messages and post the cancellation to the activity feed."""
@@ -233,6 +240,10 @@ async def refresh_callup_messages(
 
     sub_tracking = store.get_message(meetup.date, "substitute")
     if sub_tracking:
+        search_target = update_search_target(sub_tracking.search_target, len(meetup.players))
+        if search_target != sub_tracking.search_target:
+            sub_tracking.search_target = search_target
+            store.save_message(meetup.date, "substitute", sub_tracking)
         subs_text = format_subs_message(
             meetup,
             player_names,
@@ -240,8 +251,13 @@ async def refresh_callup_messages(
             team_colors=settings.pyball.team_colors,
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
+            search_target=search_target,
         )
-        kb = build_subs_keyboard(meetup.date) if include_keyboard else None
+        kb = (
+            build_subs_keyboard(meetup.date)
+            if include_keyboard and search_target is not None
+            else None
+        )
         try:
             await bot.edit_message_text(
                 chat_id=sub_tracking.chat_id,
@@ -303,6 +319,7 @@ async def _cancel_callup_messages(
             team_colors=settings.pyball.team_colors,
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
+            search_target=sub_tracking.search_target,
         )
         try:
             await bot.edit_message_text(

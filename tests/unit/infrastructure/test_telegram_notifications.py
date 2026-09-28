@@ -8,7 +8,7 @@ import pytest
 import telegram
 
 from pyball.domain.meetup.models import Meetup
-from pyball.domain.player.models import Player
+from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.telegram import notifications
 from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
@@ -132,6 +132,52 @@ async def test_on_meetup_updated_hides_keyboard_when_teams_exist(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_on_meetup_updated_keeps_open_search_target(tmp_path):
+    """refresh_callup_messages keeps the target and the keyboard while the search is open."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    for _ in range(13):
+        meetup.add_player(PlayerId.generate())
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        meetup.date,
+        "substitute",
+        MessageTracking(chat_id=-200, message_id=99, search_target=15),
+    )
+
+    await notifier.on_meetup_updated(meetup)
+
+    assert store.get_message(meetup.date, "substitute").search_target == 15
+    subs_edit = next(
+        c for c in bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 99
+    )
+    assert subs_edit.kwargs["reply_markup"] is not None
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_updated_closes_reached_search_target(tmp_path):
+    """refresh_callup_messages closes the search and strips its keyboard once target is met."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    for _ in range(12):
+        meetup.add_player(PlayerId.generate())
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(
+        meetup.date,
+        "substitute",
+        MessageTracking(chat_id=-200, message_id=99, search_target=15),
+    )
+
+    await notifier.on_meetup_updated(meetup)
+
+    assert store.get_message(meetup.date, "substitute").search_target is None
+    subs_edit = next(
+        c for c in bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 99
+    )
+    assert subs_edit.kwargs["reply_markup"] is None
+
+
+@pytest.mark.asyncio
 async def test_on_meetup_date_changed_rekeys_and_refreshes_tracked_message(tmp_path):
     """on_meetup_date_changed re-keys the store entry and edits the message in place."""
     notifier, bot = _make_notifier(tmp_path)
@@ -149,6 +195,28 @@ async def test_on_meetup_date_changed_rekeys_and_refreshes_tracked_message(tmp_p
     kwargs = bot.edit_message_text.call_args.kwargs
     assert kwargs["chat_id"] == -100
     assert kwargs["message_id"] == 42
+
+
+@pytest.mark.asyncio
+async def test_on_meetup_date_changed_hides_keyboard_when_teams_exist(tmp_path):
+    """on_meetup_date_changed omits the join/leave keyboard once teams are assigned."""
+    from pyball.domain.meetup.models import Team
+    from pyball.domain.player.models import PlayerId
+
+    notifier, bot = _make_notifier(tmp_path)
+    old_date = datetime(2026, 4, 30, 20, 0)
+    new_date = datetime(2026, 5, 7, 20, 0)
+    meetup = Meetup.create(new_date, "Campo")
+    p1, p2 = PlayerId.generate(), PlayerId.generate()
+    meetup.set_teams([Team.create("A", [p1]), Team.create("B", [p2])])
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(old_date, "regular", MessageTracking(chat_id=-100, message_id=42))
+
+    await notifier.on_meetup_date_changed(old_date, meetup)
+
+    bot.edit_message_text.assert_called_once()
+    kwargs = bot.edit_message_text.call_args.kwargs
+    assert kwargs["reply_markup"] is None
 
 
 def _discard_task(coro):

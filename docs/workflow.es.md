@@ -53,6 +53,16 @@ paso 1.
   paso manual y deliberado, para que los titulares tengan prioridad unos días antes de
   buscar suplentes.
 
+  Cada búsqueda tiene un objetivo: el siguiente escalón de **10 → 12 → 15** jugadores
+  por encima de los apuntados (9 → 10, 10–11 → 12, 12–14 → 15; con 15 o más no hay
+  nada que buscar). La búsqueda se cierra sola en cuanto se alcanza el objetivo —
+  lo complete un titular o un suplente — y el mensaje de suplentes se edita a
+  "✅ Completo" sin botones, así ningún suplente se cuela antes de que generes los
+  equipos. Mientras busca, el objetivo solo baja: con 11 apuntados buscando 12, si
+  alguien se desapunta se vuelve a 10 y la búsqueda queda completa. Los titulares
+  pueden seguir apuntándose. ¿Hacen falta más después? Pulsa "Buscar" otra vez para
+  abrir una búsqueda nueva.
+
 ## Alta por cuenta propia en `/signup`
 
 Si `enable_web_signup` está activo en `config.toml`, los jugadores pueden apuntarse o

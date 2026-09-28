@@ -47,6 +47,16 @@ usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 
   chat with its own "✔ Unirse" / "✖ Salir" buttons — this is a deliberate, manual step so
   regulars get priority for a few days before substitutes are searched.
 
+  Each search has a target: the next of **10 → 12 → 15** players above the current
+  roster (9 → 10, 10–11 → 12, 12–14 → 15; with 15 or more there is nothing to search).
+  The search closes by itself as soon as the roster reaches the target — whoever fills
+  the last spot, regular or substitute — and the substitutes message is edited to
+  "✅ Completo" without buttons, so no substitute can sneak in before you generate
+  teams. While searching, the target only moves down: with 11 players searching for 12,
+  if anyone leaves, the roster is back at 10 and the search is complete. Regulars can
+  keep joining regardless. Need more players later? Tap "Buscar" again to open a new
+  search.
+
 ## Self-service signup via `/signup`
 
 If `enable_web_signup` is set in `config.toml`, players can join or leave a meetup

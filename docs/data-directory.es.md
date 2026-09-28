@@ -199,7 +199,12 @@ cuando cambia la convocatoria, o cuando el partido se cierra):
 {
   "2026-04-15T20:00": {
     "regular": { "chat_id": -1000000000000, "thread_id": null, "message_id": 4821 },
-    "substitute": { "chat_id": -1000000000001, "thread_id": null, "message_id": 512 }
+    "substitute": {
+      "chat_id": -1000000000001,
+      "thread_id": null,
+      "message_id": 512,
+      "search_target": 12
+    }
   }
 }
 ```
@@ -208,7 +213,9 @@ La clave es la fecha/hora del partido (`YYYY-MM-DDTHH:MM`, coincidiendo con el n
 del archivo del meetup sin la extensión `.json`). `thread_id` es `null` a menos que el
 chat use temas de foro (ver `telegram.regulars.meetups.message_thread_id` en
 [docs/setup.es.md](setup.es.md); la entrada `substitute` toma igualmente
-`telegram.substitutes.meetups.message_thread_id`).
+`telegram.substitutes.meetups.message_thread_id`). `search_target` (solo en la entrada
+`substitute`) es el tamaño de plantilla que busca una búsqueda de suplentes abierta;
+`null` o su ausencia significa que la búsqueda está cerrada.
 
 ## Documentación relacionada
 

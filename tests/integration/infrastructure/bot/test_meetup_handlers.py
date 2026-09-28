@@ -7,6 +7,7 @@ from datetime import datetime
 import pytest
 
 from pyball.domain.meetup.models import Meetup
+from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.bot.handlers.meetup import search_handler, stats_handler
@@ -29,6 +30,25 @@ async def test_search_handler_sends_and_stores(bot_update, bot_context):
     tracking = store.get_message(datetime(2026, 4, 25, 20, 0), "substitute")
     assert tracking is not None
     assert tracking.message_id == 42
+    assert tracking.search_target == 10
+
+
+@pytest.mark.asyncio
+async def test_search_handler_rejects_when_roster_at_fifteen(bot_update, bot_context):
+    """With 15 players there is no higher threshold, so no search is opened."""
+    container = bot_context.bot_data["container"]
+    meetup = Meetup.create(datetime(2026, 4, 25, 20, 0), "Test Field")
+    for _ in range(15):
+        meetup.add_player(PlayerId.generate())
+    container.meetup_repository.save(meetup)
+    bot_context.args = ["2026-04-25", "20:00"]
+
+    await search_handler(bot_update, bot_context)
+
+    bot_context.bot.send_message.assert_not_called()
+    bot_update.message.reply_text.assert_called_once_with(
+        "Ya sois 15 o más, no hace falta buscar más jugadores."
+    )
 
 
 @pytest.mark.asyncio

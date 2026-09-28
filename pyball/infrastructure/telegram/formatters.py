@@ -30,6 +30,7 @@ from telegram.constants import KeyboardButtonStyle
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.domain.meetup.models import Match, Meetup, Team
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
+from pyball.infrastructure.telegram.search import SEARCH_THRESHOLDS
 
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
 _DEFAULT_DATE_FMT = "%Y-%m-%d %H:%M"
@@ -184,8 +185,19 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     team_colors: tuple[str, ...] = ("blanco", "negro"),
     team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
+    search_target: int | None = None,
 ) -> str:
-    """Format message for substitutes chat - shows substitutes only."""
+    """Format message for substitutes chat - shows substitutes only.
+
+    Args:
+        meetup: The meetup to format
+        player_names: Mapping of player ID to display name
+        player_groups: Mapping of player ID to group ('regular' or 'substitute')
+        team_colors: Tuple of team color names
+        team_emojis: Tuple of team emojis
+        date_fmt: Date format string
+        search_target: Target roster size for an open search, None means search is closed
+    """
     if meetup.is_closed():
         return "*Partido terminado*"
 
@@ -213,7 +225,7 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
 
         lines = _build_convocatoria_header(meetup, date_str)
         lines.append("")
-        lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
+        lines.append(f"Jugadores apuntados {len(meetup.players)}")
         lines.append("")
 
         for team_idx in sorted(subs_by_team.keys()):
@@ -234,8 +246,18 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
 
     lines = _build_convocatoria_header(meetup, date_str)
     lines.append("")
-    lines.append(f"Jugadores apuntados {len(meetup.players)}/10")
-    lines.append("")
+
+    if search_target is None and len(meetup.players) >= SEARCH_THRESHOLDS[0]:
+        lines.append(rf"✅ *Completo* \({len(meetup.players)} jugadores\)")
+        if not sorted_suplentes:
+            return "\n".join(lines)
+        lines.append("")
+    elif search_target is None:
+        lines.append(f"Jugadores apuntados {len(meetup.players)}")
+        lines.append("")
+    else:
+        lines.append(f"Jugadores apuntados {len(meetup.players)}/{search_target}")
+        lines.append("")
 
     if sorted_suplentes:
         lines.append(rf"*Suplentes \({len(sorted_suplentes)}\):*")

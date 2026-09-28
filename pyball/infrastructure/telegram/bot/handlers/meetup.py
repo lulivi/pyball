@@ -46,6 +46,7 @@ from pyball.infrastructure.telegram.formatters import (
     parse_display,
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking
+from pyball.infrastructure.telegram.search import next_search_target
 from pyball.infrastructure.telegram.settings import TelegramAppSettings, TelegramSettings
 from pyball.logger import log_func
 
@@ -83,7 +84,11 @@ async def show_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             if p.id in player_ids
         )
         if has_substitutes and settings.telegram.substitutes.meetups:
-            await _do_search(meetup, container, context.bot, settings)
+            store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
+            tracking = store.get_message(meetup.date, "substitute")
+            # Reposting never opens a search — keep whatever state it had.
+            search_target = tracking.search_target if tracking else None
+            await _do_search(meetup, container, context.bot, settings, search_target)
 
         await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
@@ -115,8 +120,13 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await message.reply_text("Los equipos ya están hechos, no se puede buscar más jugadores.")
         return
 
+    search_target = next_search_target(len(meetup.players))
+    if search_target is None:
+        await message.reply_text("Ya sois 15 o más, no hace falta buscar más jugadores.")
+        return
+
     try:
-        await _do_search(meetup, container, context.bot, settings)
+        await _do_search(meetup, container, context.bot, settings, search_target)
         await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
         logger.error("Telegram error sending substitutes message: %s", error)
@@ -176,8 +186,13 @@ async def _do_search(
     container: Container,
     bot: telegram.Bot,
     settings: TelegramAppSettings,
+    search_target: int | None,
 ) -> None:
-    """Send the substitutes message to the substitutes chat and track it."""
+    """Send the substitutes message to the substitutes chat and track it with its target.
+
+    ``search_target`` is the roster size this search is looking for (None means the
+    search is closed, rendering "✅ Completo" and omitting the join/leave keyboard).
+    """
     player_repo = container.player_repository
     player_names = _get_player_names(player_repo)
     player_groups = {str(p.id.value): p.group for p in player_repo.find_all()}
@@ -188,8 +203,13 @@ async def _do_search(
         team_colors=settings.pyball.team_colors,
         team_emojis=settings.pyball.team_emojis,
         date_fmt=settings.pyball.display_date_format,
+        search_target=search_target,
     )
-    keyboard = build_subs_keyboard(meetup.date) if meetup.is_signup_open() else None
+    keyboard = (
+        build_subs_keyboard(meetup.date)
+        if meetup.is_signup_open() and search_target is not None
+        else None
+    )
 
     subs = settings.telegram.substitutes.meetups
     msg = await bot.send_message(
@@ -207,6 +227,7 @@ async def _do_search(
             chat_id=subs.chat_id,
             thread_id=subs.message_thread_id,
             message_id=msg.message_id,
+            search_target=search_target,
         ),
     )
 
