@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.7.0 (2026-09-28)
+
+### Features
+
+- **GL-235**: Reuse the teams edit mode for the signup roster in /manage
+  ([`93348fe`](https://gitlab.com/lulivi/pyball/-/commit/93348fe629ef48e7fe91fd6a716d85f72053f661))
+
+
 ## v6.6.0 (2026-09-28)
 
 ### Features
