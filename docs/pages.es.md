@@ -37,22 +37,30 @@ desplegable en su resumen — ver [paso 6](workflow.es.md#6-ver-estadísticas).
 
 ## `/match`
 
-La página de marcador, abierta en el dispositivo que lleva el partido en directo. Bajo
-la fecha del partido, tres pestañas:
+La página de marcador, abierta en el dispositivo que lleva el partido en directo.
+
+Tras 20 segundos sin tocarla, la página pasa a una pantalla de reposo: el minuto actual
+de la hora en grande (p. ej. `47'`), la cuenta atrás hasta el siguiente cambio de
+portero si el cronómetro está en marcha, y el marcador con el color de cada equipo.
+Toca en cualquier sitio para volver. Nunca aparece al corregir un resultado pasado.
+
+Bajo la fecha del partido, tres pestañas:
 
 ### Tiempo
 
 Una cuenta atrás para las peñas que rotan porteros por tiempo. Elige la duración del
 turno (1–15 minutos, 6 por defecto) y toca "Iniciar cronómetro": cuenta atrás, suena y
 la pantalla parpadea al llegar a cero, y vuelve a empezar sola para el siguiente turno —
-sin tener que tocar nada entre rotaciones. El primer toque es además lo que habilita el
-sonido en el móvil, y el cronómetro mantiene la pantalla encendida mientras corre. Es
-local del dispositivo (no se comparte con otros `/match`) y sobrevive a recargar la
-página. Se oculta al corregir un resultado pasado.
-Mientras corre, una pequeña pastilla con la cuenta atrás aparece junto a la fecha del
-partido en las otras pestañas — tócala para volver aquí. Al recargar la página el
-navegador vuelve a bloquear el sonido; la pastilla muestra entonces 🔇 hasta que
-cualquier toque lo reactiva.
+sin tener que tocar nada entre rotaciones. Un pequeño botón 🔊 junto a
+"Iniciar cronómetro" y "Activar aviso" reproduce el sonido de cada aviso para
+comprobar el volumen antes de empezar; desaparece una vez activados. El primer toque es
+además lo que habilita el sonido en el móvil, y el cronómetro mantiene la pantalla
+encendida mientras corre. Es local del dispositivo (no se comparte con otros `/match`)
+y sobrevive a recargar la página. Se oculta al corregir un resultado pasado. Mientras
+corre, una pequeña pastilla con la cuenta atrás aparece junto a la fecha del partido en
+las otras pestañas — tócala para volver aquí. Al recargar la página el navegador
+vuelve a bloquear el sonido; la pastilla muestra entonces 🔇 hasta que cualquier toque
+lo reactiva.
 
 ### Jugadores
 

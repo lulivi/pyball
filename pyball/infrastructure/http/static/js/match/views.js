@@ -95,7 +95,10 @@ function renderHourWarnSection(state) {
                 <span class="timer-step-value">${state.hourWarnMinutes}<small>min</small></span>
                 <button class="timer-step" onclick="setHourWarnMinutes(1)">+</button>
             </div>
-            <button class="timer-btn hourwarn-btn-off" onclick="toggleHourWarn()">🔔 Activar aviso</button>
+            <div class="timer-btn-row">
+                <button class="timer-btn hourwarn-btn-off" onclick="toggleHourWarn()">🔔 Activar aviso</button>
+                <button class="timer-btn timer-test-btn" onclick="armAudio();playHourCue()" aria-label="Probar sonido">🔊</button>
+            </div>
         </div>
     `;
 }
@@ -130,7 +133,10 @@ function renderTimerTab() {
                     <span class="timer-step-value">${state.timerMinutes}<small>min</small></span>
                     <button class="timer-step" onclick="setTimerMinutes(1)">+</button>
                 </div>
-                <button class="timer-btn timer-btn-start" onclick="startTimer()">▶️ Iniciar cronómetro</button>
+                <div class="timer-btn-row">
+                    <button class="timer-btn timer-btn-start" onclick="startTimer()">▶️ Iniciar cronómetro</button>
+                    <button class="timer-btn timer-test-btn" onclick="armAudio();playCue()" aria-label="Probar sonido">🔊</button>
+                </div>
             </div>
             ${renderHourWarnSection(state)}
         </div>
@@ -288,6 +294,24 @@ function renderStaleMatchChoice(oldDateLabel, onKeep, onFresh) {
     document.getElementById('stale-fresh').addEventListener('click', onFresh, { once: true });
 }
 
+// Content of the idle overlay (see main.js): current wall-clock minute, the
+// rotation countdown when the timer runs, and the score in team colours.
+function renderIdleScreen() {
+    const state = store.get();
+    const now = new Date();
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const countdown = state.timerRunning
+        ? `<div class="idle-countdown">🧤 ${formatCountdown(remainingMs(state.timerStartedAt, state.timerMinutes, now.getTime()))}</div>`
+        : '';
+    return `
+        <div class="idle-minute">${minute}'</div>
+        ${countdown}
+        <div class="idle-score">
+            <span class="idle-goals idle-goals-a">${getGoals('A')}</span>
+            <span class="idle-goals idle-goals-b">${getGoals('B')}</span>
+        </div>`;
+}
+
 function renderApp() {
     const state = store.get();
     const prevScrollTop = document.querySelector('.events-scroll')?.scrollTop ?? 0;
@@ -317,4 +341,4 @@ function formatMatchDate(dateStr) {
     return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`;
 }
 
-export { renderApp, renderNoMatch, renderOffline, renderStaleMatchChoice, formatMatchDate };
+export { renderApp, renderNoMatch, renderOffline, renderStaleMatchChoice, formatMatchDate, renderIdleScreen };

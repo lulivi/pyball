@@ -354,6 +354,10 @@
         .timer-btn-start { background: #16a34a; }
         .timer-btn-reset { background: #b45309; }
         .timer-sound-btn { background: #0369a1; }
+        /* Main action ~4/5, test-sound ~1/5. flex-basis 0 overrides .timer-btn's width:100%. */
+        .timer-btn-row { display: flex; gap: 8px; width: 100%; max-width: 320px; }
+        .timer-btn-row .timer-btn { flex: 4 1 0; min-width: 0; }
+        .timer-btn-row .timer-test-btn { flex: 1 1 0; padding: 16px 0; background: #334155; }
 
         /* Added to <body> by flashApp() only while flashing, then removed —
            no permanent top layer to leave compositing ghosts on reload. */
@@ -369,6 +373,44 @@
             0%, 33.3%, 66.6%, 100% { opacity: 0; }
             16.6%, 50%, 83.3% { opacity: 0.72; }
         }
+
+        /* Idle clock + score. Below #timer-flash-overlay (9999) so alarms still flash on top. */
+        #idle-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9000;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3vh;
+            padding: 0 4vw;
+            box-sizing: border-box;
+            cursor: pointer;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Children are rebuilt every second; keep the click target on the stable overlay. */
+        #idle-overlay * { pointer-events: none; }
+        /* Sized to fill the width on portrait phones; the vh caps keep the three rows
+           (~37 + 12 + 34 vh plus gaps; digits have little built-in leading) inside short landscape screens. */
+        .idle-minute { font-size: min(58vw, 46vh); line-height: 0.8; }
+        .idle-countdown { font-size: min(26vw, 12vh); line-height: 1; color: #fcd34d; }
+        .idle-score { display: flex; gap: 4vw; }
+        .idle-goals {
+            min-width: 1.2em;
+            padding: 0 0.1em;
+            text-align: center;
+            font-size: min(30vw, 34vh);
+            line-height: 1;
+            border: 3px solid #334155;
+            border-radius: 16px;
+        }
+        .idle-goals-a { background: var(--color-light); color: var(--color-light-text); }
+        .idle-goals-b { background: var(--color-dark); color: var(--color-dark-text); }
 
         .timer-pill {
             display: inline-flex;

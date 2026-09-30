@@ -35,17 +35,25 @@ History of every closed meetup, newest first, each expandable into its summary �
 
 ## `/match`
 
-The scoreboard page, opened on whichever device is tracking the live match. Below the
-match date, three tabs:
+The scoreboard page, opened on whichever device is tracking the live match.
+
+After 20 seconds without a touch the page switches to an idle screen: the current
+minute of the hour in big digits (e.g. `47'`), the countdown to the next goalkeeper
+change if the rotation timer is running, and the score in each team's colour. Tap
+anywhere to go back. It never shows while editing a past result.
+
+Below the match date, three tabs:
 
 ### Tiempo
 
 A rotation countdown for peñas that swap goalkeepers on a timer. Pick a shift length
 (1–15 minutes, default 6) and tap "Iniciar cronómetro"; it counts down, plays a sound
 and flashes the screen at zero, then restarts on its own for the next shift — no need to
-touch it between rotations. The first tap is also what unlocks sound on mobile, and the
-timer keeps the screen awake while it runs. It is device-local (not shared with other
-`/match` devices) and survives a page reload. Hidden while editing a past result.
+touch it between rotations. A small 🔊 button next to "Iniciar cronómetro" and
+"Activar aviso" plays that alarm's sound so you can check the volume before starting;
+it disappears once they are active. The first tap is also what unlocks sound on mobile,
+and the timer keeps the screen awake while it runs. It is device-local (not shared with
+other `/match` devices) and survives a page reload. Hidden while editing a past result.
 While it runs, a small countdown pill sits next to the match date on the other tabs —
 tap it to jump back here. A page reload re-locks audio (a browser rule); the pill then
 shows 🔇 until any tap re-enables the sound.

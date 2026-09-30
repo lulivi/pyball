@@ -11,6 +11,7 @@ import {
 } from './timer.js';
 import {
     renderApp, renderNoMatch, renderOffline, renderStaleMatchChoice, formatMatchDate,
+    renderIdleScreen,
 } from './views.js';
 
 function initializeApp() {
@@ -242,6 +243,7 @@ if ('serviceWorker' in navigator) {
 }
 
 function timerTick() {
+    refreshIdle();
     const s = store.get();
     const now = Date.now();
 
@@ -284,6 +286,46 @@ function flashApp() {
         _flashing = false;
     }, 1200);
 }
+
+// Idle screen: after IDLE_MS without a touch, cover the page with a big
+// clock + score so the device can sit on the sideline. A tap on the overlay
+// removes it; it covers everything, so that tap never reaches a button.
+const IDLE_MS = 20000;
+let _idleTimer = null;
+
+function armIdle() {
+    clearTimeout(_idleTimer);
+    _idleTimer = setTimeout(showIdle, IDLE_MS);
+}
+
+function showIdle() {
+    if (!isMatchShown() || document.getElementById('idle-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'idle-overlay';
+    overlay.innerHTML = renderIdleScreen();
+    overlay.addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+}
+
+function refreshIdle() {
+    const overlay = document.getElementById('idle-overlay');
+    if (!overlay) return;
+    if (!isMatchShown()) {
+        overlay.remove();
+        return;
+    }
+    overlay.innerHTML = renderIdleScreen();
+}
+
+// Only renderApp() draws the .tab-bar, so its presence means a live match is
+// on screen (not the no-match / offline / stale-choice screens).
+function isMatchShown() {
+    return !ctx.isEditMode && document.querySelector('.tab-bar') !== null;
+}
+
+document.addEventListener('pointerdown', armIdle);
+document.addEventListener('keydown', armIdle);
+armIdle();
 
 setInterval(timerTick, 1000);
 
