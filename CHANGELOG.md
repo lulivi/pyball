@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.8.0 (2026-09-30)
+
+### Features
+
+- **GL-236..GL-237**: Add test-sound buttons and an idle clock screen to /match
+  ([`04d05a5`](https://gitlab.com/lulivi/pyball/-/commit/04d05a5a6e94b8159c562128eeafebec90aefbc0))
+
+
 ## v6.7.0 (2026-09-28)
 
 ### Features
