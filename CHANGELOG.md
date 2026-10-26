@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v6.9.0 (2026-10-26)
+
+### Features
+
+- **GL-238**: Rank stats standings by points, then fewest matches played
+  ([`551e4b6`](https://gitlab.com/lulivi/pyball/-/commit/551e4b613340a08760f640eadf1aa8a738cf9b30))
+
+
 ## v6.8.0 (2026-09-30)
 
 ### Features
