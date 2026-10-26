@@ -177,7 +177,8 @@ never needs this — it closes itself the moment its one match finishes.
   `⚪ Blanco (1V 1E 0D)`), then each round shows just its score and its own events list.
   Telegram's post-match message uses this same format.
 - **Telegram:** `/meetup_stats [temporada|historico]` posts season or all-time stats as
-  an image.
+  an image. The standings rank by points; on equal points, the player with fewer
+  matches played ranks first.
 
 ## The triangular ruleset
 

@@ -195,6 +195,27 @@ class TestComputeStatsWinDrawLoss:
         report = ComputeStats(meetup_repo, player_repo).execute()
         assert report.all_time.players[0].player_name == "Alice"
 
+    def test_points_tie_broken_by_fewest_matches_played(self):
+        """Tied on points, the player with fewer matches ranks first — wins don't matter."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        charlie = make_player("Charlie")
+        dave = make_player("Dave")
+        # Alice: 3 draws → 3 pts, 3 MP, 0 wins
+        # Bob: 1 win + 3 losses → 3 pts, 4 MP, 1 win (old order put Bob first)
+        meetups = []
+        for d in (3, 4, 5):
+            meetups.append(
+                make_meetup(datetime(2026, 1, d, 20, 0), [alice.id], [charlie.id], 0, 0)
+            )
+        meetups.append(make_meetup(datetime(2026, 1, 10, 20, 0), [bob.id], [dave.id], 1, 0))
+        for d in (11, 12, 13):
+            meetups.append(make_meetup(datetime(2026, 1, d, 20, 0), [bob.id], [dave.id], 0, 1))
+        meetup_repo, player_repo = make_repos(meetups, [alice, bob, charlie, dave])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        names = [p.player_name for p in report.all_time.players]
+        assert names.index("Alice") < names.index("Bob")
+
 
 class TestComputeStatsSeasonFilter:
     """Season boundary filtering."""
@@ -331,6 +352,37 @@ class TestComputeStatsRankDelta:
         report = ComputeStats(meetup_repo, player_repo).execute()
         alice_stats = next(p for p in report.all_time.players if p.player_name == "Alice")
         assert alice_stats.points_rank_delta == 1
+
+    def test_points_rank_delta_uses_fewest_matches_tiebreak(self):
+        """The previous ranking breaks point ties by fewest matches played, not by wins."""
+        alice = make_player("Alice")
+        bob = make_player("Bob")
+        carol = make_player("Carol")
+        dave = make_player("Dave")
+        # Alice: 3 draws (3 pts, 3 matches, 0 wins); Bob: 1 win + 3 losses (3 pts, 4 matches)
+        opponents = [make_player(f"Opp{i}") for i in range(6)]
+        results = [
+            ([alice.id], [opponents[0].id], 1, 1),
+            ([alice.id], [opponents[1].id], 1, 1),
+            ([alice.id], [opponents[2].id], 1, 1),
+            ([bob.id], [opponents[3].id], 1, 0),
+            ([opponents[4].id], [bob.id], 1, 0),
+            ([opponents[5].id], [bob.id], 1, 0),
+            ([opponents[0].id], [bob.id], 1, 0),
+        ]
+        meetups = [
+            make_meetup(datetime(2026, 1, 1 + i, 20, 0), team_a, team_b, score_a, score_b)
+            for i, (team_a, team_b, score_a, score_b) in enumerate(results)
+        ]
+        # Latest meetup: Carol draws with Dave; neither Alice nor Bob plays
+        meetups.append(make_meetup(datetime(2026, 2, 1, 20, 0), [carol.id], [dave.id], 1, 1))
+        meetup_repo, player_repo = make_repos(meetups, [alice, bob, carol, dave, *opponents])
+        report = ComputeStats(meetup_repo, player_repo).execute()
+        by_name = {p.player_name: p for p in report.all_time.players}
+        # Alice stays ahead of Bob in both rankings (fewer matches); the old key (wins first)
+        # would have put Bob ahead of Alice before the latest meetup
+        assert by_name["Alice"].points_rank_delta == 0
+        assert by_name["Bob"].points_rank_delta == 0
 
     def test_rank_delta_negative_when_dropped(self):
         """A player who dropped in ranking gets a negative delta."""
@@ -599,19 +651,19 @@ class TestComputeStatsLegacyAssistsInRankDelta:
 
 
 class TestComputeStatsTiebreaker:
-    """Points ranking tiebreaker: wins → goals → assists → name."""
+    """Points ranking tiebreaker: points → fewest matches played → name."""
 
-    def test_goals_break_equal_points(self):
-        """Two players with equal points are ranked by goals descending."""
+    def test_goals_do_not_break_equal_points(self):
+        """Equal points and matches played are ranked by name, not by goals."""
         alice = make_player("Alice")
         bob = make_player("Bob")
         dummy = make_player("Dummy")
 
         # Alice and Bob are both on team A → both win (3 pts each)
-        # Alice scores 2 goals, Bob scores 1
-        e1 = GoalEvent(scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 1))
-        e2 = GoalEvent(scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 2))
-        e3 = GoalEvent(scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 3))
+        # Bob scores 2 goals, Alice scores 1; goals are not a tiebreaker, so name decides
+        e1 = GoalEvent(scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 1))
+        e2 = GoalEvent(scorer_id=bob.id, assistant_id=None, team="A", timestamp=time(20, 2))
+        e3 = GoalEvent(scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 3))
 
         meetup = make_meetup(
             datetime(2026, 1, 10, 20, 0),
@@ -628,14 +680,15 @@ class TestComputeStatsTiebreaker:
         assert pts_players[0].player_name == "Alice"
         assert pts_players[1].player_name == "Bob"
 
-    def test_assists_break_equal_points_and_goals(self):
-        """Two players with equal points and goals are ranked by assists descending."""
+    def test_assists_do_not_break_equal_points(self):
+        """Equal points and matches played are ranked by name, not by assists."""
         alice = make_player("Alice")
         bob = make_player("Bob")
         charlie = make_player("Charlie")  # scorer so bob/charlie can have assists
         dummy = make_player("Dummy")
 
         # Alice and Bob both win with 1 goal each; Bob has 1 assist, Alice has 0
+        # Assists are not a tiebreaker (points, then matches_played, then name)
         alice_goal = GoalEvent(
             scorer_id=alice.id, assistant_id=None, team="A", timestamp=time(20, 1)
         )
@@ -657,9 +710,9 @@ class TestComputeStatsTiebreaker:
 
         pts_players = [p for p in report.all_time.players if p.points > 0]
         names = [p.player_name for p in pts_players]
-        # Charlie has 1 win + 1 goal; Alice has 1 win + 1 goal + 0 assists;
-        # Bob has 1 win + 1 goal + 1 assist → Bob ranks above Alice
-        assert names.index("Bob") < names.index("Alice")
+        # All three (Alice, Bob, Charlie) have 1 win and 1 match played → 3 points
+        # Bob's extra assist does not help: name decides, so Alice stays ahead
+        assert names.index("Alice") < names.index("Bob")
 
     def test_alphabetical_breaks_fully_equal_players(self):
         """Players equal on all stats are ranked alphabetically."""

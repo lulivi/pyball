@@ -249,7 +249,7 @@ def _build_scoped_report(
         )
         for pid, d in player_data.items()
     ]
-    stats_list.sort(key=lambda p: (-p.points, -p.wins, -p.goals, -p.assists, p.player_name))
+    stats_list.sort(key=lambda p: (-p.points, p.matches_played, p.player_name))
 
     if prev_meetups is not None:
         prev_data, _, _ = _aggregate(prev_meetups, legacy_stats, from_date)
@@ -259,9 +259,7 @@ def _build_scoped_report(
             eligible=lambda c: _points_from_counters(c) > 0,
             key_fn=lambda pid: (
                 -_points_from_counters(prev_data[pid]),
-                -prev_data[pid].w,
-                -prev_data[pid].goals,
-                -prev_data[pid].assists,
+                prev_data[pid].mp,
                 player_names.get(pid, pid),
             ),
         )

@@ -189,7 +189,8 @@ clásico nunca necesita esto — se cierra solo en cuanto termina su único part
   solo su marcador y su propia lista de eventos. El mensaje de Telegram al terminar un
   partido usa este mismo formato.
 - **Telegram:** `/meetup_stats [temporada|historico]` publica las estadísticas de
-  temporada o históricas como imagen.
+  temporada o históricas como imagen. La clasificación ordena por puntos; a igualdad de
+  puntos, va primero quien haya jugado menos partidos.
 
 ## Las reglas del triangular
 
