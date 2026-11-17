@@ -48,7 +48,7 @@ type(scope): <description>
 Refs: #<n>[, #<m>...]
 ```
 
-Types and release impact (the `release` CI job tags `main` based on these):
+Types and release impact (the `release` job of the GitHub Actions `ci` workflow tags `main` based on these):
 
 - `feat` → minor release
 - `fix`, `perf` → patch release

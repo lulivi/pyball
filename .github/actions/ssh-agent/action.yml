@@ -1,0 +1,22 @@
+name: ssh-agent
+description: Load the base64-encoded deploy key into an ssh-agent and trust the server's host key.
+inputs:
+  private-key:
+    description: Base64-encoded SSH private key
+    required: true
+  host:
+    description: Server to add to known_hosts
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: sh
+      env:
+        PRIVATE_KEY: ${{ inputs.private-key }}
+        HOST: ${{ inputs.host }}
+      run: |
+        eval "$(ssh-agent -s)"
+        echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+        echo "$PRIVATE_KEY" | base64 -d | ssh-add -
+        mkdir -p ~/.ssh
+        ssh-keyscan "$HOST" >> ~/.ssh/known_hosts

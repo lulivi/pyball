@@ -1,0 +1,252 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Re-publish and re-deploy an existing release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish and deploy (e.g. v6.9.0)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CI_IMAGE: ghcr.io/lulivi/pyball-ci:latest
+
+jobs:
+  ci-image:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            dockerfile:
+              - docker/Dockerfile.ci
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push the CI image when it changed, on main, or when it is missing
+        env:
+          CHANGED: ${{ steps.changes.outputs.dockerfile }}
+        run: |
+          if [ "$CHANGED" != "true" ] && [ "$GITHUB_REF" != "refs/heads/main" ] \
+              && docker manifest inspect "$CI_IMAGE" > /dev/null 2>&1; then
+            echo "CI image is up to date; skipping build."
+            exit 0
+          fi
+          docker build -f docker/Dockerfile.ci -t "$CI_IMAGE" .
+          docker push "$CI_IMAGE"
+
+  lint:
+    needs: ci-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/lulivi/pyball-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .nox
+          key: nox-lint-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+      - run: nox -e lint
+
+  test:
+    needs: ci-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+    container:
+      image: ghcr.io/lulivi/pyball-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .nox
+          key: nox-test-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+      - run: nox -e test -- --junit-xml=TestReport.xml
+      - uses: mikepenz/action-junit-report@v5
+        if: ${{ !cancelled() }}
+        with:
+          report_paths: TestReport.xml
+          check_name: test report
+
+  actionlint:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -color
+
+  caddyfiles:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container: lulivi/pyball-caddy:latest
+    env:
+      DUCKDNS_TOKEN: dummy
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh deploy/caddy/generate_caddyfiles.sh /tmp/caddy-gen
+      - name: Check the generated Caddyfiles match the committed ones
+        run: |
+          for f in Caddyfile Caddyfile.both Caddyfile.tensores Caddyfile.cucarachas Caddyfile.none; do
+            diff "/tmp/caddy-gen/$f" "deploy/caddy/$f"
+          done
+      - name: Validate every Caddyfile
+        run: |
+          for f in deploy/caddy/Caddyfile*; do
+            caddy validate --adapter caddyfile --config "$f"
+          done
+
+  # The release commit and tag are pushed with GITHUB_TOKEN, so they start no
+  # new workflow run: publish and deploy run here, chained on the release.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    container:
+      image: ghcr.io/lulivi/pyball-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      UV_LINK_MODE: copy
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout -B main "$GITHUB_SHA"
+          uv run --only-group dev semantic-release version
+          echo "tag=$(git tag --points-at HEAD 'v*')" >> "$GITHUB_OUTPUT"
+
+  publish-deploy:
+    needs: release
+    if: ${{ !cancelled() && !failure() && (needs.release.outputs.tag || inputs.tag) }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - topology: pyball
+            compose: compose.pyball.yaml
+            dir_secret: SERVER_CUCARACHAS_DIR
+          - topology: telegram
+            compose: compose.tg.yaml
+            dir_secret: SERVER_TENSORES_DIR
+    env:
+      TAG: ${{ needs.release.outputs.tag || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - run: ./deploy/docker_build.sh --push --release --topology ${{ matrix.topology }}
+      - uses: ./.github/actions/ssh-agent
+        with:
+          private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          host: ${{ secrets.SERVER_IP }}
+      - name: Deploy
+        env:
+          SERVER: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}
+          APP_DIR: ${{ secrets[matrix.dir_secret] }}
+        run: |
+          scp ${{ matrix.compose }} "$SERVER:$APP_DIR/compose.yaml"
+          # shellcheck disable=SC2029  # VERSION/APP_DIR expand here on purpose
+          ssh "$SERVER" "VERSION=${TAG#v} APP_DIR=$APP_DIR sh -s" < deploy/deploy.sh
+
+  # Caddy and funnelbot are published and deployed only when their files
+  # changed since the previous tag.
+  publish-deploy-caddy:
+    needs: release
+    if: ${{ !cancelled() && !failure() && (needs.release.outputs.tag || inputs.tag) }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.release.outputs.tag || inputs.tag }}
+      CADDY_PATHS: docker/Dockerfile.caddy docker/Dockerfile.funnelbot deploy/caddy compose.caddy.yaml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - id: changes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+          # shellcheck disable=SC2086
+          if [ -n "$PREV_TAG" ] && git diff --quiet "$PREV_TAG" "$TAG" -- $CADDY_PATHS; then
+            echo "No caddy changes since ${PREV_TAG}; skipping publish and deploy."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changes.outputs.changed == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          VERSION="${TAG#v}"
+          for name in caddy funnelbot; do
+            docker build -f "docker/Dockerfile.$name" \
+              -t "lulivi/pyball-$name:$VERSION" -t "lulivi/pyball-$name:latest" .
+            docker push "lulivi/pyball-$name:$VERSION"
+            docker push "lulivi/pyball-$name:latest"
+          done
+      - if: steps.changes.outputs.changed == 'true'
+        uses: ./.github/actions/ssh-agent
+        with:
+          private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          host: ${{ secrets.SERVER_IP }}
+      - name: Deploy
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          SERVER: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}
+          APP_DIR: ${{ secrets.SERVER_CADDY_DIR }}
+        run: |
+          scp compose.caddy.yaml "$SERVER:$APP_DIR/compose.yaml"
+          scp deploy/caddy/Caddyfile* "$SERVER:$APP_DIR/"
+          # shellcheck disable=SC2029  # VERSION/APP_DIR expand here on purpose
+          ssh "$SERVER" "VERSION=${TAG#v} APP_DIR=$APP_DIR HEALTH_MODE=caddy sh -s" < deploy/deploy.sh
