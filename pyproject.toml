@@ -65,7 +65,7 @@ testpaths = ["tests"]
 [tool.semantic_release]
 tag_format = "v{version}"
 commit_parser = "conventional"
-commit_message = "chore(release): v{version}"
+commit_message = "chore(release): v{version}\n\n[skip ci]"
 allow_zero_version = false
 
 [tool.semantic_release.branches.main]
@@ -80,3 +80,5 @@ changelog_file = "CHANGELOG.md"
 
 [tool.semantic_release.remote]
 type = "github"
+# Push over the checkout's SSH remote (release deploy key, which bypasses the main ruleset).
+ignore_token_for_push = true

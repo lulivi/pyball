@@ -147,9 +147,12 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
+      # The release deploy key is the only actor allowed to push to main
+      # without the required checks (main ruleset bypass list).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - id: version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
