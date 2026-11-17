@@ -2,6 +2,73 @@
 
 <!-- version list -->
 
+## v6.9.1 (2026-11-17)
+
+### Bug Fixes
+
+- Point contributor conventions and bootstrap docs links at GitHub
+  ([#6](https://github.com/lulivi/pyball/pull/6),
+  [`62ccec5`](https://github.com/lulivi/pyball/commit/62ccec5d6fd9a1760a4bb6e68844919eeac6f668))
+
+- **bootstrap**: Link the generated workspace README to the docs on GitHub
+  ([#6](https://github.com/lulivi/pyball/pull/6),
+  [`62ccec5`](https://github.com/lulivi/pyball/commit/62ccec5d6fd9a1760a4bb6e68844919eeac6f668))
+
+### Continuous Integration
+
+- Add GitHub Actions checks workflow with GHCR CI image
+  ([#9](https://github.com/lulivi/pyball/pull/9),
+  [`c5c8898`](https://github.com/lulivi/pyball/commit/c5c88987b365a529f42505bcbeb2b5c2b6b3d23b))
+
+- Disable the GitLab pipeline until the move to GitHub Actions
+  ([#6](https://github.com/lulivi/pyball/pull/6),
+  [`62ccec5`](https://github.com/lulivi/pyball/commit/62ccec5d6fd9a1760a4bb6e68844919eeac6f668))
+
+- Let the release job push to main past the required checks
+  ([#10](https://github.com/lulivi/pyball/pull/10),
+  [`1426289`](https://github.com/lulivi/pyball/commit/1426289c4c51b3ef3a132c666e1e80f9278ec12e))
+
+- Lint the GitHub Actions workflows with actionlint ([#9](https://github.com/lulivi/pyball/pull/9),
+  [`c5c8898`](https://github.com/lulivi/pyball/commit/c5c88987b365a529f42505bcbeb2b5c2b6b3d23b))
+
+- Move checks, release, publish and deploy to GitHub Actions
+  ([#9](https://github.com/lulivi/pyball/pull/9),
+  [`c5c8898`](https://github.com/lulivi/pyball/commit/c5c88987b365a529f42505bcbeb2b5c2b6b3d23b))
+
+- Push releases to main with a deploy key that bypasses the ruleset
+  ([#10](https://github.com/lulivi/pyball/pull/10),
+  [`1426289`](https://github.com/lulivi/pyball/commit/1426289c4c51b3ef3a132c666e1e80f9278ec12e))
+
+- Release, publish and deploy from GitHub Actions ([#9](https://github.com/lulivi/pyball/pull/9),
+  [`c5c8898`](https://github.com/lulivi/pyball/commit/c5c88987b365a529f42505bcbeb2b5c2b6b3d23b))
+
+- Remove GitLab CI pipeline ([#9](https://github.com/lulivi/pyball/pull/9),
+  [`c5c8898`](https://github.com/lulivi/pyball/commit/c5c88987b365a529f42505bcbeb2b5c2b6b3d23b))
+
+- Run the checks only on pull requests and main ([#9](https://github.com/lulivi/pyball/pull/9),
+  [`c5c8898`](https://github.com/lulivi/pyball/commit/c5c88987b365a529f42505bcbeb2b5c2b6b3d23b))
+
+- Trust the workspace in the release job's container
+  ([#10](https://github.com/lulivi/pyball/pull/10),
+  [`1426289`](https://github.com/lulivi/pyball/commit/1426289c4c51b3ef3a132c666e1e80f9278ec12e))
+
+### Documentation
+
+- Drop references to the previous commit convention from AGENTS.md
+  ([#6](https://github.com/lulivi/pyball/pull/6),
+  [`62ccec5`](https://github.com/lulivi/pyball/commit/62ccec5d6fd9a1760a4bb6e68844919eeac6f668))
+
+- Point the AGENTS.md commit, branch and PR conventions at GitHub
+  ([#6](https://github.com/lulivi/pyball/pull/6),
+  [`62ccec5`](https://github.com/lulivi/pyball/commit/62ccec5d6fd9a1760a4bb6e68844919eeac6f668))
+
+### Testing
+
+- **bootstrap**: Only assert the GitHub docs link in the generated README
+  ([#6](https://github.com/lulivi/pyball/pull/6),
+  [`62ccec5`](https://github.com/lulivi/pyball/commit/62ccec5d6fd9a1760a4bb6e68844919eeac6f668))
+
+
 ## v6.9.0 (2026-10-26)
 
 ### Features
