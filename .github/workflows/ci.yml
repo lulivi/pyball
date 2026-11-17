@@ -2,6 +2,8 @@ name: ci
 
 on:
   push:
+    branches: [main]
+  pull_request:
   # Re-publish and re-deploy an existing release.
   workflow_dispatch:
     inputs:
@@ -21,7 +23,7 @@ env:
 
 jobs:
   ci-image:
-    if: github.event_name == 'push'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -100,14 +102,14 @@ jobs:
           check_name: test report
 
   actionlint:
-    if: github.event_name == 'push'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -color
 
   caddyfiles:
-    if: github.event_name == 'push'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     container: lulivi/pyball-caddy:latest
     env:
