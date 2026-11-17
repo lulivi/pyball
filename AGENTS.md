@@ -27,29 +27,43 @@ choice to the user, never choose inline execution.
 When `finishing-a-development-branch` presents options, always choose **option 3: Keep
 the branch as-is** — never merge, push, or discard automatically.
 
+### Branches
+
+Work for a GitHub issue goes on `<type>/gh-<n>[-<slug>]`, where `<type>` is `feature`,
+`fix` or `docs` and `<n>` is the issue number (e.g. `feature/gh-4-github-conventions`).
+
 ### Commit Messages
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-with the GitLab issue reference as the scope. Use the issue number for the current
-branch (e.g. `feature/13-...` → `GL-13`):
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+The optional scope names the area touched (e.g. `match`, `telegram`, `bootstrap`), not
+the issue. The last line of the body references the GitHub issue(s) the commit belongs
+to, comma-separated when there are several:
 
 ```
-type(GL-XX): <description>
+type(scope): <description>
 
 [optional body]
 
 [optional footer(s)]
+Refs: #<n>[, #<m>...]
 ```
+
+Older commits use a `GL-<n>` scope: those refer to the archived GitLab issues, not to
+GitHub issue numbers.
 
 Types and release impact (the `release` CI job tags `main` based on these):
 
 - `feat` → minor release
 - `fix`, `perf` → patch release
-- `BREAKING CHANGE:` footer or `!` after type/scope (e.g. `feat(GL-13)!:`) → major release
+- `BREAKING CHANGE:` footer or `!` after type/scope (e.g. `feat(match)!:`) → major release
 - `build`, `chore`, `ci`, `docs`, `refactor`, `style`, `test` → no release
 
-Squash merges: the MR title becomes the commit on `main`, so it must follow this
-format too.
+### Pull Requests
+
+PRs are squash-merged: the PR title becomes the commit subject on `main` (so it must
+follow the format above) and the branch's commit messages become its body, carrying
+their `Refs:` lines. The PR description includes `Closes #<n>` for each issue it
+resolves, so GitHub closes them on merge.
 
 ## Commands
 
