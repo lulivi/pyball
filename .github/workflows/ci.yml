@@ -1,0 +1,112 @@
+name: ci
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CI_IMAGE: ghcr.io/lulivi/pyball-ci:latest
+
+jobs:
+  ci-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            dockerfile:
+              - docker/Dockerfile.ci
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push the CI image when it changed, on main, or when it is missing
+        env:
+          CHANGED: ${{ steps.changes.outputs.dockerfile }}
+        run: |
+          if [ "$CHANGED" != "true" ] && [ "$GITHUB_REF" != "refs/heads/main" ] \
+              && docker manifest inspect "$CI_IMAGE" > /dev/null 2>&1; then
+            echo "CI image is up to date; skipping build."
+            exit 0
+          fi
+          docker build -f docker/Dockerfile.ci -t "$CI_IMAGE" .
+          docker push "$CI_IMAGE"
+
+  lint:
+    needs: ci-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/lulivi/pyball-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .nox
+          key: nox-lint-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+      - run: nox -e lint
+
+  test:
+    needs: ci-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+    container:
+      image: ghcr.io/lulivi/pyball-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .nox
+          key: nox-test-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+      - run: nox -e test -- --junit-xml=TestReport.xml
+      - uses: mikepenz/action-junit-report@v5
+        if: ${{ !cancelled() }}
+        with:
+          report_paths: TestReport.xml
+          check_name: test report
+
+  caddyfiles:
+    runs-on: ubuntu-latest
+    container: lulivi/pyball-caddy:latest
+    env:
+      DUCKDNS_TOKEN: dummy
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh deploy/caddy/generate_caddyfiles.sh /tmp/caddy-gen
+      - name: Check the generated Caddyfiles match the committed ones
+        run: |
+          for f in Caddyfile Caddyfile.both Caddyfile.tensores Caddyfile.cucarachas Caddyfile.none; do
+            diff "/tmp/caddy-gen/$f" "deploy/caddy/$f"
+          done
+      - name: Validate every Caddyfile
+        run: |
+          for f in deploy/caddy/Caddyfile*; do
+            caddy validate --adapter caddyfile --config "$f"
+          done
