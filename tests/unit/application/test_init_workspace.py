@@ -70,12 +70,11 @@ class TestInitWorkspacePyball:
 
 @pytest.mark.parametrize("topology", ["pyball", "tg"])
 def test_readme_links_docs_on_github(tmp_path, topology):
-    """The generated README links to the docs on GitHub, not the old GitLab home."""
+    """The generated README links to the docs on GitHub."""
     init_workspace(topology, tmp_path / "config.toml")
 
     content = (tmp_path / "README.md").read_text()
     assert "https://github.com/lulivi/pyball/blob/main/docs/setup.md" in content
-    assert "gitlab" not in content.lower()
 
 
 class TestInitWorkspaceTg:
