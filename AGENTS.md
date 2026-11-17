@@ -35,9 +35,9 @@ Work for a GitHub issue goes on `<type>/gh-<n>[-<slug>]`, where `<type>` is `fea
 ### Commit Messages
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
-The optional scope names the area touched (e.g. `match`, `telegram`, `bootstrap`), not
-the issue. The last line of the body references the GitHub issue(s) the commit belongs
-to, comma-separated when there are several:
+The optional scope names the area touched (e.g. `match`, `telegram`, `bootstrap`). The last
+line of the body references the GitHub issue(s) the commit belongs to, comma-separated
+when there are several:
 
 ```
 type(scope): <description>
@@ -47,9 +47,6 @@ type(scope): <description>
 [optional footer(s)]
 Refs: #<n>[, #<m>...]
 ```
-
-Older commits use a `GL-<n>` scope: those refer to the archived GitLab issues, not to
-GitHub issue numbers.
 
 Types and release impact (the `release` CI job tags `main` based on these):
 
