@@ -162,7 +162,7 @@ services:
     restart: unless-stopped
 """
 
-_DOCS_BASE_URL = "https://gitlab.com/lulivi/pyball/-/blob/main/docs"
+_DOCS_BASE_URL = "https://github.com/lulivi/pyball/blob/main/docs"
 
 _PYBALL_README = f"""\
 # PyBall
