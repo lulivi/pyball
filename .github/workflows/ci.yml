@@ -147,13 +147,17 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
+      # The release deploy key is the only actor allowed to push to main
+      # without the required checks (main ruleset bypass list).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - id: version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git checkout -B main "$GITHUB_SHA"
           uv run --only-group dev semantic-release version
           echo "tag=$(git tag --points-at HEAD 'v*')" >> "$GITHUB_OUTPUT"
