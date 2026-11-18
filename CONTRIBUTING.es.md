@@ -15,7 +15,7 @@ Necesitas:
 - [nox](https://nox.thea.codes/en/stable/) para automatización
 
 ```bash
-uv sync --all-extras            # instala todo, incluido el soporte de Telegram y las herramientas de desarrollo
+uv sync --all-extras            # instala todo: Telegram y herramientas de desarrollo
 ```
 
 ## Ejecutar desde el código fuente
@@ -28,7 +28,7 @@ uv run pyball                   # /manage + /match, sin Telegram; añade /signup
 uv run pyball-telegram --bootstrap
 uv run pyball-telegram          # /manage + /match + bot de Telegram
 
-make up                         # construye la imagen desde el código fuente y la ejecuta con Docker Compose
+make up                         # construye la imagen y la ejecuta con Docker Compose
 ```
 
 ## Comprobaciones

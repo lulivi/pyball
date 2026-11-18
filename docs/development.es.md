@@ -13,10 +13,10 @@ PyBall sigue una arquitectura limpia con límites de capa estrictos:
 
 ```
 pyball/
-├── domain/            # Modelos principales e interfaces de repositorio — no depende de otra capa
+├── domain/            # Modelos e interfaces de repositorio — no depende de otra capa
 │   ├── player/
-│   └── meetup/        #   Meetup, Match, Team, ... y las reglas de la siguiente ronda del triangular
-├── application/       # Casos de uso — un archivo por acción, con interfaces de repositorio inyectadas
+│   └── meetup/        #   Meetup, Match, Team, ... y las reglas de ronda del triangular
+├── application/       # Casos de uso — un archivo por acción, con repositorios inyectados
 │   ├── player/
 │   └── meetup/        #   create_meetup, create_teams, finish_match, close_meetup, ...
 ├── infrastructure/    # Implementaciones concretas de las interfaces del dominio
