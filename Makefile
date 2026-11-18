@@ -4,7 +4,7 @@ default: format test lint
 
 .PHONY: format
 format:
-	nox -e format
+	uvx nox -e format
 
 .PHONY: fmt
 fmt: format
@@ -14,14 +14,14 @@ f: format
 
 .PHONY: test
 test:
-	nox -e test
+	uvx nox -e test
 
 .PHONY: t
 t: test
 
 .PHONY: lint
 lint:
-	nox -e lint
+	uvx nox -e lint
 
 .PHONY: l
 l: lint

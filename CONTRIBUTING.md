@@ -11,7 +11,6 @@ You need:
 
 - Python >= 3.11
 - [uv](https://docs.astral.sh/uv/) for dependency management
-- [nox](https://nox.thea.codes/en/stable/) for automation
 
 ```bash
 uv sync --all-extras            # install everything, including Telegram support and dev tools
@@ -40,7 +39,7 @@ make lint        # alias: make l — black, isort, pydocstyle, pycodestyle, mypy
 make format      # alias: make f — format code (black + isort)
 
 # A single test file, or any pytest flags
-nox -e test -- tests/unit/domain/test_meetup.py -k test_name -v
+uvx nox -e test -- tests/unit/domain/test_meetup.py -k test_name -v
 ```
 
 Lint requires a line length of at most 99 characters and a pylint score of 10.00/10.

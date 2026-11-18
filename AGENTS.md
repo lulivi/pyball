@@ -15,7 +15,7 @@ uv sync --extra telegram                         # install, Telegram support inc
 make t                                           # tests, with coverage
 make l                                           # lint (black, isort, pydocstyle, mypy, ...)
 make f                                           # format
-nox -e test -- tests/unit/<path>.py -k <name> -v # one test file or test
+uvx nox -e test -- tests/unit/<path>.py -k <name> -v # one test file or test
 ```
 
 Lint must pass with lines of at most 99 characters and a pylint score of 10.00/10.
