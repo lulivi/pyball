@@ -1,26 +1,60 @@
 #!/bin/sh
+# Deploys every directory given as an argument: writes $COMPOSE into it as
+# compose.yaml, moves its .env TAG to $VERSION, starts it and health-checks it.
+# A directory that fails is rolled back on its own, the rest still deploy, and
+# the script exits non-zero at the end.
+#
+# Runs over SSH with deploy_input.sh's output on stdin, which sets COMPOSE and
+# the optional DEPLOY_NOTIFY_TOKEN, DEPLOY_NOTIFY_CHAT_ID and
+# DEPLOY_NOTIFY_THREAD_ID before this script.
 set -eu
 
-VERSION="${VERSION:?VERSION env var is required}"
-APP_DIR="${APP_DIR:?APP_DIR env var is required}"
-HEALTH_MODE="${HEALTH_MODE:-http}"
-APP_NAME="$(basename "$APP_DIR")"
-SCAPED_VERSION_STR=" \[\`${APP_NAME}:v${VERSION}\`\] "
+main() {
+    VERSION="${VERSION:?VERSION env var is required}"
+    : "${COMPOSE:?COMPOSE must be set before this script}"
+    [ $# -gt 0 ] || { echo "Usage: sh -s -- DIR..." >&2; exit 1; }
+    failed=0
+    for dir in "$@"; do
+        (deploy "${dir%/}") || failed=1
+    done
+    exit "$failed"
+}
 
-ENV_FILE="$HOME/pyball/cfg/notify/tg_notify.env"
-[ -f "$ENV_FILE" ] && . "$ENV_FILE"
+# Runs in a subshell from an `||` list, where `set -e` is off: every step
+# checks its own result.
+deploy() {
+    label=" \[\`$(basename "$1"):v${VERSION}\`\] "
+    notify "Desplegando pyball ${label} \.\.\."
+    cd "$1" || return 1
+    previous_tag="$(sed -n 's/^TAG=//p' .env)"
+    if printf '%s\n' "$COMPOSE" > compose.yaml \
+        && sed -i "s/^TAG=.*/TAG=${VERSION}/" .env \
+        && docker compose pull \
+        && docker compose up -d --remove-orphans \
+        && health; then
+        notify "🚀 \#version ${label} desplegada 🚀"
+        return 0
+    fi
+    notify "💥 ERROR ${label} no pasó el health check, revirtiendo a v${previous_tag} 💥"
+    rollback "$previous_tag"
+    return 1
+}
 
 notify() {
-    [ -z "${TELEGRAM_TOKEN:-}" ] && return 0
-    set -- --data-urlencode "chat_id=${TELEGRAM_CHAT_ID:-}" \
+    [ -z "${DEPLOY_NOTIFY_TOKEN:-}" ] && return 0
+    set -- --data-urlencode "chat_id=${DEPLOY_NOTIFY_CHAT_ID:-}" \
            --data-urlencode 'parse_mode=MarkdownV2' \
            --data-urlencode "text=$1"
-    if [ -n "${TELEGRAM_MESSAGE_THREAD_ID:-}" ]; then
-        set -- "$@" --data-urlencode "message_thread_id=${TELEGRAM_MESSAGE_THREAD_ID}"
+    if [ -n "${DEPLOY_NOTIFY_THREAD_ID:-}" ]; then
+        set -- "$@" --data-urlencode "message_thread_id=${DEPLOY_NOTIFY_THREAD_ID}"
     fi
     curl --silent --request POST \
-        "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-        "$@" 1>/dev/null | true
+        "https://api.telegram.org/bot${DEPLOY_NOTIFY_TOKEN}/sendMessage" \
+        "$@" >/dev/null || true
+}
+
+health() {
+    if [ "${HEALTH_MODE:-http}" = "caddy" ]; then health_caddy; else health_http; fi
 }
 
 health_http() {
@@ -41,29 +75,10 @@ health_caddy() {
 }
 
 rollback() {
-    [ -z "$PREVIOUS_TAG" ] && return 0
-    sed -i "s/^TAG=.*/TAG=${PREVIOUS_TAG}/" .env
-    docker compose up -d || true
+    [ -z "$1" ] && return 0
+    sed -i "s/^TAG=.*/TAG=$1/" .env
+    docker compose up -d --remove-orphans || true
 }
 
-notify "Desplegando pyball ${SCAPED_VERSION_STR} \.\.\."
-
-cd "$APP_DIR"
-PREVIOUS_TAG="$(sed -n 's/^TAG=//p' .env)"
-sed -i "s/^TAG=.*/TAG=${VERSION}/" .env
-docker compose pull
-docker compose up -d
-
-if [ "$HEALTH_MODE" = "caddy" ]; then
-    health_check=health_caddy
-else
-    health_check=health_http
-fi
-
-if $health_check; then
-    notify "🚀 \#version ${SCAPED_VERSION_STR} desplegada 🚀"
-else
-    notify "💥 ERROR ${SCAPED_VERSION_STR} no pasó el health check, revirtiendo a v${PREVIOUS_TAG} 💥"
-    rollback
-    exit 1
-fi
+# Called last, so no command can read the rest of this script from stdin.
+main "$@"
