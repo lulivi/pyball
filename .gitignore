@@ -175,7 +175,4 @@ tests/integration/test_migrate_to_triangular.py
 
 # Claude
 .claude/settings.local.json
-.superpowers/
-docs/superpowers
 configs/
-graphify-out/
