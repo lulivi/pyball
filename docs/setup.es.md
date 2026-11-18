@@ -4,7 +4,7 @@
 
 Esta guía cubre instalar, configurar y ejecutar PyBall como usuario final. Si quieres
 construir PyBall desde el código fuente o contribuir, mira en su lugar la
-[sección de Desarrollo del README principal](../README.es.md#desarrollo).
+[guía de contribución](../CONTRIBUTING.es.md).
 
 Esta guía asume Linux con Docker instalado — la forma más simple y probada de
 ejecutar PyBall. ¿Vas a instalarlo en un PC con Windows? Sigue esta misma guía tal

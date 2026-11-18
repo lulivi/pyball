@@ -37,53 +37,9 @@ are for, and access tokens.
 
 ## Development
 
-Building PyBall from source, running its test suite, or contributing to it needs more
-than Docker.
-
-### Prerequisites
-
-- Python >= 3.11
-- [uv](https://docs.astral.sh/uv/) for dependency management
-- [nox](https://nox.thea.codes/en/stable/) for automation
-
-### Install
-
-```bash
-uv sync --all-extras
-```
-
-### Run from source
-
-```bash
-uv run pyball --bootstrap       # first run only, generates config.toml
-uv run pyball                   # /manage + /match, no Telegram; add /signup via
-                                 # enable_web_signup = true in config.toml
-
-uv run pyball-telegram --bootstrap
-uv run pyball-telegram          # /manage + /match + Telegram bot
-```
-
-### Checks
-
-```bash
-make format      # Format code (black + isort)
-make lint        # Run all lint checks
-make test        # Run tests with coverage
-```
-
-### Local Docker loop
-
-```bash
-make up           # builds the image from source and runs it via Docker Compose
-```
-
-## Architecture
-
-Clean architecture with strict layer boundaries:
-
-- **domain/** — Core models and repository interfaces
-- **application/** — Use cases with injected repository interfaces
-- **infrastructure/** — Concrete implementations (JSON persistence, Telegram, HTML rendering)
+To build PyBall from source, run its checks or contribute, see
+**[CONTRIBUTING.md](CONTRIBUTING.md)**. For how the code is organised, see
+**[docs/development.md](docs/development.md)**.
 
 ## License
 
