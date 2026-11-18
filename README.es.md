@@ -38,53 +38,9 @@ para la guía completa: elegir topología, configurar `config.toml`, para qué s
 
 ## Desarrollo
 
-Construir PyBall desde el código fuente, ejecutar su suite de tests, o contribuir,
-requiere más que Docker.
-
-### Requisitos
-
-- Python >= 3.11
-- [uv](https://docs.astral.sh/uv/) para gestión de dependencias
-- [nox](https://nox.thea.codes/en/stable/) para automatización
-
-### Instalar
-
-```bash
-uv sync --all-extras
-```
-
-### Ejecutar desde el código fuente
-
-```bash
-uv run pyball --bootstrap       # solo la primera vez, genera config.toml
-uv run pyball                   # /manage + /match, sin Telegram; añade /signup con
-                                 # enable_web_signup = true en config.toml
-
-uv run pyball-telegram --bootstrap
-uv run pyball-telegram          # /manage + /match + bot de Telegram
-```
-
-### Comprobaciones
-
-```bash
-make format      # Formatea el código (black + isort)
-make lint        # Ejecuta todas las comprobaciones de lint
-make test        # Ejecuta los tests con cobertura
-```
-
-### Bucle local con Docker
-
-```bash
-make up           # construye la imagen desde el código fuente y la ejecuta con Docker Compose
-```
-
-## Arquitectura
-
-Arquitectura limpia con límites de capa estrictos:
-
-- **domain/** — Modelos principales e interfaces de repositorio
-- **application/** — Casos de uso con interfaces de repositorio inyectadas
-- **infrastructure/** — Implementaciones concretas (persistencia JSON, Telegram, renderizado HTML)
+Para construir PyBall desde el código fuente, ejecutar sus comprobaciones o contribuir,
+consulta **[CONTRIBUTING.es.md](CONTRIBUTING.es.md)**. Para ver cómo está organizado el
+código, consulta **[docs/development.es.md](docs/development.es.md)**.
 
 ## Licencia
 

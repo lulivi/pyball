@@ -4,7 +4,7 @@
 
 This guide covers installing, configuring, and running PyBall as an end user. If you
 want to build PyBall from source or contribute to it, see the
-[Development section of the main README](../README.md#development) instead.
+[contributing guide](../CONTRIBUTING.md) instead.
 
 This guide assumes Linux with Docker installed — the simplest, most-tested way to
 run PyBall. Installing on a Windows PC instead? Follow this guide as written, but
