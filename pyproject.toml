@@ -53,6 +53,7 @@ line_length = 99
 
 [tool.mypy]
 show_error_codes = true
+mypy_path = "deploy/caddy"
 
 [[tool.mypy.overrides]]
 module = ["fitz", "fitz.*", "weasyprint", "weasyprint.*"]
@@ -61,6 +62,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 testpaths = ["tests"]
+pythonpath = ["deploy/caddy"]
 
 [tool.semantic_release]
 tag_format = "v{version}"
