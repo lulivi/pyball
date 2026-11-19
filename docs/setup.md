@@ -112,9 +112,11 @@ Each of these can point at the same or a different group/topic. Env overrides
 follow `PYBALL_<PATH>_<KEY>`, e.g.
 `PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID`.
 
-`deploy/deploy.sh` sends its own deploy notifications via `TELEGRAM_CHAT_ID` and
-`TELEGRAM_MESSAGE_THREAD_ID` in the server-side `tg_notify.env` — point those at
-the same chat and topic as `telegram.management.logging`.
+`deploy/deploy.sh` sends its own deploy notifications with the bot token, chat and
+forum topic in the `DEPLOY_NOTIFY_TOKEN`, `DEPLOY_NOTIFY_CHAT_ID` and
+`DEPLOY_NOTIFY_THREAD_ID` GitHub secrets — point them at the same chat and topic as
+`telegram.management.logging`. Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
+notifications.
 
 ## 4. Start the app
 

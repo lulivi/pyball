@@ -116,9 +116,11 @@ Cada uno puede apuntar al mismo grupo/hilo o a uno distinto. Los overrides por
 variable de entorno siguen `PYBALL_<RUTA>_<CLAVE>`, p. ej.
 `PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID`.
 
-`deploy/deploy.sh` envía sus propias notificaciones de despliegue mediante
-`TELEGRAM_CHAT_ID` y `TELEGRAM_MESSAGE_THREAD_ID` en el `tg_notify.env` del
-servidor — apúntalos al mismo chat y tema que `telegram.management.logging`.
+`deploy/deploy.sh` envía sus propias notificaciones de despliegue con el token del
+bot, el chat y el tema del foro de los secretos de GitHub `DEPLOY_NOTIFY_TOKEN`,
+`DEPLOY_NOTIFY_CHAT_ID` y `DEPLOY_NOTIFY_THREAD_ID` — apúntalos al mismo chat y tema
+que `telegram.management.logging`. Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
+envían notificaciones.
 
 ## 4. Arranca la aplicación
 

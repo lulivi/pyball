@@ -166,15 +166,6 @@ jobs:
     needs: release
     if: ${{ !cancelled() && !failure() && (needs.release.outputs.tag || inputs.tag) }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - topology: pyball
-            compose: compose.pyball.yaml
-            dir_secret: SERVER_CUCARACHAS_DIR
-          - topology: telegram
-            compose: compose.tg.yaml
-            dir_secret: SERVER_TENSORES_DIR
     env:
       TAG: ${{ needs.release.outputs.tag || inputs.tag }}
     steps:
@@ -186,19 +177,30 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: ./deploy/docker_build.sh --push --release --topology ${{ matrix.topology }}
+      - name: Publish every topology image
+        run: |
+          for topology in pyball telegram; do
+            ./deploy/docker_build.sh --push --release --topology "$topology"
+          done
       - uses: ./.github/actions/ssh-agent
         with:
           private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
           host: ${{ secrets.SERVER_IP }}
-      - name: Deploy
+      # Every directory under SERVER_APPS_DIR is a club: the glob expands on
+      # the server, so adding a club takes no CI change.
+      - name: Deploy every club
         env:
           SERVER: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}
-          APP_DIR: ${{ secrets[matrix.dir_secret] }}
+          APPS_DIR: ${{ secrets.SERVER_APPS_DIR }}
+          DEPLOY_NOTIFY_TOKEN: ${{ secrets.DEPLOY_NOTIFY_TOKEN }}
+          DEPLOY_NOTIFY_CHAT_ID: ${{ secrets.DEPLOY_NOTIFY_CHAT_ID }}
+          DEPLOY_NOTIFY_THREAD_ID: ${{ secrets.DEPLOY_NOTIFY_THREAD_ID }}
+        # bash enables pipefail: a failing deploy_input.sh must fail the step.
+        shell: bash
         run: |
-          scp ${{ matrix.compose }} "$SERVER:$APP_DIR/compose.yaml"
-          # shellcheck disable=SC2029  # VERSION/APP_DIR expand here on purpose
-          ssh "$SERVER" "VERSION=${TAG#v} APP_DIR=$APP_DIR sh -s" < deploy/deploy.sh
+          # shellcheck disable=SC2029  # VERSION/APPS_DIR expand here on purpose
+          ./deploy/deploy_input.sh compose.app.yaml \
+            | ssh "$SERVER" "VERSION=${TAG#v} sh -s -- ${APPS_DIR:?}/*/"
 
   # Caddy and funnelbot are published and deployed only when their files
   # changed since the previous tag.
@@ -248,9 +250,14 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         env:
           SERVER: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}
-          APP_DIR: ${{ secrets.SERVER_CADDY_DIR }}
+          CADDY_DIR: ${{ secrets.SERVER_CADDY_DIR }}
+          DEPLOY_NOTIFY_TOKEN: ${{ secrets.DEPLOY_NOTIFY_TOKEN }}
+          DEPLOY_NOTIFY_CHAT_ID: ${{ secrets.DEPLOY_NOTIFY_CHAT_ID }}
+          DEPLOY_NOTIFY_THREAD_ID: ${{ secrets.DEPLOY_NOTIFY_THREAD_ID }}
+        # bash enables pipefail: a failing deploy_input.sh must fail the step.
+        shell: bash
         run: |
-          scp compose.caddy.yaml "$SERVER:$APP_DIR/compose.yaml"
-          scp deploy/caddy/Caddyfile* "$SERVER:$APP_DIR/"
-          # shellcheck disable=SC2029  # VERSION/APP_DIR expand here on purpose
-          ssh "$SERVER" "VERSION=${TAG#v} APP_DIR=$APP_DIR HEALTH_MODE=caddy sh -s" < deploy/deploy.sh
+          scp deploy/caddy/Caddyfile* "$SERVER:$CADDY_DIR/"
+          # shellcheck disable=SC2029  # VERSION/CADDY_DIR expand here on purpose
+          ./deploy/deploy_input.sh compose.caddy.yaml \
+            | ssh "$SERVER" "VERSION=${TAG#v} HEALTH_MODE=caddy sh -s -- ${CADDY_DIR:?}"
