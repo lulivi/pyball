@@ -2,6 +2,48 @@
 
 <!-- version list -->
 
+## v6.10.0 (2026-11-19)
+
+### Build System
+
+- Run nox through uvx ([#12](https://github.com/lulivi/pyball/pull/12),
+  [`3b1d2e6`](https://github.com/lulivi/pyball/commit/3b1d2e6122d9963cd122e3156731440baa260919))
+
+### Chores
+
+- Remove graphify and Superpowers tooling ([#12](https://github.com/lulivi/pyball/pull/12),
+  [`3b1d2e6`](https://github.com/lulivi/pyball/commit/3b1d2e6122d9963cd122e3156731440baa260919))
+
+- **agents**: Move agent skills to .agents/skills ([#12](https://github.com/lulivi/pyball/pull/12),
+  [`3b1d2e6`](https://github.com/lulivi/pyball/commit/3b1d2e6122d9963cd122e3156731440baa260919))
+
+### Continuous Integration
+
+- Deploy every club with one compose file and one SSH call
+  ([#13](https://github.com/lulivi/pyball/pull/13),
+  [`7bf8041`](https://github.com/lulivi/pyball/commit/7bf8041340f18036a7dc8b19af5c81d59af58679))
+
+### Documentation
+
+- Add contributing and development guides ([#12](https://github.com/lulivi/pyball/pull/12),
+  [`3b1d2e6`](https://github.com/lulivi/pyball/commit/3b1d2e6122d9963cd122e3156731440baa260919))
+
+- **agents**: Slim down AGENTS.md ([#12](https://github.com/lulivi/pyball/pull/12),
+  [`3b1d2e6`](https://github.com/lulivi/pyball/commit/3b1d2e6122d9963cd122e3156731440baa260919))
+
+### Features
+
+- **caddy**: Route clubs through one templated Caddyfile
+  ([#15](https://github.com/lulivi/pyball/pull/15),
+  [`a57f65f`](https://github.com/lulivi/pyball/commit/a57f65fdac1b6f9a6a897b478a384053cc3201dc))
+
+### Testing
+
+- **caddy**: Cover funnelbot's club discovery and routing state
+  ([#15](https://github.com/lulivi/pyball/pull/15),
+  [`a57f65f`](https://github.com/lulivi/pyball/commit/a57f65fdac1b6f9a6a897b478a384053cc3201dc))
+
+
 ## v6.9.1 (2026-11-17)
 
 ### Bug Fixes
