@@ -31,4 +31,4 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libgdk-pixbuf-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv nox
+RUN pip install --no-cache-dir --root-user-action=ignore uv nox
