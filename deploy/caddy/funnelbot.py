@@ -1,38 +1,38 @@
+"""Telegram bot that switches each club's Caddy routing on or off.
+
+A club is a directory under ``APPS_DIR``. It is routed while ``enabled/<club>``
+exists in ``CADDY_DIR``, holding ``import club <club> <port>`` with the ``PORT``
+of the club's ``.env``. The apps keep running: only the routing changes.
+"""
+
+from __future__ import annotations
+
 import asyncio
+import html
 import os
-import shutil
 import sys
 from io import BytesIO
 from pathlib import Path
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
-
-try:
-    BOT_TOKEN = os.environ["FUNNEL_BOT_TOKEN"]
-    ADMIN_IDS = os.environ["FUNNEL_ADMIN_IDS"].split(",")
-except KeyError:
-    print("Both FUNNEL_BOT_TOKEN and FUNNEL_ADMIN_IDS must be in the environment")
-    sys.exit(1)
 
 APPS_DIR = Path(os.environ.get("FUNNEL_APPS_DIR", str(Path.home() / "pyball")))
 CADDY_DIR = Path(os.environ.get("FUNNEL_CADDY_DIR", str(Path.home() / "caddy")))
-TENSORES_WD = APPS_DIR / "tensores"
-CUCARACHAS_WD = APPS_DIR / "cucarachas"
-
-# Pre-built Caddyfile variants (copied from the repo on each deploy)
-_CADDYFILES = {
-    (True, True): CADDY_DIR / "Caddyfile.both",
-    (True, False): CADDY_DIR / "Caddyfile.tensores",
-    (False, True): CADDY_DIR / "Caddyfile.cucarachas",
-    (False, False): CADDY_DIR / "Caddyfile.none",
-}
-_ACTIVE_CADDYFILE = CADDY_DIR / "Caddyfile"
 
 
 def main() -> None:
-    """Entry point: wires handlers and starts polling."""
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    """Read the bot settings from the environment, wire the handlers and start polling."""
+    try:
+        token = os.environ["FUNNEL_BOT_TOKEN"]
+        admin_ids = os.environ["FUNNEL_ADMIN_IDS"].split(",")
+    except KeyError:
+        print("Both FUNNEL_BOT_TOKEN and FUNNEL_ADMIN_IDS must be in the environment")
+        sys.exit(1)
+
+    app = ApplicationBuilder().token(token).build()
+    app.bot_data["admin_ids"] = admin_ids
     app.add_handler(CommandHandler("caddy", caddy_command))
     app.add_handler(CallbackQueryHandler(button_handler))
 
@@ -40,143 +40,219 @@ def main() -> None:
     app.run_polling()
 
 
-async def caddy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Initializes the panel by reading the state and sending the message."""
-    if str(update.effective_user.id) not in ADMIN_IDS:
+async def caddy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the control panel to an admin."""
+    if update.message is None or not _is_admin(update, context):
         return
-
-    status = get_status()
     await update.message.reply_text(
-        format_panel_message(status), reply_markup=get_control_keyboard(), parse_mode="Markdown"
+        format_panel_message(), reply_markup=get_control_keyboard(), parse_mode=ParseMode.HTML
     )
 
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles state mutations and re-renders the panel."""
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Run a panel button's command and re-render the panel."""
     query = update.callback_query
-
-    if str(query.from_user.id) not in ADMIN_IDS:
-        await query.answer("⛔ Access denied.", show_alert=True)
+    if query is None:
         return
-
+    if not _is_admin(update, context):
+        await query.answer("⛔ Acceso denegado.", show_alert=True)
+        return
     await query.answer()
-    command = query.data
 
-    valid_commands = [
-        "tensores on", "tensores off", "tensores log",
-        "cucarachas on", "cucarachas off", "cucarachas log",
-        "reset",
-    ]
-    if command not in valid_commands:
+    command = parse_command(query.data or "")
+    if command is None:
+        return
+    club, action = command
+
+    if action == "log":
+        await _send_logs(query, club)
         return
 
-    if command.endswith("log"):
-        app_name = command.split()[0]
-        wdir = TENSORES_WD if app_name == "tensores" else CUCARACHAS_WD
-        await _send_logs(query, app_name, wdir)
-        return
-
-    await query.edit_message_text(f"⏳ Executing: `{command}`...", parse_mode="Markdown")
-
-    current = get_status()
-    if command == "reset":
-        new_state = {"tensores": False, "cucarachas": False}
-    else:
-        app_name, action = command.split()
-        new_state = {
-            "tensores": current["tensores_on"],
-            "cucarachas": current["cucarachas_on"],
-            app_name: action == "on",
-        }
-
-    await _apply_state(new_state["tensores"], new_state["cucarachas"])
-
-    new_status = get_status()
     await query.edit_message_text(
-        format_panel_message(new_status),
-        reply_markup=get_control_keyboard(),
-        parse_mode="Markdown",
+        f"⏳ Ejecutando: <code>{html.escape(query.data or '')}</code>…",
+        parse_mode=ParseMode.HTML,
+    )
+    if action == "reset":
+        error = await reset()
+    elif action == "on":
+        error = await switch_on(club)
+    else:
+        error = await switch_off(club)
+
+    text = format_panel_message()
+    if error:
+        text = f"⚠️ {html.escape(error)}\n\n{text}"
+    await query.edit_message_text(
+        text, reply_markup=get_control_keyboard(), parse_mode=ParseMode.HTML
     )
 
 
-def get_status() -> dict:
-    """Derive current routing state by inspecting the active Caddyfile."""
+def parse_command(data: str) -> tuple[str, str] | None:
+    """Return ``(club, action)`` for a button's callback data, or None if it is not valid.
+
+    ``reset`` gives an empty club; every other command names a club that exists.
+    """
+    if data == "reset":
+        return "", "reset"
+    club, _, action = data.rpartition(" ")
+    if action not in ("on", "off", "log") or club not in list_clubs():
+        return None
+    return club, action
+
+
+def list_clubs() -> list[str]:
+    """Return the club names: the non-hidden directories under ``APPS_DIR``, sorted."""
+    return sorted(
+        path.name for path in APPS_DIR.iterdir() if path.is_dir() and not path.name.startswith(".")
+    )
+
+
+def read_port(club: str) -> str | None:
+    """Return the ``PORT`` in the club's ``.env``, or None if it is missing or not a number."""
     try:
-        content = _ACTIVE_CADDYFILE.read_text()
+        lines = (APPS_DIR / club / ".env").read_text().splitlines()
     except FileNotFoundError:
-        content = ""
-    tensores_on = "@tensores" in content
-    cucarachas_on = "@cucarachas" in content
-    return {
-        "tensores_on": tensores_on,
-        "cucarachas_on": cucarachas_on,
-        "tensores": "🟢 ON" if tensores_on else "🔴 OFF",
-        "cucarachas": "🟢 ON" if cucarachas_on else "🔴 OFF",
-    }
+        return None
+    for line in lines:
+        key, _, value = line.partition("=")
+        if key.strip() == "PORT":
+            value = value.strip()
+            return value if value.isdigit() else None
+    return None
+
+
+def enabled_clubs() -> set[str]:
+    """Return the clubs currently routed by Caddy."""
+    enabled = _enabled_dir()
+    if not enabled.is_dir():
+        return set()
+    return {path.name for path in enabled.iterdir() if path.is_file()}
+
+
+async def switch_on(club: str) -> str | None:
+    """Route the club to its port; return an error message on failure."""
+    port = read_port(club)
+    if port is None:
+        return f"{club} no tiene un PORT válido en su .env."
+    return await _apply({_enabled_dir() / club: f"import club {club} {port}\n"})
+
+
+async def switch_off(club: str) -> str | None:
+    """Stop routing the club; return an error message on failure."""
+    return await _apply({_enabled_dir() / club: None})
+
+
+async def reset() -> str | None:
+    """Stop routing every club, including leftovers of removed clubs."""
+    return await _apply({_enabled_dir() / club: None for club in enabled_clubs()})
 
 
 def get_control_keyboard() -> InlineKeyboardMarkup:
-    """Generates the static inline keyboard for the control panel."""
+    """Build one row of buttons per club, then the reset button."""
     keyboard = [
         [
-            InlineKeyboardButton("🟢 Tensores ON", callback_data="tensores on"),
-            InlineKeyboardButton("🔴 Tensores OFF", callback_data="tensores off"),
-            InlineKeyboardButton("📃 Logs", callback_data="tensores log"),
-        ],
-        [
-            InlineKeyboardButton("🟢 Cucarachas ON", callback_data="cucarachas on"),
-            InlineKeyboardButton("🔴 Cucarachas OFF", callback_data="cucarachas off"),
-            InlineKeyboardButton("📃 Logs", callback_data="cucarachas log"),
-        ],
-        [InlineKeyboardButton("⚠️ RESET (cortar todo)", callback_data="reset")],
+            InlineKeyboardButton(f"🟢 {club.capitalize()} ON", callback_data=f"{club} on"),
+            InlineKeyboardButton(f"🔴 {club.capitalize()} OFF", callback_data=f"{club} off"),
+            InlineKeyboardButton("📃 Logs", callback_data=f"{club} log"),
+        ]
+        for club in list_clubs()
     ]
+    keyboard.append([InlineKeyboardButton("⚠️ RESET (cortar todo)", callback_data="reset")])
     return InlineKeyboardMarkup(keyboard)
 
 
-def format_panel_message(status: dict) -> str:
-    """Formats the UI text based on the active Caddyfile state."""
+def format_panel_message() -> str:
+    """Describe each club's port and routing state, as Telegram HTML."""
+    enabled = enabled_clubs()
+    lines = [
+        f"🔹 {html.escape(club.capitalize())} (port {read_port(club) or '?'}): "
+        f"{'🟢 ON' if club in enabled else '🔴 OFF'}"
+        for club in list_clubs()
+    ]
+    clubs = "\n".join(lines)
     return (
-        "🎛 **Caddy Control Panel**\n\n"
-        "📊 **Acceso web actual:**\n"
-        f"🔹 Tensores (port 8000): {status['tensores']}\n"
-        f"🔹 Cucarachas (port 8001): {status['cucarachas']}\n\n"
-        "_Las apps siguen corriendo; solo cambia el routing de Caddy._"
+        "🎛 <b>Panel de control de Caddy</b>\n\n"
+        f"📊 <b>Acceso web actual:</b>\n{clubs}\n\n"
+        "<i>Las apps siguen corriendo; solo cambia el routing de Caddy.</i>"
     )
 
 
-async def _apply_state(tensores: bool, cucarachas: bool) -> None:
-    """Copy the right Caddyfile variant and reload Caddy."""
-    source = _CADDYFILES[(tensores, cucarachas)]
-    shutil.copy(source, _ACTIVE_CADDYFILE)
+def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    user = update.effective_user
+    return user is not None and str(user.id) in context.bot_data["admin_ids"]
+
+
+def _enabled_dir() -> Path:
+    return CADDY_DIR / "enabled"
+
+
+async def _apply(changes: dict[Path, str | None]) -> str | None:
+    """Write each file's new content (None deletes it) and reload Caddy.
+
+    If the reload fails, every file gets its previous content back, so the files
+    keep describing what Caddy serves. Returns an error message on failure.
+    """
+    previous = {path: _read(path) for path in changes}
+    for path, content in changes.items():
+        _write(path, content)
+    if await _reload_caddy():
+        return None
+    for path, content in previous.items():
+        _write(path, content)
+    return "Caddy no pudo recargar la configuración; no se ha cambiado nada."
+
+
+def _read(path: Path) -> str | None:
+    try:
+        return path.read_text()
+    except FileNotFoundError:
+        return None
+
+
+def _write(path: Path, content: str | None) -> None:
+    if content is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(content)
+
+
+async def _reload_caddy() -> bool:
     process = await asyncio.create_subprocess_exec(
-        "docker", "compose", "exec", "-T", "caddy",
-        "caddy", "reload", "--config", "/etc/caddy/Caddyfile",
+        "docker",
+        "compose",
+        "exec",
+        "-T",
+        "caddy",
+        "caddy",
+        "reload",
+        "--config",
+        "/etc/caddy/Caddyfile",
         cwd=CADDY_DIR,
     )
-    await process.wait()
+    return await process.wait() == 0
 
 
-async def _send_logs(query, app: str, wdir: Path) -> None:
-    """Fetches docker compose logs and sends them as a text file."""
-    await query.edit_message_text(f"⏳ Fetching logs for *{app}*…", parse_mode="Markdown")
-
+async def _send_logs(query: CallbackQuery, club: str) -> None:
+    """Send the club's last 100 log lines as a text file."""
+    await query.edit_message_text(
+        f"⏳ Obteniendo los logs de <b>{html.escape(club)}</b>…", parse_mode=ParseMode.HTML
+    )
     process = await asyncio.create_subprocess_exec(
-        "docker", "compose", "logs", "--tail", "100",
+        "docker",
+        "compose",
+        "logs",
+        "--tail",
+        "100",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
-        cwd=wdir,
+        cwd=APPS_DIR / club,
     )
     stdout, _ = await process.communicate()
-
-    await query.message.reply_document(
-        document=BytesIO(stdout), filename=f"{app}-logs.txt"
-    )
-
-    status = get_status()
+    if isinstance(query.message, Message):
+        await query.message.reply_document(document=BytesIO(stdout), filename=f"{club}-logs.txt")
     await query.edit_message_text(
-        format_panel_message(status),
-        reply_markup=get_control_keyboard(),
-        parse_mode="Markdown",
+        format_panel_message(), reply_markup=get_control_keyboard(), parse_mode=ParseMode.HTML
     )
 
 
