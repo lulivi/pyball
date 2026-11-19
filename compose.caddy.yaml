@@ -6,6 +6,7 @@ services:
     network_mode: host
     volumes:
       - "./Caddyfile:/etc/caddy/Caddyfile"
+      - "./enabled:/etc/caddy/enabled"
       - "caddy_data:/data"
       - "caddy_config:/config"
     env_file: .env

@@ -116,17 +116,12 @@ jobs:
       DUCKDNS_TOKEN: dummy
     steps:
       - uses: actions/checkout@v4
-      - run: sh deploy/caddy/generate_caddyfiles.sh /tmp/caddy-gen
-      - name: Check the generated Caddyfiles match the committed ones
+      - name: Validate the Caddyfile with no club enabled, then with one
         run: |
-          for f in Caddyfile Caddyfile.both Caddyfile.tensores Caddyfile.cucarachas Caddyfile.none; do
-            diff "/tmp/caddy-gen/$f" "deploy/caddy/$f"
-          done
-      - name: Validate every Caddyfile
-        run: |
-          for f in deploy/caddy/Caddyfile*; do
-            caddy validate --adapter caddyfile --config "$f"
-          done
+          mkdir -p deploy/caddy/enabled
+          caddy validate --adapter caddyfile --config deploy/caddy/Caddyfile
+          echo "import club sample 8000" > deploy/caddy/enabled/sample
+          caddy validate --adapter caddyfile --config deploy/caddy/Caddyfile
 
   # The release commit and tag are pushed with GITHUB_TOKEN, so they start no
   # new workflow run: publish and deploy run here, chained on the release.
@@ -257,7 +252,8 @@ jobs:
         # bash enables pipefail: a failing deploy_input.sh must fail the step.
         shell: bash
         run: |
-          scp deploy/caddy/Caddyfile* "$SERVER:$CADDY_DIR/"
+          # Only the Caddyfile: enabled/ holds funnelbot's on/off state.
+          scp deploy/caddy/Caddyfile "$SERVER:$CADDY_DIR/"
           # shellcheck disable=SC2029  # VERSION/CADDY_DIR expand here on purpose
           ./deploy/deploy_input.sh compose.caddy.yaml \
             | ssh "$SERVER" "VERSION=${TAG#v} HEALTH_MODE=caddy sh -s -- ${CADDY_DIR:?}"

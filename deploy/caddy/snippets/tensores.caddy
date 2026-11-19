@@ -1,4 +1,0 @@
-    @tensores host tensores.pyball.duckdns.org
-    handle @tensores {
-        reverse_proxy localhost:8000
-    }

@@ -40,6 +40,7 @@ def lint(session: nox.Session):
     targets = (
         str(ROOT_DIRECTORY.joinpath("pyball")),
         str(ROOT_DIRECTORY.joinpath("tests")),
+        str(ROOT_DIRECTORY.joinpath("deploy", "caddy", "funnelbot.py")),
     )
     if session.posargs:
         targets = session.posargs
@@ -87,7 +88,11 @@ def format(session: nox.Session):
     """Format the code."""
     session.run("uv", "sync", "--group", "dev", external=True)
 
-    targets = [ROOT_DIRECTORY.joinpath("pyball"), ROOT_DIRECTORY.joinpath("tests")]
+    targets = [
+        ROOT_DIRECTORY.joinpath("pyball"),
+        ROOT_DIRECTORY.joinpath("tests"),
+        ROOT_DIRECTORY.joinpath("deploy", "caddy", "funnelbot.py"),
+    ]
     if session.posargs:
         targets = session.posargs
 
