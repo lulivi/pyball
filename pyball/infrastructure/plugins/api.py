@@ -186,8 +186,13 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         dependencies=meetups_write,
     )
     async def open_search(meetup_id: str):
-        """Open the substitute search; 409 if the roster is full or teams exist."""
+        """Open the substitute search; 409 if the roster is full or teams exist.
+
+        Opening a search that is already open changes nothing and announces nothing.
+        """
         meetup = _meetup(container, meetup_id)
+        if meetup.substitute_search:
+            return meetup_out(meetup)
         updated = _guarded(lambda: container.open_substitute_search().execute(meetup.date))
         await notifier.on_substitute_search_opened(updated)
         return meetup_out(updated)

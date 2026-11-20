@@ -197,8 +197,11 @@ def register_meetup_routes(
 
     @app.post("/api/meetup/substitute-search/open")
     async def open_substitute_search_endpoint(body: MeetupDateInput):
-        """Open the meetup's substitute search, or 404/409."""
+        """Open the meetup's substitute search, or 404/409; reopening announces nothing."""
         meetup_date = _parse_date(body.date)
+        current = container.meetup_repository.find_by_datetime(meetup_date)
+        if current is not None and current.substitute_search:
+            return build_meetup_active_response(container, enable_web_signup)
         meetup = _run_meetup_change(
             lambda: container.open_substitute_search().execute(meetup_date)
         )

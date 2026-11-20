@@ -564,3 +564,18 @@ async def test_post_match_stats_posts_to_stats_chat_not_meetups_chat(tmp_path):
     kwargs = bot.send_photo.call_args.kwargs
     assert kwargs["chat_id"] == -200
     assert kwargs["message_thread_id"] == 99
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hook", ["on_player_joined", "on_player_left"])
+async def test_join_and_leave_hooks_refresh_the_tracked_callup(tmp_path, hook):
+    """A join or leave from any source edits the tracked regulars callup."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(meetup.date, "regular", MessageTracking(chat_id=-100, message_id=42))
+
+    await getattr(notifier, hook)(meetup, Player.create("Ana"), False)
+
+    edits = [c for c in bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 42]
+    assert edits and edits[0].kwargs["reply_markup"] is not None

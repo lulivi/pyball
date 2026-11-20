@@ -107,6 +107,7 @@ services:
       - "./config.toml:/pyball/config.toml"
       - "./logs:/pyball/logs"
       - "./data:/pyball/data"
+      - "./plugins:/pyball/plugins"
     restart: unless-stopped
 ```
 

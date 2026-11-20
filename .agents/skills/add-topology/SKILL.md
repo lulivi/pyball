@@ -29,7 +29,11 @@ unchanged; an integration only adds infrastructure around them.
 5. **Entrypoint.** Create `pyball/cmd/run_<name>.py`, modelled on `cmd/run_telegram.py`:
    `--config` and `--bootstrap` arguments, `bootstrap_core()`, the integration's settings
    and logging, the notifier and FastAPI app wired together, and graceful shutdown on
-   SIGINT/SIGTERM.
+   SIGINT/SIGTERM. Keep the plugin host wiring as `run_telegram.py` has it:
+   `CompositeMatchNotifier` with `EventLogNotifier(container.event_log)` first, one
+   `PluginCredentials` shared by `create_app()` and `PluginSupervisor`, the supervisor
+   started after `wait_until_serving()`, and on shutdown the supervisor stopped before
+   `event_log.close_subscribers()` and the server exit.
 6. **Script.** Add `pyball-<name> = "pyball.cmd.run_<name>:main"` under
    `[project.scripts]` in `pyproject.toml`, then run `uv sync --all-extras`.
 7. **Bootstrap workspace.** Teach `application/init_workspace.py` the new topology: its

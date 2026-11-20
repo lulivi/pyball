@@ -46,7 +46,11 @@ class EventLog:
         self._events: list[dict[str, Any]] = []
         if path.exists():
             with open(path, encoding="utf-8") as f:
-                self._events = [json.loads(line) for line in f if line.strip()]
+                lines = [line for line in f if line.strip()]
+            if lines and not lines[-1].endswith("\n"):
+                lines.pop()  # torn by a crash mid-append; never acknowledged to anyone
+                path.write_text("".join(lines), encoding="utf-8")
+            self._events = [json.loads(line) for line in lines]
         self._subscribers: set[asyncio.Queue[dict[str, Any] | None]] = set()
 
     @property

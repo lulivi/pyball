@@ -2812,6 +2812,7 @@ class TestCapacityAndSubstituteSearchEndpoints:
         from unittest.mock import patch
 
         notifier = _StubNotifier()
+        container.meetup_repository.find_by_datetime.return_value = None
         app = create_app(container, notifier)
         with patch(
             "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",

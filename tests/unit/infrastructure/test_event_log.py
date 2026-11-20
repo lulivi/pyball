@@ -116,3 +116,18 @@ async def test_composite_keeps_going_when_a_notifier_fails():
     await CompositeMatchNotifier([failing, other]).on_meetup_updated(meetup)
 
     other.on_meetup_updated.assert_awaited_once_with(meetup)
+
+
+def test_a_line_torn_by_a_crash_is_dropped(tmp_path):
+    """A half-written last line is discarded, and the next event follows the last whole one."""
+    path = tmp_path / "events.jsonl"
+    log = EventLog(path)
+    meetup = Meetup.create(DATE, "Campo")
+    log.append("meetup.created", meetup)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write('{"id": 2, "type": "meetup.upd')
+
+    reloaded = EventLog(path)
+    reloaded.append("meetup.updated", meetup)
+
+    assert [e["id"] for e in EventLog(path).after(0)] == [1, 2]

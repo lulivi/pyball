@@ -64,7 +64,10 @@ async def server(container):
             port = sock.getsockname()[1]
         credentials = PluginCredentials(plugins, manage_token="manage-tok")
         app = create_app(
-            container, EventLogNotifier(container.event_log), plugin_credentials=credentials
+            container,
+            EventLogNotifier(container.event_log),
+            manage_token="manage-tok",
+            plugin_credentials=credentials,
         )
         uv = _Server(
             uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", ws="none")
@@ -194,3 +197,23 @@ async def test_reconnecting_client_gets_every_missed_event_once(server, containe
     second = await asyncio.wait_for(read_ids(2, {"Last-Event-ID": str(first[-1])}), 5)
 
     assert first + second == [1, 2, 3, 4]
+
+
+@pytest.mark.asyncio
+async def test_a_dropped_client_stops_receiving_events(server, container):
+    """Behind the auth middleware, a client that went away is unsubscribed."""
+    api_url, _ = await server([])
+    log = container.event_log
+    meetup = container.create_meetup().execute(datetime(2026, 11, 25, 20, 0))
+    log.append("meetup.created", meetup)
+    async with httpx.AsyncClient(timeout=5) as client:
+        async with client.stream(
+            "GET", f"{api_url}/events?after=0", headers={"Authorization": "Bearer manage-tok"}
+        ) as resp:
+            async for line in resp.aiter_lines():
+                if line.startswith("id: "):
+                    break
+
+    log.append("meetup.updated", meetup)
+
+    await _until(lambda: not log._subscribers, timeout=5)  # pylint: disable=protected-access

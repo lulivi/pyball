@@ -111,6 +111,19 @@ async def test_full_roster_cannot_search_until_capacity_rises(siesta):
 
 
 @pytest.mark.asyncio
+async def test_reopening_an_open_search_announces_nothing(siesta, container):
+    """A plugin that repeats the call after a restart doesn't post a second callup."""
+    meetup = await _meetup_with(siesta, 9)
+    await siesta.post(f"/meetups/{meetup['id']}/substitute-search")
+    before = container.event_log.last_id
+
+    again = await siesta.post(f"/meetups/{meetup['id']}/substitute-search")
+
+    assert again.status_code == 200
+    assert container.event_log.last_id == before
+
+
+@pytest.mark.asyncio
 async def test_create_meetup_with_its_own_capacity(siesta):
     """A plugin can create a 7 vs 8 meetup directly."""
     resp = await siesta.post("/meetups", json={"date": DATE, "capacity": 15})

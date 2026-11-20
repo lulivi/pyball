@@ -92,7 +92,10 @@ class PluginSupervisor:  # pylint: disable=too-many-instance-attributes
         loop = asyncio.get_running_loop()
         while not self._stopping.is_set():
             started = loop.time()
-            await self._run_once(plugin)
+            try:
+                await self._run_once(plugin)
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("Plugin %s failed", plugin.name)
             if self._stopping.is_set():
                 return
             if loop.time() - started >= self._stable_after:
@@ -125,11 +128,17 @@ class PluginSupervisor:  # pylint: disable=too-many-instance-attributes
             logger.error("Plugin %s could not start: %s", plugin.name, exc)
             return
         self._processes[plugin.name] = process
+        if self._stopping.is_set():  # stop() began while it was spawning
+            _signal_group(process, signal.SIGKILL)
         logger.info("Plugin %s started (pid %d)", plugin.name, process.pid)
         plugin_logger = logging.getLogger(f"pyball.plugins.{plugin.name}")
         assert process.stdout is not None
-        async for line in process.stdout:
-            plugin_logger.info("%s", line.decode(errors="replace").rstrip())
+        try:
+            async for line in process.stdout:
+                plugin_logger.info("%s", line.decode(errors="replace").rstrip())
+        finally:
+            if process.returncode is None and not self._stopping.is_set():
+                _signal_group(process, signal.SIGKILL)  # its output can no longer be read
         code = await process.wait()
         logger.info("Plugin %s exited with code %d", plugin.name, code)
 
