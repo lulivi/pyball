@@ -38,6 +38,7 @@ from pyball.application.meetup import (
     OpenSubstituteSearch,
     ParseCallup,
     RemovePlayerFromMeetupById,
+    SetLineup,
     SetMeetupCapacity,
     SetMeetupPlayers,
     UpdateMeetupDate,
@@ -167,6 +168,14 @@ class Container:  # pylint: disable=too-many-public-methods
             self.meetup_repository,
             self._settings.pyball.location,
             self._settings.pyball.meetup_capacity,
+        )
+
+    def set_lineup(self, algo_name: str | None = None) -> SetLineup:
+        """Create a SetLineup use case; with an algorithm name it also builds teams."""
+        return SetLineup(
+            self.meetup_repository,
+            self._settings.pyball.meetup_capacity,
+            self.create_teams(algo_name) if algo_name else None,
         )
 
     def set_meetup_capacity(self) -> SetMeetupCapacity:

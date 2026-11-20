@@ -47,7 +47,7 @@ class EventLog:
         if path.exists():
             with open(path, encoding="utf-8") as f:
                 self._events = [json.loads(line) for line in f if line.strip()]
-        self._subscribers: set[asyncio.Queue[dict[str, Any]]] = set()
+        self._subscribers: set[asyncio.Queue[dict[str, Any] | None]] = set()
 
     @property
     def last_id(self) -> int:
@@ -75,19 +75,24 @@ class EventLog:
         last = self.last_id if up_to is None else up_to
         return [e for e in self._events if event_id < e["id"] <= last]
 
-    def subscribe(self) -> tuple[int, asyncio.Queue[dict[str, Any]]]:
+    def subscribe(self) -> tuple[int, asyncio.Queue[dict[str, Any] | None]]:
         """Start receiving new events; return the last id already in the log and the queue.
 
         Replaying ``after(seen, up_to=last_id)`` and then draining the queue yields
         every event exactly once, since no event can be appended between the two.
         """
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
         self._subscribers.add(queue)
         return self.last_id, queue
 
-    def unsubscribe(self, queue: asyncio.Queue[dict[str, Any]]) -> None:
+    def unsubscribe(self, queue: asyncio.Queue[dict[str, Any] | None]) -> None:
         """Stop sending events to ``queue``."""
         self._subscribers.discard(queue)
+
+    def close_subscribers(self) -> None:
+        """Tell every live subscriber the stream is over (None), so shutdown isn't held up."""
+        for queue in self._subscribers:
+            queue.put_nowait(None)
 
     def search_open(self, meetup: Meetup) -> bool:
         """Return whether the latest event about ``meetup`` saw its substitute search open."""

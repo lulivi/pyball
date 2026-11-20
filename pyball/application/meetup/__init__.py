@@ -47,6 +47,7 @@ from pyball.application.meetup.parse_callup_text import (
     PlayerCandidate,
 )
 from pyball.application.meetup.remove_player_by_id import RemovePlayerFromMeetupById
+from pyball.application.meetup.set_lineup import SetLineup
 from pyball.application.meetup.set_meetup_capacity import SetMeetupCapacity
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
 from pyball.application.meetup.update_meetup_date import UpdateMeetupDate
@@ -70,6 +71,7 @@ __all__ = [
     "CloseMeetup",
     "CloseSubstituteSearch",
     "OpenSubstituteSearch",
+    "SetLineup",
     "SetMeetupCapacity",
     "DestroyTeams",
     "MeetupHasNoTeamsError",

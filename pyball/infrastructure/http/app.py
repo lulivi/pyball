@@ -33,6 +33,8 @@ from pyball.infrastructure.http.routes import (
     register_signup_routes,
     register_static_routes,
 )
+from pyball.infrastructure.plugins.api import create_plugin_api
+from pyball.infrastructure.plugins.auth import PluginCredentials
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
@@ -51,8 +53,9 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     manage_token: str = "",
     signup_token: str = "",
     enable_web_signup: bool = False,
+    plugin_credentials: PluginCredentials | None = None,
 ) -> FastAPI:
-    """Create and configure the FastAPI application."""
+    """Create and configure the FastAPI application, with the plugin API at /api/v1."""
     app = FastAPI(title="PyBall API")
 
     if match_token or manage_token or signup_token:
@@ -71,6 +74,9 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
         register_signup_routes(
             app, container, notifier, signup_token, static_dir=signup_static_dir
         )
+
+    credentials = plugin_credentials or PluginCredentials([], manage_token)
+    app.mount("/api/v1", create_plugin_api(container, notifier, credentials))
 
     icons_dir = Path(container.icons_dir) if container.icons_dir else None
     if icons_dir and icons_dir.exists():
