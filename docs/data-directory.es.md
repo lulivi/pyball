@@ -100,7 +100,9 @@ Un partido **triangular** (3 equipos) terminado, tras 3 rondas y cerrado:
     { "teams_playing": ["A", "C"], "result": { "score_a": 1, "score_b": 1, "events": [] } },
     { "teams_playing": ["C", "B"], "result": { "score_a": 2, "score_b": 1, "events": [] } }
   ],
-  "closed": true
+  "closed": true,
+  "capacity": 10,
+  "substitute_search": false
 }
 ```
 
@@ -132,6 +134,11 @@ Notas de los campos:
   cierra solo en cuanto su único partido recibe un resultado; un triangular sigue
   abierto a través de varias rondas hasta que se cierra explícitamente (ver
   [docs/workflow.es.md](workflow.es.md#5-cerrar-una-sesión-triangular)).
+- `capacity` — cuántos jugadores juegan este partido. Un partido nuevo toma
+  `meetup_capacity` de `config.toml`; un archivo sin el campo también se carga con él.
+- `substitute_search` — `true` mientras hay una búsqueda de suplentes abierta (ver
+  [docs/workflow.es.md](workflow.es.md#2-gestionar-la-convocatoria)); un archivo sin el
+  campo se carga con la búsqueda cerrada.
 
 ## `data/legacy_stats.json` (opcional)
 

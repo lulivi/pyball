@@ -30,9 +30,10 @@ from pyball.domain.player.models import PlayerId
 class RemovePlayerFromMeetupById:
     """Use case for removing an already-identified player from a meetup."""
 
-    def __init__(self, meetup_repository: MeetupRepository):
-        """Initialize the use case with the meetup repository."""
+    def __init__(self, meetup_repository: MeetupRepository, default_capacity: int):
+        """Initialize the use case with the meetup repository and the club's capacity."""
         self.meetup_repository = meetup_repository
+        self.default_capacity = default_capacity
 
     def execute(self, meetup_date: datetime, player_id: PlayerId) -> Meetup:
         """Remove a player from a meetup by datetime and an already-validated player ID."""
@@ -43,7 +44,7 @@ class RemovePlayerFromMeetupById:
         if not meetup.is_signup_open():
             raise SignupClosedError("Cannot leave a meetup once teams have been assigned.")
 
-        meetup.remove_player(player_id)
+        meetup.remove_player(player_id, self.default_capacity)
 
         self.meetup_repository.save(meetup)
         return meetup

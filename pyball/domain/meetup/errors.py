@@ -72,7 +72,15 @@ class UnknownAlgorithmError(MeetupError):
 
 
 class SignupClosedError(MeetupError):
-    """Raised when trying to join, leave, or search a meetup once teams are assigned."""
+    """Raised when trying to join, leave, search or resize a meetup once teams are assigned."""
+
+
+class MeetupFullError(MeetupError):
+    """Raised when opening a substitute search on a roster that already reached capacity."""
+
+
+class InvalidCapacityError(MeetupError):
+    """Raised when a meetup capacity is below two players."""
 
 
 class MeetupHasRecordedResultsError(MeetupError):

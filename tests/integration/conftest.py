@@ -26,6 +26,7 @@ def real_container(tmp_data):
     """Real Container with JSON repos backed by tmp_data."""
     settings_mock = MagicMock()
     settings_mock.pyball.location = "Test Field"
+    settings_mock.pyball.meetup_capacity = 10
     settings_mock.pyball.base_url = "http://localhost:8000"
     settings_mock.paths.players_file = tmp_data / "players.json"
     settings_mock.paths.meetups_dir = tmp_data / "meetups"
@@ -36,7 +37,7 @@ def real_container(tmp_data):
     # pylint: disable-next=protected-access
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
     # pylint: disable-next=protected-access
-    container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups")
+    container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups", default_capacity=10)
     return container
 
 

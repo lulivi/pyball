@@ -72,6 +72,7 @@ despliegue sin editar el archivo.
 | `name` | Nombre de la instancia mostrado en la interfaz | *(obligatorio)* |
 | `default_week_day` | Día por defecto (`monday`–`sunday`) para nuevos partidos | `wednesday` |
 | `default_hour` | Hora de inicio por defecto (`HH:MM`) | `20:00` |
+| `meetup_capacity` | Jugadores con los que juega un partido nuevo; la capacidad de cada partido se cambia luego desde `/manage` | `10` |
 | `display_date_format` | Formato de fecha usado en los mensajes | `%Y-%m-%d %H:%M` |
 | `team_colors` | Dos o tres nombres de color: los dos primeros son los equipos del partido clásico, el tercero solo se usa en triangulares (se rellena solo si indicas dos) | `["blanco", "negro", "rojo"]` |
 | `base_url` | URL pública usada para construir el enlace de `/match` | *(obligatorio)* |

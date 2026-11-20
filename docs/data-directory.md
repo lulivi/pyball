@@ -96,7 +96,9 @@ A finished **triangular** (3-team) meetup, after 3 rounds and closed:
     { "teams_playing": ["A", "C"], "result": { "score_a": 1, "score_b": 1, "events": [] } },
     { "teams_playing": ["C", "B"], "result": { "score_a": 2, "score_b": 1, "events": [] } }
   ],
-  "closed": true
+  "closed": true,
+  "capacity": 10,
+  "substitute_search": false
 }
 ```
 
@@ -127,6 +129,11 @@ Field notes:
   moment its one match gets a result; a triangular stays open across multiple rounds
   until explicitly closed (see
   [docs/workflow.md](workflow.md#5-close-a-triangular-session)).
+- `capacity` — how many players this meetup plays with. A new meetup takes
+  `meetup_capacity` from `config.toml`; a file without the field loads with it too.
+- `substitute_search` — `true` while a substitute search is open (see
+  [docs/workflow.md](workflow.md#2-manage-the-roster)); a file without the field loads
+  with it closed.
 
 ## `data/legacy_stats.json` (optional)
 

@@ -43,6 +43,10 @@ default_week_day = "wednesday"
 # Override with PYBALL_CORE_DEFAULT_HOUR (HH:MM)
 default_hour = "20:00"
 
+# Players a new meetup plays with; change it per meetup from /manage
+# Override with PYBALL_CORE_MEETUP_CAPACITY
+meetup_capacity = 10
+
 # Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
 display_date_format = "%Y-%m-%d %H:%M"
 

@@ -26,6 +26,7 @@ from pyball.application.meetup import (
     AssignTeamsById,
     CancelMeetup,
     CloseMeetup,
+    CloseSubstituteSearch,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
@@ -34,8 +35,10 @@ from pyball.application.meetup import (
     FinishMatch,
     FormatMatchSummary,
     GetActiveMeetup,
+    OpenSubstituteSearch,
     ParseCallup,
     RemovePlayerFromMeetupById,
+    SetMeetupCapacity,
     SetMeetupPlayers,
     UpdateMeetupDate,
     UpdateMeetupLocation,
@@ -84,7 +87,11 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def create_meetup(self) -> CreateMeetup:
         """Create a new CreateMeetup use case."""
-        return CreateMeetup(self.meetup_repository, self._settings.pyball.location)
+        return CreateMeetup(
+            self.meetup_repository,
+            self._settings.pyball.location,
+            self._settings.pyball.meetup_capacity,
+        )
 
     def change_player_group(self) -> ChangePlayerGroup:
         """Create a new ChangePlayerGroup use case."""
@@ -100,7 +107,9 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def remove_player_from_meetup_by_id(self) -> RemovePlayerFromMeetupById:
         """Create a new RemovePlayerFromMeetupById use case."""
-        return RemovePlayerFromMeetupById(self.meetup_repository)
+        return RemovePlayerFromMeetupById(
+            self.meetup_repository, self._settings.pyball.meetup_capacity
+        )
 
     def create_teams(self, algo_name: str | None = None) -> CreateTeams:
         """Create a new CreateTeams use case with the specified or default algorithm."""
@@ -152,7 +161,23 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def set_meetup_players(self) -> SetMeetupPlayers:
         """Create a new SetMeetupPlayers use case."""
-        return SetMeetupPlayers(self.meetup_repository, self._settings.pyball.location)
+        return SetMeetupPlayers(
+            self.meetup_repository,
+            self._settings.pyball.location,
+            self._settings.pyball.meetup_capacity,
+        )
+
+    def set_meetup_capacity(self) -> SetMeetupCapacity:
+        """Create a new SetMeetupCapacity use case."""
+        return SetMeetupCapacity(self.meetup_repository)
+
+    def open_substitute_search(self) -> OpenSubstituteSearch:
+        """Create a new OpenSubstituteSearch use case."""
+        return OpenSubstituteSearch(self.meetup_repository)
+
+    def close_substitute_search(self) -> CloseSubstituteSearch:
+        """Create a new CloseSubstituteSearch use case."""
+        return CloseSubstituteSearch(self.meetup_repository)
 
     def cancel_meetup(self) -> CancelMeetup:
         """Create a new CancelMeetup use case."""
@@ -236,7 +261,9 @@ class Container:  # pylint: disable=too-many-public-methods
     def meetup_repository(self) -> MeetupRepository:
         """Get the meetup repository, creating it if necessary."""
         if self._meetup_repository is None:
-            self._meetup_repository = JsonMeetupRepository(self._settings.paths.meetups_dir)
+            self._meetup_repository = JsonMeetupRepository(
+                self._settings.paths.meetups_dir, self._settings.pyball.meetup_capacity
+            )
         return self._meetup_repository
 
     @property

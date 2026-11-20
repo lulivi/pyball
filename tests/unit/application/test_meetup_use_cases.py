@@ -234,7 +234,7 @@ class TestCreateMeetup:
         """Creating a meetup without a location uses the default."""
         repo = MagicMock()
         repo.find_by_datetime.return_value = None
-        use_case = CreateMeetup(repo, default_location="Parque Central")
+        use_case = CreateMeetup(repo, default_location="Parque Central", default_capacity=10)
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
 
@@ -245,7 +245,7 @@ class TestCreateMeetup:
         """Creating a meetup with a custom location overrides the default."""
         repo = MagicMock()
         repo.find_by_datetime.return_value = None
-        use_case = CreateMeetup(repo, default_location="Parque Central")
+        use_case = CreateMeetup(repo, default_location="Parque Central", default_capacity=10)
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0), location="Estadio Norte")
 
@@ -258,7 +258,7 @@ class TestCreateMeetup:
         )
         repo = MagicMock()
         repo.find_by_datetime.return_value = existing_meetup
-        use_case = CreateMeetup(repo, default_location="Parque Central")
+        use_case = CreateMeetup(repo, default_location="Parque Central", default_capacity=10)
 
         with pytest.raises(DuplicateMeetupError, match="Meetup already exists"):
             use_case.execute(date=datetime(2024, 3, 20, 20, 0))
@@ -267,7 +267,7 @@ class TestCreateMeetup:
         """Creating a meetup persists it via the repository."""
         repo = MagicMock()
         repo.find_by_datetime.return_value = None
-        use_case = CreateMeetup(repo, default_location="Parque Central")
+        use_case = CreateMeetup(repo, default_location="Parque Central", default_capacity=10)
 
         meetup = use_case.execute(date=datetime(2024, 3, 20, 20, 0))
 
@@ -277,7 +277,7 @@ class TestCreateMeetup:
         """Creating a meetup emits one INFO record on its logger."""
         repo = MagicMock()
         repo.find_by_datetime.return_value = None
-        use_case = CreateMeetup(repo, default_location="Parque Central")
+        use_case = CreateMeetup(repo, default_location="Parque Central", default_capacity=10)
         with caplog.at_level(logging.INFO, logger="pyball.application.meetup.create_meetup"):
             use_case.execute(datetime(2026, 5, 1, 20, 0))
         recs = [r for r in caplog.records if r.name == "pyball.application.meetup.create_meetup"]

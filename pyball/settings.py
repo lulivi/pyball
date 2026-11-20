@@ -68,6 +68,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "enable_web_signup",
         "theme_color",
         "icons_dir",
+        "meetup_capacity",
     )
     raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
     raw["match_token"] = raw["match_token"] or ""
@@ -76,6 +77,8 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     raw["enable_web_signup"] = raw["enable_web_signup"] or False
     raw["theme_color"] = raw["theme_color"] or "#0f172a"
     raw["icons_dir"] = raw["icons_dir"] or ""
+    if raw["meetup_capacity"] is None:
+        raw["meetup_capacity"] = 10
 
     missing = [f"core.{k}" for k, v in raw.items() if v is None]
     if raw.get("location") is not None and not raw["location"]:
@@ -106,6 +109,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         enable_web_signup=_parse_bool(raw["enable_web_signup"]),
         theme_color=raw["theme_color"],
         icons_dir=raw["icons_dir"],
+        meetup_capacity=_parse_meetup_capacity(raw["meetup_capacity"]),
     )
 
     return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
@@ -155,6 +159,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     enable_web_signup: bool = False
     theme_color: str = "#0f172a"
     icons_dir: str = ""
+    meetup_capacity: int = 10
 
     def __post_init__(self) -> None:
         """Resolve team_colors into derived emoji and hex fields.
@@ -218,6 +223,21 @@ def _parse_api_port(value) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 8000
+
+
+def _parse_meetup_capacity(value) -> int:
+    """Parse meetup_capacity from a config int or env var string; at least two players."""
+    try:
+        capacity = int(value)
+    except (TypeError, ValueError) as exc:
+        raise SettingsValidationError(
+            f"meetup_capacity debe ser un número entero, se recibió: {value!r}."
+        ) from exc
+    if capacity < 2:
+        raise SettingsValidationError(
+            f"meetup_capacity debe ser al menos 2, se recibió: {capacity}."
+        )
+    return capacity
 
 
 def _parse_bool(value) -> bool:

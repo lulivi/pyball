@@ -343,3 +343,28 @@ class TestInstanceIdentitySettings:
         monkeypatch.setenv("PYBALL_CORE_THEME_COLOR", "#112233")
         settings = load_app_settings(_write(tmp_path, _FULL_CORE))
         assert settings.pyball.theme_color == "#112233"
+
+
+class TestMeetupCapacitySetting:
+    """Tests for the meetup_capacity setting."""
+
+    def test_defaults_to_ten(self, tmp_path):
+        """meetup_capacity defaults to 10."""
+        assert load_app_settings(_write(tmp_path, _FULL_CORE)).pyball.meetup_capacity == 10
+
+    def test_config_value(self, tmp_path):
+        """meetup_capacity is read from [pyball.core]."""
+        config = _FULL_CORE.replace("[pyball.core]", "[pyball.core]\nmeetup_capacity = 14")
+        assert load_app_settings(_write(tmp_path, config)).pyball.meetup_capacity == 14
+
+    def test_env_override(self, tmp_path, monkeypatch):
+        """PYBALL_CORE_MEETUP_CAPACITY overrides the config value."""
+        monkeypatch.setenv("PYBALL_CORE_MEETUP_CAPACITY", "12")
+        assert load_app_settings(_write(tmp_path, _FULL_CORE)).pyball.meetup_capacity == 12
+
+    @pytest.mark.parametrize("value", ["0", "1", "diez"])
+    def test_invalid_value_raises(self, tmp_path, monkeypatch, value):
+        """A capacity below two or not a number is rejected."""
+        monkeypatch.setenv("PYBALL_CORE_MEETUP_CAPACITY", value)
+        with pytest.raises(SettingsValidationError, match="meetup_capacity"):
+            load_app_settings(_write(tmp_path, _FULL_CORE))

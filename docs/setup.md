@@ -69,6 +69,7 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `name` | Instance name shown in the UI | *(required)* |
 | `default_week_day` | Default day (`monday`–`sunday`) for new meetups | `wednesday` |
 | `default_hour` | Default start time (`HH:MM`) | `20:00` |
+| `meetup_capacity` | Players a new meetup plays with; each meetup's capacity can then be changed from `/manage` | `10` |
 | `display_date_format` | Date format used in messages | `%Y-%m-%d %H:%M` |
 | `team_colors` | Two or three color names: the first two are the classic-match teams, the third is only used for triangulars (auto-filled if you list just two) | `["blanco", "negro", "rojo"]` |
 | `base_url` | Public URL used to build the `/match` link | *(required)* |

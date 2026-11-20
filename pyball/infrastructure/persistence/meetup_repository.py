@@ -32,6 +32,15 @@ from pyball.domain.player.models import PlayerId
 class JsonMeetupRepository(MeetupRepository):
     """JSON file-based meetup repository."""
 
+    def __init__(self, directory: Path, default_capacity: int):
+        """Initialize the repository with a storage directory.
+
+        ``default_capacity`` is the capacity of a stored meetup that has none yet.
+        """
+        self.directory = directory
+        self.default_capacity = default_capacity
+        self.directory.mkdir(parents=True, exist_ok=True)
+
     def _get_file_path(self, meetup: Meetup) -> Path:
         return self.directory / f"{meetup.date.isoformat(timespec='minutes')}.json"
 
@@ -71,6 +80,8 @@ class JsonMeetupRepository(MeetupRepository):
             teams=teams,
             matches=matches,
             closed=data.get("closed", False),
+            capacity=data.get("capacity", self.default_capacity),
+            substitute_search=data.get("substitute_search", False),
         )
 
     def _write(self, meetup: Meetup) -> None:
@@ -100,14 +111,11 @@ class JsonMeetupRepository(MeetupRepository):
             "teams": teams_data,
             "matches": matches_data,
             "closed": meetup.closed,
+            "capacity": meetup.capacity,
+            "substitute_search": meetup.substitute_search,
         }
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-
-    def __init__(self, directory: Path):
-        """Initialize the repository with a storage directory."""
-        self.directory = directory
-        self.directory.mkdir(parents=True, exist_ok=True)
 
     def save(self, meetup: Meetup) -> None:
         """Save a meetup to the repository."""
