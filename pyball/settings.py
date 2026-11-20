@@ -112,10 +112,15 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         meetup_capacity=_parse_meetup_capacity(raw["meetup_capacity"]),
     )
 
-    return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
+    plugins = _parse_plugins(config.get("pyball", {}).get("plugins", {}))
+    return AppSettings(
+        pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir), plugins=plugins
+    )
 
 
 LOGS_DIRECTORY_PATH = Path("logs")
+
+PLUGIN_SCOPES = ("players:read", "players:write", "meetups:read", "meetups:write")
 
 COLOR_PALETTE: dict[str, dict[str, str]] = {
     # Colores disponibles: blanco ⚪  negro ⚫  rojo 🔴  naranja 🟠  amarillo 🟡
@@ -192,6 +197,15 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
         )
 
 
+@dataclass(frozen=True)
+class PluginConfig:
+    """A plugin declared under [pyball.plugins.<name>]: how to start it and what it may do."""
+
+    name: str
+    command: tuple[str, ...]
+    scopes: frozenset[str]
+
+
 @dataclass
 class Paths:
     """File system paths for data storage."""
@@ -215,6 +229,7 @@ class AppSettings:
 
     pyball: PyballConfig = field(default_factory=PyballConfig)
     paths: Paths = field(default_factory=Paths)
+    plugins: list[PluginConfig] = field(default_factory=list)
 
 
 def _parse_api_port(value) -> int:
@@ -238,6 +253,28 @@ def _parse_meetup_capacity(value) -> int:
             f"meetup_capacity debe ser al menos 2, se recibió: {capacity}."
         )
     return capacity
+
+
+def _parse_plugins(section: dict) -> list[PluginConfig]:
+    """Parse every [pyball.plugins.<name>] table; these have no env overrides."""
+    plugins = []
+    for name, table in section.items():
+        command = table.get("command") if isinstance(table, dict) else None
+        valid_parts = isinstance(command, list) and all(isinstance(c, str) and c for c in command)
+        if not command or not valid_parts:
+            raise SettingsValidationError(
+                f"plugins.{name}.command debe ser una lista no vacía de textos, "
+                f'p. ej. ["./mi-plugin", "run"].'
+            )
+        scopes = table.get("scopes", [])
+        unknown = [s for s in scopes if s not in PLUGIN_SCOPES] if isinstance(scopes, list) else []
+        if not isinstance(scopes, list) or unknown:
+            raise SettingsValidationError(
+                f"plugins.{name}.scopes solo admite {', '.join(PLUGIN_SCOPES)}; "
+                f"se recibió: {scopes!r}."
+            )
+        plugins.append(PluginConfig(name, tuple(command), frozenset(scopes)))
+    return plugins
 
 
 def _parse_bool(value) -> bool:

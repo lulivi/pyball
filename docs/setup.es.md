@@ -123,6 +123,16 @@ bot, el chat y el tema del foro de los secretos de GitHub `DEPLOY_NOTIFY_TOKEN`,
 que `telegram.management.logging`. Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
 envían notificaciones.
 
+### `[pyball.plugins.<nombre>]` — plugins opcionales
+
+Una tabla por plugin, con su nombre. Las dos topologías los ejecutan (ver
+[Plugins](#8-plugins)). Estas tablas no admiten variables de entorno.
+
+| Clave | Descripción | Obligatorio |
+|---|---|---|
+| `command` | Programa y argumentos que arrancan el plugin, ejecutado desde el espacio de trabajo, p. ej. `["./pyball-siesta", "run"]` | **Sí** |
+| `scopes` | Lo que el plugin puede hacer con la API de plugins: cualquiera de `players:read`, `players:write`, `meetups:read` (incluye el flujo de eventos), `meetups:write` | No (ninguno) |
+
 ## 4. Arranca la aplicación
 
 ```bash
@@ -166,6 +176,7 @@ VPN, túnel, etc.) depende de ti — estos tokens funcionan igual en cualquier c
 | `/`, archivos estáticos, manifiestos PWA | Ninguno (siempre público) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **o** `manage_token` |
 | `/signup` y `/api/signup/*` (solo si `enable_web_signup` está activo) | `signup_token` **o** `manage_token` |
+| `/api/v1/*` (la API de plugins) | `Authorization: Bearer` con el token propio de un plugin **o** `manage_token` — ver [Plugins](#8-plugins) |
 | `/manage` y todo lo demás bajo `/api/*` | Solo `manage_token` |
 
 Dale el `match_token` (solo marcador) a un dispositivo que solo deba ver `/match` (ej.

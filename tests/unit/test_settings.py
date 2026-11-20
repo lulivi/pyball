@@ -368,3 +368,37 @@ class TestMeetupCapacitySetting:
         monkeypatch.setenv("PYBALL_CORE_MEETUP_CAPACITY", value)
         with pytest.raises(SettingsValidationError, match="meetup_capacity"):
             load_app_settings(_write(tmp_path, _FULL_CORE))
+
+
+class TestPluginsSetting:
+    """Tests for the [pyball.plugins.<name>] tables."""
+
+    def test_no_plugins_by_default(self, tmp_path):
+        """Without plugin tables there are no plugins."""
+        assert not load_app_settings(_write(tmp_path, _FULL_CORE)).plugins
+
+    def test_plugin_table(self, tmp_path):
+        """A plugin table gives its name, command and scopes."""
+        plugin_table = (
+            '[pyball.plugins.siesta]\ncommand = ["./pyball-siesta", "run"]\n'
+            'scopes = ["players:read", "meetups:write"]\n'
+        )
+        config = f"{_FULL_CORE}\n{plugin_table}"
+        (plugin,) = load_app_settings(_write(tmp_path, config)).plugins
+        assert plugin.name == "siesta"
+        assert plugin.command == ("./pyball-siesta", "run")
+        assert plugin.scopes == {"players:read", "meetups:write"}
+
+    @pytest.mark.parametrize(
+        "table, match",
+        [
+            ("command = []", "command"),
+            ('command = "./x"', "command"),
+            ('command = ["./x"]\nscopes = ["admin"]', "scopes"),
+        ],
+    )
+    def test_invalid_plugin_table_raises(self, tmp_path, table, match):
+        """An empty command or an unknown scope is rejected."""
+        config = _FULL_CORE + f"\n[pyball.plugins.bad]\n{table}\n"
+        with pytest.raises(SettingsValidationError, match=match):
+            load_app_settings(_write(tmp_path, config))

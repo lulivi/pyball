@@ -90,6 +90,12 @@ theme_color = "#0f172a"
 
 # Override with PYBALL_CORE_ICONS_DIR
 icons_dir = ""
+
+# Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
+# Scopes: players:read  players:write  meetups:read  meetups:write
+# [pyball.plugins.siesta]
+# command = ["./pyball-siesta", "run"]
+# scopes = ["players:read", "meetups:read", "meetups:write"]
 """
 
 _TG_CONFIG_EXTRA = """

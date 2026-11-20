@@ -119,6 +119,16 @@ forum topic in the `DEPLOY_NOTIFY_TOKEN`, `DEPLOY_NOTIFY_CHAT_ID` and
 `telegram.management.logging`. Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
 notifications.
 
+### `[pyball.plugins.<name>]` — optional plugins
+
+One table per plugin, named after it. Both topologies run them (see
+[Plugins](#8-plugins)). These tables have no env overrides.
+
+| Key | Description | Required |
+|---|---|---|
+| `command` | Program and arguments that start the plugin, run from the workspace, e.g. `["./pyball-siesta", "run"]` | **Yes** |
+| `scopes` | What the plugin may do through the plugin API: any of `players:read`, `players:write`, `meetups:read` (includes the event stream), `meetups:write` | No (none) |
+
 ## 4. Start the app
 
 ```bash
@@ -161,6 +171,7 @@ etc.) is up to you — these tokens work the same regardless.
 | `/`, static assets, PWA manifests | None (always public) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **or** `manage_token` |
 | `/signup` and `/api/signup/*` (only when `enable_web_signup` is true) | `signup_token` **or** `manage_token` |
+| `/api/v1/*` (the plugin API) | `Authorization: Bearer` with a plugin's own token **or** `manage_token` — see [Plugins](#8-plugins) |
 | `/manage` and everything else under `/api/*` | `manage_token` only |
 
 Give the scoreboard-only `match_token` to a device that should only ever see `/match`
