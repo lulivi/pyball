@@ -33,23 +33,31 @@ class CreateMeetup:
     """Use case for creating a new meetup."""
 
     def __init__(
-        self, meetup_repository: MeetupRepository, default_location: str = "Parque Central"
+        self,
+        meetup_repository: MeetupRepository,
+        default_location: str,
+        default_capacity: int,
     ):
         """Initialize CreateMeetup use case.
 
         Args:
             meetup_repository: Repository for persist meetups.
             default_location: Default location for new meetups.
+            default_capacity: The club's capacity for new meetups.
         """
         self.meetup_repository = meetup_repository
         self.default_location = default_location
+        self.default_capacity = default_capacity
 
-    def execute(self, date: datetime, location: str | None = None) -> Meetup:
+    def execute(
+        self, date: datetime, location: str | None = None, capacity: int | None = None
+    ) -> Meetup:
         """Create a new meetup.
 
         Args:
             date: Date and time of the meetup.
             location: Optional location (defaults to self.default_location).
+            capacity: Optional capacity (defaults to self.default_capacity).
 
         Returns:
             The newly created Meetup.
@@ -60,7 +68,11 @@ class CreateMeetup:
         if self.meetup_repository.find_by_datetime(date) is not None:
             raise DuplicateMeetupError("Meetup already exists at this time")
 
-        meetup = Meetup.create(date=date, location=location or self.default_location)
+        meetup = Meetup.create(
+            date=date,
+            location=location or self.default_location,
+            capacity=self.default_capacity if capacity is None else capacity,
+        )
         self.meetup_repository.save(meetup)
         logger.info("Meetup created for %s at %s", date, meetup.location)
         return meetup

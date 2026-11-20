@@ -24,7 +24,8 @@ personal de alta de un jugador (ver
 
 El partido activo, si existe: pegar y reconocer una convocatoria
 ([paso 1](workflow.es.md#1-crear-un-partido)), gestionar la convocatoria
-([paso 2](workflow.es.md#2-gestionar-la-convocatoria)), generar o editar equipos
+([paso 2](workflow.es.md#2-gestionar-la-convocatoria)), incluidas su capacidad y la
+búsqueda de suplentes, generar o editar equipos
 ([paso 3](workflow.es.md#3-generar-equipos)), destruir equipos,
 cancelar el partido, copiar los enlaces de alta y de partido y — en un triangular —
 cerrar la sesión ([paso 5](workflow.es.md#5-cerrar-una-sesión-triangular)). Vacía si no

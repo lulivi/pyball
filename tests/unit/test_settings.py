@@ -343,3 +343,62 @@ class TestInstanceIdentitySettings:
         monkeypatch.setenv("PYBALL_CORE_THEME_COLOR", "#112233")
         settings = load_app_settings(_write(tmp_path, _FULL_CORE))
         assert settings.pyball.theme_color == "#112233"
+
+
+class TestMeetupCapacitySetting:
+    """Tests for the meetup_capacity setting."""
+
+    def test_defaults_to_ten(self, tmp_path):
+        """meetup_capacity defaults to 10."""
+        assert load_app_settings(_write(tmp_path, _FULL_CORE)).pyball.meetup_capacity == 10
+
+    def test_config_value(self, tmp_path):
+        """meetup_capacity is read from [pyball.core]."""
+        config = _FULL_CORE.replace("[pyball.core]", "[pyball.core]\nmeetup_capacity = 14")
+        assert load_app_settings(_write(tmp_path, config)).pyball.meetup_capacity == 14
+
+    def test_env_override(self, tmp_path, monkeypatch):
+        """PYBALL_CORE_MEETUP_CAPACITY overrides the config value."""
+        monkeypatch.setenv("PYBALL_CORE_MEETUP_CAPACITY", "12")
+        assert load_app_settings(_write(tmp_path, _FULL_CORE)).pyball.meetup_capacity == 12
+
+    @pytest.mark.parametrize("value", ["0", "1", "diez"])
+    def test_invalid_value_raises(self, tmp_path, monkeypatch, value):
+        """A capacity below two or not a number is rejected."""
+        monkeypatch.setenv("PYBALL_CORE_MEETUP_CAPACITY", value)
+        with pytest.raises(SettingsValidationError, match="meetup_capacity"):
+            load_app_settings(_write(tmp_path, _FULL_CORE))
+
+
+class TestPluginsSetting:
+    """Tests for the [pyball.plugins.<name>] tables."""
+
+    def test_no_plugins_by_default(self, tmp_path):
+        """Without plugin tables there are no plugins."""
+        assert not load_app_settings(_write(tmp_path, _FULL_CORE)).plugins
+
+    def test_plugin_table(self, tmp_path):
+        """A plugin table gives its name, command and scopes."""
+        plugin_table = (
+            '[pyball.plugins.example]\ncommand = ["./plugins/example-plugin", "--verbose"]\n'
+            'scopes = ["players:read", "meetups:write"]\n'
+        )
+        config = f"{_FULL_CORE}\n{plugin_table}"
+        (plugin,) = load_app_settings(_write(tmp_path, config)).plugins
+        assert plugin.name == "example"
+        assert plugin.command == ("./plugins/example-plugin", "--verbose")
+        assert plugin.scopes == {"players:read", "meetups:write"}
+
+    @pytest.mark.parametrize(
+        "table, match",
+        [
+            ("command = []", "command"),
+            ('command = "./x"', "command"),
+            ('command = ["./x"]\nscopes = ["admin"]', "scopes"),
+        ],
+    )
+    def test_invalid_plugin_table_raises(self, tmp_path, table, match):
+        """An empty command or an unknown scope is rejected."""
+        config = _FULL_CORE + f"\n[pyball.plugins.bad]\n{table}\n"
+        with pytest.raises(SettingsValidationError, match=match):
+            load_app_settings(_write(tmp_path, config))

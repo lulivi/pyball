@@ -40,7 +40,6 @@ from pyball.infrastructure.telegram.formatters import (
     format_subs_message,
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking, TelegramMessageStore
-from pyball.infrastructure.telegram.search import update_search_target
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
@@ -67,9 +66,8 @@ class TelegramMatchNotifier(MatchNotifier):
     async def on_meetup_created(self, meetup: Meetup) -> None:
         """Handle a brand-new meetup by posting the regulars callup and the activity line.
 
-        The substitutes chat is never notified here — that stays a manual,
-        separate action (the "🔎 Buscar jugadores" button / /meetup_search),
-        so regulars get priority for a few days before subs are searched.
+        The substitutes chat is never notified here: it is called only when a
+        substitute search opens, so regulars get priority before subs are searched.
         """
         await _send_regulars_callup_message(self._bot, self._settings, self._container, meetup)
         date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
@@ -161,10 +159,20 @@ class TelegramMatchNotifier(MatchNotifier):
         except Exception as error:  # pylint: disable=broad-except
             logger.error("Error sending corrected result message: %s", error)
 
+    async def on_substitute_search_opened(self, meetup: Meetup) -> None:
+        """Post the substitutes callup, if a substitutes chat is configured."""
+        if not self._settings.telegram.substitutes.meetups:
+            return
+        try:
+            await send_substitutes_message(self._bot, self._settings, self._container, meetup)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.error("Error sending substitutes message: %s", error)
+
     async def on_player_joined(
         self, meetup: Meetup, player: "Player", is_substitute: bool
     ) -> None:
-        """Handle a player joining a meetup by posting to the activity chat."""
+        """Refresh the callups with the new roster and post the join to the activity chat."""
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
         status = "suplente" if is_substitute else "titular"
         date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
         name = _escape_code_span(player.name)
@@ -175,7 +183,8 @@ class TelegramMatchNotifier(MatchNotifier):
         await _send_activity_message(self._bot, self._settings, text)
 
     async def on_player_left(self, meetup: Meetup, player: "Player", is_substitute: bool) -> None:
-        """Handle a player leaving a meetup by posting to the activity chat."""
+        """Refresh the callups with the new roster and post the leave to the activity chat."""
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
         status = "suplente" if is_substitute else "titular"
         date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
         name = _escape_code_span(player.name)
@@ -220,11 +229,7 @@ async def refresh_callup_messages(
             date_fmt=date_fmt,
             legacy_stats=container.legacy_stats,
         )
-        kb = (
-            build_main_keyboard(meetup.date, has_teams=meetup.teams is not None)
-            if include_keyboard
-            else None
-        )
+        kb = build_main_keyboard(meetup.date) if include_keyboard else None
         try:
             await bot.edit_message_text(
                 chat_id=regular_tracking.chat_id,
@@ -240,10 +245,6 @@ async def refresh_callup_messages(
 
     sub_tracking = store.get_message(meetup.date, "substitute")
     if sub_tracking:
-        search_target = update_search_target(sub_tracking.search_target, len(meetup.players))
-        if search_target != sub_tracking.search_target:
-            sub_tracking.search_target = search_target
-            store.save_message(meetup.date, "substitute", sub_tracking)
         subs_text = format_subs_message(
             meetup,
             player_names,
@@ -251,11 +252,10 @@ async def refresh_callup_messages(
             team_colors=settings.pyball.team_colors,
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
-            search_target=search_target,
         )
         kb = (
             build_subs_keyboard(meetup.date)
-            if include_keyboard and search_target is not None
+            if include_keyboard and meetup.substitute_search
             else None
         )
         try:
@@ -270,6 +270,43 @@ async def refresh_callup_messages(
             logger.warning("Could not edit substitutes message: %s", error)
         except Exception as error:  # pylint: disable=broad-except
             logger.error("Error editing substitutes message: %s", error)
+
+
+async def send_substitutes_message(
+    bot: telegram.Bot,
+    settings: "TelegramAppSettings",
+    container: "Container",
+    meetup: Meetup,
+) -> None:
+    """Send the substitutes callup to the substitutes chat and track it.
+
+    The join/leave keyboard is attached only while the substitute search is open.
+    """
+    all_players = container.player_repository.find_all()
+    text = format_subs_message(
+        meetup,
+        {str(p.id.value): p.name for p in all_players},
+        {str(p.id.value): p.group for p in all_players},
+        team_colors=settings.pyball.team_colors,
+        team_emojis=settings.pyball.team_emojis,
+        date_fmt=settings.pyball.display_date_format,
+    )
+    keyboard = build_subs_keyboard(meetup.date) if meetup.substitute_search else None
+    subs = settings.telegram.substitutes.meetups
+    msg = await bot.send_message(
+        chat_id=subs.chat_id,
+        text=text,
+        reply_markup=keyboard,
+        message_thread_id=subs.message_thread_id,
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json").save_message(
+        meetup.date,
+        "substitute",
+        MessageTracking(
+            chat_id=subs.chat_id, thread_id=subs.message_thread_id, message_id=msg.message_id
+        ),
+    )
 
 
 async def _cancel_callup_messages(
@@ -319,7 +356,6 @@ async def _cancel_callup_messages(
             team_colors=settings.pyball.team_colors,
             team_emojis=settings.pyball.team_emojis,
             date_fmt=date_fmt,
-            search_target=sub_tracking.search_target,
         )
         try:
             await bot.edit_message_text(

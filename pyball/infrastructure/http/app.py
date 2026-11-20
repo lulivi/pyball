@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """FastAPI application factory."""
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -33,6 +34,8 @@ from pyball.infrastructure.http.routes import (
     register_signup_routes,
     register_static_routes,
 )
+from pyball.infrastructure.plugins.api import create_plugin_api
+from pyball.infrastructure.plugins.auth import PluginCredentials
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
@@ -51,8 +54,9 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     manage_token: str = "",
     signup_token: str = "",
     enable_web_signup: bool = False,
+    plugin_credentials: PluginCredentials | None = None,
 ) -> FastAPI:
-    """Create and configure the FastAPI application."""
+    """Create and configure the FastAPI application, with the plugin API at /api/v1."""
     app = FastAPI(title="PyBall API")
 
     if match_token or manage_token or signup_token:
@@ -68,7 +72,12 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     register_player_routes(app, container, enable_web_signup=enable_web_signup)
     register_meetup_routes(app, container, notifier, enable_web_signup=enable_web_signup)
     if enable_web_signup:
-        register_signup_routes(app, container, signup_token, static_dir=signup_static_dir)
+        register_signup_routes(
+            app, container, notifier, signup_token, static_dir=signup_static_dir
+        )
+
+    credentials = plugin_credentials or PluginCredentials([], manage_token)
+    app.mount("/api/v1", create_plugin_api(container, notifier, credentials))
 
     icons_dir = Path(container.icons_dir) if container.icons_dir else None
     if icons_dir and icons_dir.exists():
@@ -81,6 +90,12 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     return app
+
+
+async def wait_until_serving(server: uvicorn.Server, server_task: asyncio.Task) -> None:
+    """Return once ``server`` accepts connections, or as soon as it fails to start."""
+    while not server.started and not server_task.done():
+        await asyncio.sleep(0.05)
 
 
 class _Server(uvicorn.Server):

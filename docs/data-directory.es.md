@@ -17,9 +17,11 @@ pyball/
 ├── compose.yaml       # definición del servicio de docker compose
 ├── .env               # UID/GID/PORT/TAG
 ├── README.md          # enlace corto de vuelta a docs/setup.es.md
+├── plugins/           # programas de plugins, si los hay — ver docs/setup.es.md
 ├── data/
 │   ├── players.json   # todos los jugadores, independientemente del partido
 │   ├── legacy_stats.json   # opcional — asistencias históricas de antes de usar PyBall
+│   ├── events.jsonl   # todos los eventos que leen los plugins — ver más abajo
 │   ├── meetups/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
@@ -33,7 +35,8 @@ pyball/
 ```
 
 Cada archivo es JSON plano, escrito con sangrado de 2 espacios, seguro de leer (o incluso
-editar a mano, con cuidado) con cualquier editor de texto.
+editar a mano, con cuidado) con cualquier editor de texto. La excepción es
+`events.jsonl`: un objeto JSON por línea, y nunca se edita a mano.
 
 ## `data/players.json`
 
@@ -100,7 +103,9 @@ Un partido **triangular** (3 equipos) terminado, tras 3 rondas y cerrado:
     { "teams_playing": ["A", "C"], "result": { "score_a": 1, "score_b": 1, "events": [] } },
     { "teams_playing": ["C", "B"], "result": { "score_a": 2, "score_b": 1, "events": [] } }
   ],
-  "closed": true
+  "closed": true,
+  "capacity": 10,
+  "substitute_search": false
 }
 ```
 
@@ -132,6 +137,34 @@ Notas de los campos:
   cierra solo en cuanto su único partido recibe un resultado; un triangular sigue
   abierto a través de varias rondas hasta que se cierra explícitamente (ver
   [docs/workflow.es.md](workflow.es.md#5-cerrar-una-sesión-triangular)).
+- `capacity` — cuántos jugadores juegan este partido. Un partido nuevo toma
+  `meetup_capacity` de `config.toml`; un archivo sin el campo también se carga con él.
+- `substitute_search` — `true` mientras hay una búsqueda de suplentes abierta (ver
+  [docs/workflow.es.md](workflow.es.md#2-gestionar-la-convocatoria)); un archivo sin el
+  campo se carga con la búsqueda cerrada.
+
+## `data/events.jsonl`
+
+El registro de eventos que los plugins leen con `GET /api/v1/events`: una línea por cada
+cosa que le pasa a un partido, en orden, guardada para siempre para que un plugin que
+estuvo caído pueda ponerse al día.
+
+```json
+{"id": 41, "type": "player.joined", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"id": "a1b2c3d4-...", "date": "2026-04-15T20:00:00", "location": "Parque Central", "capacity": 10, "substitute_search": true, "players": ["11111111-...", "..."], "teams": null, "matches": [], "closed": false}, "player": {"id": "11111111-...", "name": "Manu García", "group": "substitute", "position": null}, "is_substitute": true}
+{"id": 42, "type": "substitute_search.closed", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"...": "..."}}
+```
+
+- `id` — sube de uno en uno por evento; un plugin continúa desde el último id que vio.
+- `type` — `meetup.created`, `meetup.updated`, `meetup.date_changed`, `meetup.cancelled`,
+  `match.closed`, `match.edited`, `player.joined`, `player.left`,
+  `substitute_search.opened` o `substitute_search.closed`.
+- `meetup` — el partido justo después del evento, con la misma forma que
+  `GET /api/v1/meetups/active`.
+- `player` e `is_substitute` — solo en `player.joined` y `player.left`;
+  `previous_date` — solo en `meetup.date_changed`.
+
+Haz copia de seguridad junto con el resto de `data/`. Borrarlo solo pierde el historial
+desde el que continúan los plugins.
 
 ## `data/legacy_stats.json` (opcional)
 
@@ -199,12 +232,7 @@ cuando cambia la convocatoria, o cuando el partido se cierra):
 {
   "2026-04-15T20:00": {
     "regular": { "chat_id": -1000000000000, "thread_id": null, "message_id": 4821 },
-    "substitute": {
-      "chat_id": -1000000000001,
-      "thread_id": null,
-      "message_id": 512,
-      "search_target": 12
-    }
+    "substitute": { "chat_id": -1000000000001, "thread_id": null, "message_id": 512 }
   }
 }
 ```
@@ -213,9 +241,7 @@ La clave es la fecha/hora del partido (`YYYY-MM-DDTHH:MM`, coincidiendo con el n
 del archivo del meetup sin la extensión `.json`). `thread_id` es `null` a menos que el
 chat use temas de foro (ver `telegram.regulars.meetups.message_thread_id` en
 [docs/setup.es.md](setup.es.md); la entrada `substitute` toma igualmente
-`telegram.substitutes.meetups.message_thread_id`). `search_target` (solo en la entrada
-`substitute`) es el tamaño de plantilla que busca una búsqueda de suplentes abierta;
-`null` o su ausencia significa que la búsqueda está cerrada.
+`telegram.substitutes.meetups.message_thread_id`).
 
 ## Documentación relacionada
 

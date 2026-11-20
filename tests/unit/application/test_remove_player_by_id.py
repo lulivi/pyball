@@ -36,7 +36,9 @@ class TestRemovePlayerFromMeetupById:
         repo = MagicMock()
         repo.find_by_datetime.return_value = meetup
 
-        result = RemovePlayerFromMeetupById(repo).execute(datetime(2026, 5, 6, 20, 0), p1.id)
+        result = RemovePlayerFromMeetupById(repo, default_capacity=10).execute(
+            datetime(2026, 5, 6, 20, 0), p1.id
+        )
 
         assert p1.id not in result.players
         repo.save.assert_called_once_with(meetup)
@@ -47,7 +49,7 @@ class TestRemovePlayerFromMeetupById:
         repo.find_by_datetime.return_value = None
 
         with pytest.raises(MeetupNotFoundError):
-            RemovePlayerFromMeetupById(repo).execute(
+            RemovePlayerFromMeetupById(repo, default_capacity=10).execute(
                 datetime(2026, 5, 6, 20, 0), _player("Juan").id
             )
 
@@ -60,7 +62,9 @@ class TestRemovePlayerFromMeetupById:
         repo.find_by_datetime.return_value = meetup
 
         with pytest.raises(SignupClosedError):
-            RemovePlayerFromMeetupById(repo).execute(datetime(2026, 5, 6, 20, 0), p1.id)
+            RemovePlayerFromMeetupById(repo, default_capacity=10).execute(
+                datetime(2026, 5, 6, 20, 0), p1.id
+            )
 
     def test_raises_player_not_in_meetup(self):
         """Removing a player who never joined raises PlayerNotInMeetupError."""
@@ -69,6 +73,6 @@ class TestRemovePlayerFromMeetupById:
         repo.find_by_datetime.return_value = meetup
 
         with pytest.raises(PlayerNotInMeetupError):
-            RemovePlayerFromMeetupById(repo).execute(
+            RemovePlayerFromMeetupById(repo, default_capacity=10).execute(
                 datetime(2026, 5, 6, 20, 0), _player("Juan").id
             )

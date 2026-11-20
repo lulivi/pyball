@@ -23,7 +23,6 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import telegram
 from telegram import CallbackQuery, Update
 from telegram.ext import ContextTypes
 
@@ -31,18 +30,13 @@ from pyball.application.container import Container
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
-from pyball.infrastructure.telegram import TelegramMessageStore
-from pyball.infrastructure.telegram.bot.handlers.meetup import _do_search
 from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
-from pyball.infrastructure.telegram.notifications import refresh_callup_messages
-from pyball.infrastructure.telegram.search import next_search_target, update_search_target
 from pyball.logger import log_func
 
 if TYPE_CHECKING:
     from pyball.application.notifier import MatchNotifier
     from pyball.domain.player.models import Player
-    from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
 
@@ -84,25 +78,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Usuario no identificado.", show_alert=True)
         return
 
-    if action in ("join", "leave", "join_sub", "leave_sub"):
-        mapping_store = TelegramMappingStore(
-            settings.paths.data_dir / "bot" / "telegram-uuid.json"
-        )
-        await _handle_player_action(
-            action,
-            meetup,
-            meetup_date,
-            query,
-            container,
-            mapping_store,
-            context.bot,
-            settings,
-            notifier,
-        )
-    elif action == "search":
-        await _handle_search_callback(
-            meetup, query, container, context.bot, settings, from_user.id
-        )
+    mapping_store = TelegramMappingStore(settings.paths.data_dir / "bot" / "telegram-uuid.json")
+    await _handle_player_action(
+        action,
+        meetup,
+        meetup_date,
+        query,
+        container,
+        mapping_store,
+        notifier,
+    )
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -113,8 +98,6 @@ async def _handle_player_action(
     query: CallbackQuery,
     container: Container,
     mapping_store: TelegramMappingStore,
-    bot: telegram.Bot,
-    settings: "TelegramAppSettings",
     notifier: "MatchNotifier",
 ) -> None:
     """Handle join/leave/join_sub/leave_sub callback actions.
@@ -165,7 +148,7 @@ async def _handle_player_action(
         await query.answer("No estás en este meetup.", show_alert=True)
         return
 
-    if action == "join_sub" and not _is_search_open(meetup, settings):
+    if action == "join_sub" and not meetup.substitute_search:
         await query.answer("La búsqueda de suplentes está cerrada.", show_alert=True)
         return
 
@@ -173,58 +156,12 @@ async def _handle_player_action(
     if modified:
         updated_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if updated_meetup:
-            await refresh_callup_messages(bot, settings, container, updated_meetup)
             is_substitute = "_sub" in action
             if "join" in action:
                 await notifier.on_player_joined(updated_meetup, player, is_substitute)
             else:
                 await notifier.on_player_left(updated_meetup, player, is_substitute)
         await query.answer()
-
-
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-async def _handle_search_callback(
-    meetup: Meetup,
-    query: CallbackQuery,
-    container: Container,
-    bot: telegram.Bot,
-    settings: "TelegramAppSettings",
-    user_id: int,
-) -> None:
-    """Handle search button callback — send the substitutes message on demand."""
-    if not settings.telegram.is_authorized(user_id):
-        await query.answer(
-            "Solo los administradores pueden realizar esta acción.", show_alert=True
-        )
-        return
-    if not meetup.is_signup_open():
-        await query.answer(
-            "Los equipos ya están hechos, no se puede buscar más jugadores.", show_alert=True
-        )
-        return
-    if not settings.telegram.substitutes.meetups:
-        await query.answer("El chat de suplentes no está configurado.", show_alert=True)
-        return
-    search_target = next_search_target(len(meetup.players))
-    if search_target is None:
-        await query.answer(
-            "Ya sois 15 o más, no hace falta buscar más jugadores.", show_alert=True
-        )
-        return
-    try:
-        await _do_search(meetup, container, bot, settings, search_target)
-        await query.answer("Mensaje enviado a suplentes.")
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("Unexpected error in search callback")
-        await query.answer("Ha ocurrido un error inesperado.", show_alert=True)
-
-
-def _is_search_open(meetup: Meetup, settings: "TelegramAppSettings") -> bool:
-    """Return True while the meetup's substitute search still has room."""
-    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
-    tracking = store.get_message(meetup.date, "substitute")
-    target = tracking.search_target if tracking else None
-    return update_search_target(target, len(meetup.players)) is not None
 
 
 def _parse_meetup_date(date_str: str) -> datetime | None:

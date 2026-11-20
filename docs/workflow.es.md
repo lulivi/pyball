@@ -48,21 +48,26 @@ paso 1.
 
 - **`/manage`:** "✏️ Editar convocatoria" abre el mismo modo de edición que los equipos:
   quitar, reemplazar o buscar y añadir jugadores, y luego "💾 Guardar convocatoria".
-- **Telegram:** un admin puede pulsar el botón "🔎 Buscar jugadores" del mensaje de
-  convocatoria de titulares (o volver a tocarlo más tarde) para publicar un mensaje
-  aparte en el chat de suplentes con sus propios botones "✔ Unirse" / "✖ Salir" — es un
-  paso manual y deliberado, para que los titulares tengan prioridad unos días antes de
-  buscar suplentes.
+- **Capacidad:** cada partido se juega con un número de jugadores, su capacidad, que
+  empieza en `meetup_capacity` de `config.toml`. Cámbiala para un partido desde
+  "👥 Capacidad" en `/manage` (p. ej. 12 para un 6 contra 6, o 15 para un 7 contra 8 con
+  un suplente que rota); el siguiente partido vuelve a empezar en el valor por defecto.
+- **Búsqueda de suplentes:** "🔎 Buscar suplentes" en `/manage` (o un plugin, a través
+  de la API de plugins) abre una búsqueda mientras los apuntados no llegan a la
+  capacidad. Si hay un chat de suplentes configurado, Telegram publica ahí un mensaje
+  aparte con sus propios botones "✔ Unirse" / "✖ Salir". Abrirla es un paso manual y
+  deliberado, para que los titulares tengan prioridad unos días antes de buscar
+  suplentes.
 
-  Cada búsqueda tiene un objetivo: el siguiente escalón de **10 → 12 → 15** jugadores
-  por encima de los apuntados (9 → 10, 10–11 → 12, 12–14 → 15; con 15 o más no hay
-  nada que buscar). La búsqueda se cierra sola en cuanto se alcanza el objetivo —
-  lo complete un titular o un suplente — y el mensaje de suplentes se edita a
-  "✅ Completo" sin botones, así ningún suplente se cuela antes de que generes los
-  equipos. Mientras busca, el objetivo solo baja: con 11 apuntados buscando 12, si
-  alguien se desapunta se vuelve a 10 y la búsqueda queda completa. Los titulares
-  pueden seguir apuntándose. ¿Hacen falta más después? Pulsa "Buscar" otra vez para
-  abrir una búsqueda nueva.
+  La búsqueda se cierra sola en cuanto los apuntados llegan a la capacidad, lo complete
+  un titular o un suplente, y el mensaje de suplentes se edita a "✅ Completo" sin
+  botones, así ningún suplente se cuela antes de que generes los equipos. También puedes
+  cerrarla a mano con "✖ Cerrar búsqueda", o bajando la capacidad a los apuntados que
+  tienes. Con la convocatoria llena no se puede abrir una búsqueda: sube antes la
+  capacidad (10 → 12) y luego busca. Si la subiste y se desapunta gente hasta volver al
+  valor por defecto, la capacidad vuelve al valor por defecto: con 11 apuntados buscando
+  12, una baja os deja en 10 y la búsqueda queda completa. Los titulares pueden seguir
+  apuntándose.
 
 ## Alta por cuenta propia en `/signup`
 
@@ -83,6 +88,8 @@ todavía estás formando la convocatoria como después de generar los equipos.
 - **Apuntarse o bajarse:** mientras el alta sigue abierta (antes de generar los
   equipos — ver [paso 3](#3-generar-equipos)), un botón "Apuntarme" / "Salir" añade o
   quita al jugador de la convocatoria, igual que si lo hiciera un admin desde `/manage`.
+  El alta o la baja queda registrada en el flujo de eventos para los plugins, y cuenta
+  para la búsqueda de suplentes.
 - **Una vez hay equipos:** el botón de apuntarse/bajarse desaparece; el jugador ve todos
   los equipos, en modo solo lectura, la misma vista que ven todos desde `/manage` o
   `/match` — con su propio nombre resaltado para encontrarse de un vistazo.
@@ -121,8 +128,8 @@ una misma posición. Siempre puedes ver o cambiar quién es el portero de un equ
 
 Nada más existir los equipos, la convocatoria se cierra automáticamente: los
 botones "✔ Unirse" / "✖ Salir" de Telegram desaparecen de los mensajes de titulares y
-suplentes, y pulsar "🔎 Buscar jugadores" (o el comando `/meetup_search`) se rechaza —
-ya nadie puede apuntarse ni bajarse una vez que hay equipos.
+suplentes, y cualquier búsqueda de suplentes abierta se cierra — ya nadie puede
+apuntarse ni bajarse una vez que hay equipos.
 
 En cuanto hay equipos, "🔗 Copiar link partido" (copia de un toque la URL de `/match`,
 con `match_token` incluido si está configurado) y, en un triangular, "🏁 Cerrar
@@ -134,7 +141,7 @@ sigue funcionando en todo momento.
 
 ¿Te lo has pensado mejor? "🗑️ Destruir equipos" descarta los equipos actuales
 y vuelve a la vista de convocatoria, para que puedas
-editarla y, en Telegram, volver a buscar suplentes. Está disponible hasta que se
+editarla y volver a buscar suplentes. Está disponible hasta que se
 registre el primer resultado — a partir de ahí, la única forma de deshacer la sesión
 es corregir el resultado después (ver [paso 6](#6-ver-estadísticas)).
 

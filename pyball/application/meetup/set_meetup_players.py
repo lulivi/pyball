@@ -33,10 +33,13 @@ logger = logging.getLogger(__name__)
 class SetMeetupPlayers:
     """Use case for creating or resetting a meetup with a fixed player list."""
 
-    def __init__(self, meetup_repository: MeetupRepository, default_location: str):
-        """Initialize with the meetup repository and the default location."""
+    def __init__(
+        self, meetup_repository: MeetupRepository, default_location: str, default_capacity: int
+    ):
+        """Initialize with the meetup repository and the defaults for a new meetup."""
         self.meetup_repository = meetup_repository
         self.default_location = default_location
+        self.default_capacity = default_capacity
 
     def execute(self, date: datetime, player_ids: list[str]) -> Meetup:
         """Create or reset the meetup at ``date`` with exactly the given players.
@@ -59,16 +62,16 @@ class SetMeetupPlayers:
             raise MeetupAlreadyClosedError("Match already finished, cannot reset")
         created = meetup is None
         if meetup is None:
-            meetup = Meetup.create(date=date, location=self.default_location)
+            meetup = Meetup.create(
+                date=date, location=self.default_location, capacity=self.default_capacity
+            )
         else:
             if meetup.has_recorded_results():
                 raise MeetupHasRecordedResultsError(
                     f"Meetup at {date} already has a recorded result, cannot reset the roster."
                 )
-            meetup.players.clear()
             meetup.clear_teams()
-        for pid in ids:
-            meetup.add_player(pid)
+        meetup.replace_players(ids, self.default_capacity)
         self.meetup_repository.save(meetup)
         if created:
             logger.info("Meetup created for %s with %d players", date, len(meetup.players))

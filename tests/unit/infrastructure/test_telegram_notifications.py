@@ -132,49 +132,72 @@ async def test_on_meetup_updated_hides_keyboard_when_teams_exist(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_on_meetup_updated_keeps_open_search_target(tmp_path):
-    """refresh_callup_messages keeps the target and the keyboard while the search is open."""
+async def test_on_meetup_updated_keeps_subs_keyboard_while_search_open(tmp_path):
+    """The substitutes message keeps its keyboard while the search is open."""
     notifier, bot = _make_notifier(tmp_path)
-    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo", capacity=15)
     for _ in range(13):
         meetup.add_player(PlayerId.generate())
+    meetup.open_substitute_search()
     store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
-    store.save_message(
-        meetup.date,
-        "substitute",
-        MessageTracking(chat_id=-200, message_id=99, search_target=15),
-    )
+    store.save_message(meetup.date, "substitute", MessageTracking(chat_id=-200, message_id=99))
 
     await notifier.on_meetup_updated(meetup)
 
-    assert store.get_message(meetup.date, "substitute").search_target == 15
     subs_edit = next(
         c for c in bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 99
     )
     assert subs_edit.kwargs["reply_markup"] is not None
+    assert "13/15" in subs_edit.kwargs["text"]
 
 
 @pytest.mark.asyncio
-async def test_on_meetup_updated_closes_reached_search_target(tmp_path):
-    """refresh_callup_messages closes the search and strips its keyboard once target is met."""
+async def test_on_meetup_updated_strips_subs_keyboard_once_search_closed(tmp_path):
+    """The substitutes message loses its keyboard once the search is closed."""
     notifier, bot = _make_notifier(tmp_path)
-    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo", capacity=15)
     for _ in range(12):
         meetup.add_player(PlayerId.generate())
     store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
-    store.save_message(
-        meetup.date,
-        "substitute",
-        MessageTracking(chat_id=-200, message_id=99, search_target=15),
-    )
+    store.save_message(meetup.date, "substitute", MessageTracking(chat_id=-200, message_id=99))
 
     await notifier.on_meetup_updated(meetup)
 
-    assert store.get_message(meetup.date, "substitute").search_target is None
     subs_edit = next(
         c for c in bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 99
     )
     assert subs_edit.kwargs["reply_markup"] is None
+
+
+@pytest.mark.asyncio
+async def test_on_substitute_search_opened_posts_and_tracks_subs_message(tmp_path):
+    """Opening a search posts the substitutes callup with its keyboard and tracks it."""
+    notifier, bot = _make_notifier(tmp_path)
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=55))
+    notifier._settings.telegram.substitutes.meetups.chat_id = -400  # pylint: disable=W0212
+    notifier._settings.telegram.substitutes.meetups.message_thread_id = (
+        None  # pylint: disable=W0212
+    )
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    meetup.open_substitute_search()
+
+    await notifier.on_substitute_search_opened(meetup)
+
+    assert bot.send_message.call_args.kwargs["reply_markup"] is not None
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    assert store.get_message(meetup.date, "substitute").message_id == 55
+
+
+@pytest.mark.asyncio
+async def test_on_substitute_search_opened_without_subs_chat_sends_nothing(tmp_path):
+    """With no substitutes chat configured, opening a search posts nothing."""
+    notifier, bot = _make_notifier(tmp_path)
+    notifier._settings.telegram.substitutes.meetups = None  # pylint: disable=protected-access
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+
+    await notifier.on_substitute_search_opened(meetup)
+
+    bot.send_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -541,3 +564,18 @@ async def test_post_match_stats_posts_to_stats_chat_not_meetups_chat(tmp_path):
     kwargs = bot.send_photo.call_args.kwargs
     assert kwargs["chat_id"] == -200
     assert kwargs["message_thread_id"] == 99
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hook", ["on_player_joined", "on_player_left"])
+async def test_join_and_leave_hooks_refresh_the_tracked_callup(tmp_path, hook):
+    """A join or leave from any source edits the tracked regulars callup."""
+    notifier, bot = _make_notifier(tmp_path)
+    meetup = Meetup.create(datetime(2026, 4, 30, 20, 0), "Campo")
+    store = TelegramMessageStore(tmp_path / "bot" / "messages.json")
+    store.save_message(meetup.date, "regular", MessageTracking(chat_id=-100, message_id=42))
+
+    await getattr(notifier, hook)(meetup, Player.create("Ana"), False)
+
+    edits = [c for c in bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 42]
+    assert edits and edits[0].kwargs["reply_markup"] is not None

@@ -224,6 +224,7 @@ function renderState1(data) {
     <div id="roster-text" class="summary-box">${escHtml(buildRosterText(data))}</div>
     <button class="btn btn-teal" onclick="copyRosterText()">📋 Copiar convocatoria</button>
     <button class="btn btn-gray" onclick="toggleEditPanel()">✏️ Editar convocatoria</button>
+    ${_buildCapacityRow(data)}
     ${buildTeamButtonsRow()}
     ${data.signupUrl ? copyLinkButton('🔗 Copiar link apuntarse', data.signupUrl) : ''}
     ${buildCancelTrigger()}
@@ -249,6 +250,22 @@ async function createOrRegenerateTeams(teamCount, btn) {
         alert('Error: ' + e.message);
         buttons.forEach((b, i) => { b.disabled = false; b.textContent = originalLabels[i]; });
     }
+}
+
+async function changeCapacity() {
+    const value = prompt('¿Con cuántos jugadores se juega este partido?', activeMatchData.capacity);
+    if (value === null) return;
+    const capacity = Number(value);
+    if (!Number.isInteger(capacity) || capacity < 2) {
+        alert('La capacidad debe ser un número entero de al menos 2.');
+        return;
+    }
+    await _updateActiveMeetup('/api/meetup/capacity', { date: activeMatchData.date, capacity });
+}
+
+async function toggleSubstituteSearch() {
+    const action = activeMatchData.substituteSearch ? 'close' : 'open';
+    await _updateActiveMeetup(`/api/meetup/substitute-search/${action}`, { date: activeMatchData.date });
 }
 
 async function toggleDateLocationEdit() {
@@ -752,6 +769,31 @@ async function _saveRoster(playerIds) {
 
 // Strict 24h "HH:MM" check — the time fields are plain text (not <input type="time">)
 // so no browser can silently swap in a 12h AM/PM format.
+async function _updateActiveMeetup(path, body) {
+    try {
+        activeMatchData = await post(path, body);
+    } catch (err) {
+        alert('Error: ' + (err.detail || err.message));
+        return;
+    }
+    renderState1(activeMatchData);
+}
+
+function _buildCapacityRow(data) {
+    const count = data.players.length;
+    const searchLabel = data.substituteSearch ? '✖ Cerrar búsqueda' : '🔎 Buscar suplentes';
+    const full = !data.substituteSearch && count >= data.capacity;
+    const status = data.substituteSearch
+        ? `Buscando suplentes: ${count}/${data.capacity}`
+        : `Jugadores: ${count}/${data.capacity}${full ? ' · completo, sube la capacidad para buscar más' : ''}`;
+    return `
+    <div class="date-badge">👥 ${escHtml(status)}</div>
+    <div class="action-row">
+      <button class="btn btn-gray" onclick="changeCapacity()">👥 Capacidad</button>
+      <button class="btn btn-blue" onclick="toggleSubstituteSearch()" ${full ? 'disabled' : ''}>${searchLabel}</button>
+    </div>`;
+}
+
 function _isValidTime24h(value) {
     return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
 }
@@ -985,6 +1027,8 @@ Object.assign(window, {
     includeChip,
     toggleDateLocationEdit,
     saveDateLocationEdit,
+    changeCapacity,
+    toggleSubstituteSearch,
 });
 
 if ('serviceWorker' in navigator) {

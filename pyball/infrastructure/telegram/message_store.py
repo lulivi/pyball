@@ -33,7 +33,6 @@ class MessageTracking:
     chat_id: int
     message_id: int
     thread_id: str | int | None = None
-    search_target: int | None = None
 
 
 ChatType = Literal["regular", "substitute"]
@@ -60,8 +59,6 @@ class TelegramMessageStore:
             "thread_id": tracking.thread_id,
             "message_id": tracking.message_id,
         }
-        if tracking.search_target is not None:
-            entry["search_target"] = tracking.search_target
         data[key][chat_type] = entry
         self._write(data)
 
@@ -76,7 +73,6 @@ class TelegramMessageStore:
             chat_id=msg["chat_id"],
             thread_id=msg.get("thread_id"),
             message_id=msg["message_id"],
-            search_target=msg.get("search_target"),
         )
 
     def delete_message(self, meetup_date: datetime, chat_type: ChatType) -> None:

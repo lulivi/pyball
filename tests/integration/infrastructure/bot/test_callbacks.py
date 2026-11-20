@@ -13,21 +13,27 @@ from pyball.infrastructure.telegram import TelegramMessageStore
 from pyball.infrastructure.telegram.bot.callbacks import callback_handler
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.infrastructure.telegram.settings import ChatConfig
 
 # pylint: disable=redefined-outer-name
 
 
-def _open_search(bot_context, target):
-    """Persist an open substitute search with the given target (message_id 7)."""
+def _open_search(bot_context, meetup, capacity):
+    """Open a substitute search for ``capacity`` players, tracked as subs message 7."""
+    meetup.capacity = capacity
+    meetup.open_substitute_search()
+    bot_context.bot_data["container"].meetup_repository.save(meetup)
     settings = bot_context.bot_data["settings"]
     store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
     store.save_message(
         datetime(2026, 4, 25, 20, 0),
         "substitute",
-        MessageTracking(chat_id=-100222, message_id=7, search_target=target),
+        MessageTracking(chat_id=-100222, message_id=7),
     )
-    return store
+
+
+def _stored(bot_context):
+    container = bot_context.bot_data["container"]
+    return container.meetup_repository.find_by_datetime(datetime(2026, 4, 25, 20, 0))
 
 
 def _fill(bot_context, meetup, n):
@@ -166,7 +172,7 @@ async def test_join_sub_notifies_player_joined_as_suplente(
     callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
 ):
     """Join-sub callback notifies on_player_joined with is_substitute=True."""
-    _open_search(bot_context, 10)
+    _open_search(bot_context, saved_meetup, 10)
     callback_update.callback_query.data = "join_sub:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
@@ -346,113 +352,6 @@ async def test_leave_logs_debug_event(
 
 
 @pytest.mark.asyncio
-async def test_search_callback_authorized_sends_message(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Admin pressing search sends the substitutes message and answers with a toast."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "search:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    bot_context.bot.send_message.assert_called_once()
-    call_kwargs = bot_context.bot.send_message.call_args.kwargs
-    assert call_kwargs["chat_id"] == -100222
-    callback_update.callback_query.answer.assert_called_once_with("Mensaje enviado a suplentes.")
-
-
-@pytest.mark.asyncio
-async def test_search_callback_unauthorized_answers_admin_alert(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Non-admin pressing search receives an admin-only alert and nothing is sent."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = False
-    callback_update.callback_query.data = "search:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    bot_context.bot.send_message.assert_not_called()
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "administrador" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_search_callback_no_substitutes_chat_answers_alert(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Search callback alerts when no substitutes chat is configured."""
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    bot_context.bot_data["settings"].telegram.substitutes.meetups = ChatConfig()
-    callback_update.callback_query.data = "search:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    bot_context.bot.send_message.assert_not_called()
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "no está configurado" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_search_callback_signup_closed_answers_alert(
-    callback_update, bot_context, saved_meetup
-):
-    """Search callback alerts and sends nothing once teams already exist."""
-    container = bot_context.bot_data["container"]
-    extra_id = PlayerId.generate()
-    saved_meetup.add_player(extra_id)
-    saved_meetup.set_teams([Team.create("A", [extra_id]), Team.create("B", [])])
-    container.meetup_repository.save(saved_meetup)
-    bot_context.bot_data["settings"].telegram.is_authorized.return_value = True
-    callback_update.callback_query.data = "search:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    bot_context.bot.send_message.assert_not_called()
-    call_kwargs = callback_update.callback_query.answer.call_args
-    assert call_kwargs[1].get("show_alert") is True
-    text = call_kwargs[1].get("text") or call_kwargs[0][0]
-    assert "equipos" in text.lower()
-
-
-@pytest.mark.asyncio
-async def test_search_callback_stores_target(
-    callback_update, bot_context, saved_meetup  # pylint: disable=unused-argument
-):
-    """Pressing search stores the next threshold as the search target."""
-    callback_update.callback_query.data = "search:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    settings = bot_context.bot_data["settings"]
-    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
-    tracking = store.get_message(datetime(2026, 4, 25, 20, 0), "substitute")
-    assert tracking.search_target == 10
-
-
-@pytest.mark.asyncio
-async def test_search_callback_rejects_when_roster_at_fifteen(
-    callback_update, bot_context, saved_meetup
-):
-    """Pressing search with 15 players answers an alert and sends nothing."""
-    container = bot_context.bot_data["container"]
-    for _ in range(15):
-        saved_meetup.add_player(PlayerId.generate())
-    container.meetup_repository.save(saved_meetup)
-    callback_update.callback_query.data = "search:2026-04-25T20:00"
-
-    await callback_handler(callback_update, bot_context)
-
-    bot_context.bot.send_message.assert_not_called()
-    callback_update.callback_query.answer.assert_called_once_with(
-        "Ya sois 15 o más, no hace falta buscar más jugadores.", show_alert=True
-    )
-
-
-@pytest.mark.asyncio
 async def test_join_sub_rejected_when_no_search_open(
     callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
 ):
@@ -473,8 +372,8 @@ async def test_join_sub_rejected_when_no_search_open(
 async def test_join_sub_rejected_when_target_reached(
     callback_update, bot_context, linked_player, saved_meetup
 ):
-    """A stale open target already reached by the roster still blocks joins."""
-    _open_search(bot_context, 10)
+    """A search the roster already filled refuses substitute joins."""
+    _open_search(bot_context, saved_meetup, 10)
     _fill(bot_context, saved_meetup, 10)
     callback_update.callback_query.data = "join_sub:2026-04-25T20:00"
 
@@ -489,19 +388,14 @@ async def test_join_sub_rejected_when_target_reached(
 async def test_regular_join_reaching_target_closes_search(
     callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
 ):
-    """The 10th player (a regular) closes the search and strips the subs keyboard."""
-    store = _open_search(bot_context, 10)
+    """The 10th player (a regular) closes the search."""
+    _open_search(bot_context, saved_meetup, 10)
     _fill(bot_context, saved_meetup, 9)
     callback_update.callback_query.data = "join:2026-04-25T20:00"
 
     await callback_handler(callback_update, bot_context)
 
-    assert store.get_message(datetime(2026, 4, 25, 20, 0), "substitute").search_target is None
-    subs_edit = next(
-        c for c in bot_context.bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 7
-    )
-    assert subs_edit.kwargs["reply_markup"] is None
-    assert "Completo" in subs_edit.kwargs["text"]
+    assert not _stored(bot_context).substitute_search
 
 
 @pytest.mark.asyncio
@@ -509,7 +403,7 @@ async def test_leave_from_eleven_closes_search_at_ten(
     callback_update, bot_context, linked_player, saved_meetup
 ):
     """Searching for 12 with 11 players: a leave lands on 10 and completes the search."""
-    store = _open_search(bot_context, 12)
+    _open_search(bot_context, saved_meetup, 12)
     _fill(bot_context, saved_meetup, 10)
     container = bot_context.bot_data["container"]
     saved_meetup.add_player(linked_player.id)
@@ -518,4 +412,5 @@ async def test_leave_from_eleven_closes_search_at_ten(
 
     await callback_handler(callback_update, bot_context)
 
-    assert store.get_message(datetime(2026, 4, 25, 20, 0), "substitute").search_target is None
+    assert not _stored(bot_context).substitute_search
+    assert _stored(bot_context).capacity == 10

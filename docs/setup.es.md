@@ -72,6 +72,7 @@ despliegue sin editar el archivo.
 | `name` | Nombre de la instancia mostrado en la interfaz | *(obligatorio)* |
 | `default_week_day` | Día por defecto (`monday`–`sunday`) para nuevos partidos | `wednesday` |
 | `default_hour` | Hora de inicio por defecto (`HH:MM`) | `20:00` |
+| `meetup_capacity` | Jugadores con los que juega un partido nuevo; la capacidad de cada partido se cambia luego desde `/manage` | `10` |
 | `display_date_format` | Formato de fecha usado en los mensajes | `%Y-%m-%d %H:%M` |
 | `team_colors` | Dos o tres nombres de color: los dos primeros son los equipos del partido clásico, el tercero solo se usa en triangulares (se rellena solo si indicas dos) | `["blanco", "negro", "rojo"]` |
 | `base_url` | URL pública usada para construir el enlace de `/match` | *(obligatorio)* |
@@ -122,6 +123,16 @@ bot, el chat y el tema del foro de los secretos de GitHub `DEPLOY_NOTIFY_TOKEN`,
 que `telegram.management.logging`. Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
 envían notificaciones.
 
+### `[pyball.plugins.<nombre>]` — plugins opcionales
+
+Una tabla por plugin, con su nombre. Las dos topologías los ejecutan (ver
+[Plugins](#8-plugins)). Estas tablas no admiten variables de entorno.
+
+| Clave | Descripción | Obligatorio |
+|---|---|---|
+| `command` | Programa y argumentos que arrancan el plugin, ejecutado desde el espacio de trabajo, p. ej. `["./plugins/example-plugin", "--verbose"]` | **Sí** |
+| `scopes` | Lo que el plugin puede hacer con la API de plugins: cualquiera de `players:read`, `players:write`, `meetups:read` (incluye el flujo de eventos), `meetups:write` | No (ninguno) |
+
 ## 4. Arranca la aplicación
 
 ```bash
@@ -165,6 +176,7 @@ VPN, túnel, etc.) depende de ti — estos tokens funcionan igual en cualquier c
 | `/`, archivos estáticos, manifiestos PWA | Ninguno (siempre público) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **o** `manage_token` |
 | `/signup` y `/api/signup/*` (solo si `enable_web_signup` está activo) | `signup_token` **o** `manage_token` |
+| `/api/v1/*` (la API de plugins) | `Authorization: Bearer` con el token propio de un plugin **o** `manage_token` — ver [Plugins](#8-plugins) |
 | `/manage` y todo lo demás bajo `/api/*` | Solo `manage_token` |
 
 Dale el `match_token` (solo marcador) a un dispositivo que solo deba ver `/match` (ej.
@@ -188,6 +200,62 @@ docker compose up -d
 
 Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.0` en
 `.env`.
+
+## 8. Plugins
+
+Un plugin es un programa opcional y de larga duración, escrito en cualquier lenguaje, que
+amplía PyBall sin tocar su código. Se ejecuta mientras PyBall esté en marcha, reaccionando
+al flujo de eventos o con su propio calendario: una tarea que se ejecuta una vez y
+termina va en cron. Decláralo en `config.toml` (ver
+[`[pyball.plugins.<nombre>]`](#pyballpluginsnombre--plugins-opcionales)) y pon el
+programa en la carpeta `plugins/` del espacio de trabajo, que el `compose.yaml` generado
+monta en `/pyball/plugins`. Luego arranca PyBall como siempre: sigue siendo un solo
+comando.
+
+PyBall ejecuta cada plugin declarado como proceso hijo, desde el espacio de trabajo:
+
+- **Arranque:** cuando el servidor web ya está listo, con tres variables de entorno:
+  `PYBALL_API_URL` (la API de plugins, p. ej. `http://127.0.0.1:8000/api/v1`),
+  `PYBALL_API_TOKEN` (el token propio del plugin, nuevo en cada arranque) y
+  `PYBALL_PLUGIN_NAME`.
+- **Salida:** lo que el plugin imprime va al log de PyBall, bajo
+  `pyball.plugins.<nombre>`.
+- **Caídas:** un plugin que termina se arranca otra vez tras 1 s, luego 2 s, 4 s, ...
+  hasta 60 s; uno que llevaba un minuto en marcha vuelve tras 1 s. PyBall sigue
+  funcionando.
+- **Apagado:** PyBall envía `SIGTERM` a cada plugin y, 10 s después, `SIGKILL` a los que
+  sigan en marcha.
+
+### La API de plugins
+
+Un plugin habla con PyBall solo a través de `PYBALL_API_URL`, enviando
+`Authorization: Bearer $PYBALL_API_TOKEN`. Cada llamada es una acción lógica y registra
+un evento. El contrato completo, con cada petición y respuesta, es el esquema OpenAPI de
+`/api/v1/openapi.json`, navegable en `/api/v1/docs`.
+
+| Llamada | Scope | Qué hace |
+|---|---|---|
+| `GET /players` | `players:read` | Todos los jugadores |
+| `GET /meetups/active` | `meetups:read` | El partido activo, con su capacidad y su búsqueda de suplentes |
+| `POST /meetups` | `meetups:write` | Crea un partido; `location` y `capacity` son opcionales |
+| `DELETE /meetups/{id}` | `meetups:write` | Cancela el partido activo |
+| `PUT` / `DELETE /meetups/{id}/players/{player_id}` | `meetups:write` | Apunta o quita a un jugador |
+| `PUT /meetups/{id}/lineup` | `meetups:write` | Fija la convocatoria y, con `team_algorithm` (`balanceado` o `random`), hace los equipos |
+| `PUT /meetups/{id}/capacity` | `meetups:write` | Cambia la capacidad |
+| `POST` / `DELETE /meetups/{id}/substitute-search` | `meetups:write` | Abre o cierra la búsqueda de suplentes |
+| `GET /events` | `meetups:read` | El flujo de eventos, abajo |
+
+### El flujo de eventos
+
+`GET /api/v1/events` es un flujo de
+[server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html).
+Cada evento tiene un `id`, su tipo como `event`, y un `data` JSON con el partido tal como
+quedó justo después (ver [`data/events.jsonl`](data-directory.es.md#dataeventsjsonl) para
+los tipos y campos). Para no perderse nada, un plugin guarda el último `id` que procesó y
+se reconecta con `Last-Event-ID: <id>` (o `?after=<id>`): recibe todos los eventos
+posteriores, en orden y sin duplicados, y luego los nuevos según ocurren. `?after=0`
+reproduce todo el registro; sin ninguno de los dos, el flujo empieza en el siguiente
+evento. Un flujo sin actividad envía un comentario cada 15 s.
 
 ## Ejecutar en Windows (WSL2)
 

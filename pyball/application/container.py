@@ -26,6 +26,7 @@ from pyball.application.meetup import (
     AssignTeamsById,
     CancelMeetup,
     CloseMeetup,
+    CloseSubstituteSearch,
     ComputeStats,
     CreateMeetup,
     CreateTeams,
@@ -34,8 +35,11 @@ from pyball.application.meetup import (
     FinishMatch,
     FormatMatchSummary,
     GetActiveMeetup,
+    OpenSubstituteSearch,
     ParseCallup,
     RemovePlayerFromMeetupById,
+    SetLineup,
+    SetMeetupCapacity,
     SetMeetupPlayers,
     UpdateMeetupDate,
     UpdateMeetupLocation,
@@ -57,6 +61,7 @@ from pyball.infrastructure.persistence import (
     JsonPlayerRepository,
     LegacyStats,
 )
+from pyball.infrastructure.plugins.event_log import EventLog
 from pyball.settings import AppSettings
 
 
@@ -69,6 +74,7 @@ class Container:  # pylint: disable=too-many-public-methods
         self._player_repository: PlayerRepository | None = None
         self._meetup_repository: MeetupRepository | None = None
         self._legacy_stats: LegacyStats | None = None
+        self._event_log: EventLog | None = None
 
     def create_player(self) -> CreatePlayer:
         """Create a new CreatePlayer use case."""
@@ -84,7 +90,11 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def create_meetup(self) -> CreateMeetup:
         """Create a new CreateMeetup use case."""
-        return CreateMeetup(self.meetup_repository, self._settings.pyball.location)
+        return CreateMeetup(
+            self.meetup_repository,
+            self._settings.pyball.location,
+            self._settings.pyball.meetup_capacity,
+        )
 
     def change_player_group(self) -> ChangePlayerGroup:
         """Create a new ChangePlayerGroup use case."""
@@ -100,7 +110,9 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def remove_player_from_meetup_by_id(self) -> RemovePlayerFromMeetupById:
         """Create a new RemovePlayerFromMeetupById use case."""
-        return RemovePlayerFromMeetupById(self.meetup_repository)
+        return RemovePlayerFromMeetupById(
+            self.meetup_repository, self._settings.pyball.meetup_capacity
+        )
 
     def create_teams(self, algo_name: str | None = None) -> CreateTeams:
         """Create a new CreateTeams use case with the specified or default algorithm."""
@@ -152,7 +164,31 @@ class Container:  # pylint: disable=too-many-public-methods
 
     def set_meetup_players(self) -> SetMeetupPlayers:
         """Create a new SetMeetupPlayers use case."""
-        return SetMeetupPlayers(self.meetup_repository, self._settings.pyball.location)
+        return SetMeetupPlayers(
+            self.meetup_repository,
+            self._settings.pyball.location,
+            self._settings.pyball.meetup_capacity,
+        )
+
+    def set_lineup(self, algo_name: str | None = None) -> SetLineup:
+        """Create a SetLineup use case; with an algorithm name it also builds teams."""
+        return SetLineup(
+            self.meetup_repository,
+            self._settings.pyball.meetup_capacity,
+            self.create_teams(algo_name) if algo_name else None,
+        )
+
+    def set_meetup_capacity(self) -> SetMeetupCapacity:
+        """Create a new SetMeetupCapacity use case."""
+        return SetMeetupCapacity(self.meetup_repository)
+
+    def open_substitute_search(self) -> OpenSubstituteSearch:
+        """Create a new OpenSubstituteSearch use case."""
+        return OpenSubstituteSearch(self.meetup_repository)
+
+    def close_substitute_search(self) -> CloseSubstituteSearch:
+        """Create a new CloseSubstituteSearch use case."""
+        return CloseSubstituteSearch(self.meetup_repository)
 
     def cancel_meetup(self) -> CancelMeetup:
         """Create a new CancelMeetup use case."""
@@ -236,7 +272,9 @@ class Container:  # pylint: disable=too-many-public-methods
     def meetup_repository(self) -> MeetupRepository:
         """Get the meetup repository, creating it if necessary."""
         if self._meetup_repository is None:
-            self._meetup_repository = JsonMeetupRepository(self._settings.paths.meetups_dir)
+            self._meetup_repository = JsonMeetupRepository(
+                self._settings.paths.meetups_dir, self._settings.pyball.meetup_capacity
+            )
         return self._meetup_repository
 
     @property
@@ -246,6 +284,13 @@ class Container:  # pylint: disable=too-many-public-methods
             legacy_path = self._settings.paths.data_dir / "legacy_stats.json"
             self._legacy_stats = LegacyStats.from_file(str(legacy_path))
         return self._legacy_stats
+
+    @property
+    def event_log(self) -> EventLog:
+        """Get the plugin event log, loading it from data/events.jsonl if necessary."""
+        if self._event_log is None:
+            self._event_log = EventLog(self._settings.paths.data_dir / "events.jsonl")
+        return self._event_log
 
     def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
         """Build the algorithm registry with all available algorithms."""

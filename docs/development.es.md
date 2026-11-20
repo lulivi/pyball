@@ -24,6 +24,7 @@ pyball/
 │   ├── images/        #   Renderizado de la imagen de estadísticas (WeasyPrint + Jinja2)
 │   ├── signup/        #   Códigos personales de inscripción
 │   ├── telegram/      #   Bot de Telegram, configuración, notificaciones
+│   ├── plugins/       #   API de plugins (/api/v1), registro de eventos, credenciales, supervisor
 │   └── http/          #   App FastAPI, rutas, autenticación por token, páginas web estáticas
 ├── cmd/               # Un punto de entrada por topología — su Composition Root
 └── settings.py        # AppSettings y el cargador de config.toml
@@ -39,8 +40,6 @@ pyball/
 
 Fuera de `pyball/`:
 
-- `scripts/` — scripts de migración de datos puntuales y autocontenidos. `pyball/` no los
-  importa; se ejecutan a mano cuando cambia el formato de un JSON guardado.
 - `docs/` — documentación para el usuario, en inglés y español.
 
 ## Arranque
@@ -49,7 +48,8 @@ Fuera de `pyball/`:
 logs, fija el locale y construye el contenedor de dependencias. Cada `cmd/run_*.py` es el
 Composition Root de su topología: llama a `bootstrap_core()`, carga la configuración
 propia de la integración, conecta los componentes de infraestructura y gestiona el
-apagado ordenado.
+apagado ordenado: los plugins arrancan cuando el servidor HTTP ya acepta conexiones, y se
+paran primero, antes de cerrar los flujos de eventos y salir del servidor.
 
 Los dos puntos de entrada aceptan también `--bootstrap`, que solo genera un espacio de
 trabajo de despliegue (`config.toml`, `compose.yaml`, `.env`, ...) y termina. Nunca toca
@@ -70,6 +70,27 @@ topologías. Telegram y `/signup` son capas de comodidad sobre los mismos casos 
 nunca un requisito: un administrador siempre puede añadir, quitar o mover a un jugador
 entre equipos desde `/manage`, sin que ningún jugador visite `/signup` y sin ningún bot de
 Telegram configurado.
+
+## Plugins
+
+Un plugin es un programa aparte, en cualquier lenguaje, declarado en
+`[pyball.plugins.<nombre>]`. Las dos topologías alojan los plugins igual:
+
+- `PluginSupervisor` ejecuta cada uno como proceso hijo, lo reinicia con espera
+  creciente cuando termina y lo para al apagar.
+- `PluginCredentials` da a cada plugin un token bearer aleatorio en cada arranque,
+  limitado a los permisos (scopes) que declara.
+- `create_plugin_api()` sirve el contrato en `/api/v1`, una subaplicación FastAPI con su
+  propio esquema OpenAPI. Sus rutas devuelven los modelos de `plugins/schemas.py`,
+  separados de los presenters que usa `/manage`, así cada uno puede cambiar por su lado.
+- `EventLogNotifier` escribe cada evento de `MatchNotifier` en `data/events.jsonl`, y
+  `GET /api/v1/events` sirve ese registro como server-sent events. `pyball-telegram` lo
+  pone delante del notificador de Telegram con `CompositeMatchNotifier`, así un fallo de
+  Telegram nunca pierde un evento.
+
+`plugins/schemas.py` y las rutas de `/api/v1` son el contrato de plugins: un cambio en
+cualquiera de ellos actualiza en el mismo cambio los plugins que lo usan y
+`docs/setup.es.md`.
 
 ## Formatos de partido
 

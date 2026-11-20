@@ -43,20 +43,25 @@ usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 
 
 - **`/manage`:** "✏️ Editar convocatoria" opens the same edit mode used for teams —
   remove, replace or search-and-add players, then "💾 Guardar convocatoria".
-- **Telegram:** an admin can open the "🔎 Buscar jugadores" button on the regulars
-  callup message (or tap it again later) to post a separate message to the substitutes
-  chat with its own "✔ Unirse" / "✖ Salir" buttons — this is a deliberate, manual step so
-  regulars get priority for a few days before substitutes are searched.
+- **Capacity:** every meetup plays with a number of players, its capacity, which starts
+  at `meetup_capacity` from `config.toml`. Change it for one meetup from "👥 Capacidad"
+  in `/manage` (e.g. 12 for a 6 vs 6, or 15 for a 7 vs 8 with a rotating substitute);
+  the next meetup starts again at the default.
+- **Substitute search:** "🔎 Buscar suplentes" in `/manage` (or a plugin, through the
+  plugin API) opens a search while the roster is below capacity. If a substitutes chat
+  is configured, Telegram posts a separate message there with its own "✔ Unirse" /
+  "✖ Salir" buttons. Opening it is a deliberate, manual step, so regulars get priority
+  for a few days before substitutes are searched.
 
-  Each search has a target: the next of **10 → 12 → 15** players above the current
-  roster (9 → 10, 10–11 → 12, 12–14 → 15; with 15 or more there is nothing to search).
-  The search closes by itself as soon as the roster reaches the target — whoever fills
-  the last spot, regular or substitute — and the substitutes message is edited to
+  The search closes by itself as soon as the roster reaches the capacity, whoever fills
+  the last spot, regular or substitute, and the substitutes message is edited to
   "✅ Completo" without buttons, so no substitute can sneak in before you generate
-  teams. While searching, the target only moves down: with 11 players searching for 12,
-  if anyone leaves, the roster is back at 10 and the search is complete. Regulars can
-  keep joining regardless. Need more players later? Tap "Buscar" again to open a new
-  search.
+  teams. You can also close it by hand with "✖ Cerrar búsqueda", or by lowering the
+  capacity to the roster you have. A full roster can't open a search: raise the
+  capacity first (10 → 12), then search. If you raised it and players leave until the
+  roster is back at the default, the capacity returns to the default: with 11 players
+  searching for 12, one leave brings you to 10 and the search is complete. Regulars can
+  keep joining regardless.
 
 ## Self-service signup via `/signup`
 
@@ -76,6 +81,8 @@ both while you're still assembling the roster and after teams have been generate
 - **Joining/leaving:** while signup is still open (before teams are generated — see
   [step 3](#3-generate-teams)), an "Apuntarme" / "Salir" button lets the player add or
   remove themselves from the roster, exactly as if an admin had done it from `/manage`.
+  The join or leave is recorded in the event stream for plugins, and counts toward the
+  substitute search.
 - **Once teams exist:** the join/leave button disappears; the player instead sees all
   teams, read-only, the same view `/manage` and `/match` show everyone else — with their
   own name highlighted so they can find themselves at a glance.
@@ -111,9 +118,9 @@ one team with every player of the same position. You can always see or override 
 player is a team's goalkeeper from "✏️ Editar convocatoria".
 
 The moment teams exist, signup closes automatically: Telegram's "✔ Unirse" /
-"✖ Salir" buttons disappear from the callup and substitutes messages, and tapping
-"🔎 Buscar jugadores" (or the `/meetup_search` command) is rejected — nobody can join
-or leave the roster anymore once teams exist.
+"✖ Salir" buttons disappear from the callup and substitutes messages, and any open
+substitute search closes — nobody can join or leave the roster anymore once teams
+exist.
 
 Once teams exist, "🔗 Copiar link partido" (a one-click copy of the `/match` URL, with
 `match_token` embedded if configured) and, for a triangular, "🏁 Cerrar triangular" are
@@ -124,8 +131,8 @@ regenerating, cancelling and destroying disappear altogether. "✏️ Editar con
 location) keeps working throughout.
 
 Changed your mind? "🗑️ Destruir equipos" discards the current teams
-and returns to the roster view, so you can edit the convocatoria and, on Telegram,
-search for substitutes again. It's available until the first match result is
+and returns to the roster view, so you can edit the convocatoria and search for
+substitutes again. It's available until the first match result is
 recorded — after that, the only way to undo the session is correcting the result
 after the fact (see [step 6](#6-view-stats)).
 

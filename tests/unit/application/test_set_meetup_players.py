@@ -34,7 +34,7 @@ class FakeMeetupRepository:
 
 def _use_case(repo):
     """Build the use case with Parque Central as default location."""
-    return SetMeetupPlayers(repo, default_location="Parque Central")
+    return SetMeetupPlayers(repo, default_location="Parque Central", default_capacity=10)
 
 
 def _pid():

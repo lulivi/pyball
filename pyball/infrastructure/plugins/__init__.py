@@ -17,24 +17,4 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Substitute search target rules — how many players a Telegram search is looking for."""
-
-SEARCH_THRESHOLDS: tuple[int, ...] = (10, 12, 15)
-
-
-def next_search_target(player_count: int) -> int | None:
-    """Return the target for a new search, or None if the roster is already at the top."""
-    return next((t for t in SEARCH_THRESHOLDS if t > player_count), None)
-
-
-def update_search_target(target: int | None, player_count: int) -> int | None:
-    """Return the search target after a roster change; None means the search is closed.
-
-    The target only moves down: a leave that lands the roster on a lower threshold
-    (e.g. 11 -> 10 while searching for 12) completes the search at that threshold.
-    """
-    if target is None:
-        return None
-    floor = next((t for t in SEARCH_THRESHOLDS if t >= player_count), target)
-    target = min(target, floor)
-    return None if player_count >= target else target
+"""Plugin host: the versioned plugin API, its event stream, credentials and supervisor."""

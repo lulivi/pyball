@@ -39,14 +39,12 @@ from pyball.infrastructure.telegram.bot.handlers.general import add_command
 from pyball.infrastructure.telegram.bot.reactions import react_ok
 from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
-    build_subs_keyboard,
     format_display,
     format_main_message,
-    format_subs_message,
     parse_display,
 )
 from pyball.infrastructure.telegram.message_store import MessageTracking
-from pyball.infrastructure.telegram.search import next_search_target
+from pyball.infrastructure.telegram.notifications import send_substitutes_message
 from pyball.infrastructure.telegram.settings import TelegramAppSettings, TelegramSettings
 from pyball.logger import log_func
 
@@ -56,7 +54,6 @@ logger = logging.getLogger(__name__)
 def setup_meetup_handlers(application):
     """Register meetup-related handlers."""
     add_command(application, "meetup_show", show_handler)
-    add_command(application, "meetup_search", search_handler)
     add_command(application, "meetup_stats", stats_handler)
 
 
@@ -84,11 +81,7 @@ async def show_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             if p.id in player_ids
         )
         if has_substitutes and settings.telegram.substitutes.meetups:
-            store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
-            tracking = store.get_message(meetup.date, "substitute")
-            # Reposting never opens a search — keep whatever state it had.
-            search_target = tracking.search_target if tracking else None
-            await _do_search(meetup, container, context.bot, settings, search_target)
+            await send_substitutes_message(context.bot, settings, container, meetup)
 
         await react_ok(context.bot, message)
     except telegram.error.TelegramError as error:
@@ -97,43 +90,6 @@ async def show_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     except Exception:
         logger.exception("Unexpected error showing meetup")
         await message.reply_text("Error al mostrar la convocatoria.")
-
-
-@log_func
-@authorized
-async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /meetup_search command - send substitutes message."""
-    message = update.message
-    if message is None:
-        return
-    container: Container = context.bot_data["container"]
-    settings = context.bot_data["settings"]
-
-    if not settings.telegram.substitutes.meetups:
-        await message.reply_text("El chat de suplentes no está configurado.")
-        return
-
-    meetup = await _resolve_meetup(message, context.args, settings, container, "meetup_search")
-    if meetup is None:
-        return
-    if not meetup.is_signup_open():
-        await message.reply_text("Los equipos ya están hechos, no se puede buscar más jugadores.")
-        return
-
-    search_target = next_search_target(len(meetup.players))
-    if search_target is None:
-        await message.reply_text("Ya sois 15 o más, no hace falta buscar más jugadores.")
-        return
-
-    try:
-        await _do_search(meetup, container, context.bot, settings, search_target)
-        await react_ok(context.bot, message)
-    except telegram.error.TelegramError as error:
-        logger.error("Telegram error sending substitutes message: %s", error)
-        await message.reply_text("Error de Telegram al enviar el mensaje.")
-    except Exception:
-        logger.exception("Unexpected error sending substitutes message")
-        await message.reply_text("Error al enviar el mensaje.")
 
 
 @log_func
@@ -179,57 +135,6 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception:
         logger.exception("Unexpected error sending stats")
         await message.reply_text("Error al generar las estadísticas.")
-
-
-async def _do_search(
-    meetup: Meetup,
-    container: Container,
-    bot: telegram.Bot,
-    settings: TelegramAppSettings,
-    search_target: int | None,
-) -> None:
-    """Send the substitutes message to the substitutes chat and track it with its target.
-
-    ``search_target`` is the roster size this search is looking for (None means the
-    search is closed, rendering "✅ Completo" and omitting the join/leave keyboard).
-    """
-    player_repo = container.player_repository
-    player_names = _get_player_names(player_repo)
-    player_groups = {str(p.id.value): p.group for p in player_repo.find_all()}
-    text = format_subs_message(
-        meetup,
-        player_names,
-        player_groups,
-        team_colors=settings.pyball.team_colors,
-        team_emojis=settings.pyball.team_emojis,
-        date_fmt=settings.pyball.display_date_format,
-        search_target=search_target,
-    )
-    keyboard = (
-        build_subs_keyboard(meetup.date)
-        if meetup.is_signup_open() and search_target is not None
-        else None
-    )
-
-    subs = settings.telegram.substitutes.meetups
-    msg = await bot.send_message(
-        chat_id=subs.chat_id,
-        text=text,
-        reply_markup=keyboard,
-        message_thread_id=subs.message_thread_id,
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
-    store = TelegramMessageStore(settings.paths.data_dir / "bot" / "messages.json")
-    store.save_message(
-        meetup.date,
-        "substitute",
-        MessageTracking(
-            chat_id=subs.chat_id,
-            thread_id=subs.message_thread_id,
-            message_id=msg.message_id,
-            search_target=search_target,
-        ),
-    )
 
 
 async def _show_regulars_message(

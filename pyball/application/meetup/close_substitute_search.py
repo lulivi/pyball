@@ -17,24 +17,31 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Tests for the MatchNotifier interface and its null implementation."""
+"""Close substitute search use case."""
 
-from unittest.mock import MagicMock
+from datetime import datetime
 
-import pytest
+from pyball.domain.meetup.errors import MeetupNotFoundError
+from pyball.domain.meetup.models import Meetup
+from pyball.domain.meetup.repository import MeetupRepository
 
-from pyball.application.notifier import NullMatchNotifier
 
+class CloseSubstituteSearch:
+    """Use case for ending a meetup's substitute search."""
 
-@pytest.mark.asyncio
-async def test_null_notifier_methods_are_noops():
-    """All NullMatchNotifier hooks can be awaited without side effects."""
-    notifier = NullMatchNotifier()
-    await notifier.on_meetup_created(MagicMock())
-    await notifier.on_match_closed(MagicMock())
-    await notifier.on_meetup_updated(MagicMock())
-    await notifier.on_match_edited(MagicMock())
-    await notifier.on_meetup_cancelled(MagicMock())
-    await notifier.on_meetup_date_changed(MagicMock(), MagicMock())
-    await notifier.on_player_joined(MagicMock(), MagicMock(), False)
-    await notifier.on_player_left(MagicMock(), MagicMock(), True)
+    def __init__(self, meetup_repository: MeetupRepository) -> None:
+        """Initialize with the meetup repository."""
+        self.meetup_repository = meetup_repository
+
+    def execute(self, meetup_date: datetime) -> Meetup:
+        """Close the substitute search of the meetup at meetup_date.
+
+        Raises:
+            MeetupNotFoundError: No meetup exists at meetup_date.
+        """
+        meetup = self.meetup_repository.find_by_datetime(meetup_date)
+        if meetup is None:
+            raise MeetupNotFoundError(str(meetup_date))
+        meetup.close_substitute_search()
+        self.meetup_repository.save(meetup)
+        return meetup

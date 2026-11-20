@@ -7,7 +7,7 @@ from telegram import Message, Update, User
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
-from pyball.application.notifier import NullMatchNotifier
+from pyball.application.notifier import MatchNotifier
 from pyball.infrastructure.persistence.meetup_repository import JsonMeetupRepository
 from pyball.infrastructure.persistence.player_repository import JsonPlayerRepository
 
@@ -26,6 +26,7 @@ def real_container(tmp_data):
     """Real Container with JSON repos backed by tmp_data."""
     settings_mock = MagicMock()
     settings_mock.pyball.location = "Test Field"
+    settings_mock.pyball.meetup_capacity = 10
     settings_mock.pyball.base_url = "http://localhost:8000"
     settings_mock.paths.players_file = tmp_data / "players.json"
     settings_mock.paths.meetups_dir = tmp_data / "meetups"
@@ -36,7 +37,7 @@ def real_container(tmp_data):
     # pylint: disable-next=protected-access
     container._player_repository = JsonPlayerRepository(tmp_data / "players.json")
     # pylint: disable-next=protected-access
-    container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups")
+    container._meetup_repository = JsonMeetupRepository(tmp_data / "meetups", default_capacity=10)
     return container
 
 
@@ -79,7 +80,7 @@ def bot_context(real_container, bot_settings):
     context.bot_data = {
         "container": real_container,
         "settings": bot_settings,
-        "notifier": AsyncMock(spec=NullMatchNotifier),
+        "notifier": AsyncMock(spec=MatchNotifier),
     }
     context.bot = AsyncMock()
     sent_msg = AsyncMock()

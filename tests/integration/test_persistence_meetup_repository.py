@@ -19,7 +19,7 @@ class TestJsonMeetupRepository:
         # pylint: disable=attribute-defined-outside-init
         self.temp_dir = tempfile.mkdtemp()
         self.directory = Path(self.temp_dir)
-        self.repo = JsonMeetupRepository(self.directory)
+        self.repo = JsonMeetupRepository(self.directory, default_capacity=10)
 
     def teardown_method(self):
         """Remove the temporary directory after each test."""
@@ -142,7 +142,7 @@ class TestJsonMeetupRepository:
 
 def test_round_trips_a_triangular_meetup_with_multiple_matches(tmp_path):
     """Saving and reloading a 3-team meetup preserves every match and the closed flag."""
-    repo = JsonMeetupRepository(tmp_path)
+    repo = JsonMeetupRepository(tmp_path, default_capacity=10)
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     p1, p2, p3 = PlayerId.generate(), PlayerId.generate(), PlayerId.generate()
     meetup.add_player(p1)
@@ -170,7 +170,7 @@ def test_round_trips_a_triangular_meetup_with_multiple_matches(tmp_path):
 
 def test_round_trips_closed_flag(tmp_path):
     """A closed meetup reloads with is_closed() == True."""
-    repo = JsonMeetupRepository(tmp_path)
+    repo = JsonMeetupRepository(tmp_path, default_capacity=10)
     meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte")
     team_a, team_b = Team.create("A", []), Team.create("B", [])
     meetup.set_teams([team_a, team_b])
@@ -185,7 +185,7 @@ def test_round_trips_closed_flag(tmp_path):
 
 def test_ignores_stale_locked_key_and_drops_it_on_save(tmp_path):
     """A meetup file still carrying the removed "locked" key loads, and re-saving drops it."""
-    repo = JsonMeetupRepository(tmp_path)
+    repo = JsonMeetupRepository(tmp_path, default_capacity=10)
     file_path = tmp_path / "2026-04-12T20:00.json"
     file_path.write_text(
         json.dumps(
@@ -217,7 +217,7 @@ class TestJsonMeetupRepositoryResult:
         # pylint: disable=attribute-defined-outside-init
         self.temp_dir = tempfile.mkdtemp()
         self.directory = Path(self.temp_dir)
-        self.repo = JsonMeetupRepository(self.directory)
+        self.repo = JsonMeetupRepository(self.directory, default_capacity=10)
 
     def teardown_method(self):
         """Remove the temporary directory after each test."""
@@ -322,3 +322,35 @@ class TestJsonMeetupRepositoryResult:
 
         loaded = self.repo.find_by_id(meetup.id)
         assert loaded.matches[0].result.events[0].is_own_goal is False
+
+
+def test_round_trips_capacity_and_search(tmp_path):
+    """Capacity and the substitute search survive a save and reload."""
+    repo = JsonMeetupRepository(tmp_path, default_capacity=10)
+    meetup = Meetup.create(datetime(2026, 4, 12, 20, 0), "Campo Norte", capacity=14)
+    meetup.open_substitute_search()
+    repo.save(meetup)
+    loaded = repo.find_by_datetime(datetime(2026, 4, 12, 20, 0))
+    assert (loaded.capacity, loaded.substitute_search) == (14, True)
+
+
+def test_meetup_without_capacity_loads_with_default(tmp_path):
+    """A stored meetup with no capacity gets the club default and a closed search."""
+    (tmp_path / "2026-04-12T20:00.json").write_text(
+        json.dumps(
+            {
+                "id": "11111111-1111-4111-8111-111111111111",
+                "date": "2026-04-12T20:00:00",
+                "location": "Campo Norte",
+                "players": [],
+                "teams": None,
+                "matches": [],
+                "closed": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    loaded = JsonMeetupRepository(tmp_path, default_capacity=14).find_by_datetime(
+        datetime(2026, 4, 12, 20, 0)
+    )
+    assert (loaded.capacity, loaded.substitute_search) == (14, False)

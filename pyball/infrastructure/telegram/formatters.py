@@ -30,7 +30,6 @@ from telegram.constants import KeyboardButtonStyle
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.domain.meetup.models import Match, Meetup, Team
 from pyball.infrastructure.persistence.legacy_stats import LegacyStats
-from pyball.infrastructure.telegram.search import SEARCH_THRESHOLDS
 
 _MDV2_RE = re.compile(r"([_*\[\]()~`>#+=|{}.!\\-])")
 _DEFAULT_DATE_FMT = "%Y-%m-%d %H:%M"
@@ -46,32 +45,24 @@ def parse_display(s: str, fmt: str = _DEFAULT_DATE_FMT) -> datetime:
     return datetime.strptime(s, fmt)
 
 
-def build_main_keyboard(meetup_date: datetime, has_teams: bool = False) -> InlineKeyboardMarkup:
+def build_main_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
     """Build inline keyboard for main chat."""
-    rows = [
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                text="✔ Unirse",
-                style=KeyboardButtonStyle.GREEN,
-                callback_data=build_callback_data("join", meetup_date),
-            ),
-            InlineKeyboardButton(
-                text="✖ Salir",
-                style=KeyboardButtonStyle.RED,
-                callback_data=build_callback_data("leave", meetup_date),
-            ),
-        ],
-    ]
-    if not has_teams:
-        rows.append(
             [
                 InlineKeyboardButton(
-                    text="🔎 Buscar jugadores",
-                    callback_data=build_callback_data("search", meetup_date),
+                    text="✔ Unirse",
+                    style=KeyboardButtonStyle.GREEN,
+                    callback_data=build_callback_data("join", meetup_date),
+                ),
+                InlineKeyboardButton(
+                    text="✖ Salir",
+                    style=KeyboardButtonStyle.RED,
+                    callback_data=build_callback_data("leave", meetup_date),
                 ),
             ]
-        )
-    return InlineKeyboardMarkup(rows)
+        ]
+    )
 
 
 def build_subs_keyboard(meetup_date: datetime) -> InlineKeyboardMarkup:
@@ -132,8 +123,7 @@ def format_main_message(  # pylint: disable=too-many-arguments,too-many-position
     if meetup.teams is None:
         player_names_list = [player_names.get(str(p.value), "") for p in meetup.players]
         sorted_names = sorted(player_names_list, key=functools.cmp_to_key(locale.strcoll))
-        max_players = 10
-        lines.append(rf"*Jugadores \({len(meetup.players)}/{max_players}\):*")
+        lines.append(rf"*Jugadores \({len(meetup.players)}/{meetup.capacity}\):*")
         for name in sorted_names:
             lines.append(rf"  \- `{name}`")
     else:
@@ -185,7 +175,6 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     team_colors: tuple[str, ...] = ("blanco", "negro"),
     team_emojis: tuple[str, ...] = ("⚪", "⚫"),
     date_fmt: str = _DEFAULT_DATE_FMT,
-    search_target: int | None = None,
 ) -> str:
     """Format message for substitutes chat - shows substitutes only.
 
@@ -196,7 +185,6 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
         team_colors: Tuple of team color names
         team_emojis: Tuple of team emojis
         date_fmt: Date format string
-        search_target: Target roster size for an open search, None means search is closed
     """
     if meetup.is_closed():
         return "*Partido terminado*"
@@ -247,16 +235,16 @@ def format_subs_message(  # pylint: disable=too-many-arguments,too-many-position
     lines = _build_convocatoria_header(meetup, date_str)
     lines.append("")
 
-    if search_target is None and len(meetup.players) >= SEARCH_THRESHOLDS[0]:
+    if not meetup.substitute_search and len(meetup.players) >= meetup.capacity:
         lines.append(rf"✅ *Completo* \({len(meetup.players)} jugadores\)")
         if not sorted_suplentes:
             return "\n".join(lines)
         lines.append("")
-    elif search_target is None:
+    elif not meetup.substitute_search:
         lines.append(f"Jugadores apuntados {len(meetup.players)}")
         lines.append("")
     else:
-        lines.append(f"Jugadores apuntados {len(meetup.players)}/{search_target}")
+        lines.append(f"Jugadores apuntados {len(meetup.players)}/{meetup.capacity}")
         lines.append("")
 
     if sorted_suplentes:
@@ -288,7 +276,7 @@ def parse_callback_data(callback_data: str) -> tuple[str, str] | None:
     if ":" not in callback_data:
         return None
     action, date_str = callback_data.split(":", 1)
-    if action not in ("join", "leave", "join_sub", "leave_sub", "search"):
+    if action not in ("join", "leave", "join_sub", "leave_sub"):
         return None
     return action, date_str
 
