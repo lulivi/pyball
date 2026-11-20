@@ -29,7 +29,9 @@ from pathlib import Path
 import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
+from pyball.application.notifier import CompositeMatchNotifier
 from pyball.infrastructure.http.app import _Server, create_app
+from pyball.infrastructure.plugins.event_log import EventLogNotifier
 from pyball.infrastructure.telegram.bot.entrypoint import create_application
 from pyball.infrastructure.telegram.bot.handlers import (
     register_bot_commands,
@@ -85,7 +87,12 @@ async def _main_async(config_path: Path) -> None:
     application.bot_data["container"] = container
     application.bot_data["settings"] = tg_settings
 
-    notifier = TelegramMatchNotifier(application.bot, tg_settings, container)
+    notifier = CompositeMatchNotifier(
+        [
+            EventLogNotifier(container.event_log),
+            TelegramMatchNotifier(application.bot, tg_settings, container),
+        ]
+    )
     application.bot_data["notifier"] = notifier
 
     setup_player_handlers(application)

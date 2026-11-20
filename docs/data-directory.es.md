@@ -20,6 +20,7 @@ pyball/
 ├── data/
 │   ├── players.json   # todos los jugadores, independientemente del partido
 │   ├── legacy_stats.json   # opcional — asistencias históricas de antes de usar PyBall
+│   ├── events.jsonl   # todos los eventos que leen los plugins — ver más abajo
 │   ├── meetups/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
@@ -33,7 +34,8 @@ pyball/
 ```
 
 Cada archivo es JSON plano, escrito con sangrado de 2 espacios, seguro de leer (o incluso
-editar a mano, con cuidado) con cualquier editor de texto.
+editar a mano, con cuidado) con cualquier editor de texto. La excepción es
+`events.jsonl`: un objeto JSON por línea, y nunca se edita a mano.
 
 ## `data/players.json`
 
@@ -139,6 +141,29 @@ Notas de los campos:
 - `substitute_search` — `true` mientras hay una búsqueda de suplentes abierta (ver
   [docs/workflow.es.md](workflow.es.md#2-gestionar-la-convocatoria)); un archivo sin el
   campo se carga con la búsqueda cerrada.
+
+## `data/events.jsonl`
+
+El registro de eventos que los plugins leen con `GET /api/v1/events`: una línea por cada
+cosa que le pasa a un partido, en orden, guardada para siempre para que un plugin que
+estuvo caído pueda ponerse al día.
+
+```json
+{"id": 41, "type": "player.joined", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"id": "a1b2c3d4-...", "date": "2026-04-15T20:00:00", "location": "Parque Central", "capacity": 10, "substitute_search": true, "players": ["11111111-...", "..."], "teams": null, "matches": [], "closed": false}, "player": {"id": "11111111-...", "name": "Manu García", "group": "substitute", "position": null}, "is_substitute": true}
+{"id": 42, "type": "substitute_search.closed", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"...": "..."}}
+```
+
+- `id` — sube de uno en uno por evento; un plugin continúa desde el último id que vio.
+- `type` — `meetup.created`, `meetup.updated`, `meetup.date_changed`, `meetup.cancelled`,
+  `match.closed`, `match.edited`, `player.joined`, `player.left`,
+  `substitute_search.opened` o `substitute_search.closed`.
+- `meetup` — el partido justo después del evento, con la misma forma que
+  `GET /api/v1/meetups/active`.
+- `player` e `is_substitute` — solo en `player.joined` y `player.left`;
+  `previous_date` — solo en `meetup.date_changed`.
+
+Haz copia de seguridad junto con el resto de `data/`. Borrarlo solo pierde el historial
+desde el que continúan los plugins.
 
 ## `data/legacy_stats.json` (opcional)
 

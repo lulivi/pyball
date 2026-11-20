@@ -28,8 +28,8 @@ from pathlib import Path
 import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
-from pyball.application.notifier import NullMatchNotifier
 from pyball.infrastructure.http.app import _Server, create_app
+from pyball.infrastructure.plugins.event_log import EventLogNotifier
 from pyball.settings import SettingsValidationError
 
 
@@ -66,7 +66,7 @@ def main() -> None:
 async def _main_async(config_path: Path) -> None:
     """Boot the pyball topology, with /signup enabled or not per config."""
     app_settings, container = bootstrap_core(config_path)
-    notifier = NullMatchNotifier()
+    notifier = EventLogNotifier(container.event_log)
     app = create_app(
         container,
         notifier,

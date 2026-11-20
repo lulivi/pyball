@@ -20,6 +20,7 @@ pyball/
 ├── data/
 │   ├── players.json   # every player, regardless of meetup
 │   ├── legacy_stats.json   # optional — historical assists imported from before PyBall
+│   ├── events.jsonl   # every event plugins can read — see below
 │   ├── meetups/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
@@ -33,7 +34,8 @@ pyball/
 ```
 
 Every file is plain JSON, written with 2-space indentation, safe to read (or even hand-
-edit, carefully) with any text editor.
+edit, carefully) with any text editor. The exception is `events.jsonl`: one JSON object
+per line, and never to be edited by hand.
 
 ## `data/players.json`
 
@@ -134,6 +136,28 @@ Field notes:
 - `substitute_search` — `true` while a substitute search is open (see
   [docs/workflow.md](workflow.md#2-manage-the-roster)); a file without the field loads
   with it closed.
+
+## `data/events.jsonl`
+
+The event log plugins read through `GET /api/v1/events`: one line per thing that
+happened to a meetup, in order, kept forever so a plugin that was down can catch up.
+
+```json
+{"id": 41, "type": "player.joined", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"id": "a1b2c3d4-...", "date": "2026-04-15T20:00:00", "location": "Parque Central", "capacity": 10, "substitute_search": true, "players": ["11111111-...", "..."], "teams": null, "matches": [], "closed": false}, "player": {"id": "11111111-...", "name": "Manu García", "group": "substitute", "position": null}, "is_substitute": true}
+{"id": 42, "type": "substitute_search.closed", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"...": "..."}}
+```
+
+- `id` — increases by one per event; a plugin resumes from the last id it saw.
+- `type` — `meetup.created`, `meetup.updated`, `meetup.date_changed`, `meetup.cancelled`,
+  `match.closed`, `match.edited`, `player.joined`, `player.left`,
+  `substitute_search.opened` or `substitute_search.closed`.
+- `meetup` — the meetup right after the event, in the same shape as
+  `GET /api/v1/meetups/active`.
+- `player` and `is_substitute` — only on `player.joined` and `player.left`;
+  `previous_date` — only on `meetup.date_changed`.
+
+Back it up with the rest of `data/`. Deleting it loses the history plugins resume from,
+nothing else.
 
 ## `data/legacy_stats.json` (optional)
 

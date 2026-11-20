@@ -60,6 +60,7 @@ from pyball.infrastructure.persistence import (
     JsonPlayerRepository,
     LegacyStats,
 )
+from pyball.infrastructure.plugins.event_log import EventLog
 from pyball.settings import AppSettings
 
 
@@ -72,6 +73,7 @@ class Container:  # pylint: disable=too-many-public-methods
         self._player_repository: PlayerRepository | None = None
         self._meetup_repository: MeetupRepository | None = None
         self._legacy_stats: LegacyStats | None = None
+        self._event_log: EventLog | None = None
 
     def create_player(self) -> CreatePlayer:
         """Create a new CreatePlayer use case."""
@@ -273,6 +275,13 @@ class Container:  # pylint: disable=too-many-public-methods
             legacy_path = self._settings.paths.data_dir / "legacy_stats.json"
             self._legacy_stats = LegacyStats.from_file(str(legacy_path))
         return self._legacy_stats
+
+    @property
+    def event_log(self) -> EventLog:
+        """Get the plugin event log, loading it from data/events.jsonl if necessary."""
+        if self._event_log is None:
+            self._event_log = EventLog(self._settings.paths.data_dir / "events.jsonl")
+        return self._event_log
 
     def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:
         """Build the algorithm registry with all available algorithms."""
