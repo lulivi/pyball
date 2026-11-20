@@ -324,6 +324,44 @@ class TestJoinLeave:
         )
 
     @pytest.mark.asyncio
+    async def test_join_and_leave_notify(self, tmp_path):
+        """A web join and leave refresh the callups and post activity, like Telegram."""
+        ana = Player.create("Ana", group="substitute")
+        container = _container_with_code_store(tmp_path, ana)
+        meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        container.add_player_to_meetup_by_id.return_value.execute.return_value = meetup
+        container.remove_player_from_meetup_by_id.return_value.execute.return_value = meetup
+        notifier = MagicMock(spec=NullMatchNotifier)
+        app = create_app(container, notifier, signup_token=SIGNUP_TOKEN, enable_web_signup=True)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(ana.id.value)))
+            await c.post("/api/signup/join")
+            await c.post("/api/signup/leave")
+
+        notifier.on_player_joined.assert_awaited_once_with(meetup, ana, True)
+        notifier.on_player_left.assert_awaited_once_with(meetup, ana, True)
+        assert notifier.on_meetup_updated.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_join_when_already_in_notifies_nothing(self, tmp_path):
+        """Joining twice changes nothing, so nothing is announced."""
+        ana = Player.create("Ana")
+        container = _container_with_code_store(tmp_path, ana)
+        meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
+        meetup.add_player(ana.id)
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        notifier = MagicMock(spec=NullMatchNotifier)
+        app = create_app(container, notifier, signup_token=SIGNUP_TOKEN, enable_web_signup=True)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(ana.id.value)))
+            await c.post("/api/signup/join")
+
+        notifier.on_player_joined.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_requires_identity(self, tmp_path):
         ana = Player.create("Ana")
         container = _container_with_code_store(tmp_path, ana)

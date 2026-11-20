@@ -42,13 +42,18 @@ from pyball.infrastructure.signup.code_store import SignupCodeStore
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
+    from pyball.application.notifier import MatchNotifier
     from pyball.domain.meetup.models import Meetup
 
 _IDENTITY_COOKIE = "pyball_signup_player"
 
 
 def register_signup_routes(
-    app: FastAPI, container: "Container", signup_token: str, static_dir: Path
+    app: FastAPI,
+    container: "Container",
+    notifier: "MatchNotifier",
+    signup_token: str,
+    static_dir: Path,
 ) -> None:
     """Register the /signup page and /api/signup/* routes."""
 
@@ -100,10 +105,15 @@ def register_signup_routes(
         """Join the active meetup as the identified player."""
         player_id = _require_identity(request, container, signup_token)
         meetup = _active_meetup_or_404(container)
+        already_in = player_id in meetup.players
         try:
-            container.add_player_to_meetup_by_id().execute(meetup.date, player_id)
+            updated = container.add_player_to_meetup_by_id().execute(meetup.date, player_id)
         except SignupClosedError as exc:
             raise HTTPException(409, str(exc)) from exc
+        player = container.player_repository.find_by_id(player_id)
+        if not already_in and player is not None:
+            await notifier.on_meetup_updated(updated)
+            await notifier.on_player_joined(updated, player, player.group == "substitute")
         return build_signup_meetup_response(container, player_id)
 
     @app.post("/api/signup/leave")
@@ -112,9 +122,13 @@ def register_signup_routes(
         player_id = _require_identity(request, container, signup_token)
         meetup = _active_meetup_or_404(container)
         try:
-            container.remove_player_from_meetup_by_id().execute(meetup.date, player_id)
+            updated = container.remove_player_from_meetup_by_id().execute(meetup.date, player_id)
         except (SignupClosedError, PlayerNotInMeetupError) as exc:
             raise HTTPException(409, str(exc)) from exc
+        player = container.player_repository.find_by_id(player_id)
+        if player is not None:
+            await notifier.on_meetup_updated(updated)
+            await notifier.on_player_left(updated, player, player.group == "substitute")
         return build_signup_meetup_response(container, player_id)
 
 

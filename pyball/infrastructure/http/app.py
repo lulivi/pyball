@@ -68,7 +68,9 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     register_player_routes(app, container, enable_web_signup=enable_web_signup)
     register_meetup_routes(app, container, notifier, enable_web_signup=enable_web_signup)
     if enable_web_signup:
-        register_signup_routes(app, container, signup_token, static_dir=signup_static_dir)
+        register_signup_routes(
+            app, container, notifier, signup_token, static_dir=signup_static_dir
+        )
 
     icons_dir = Path(container.icons_dir) if container.icons_dir else None
     if icons_dir and icons_dir.exists():
