@@ -30,7 +30,6 @@ COMMAND_DESCRIPTIONS: dict[str, str] = {
     "player_link": "Link Telegram ID to player",
     "player_unlink": "Unlink a player's Telegram ID",
     "meetup_show": "Repost the current convocatoria",
-    "meetup_search": "Send substitutes message",
     "meetup_stats": "Show statistics",
 }
 

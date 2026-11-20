@@ -66,6 +66,7 @@ class _StubNotifier(MatchNotifier):
         self.updated = []
         self.cancelled = []
         self.date_changed = []
+        self.search_opened = []
 
     async def on_meetup_created(self, meetup):
         """Record the created meetup."""
@@ -90,6 +91,10 @@ class _StubNotifier(MatchNotifier):
     async def on_meetup_date_changed(self, old_date, meetup):
         """Record the old date and the updated meetup."""
         self.date_changed.append((old_date, meetup))
+
+    async def on_substitute_search_opened(self, meetup):
+        """Record the meetup whose search opened."""
+        self.search_opened.append(meetup)
 
     async def on_player_joined(self, meetup, player, is_substitute):
         """Do nothing."""

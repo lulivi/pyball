@@ -199,12 +199,7 @@ when the meetup closes):
 {
   "2026-04-15T20:00": {
     "regular": { "chat_id": -1000000000000, "thread_id": null, "message_id": 4821 },
-    "substitute": {
-      "chat_id": -1000000000001,
-      "thread_id": null,
-      "message_id": 512,
-      "search_target": 12
-    }
+    "substitute": { "chat_id": -1000000000001, "thread_id": null, "message_id": 512 }
   }
 }
 ```
@@ -213,8 +208,6 @@ The key is the meetup's date/time (`YYYY-MM-DDTHH:MM`, matching the meetup filen
 without the `.json` extension). `thread_id` is `null` unless the chat uses forum topics
 (see `telegram.regulars.meetups.message_thread_id` in [docs/setup.md](setup.md); the
 `substitute` entry likewise picks up `telegram.substitutes.meetups.message_thread_id`).
-`search_target` (only on the `substitute` entry) is the roster size an open substitute
-search is looking for; `null` or missing means the search is closed.
 
 ## Related documentation
 

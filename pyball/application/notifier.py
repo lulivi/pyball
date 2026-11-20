@@ -54,6 +54,10 @@ class MatchNotifier(ABC):
         """Handle a cancelled meetup by editing platform messages to show cancellation."""
 
     @abstractmethod
+    async def on_substitute_search_opened(self, meetup: Meetup) -> None:
+        """Handle an opened substitute search by calling for substitutes."""
+
+    @abstractmethod
     async def on_player_joined(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
         """Handle a player joining a meetup by notifying the activity feed."""
 
@@ -81,6 +85,9 @@ class NullMatchNotifier(MatchNotifier):
         """Do nothing."""
 
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
+        """Do nothing."""
+
+    async def on_substitute_search_opened(self, meetup: Meetup) -> None:
         """Do nothing."""
 
     async def on_player_joined(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:

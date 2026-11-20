@@ -13,7 +13,8 @@ from pyball.domain.meetup.errors import (
 )
 from pyball.domain.meetup.season import _season_start
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
-from pyball.infrastructure.telegram.bot.handlers.meetup import search_handler, stats_handler
+from pyball.infrastructure.telegram.bot.handlers.meetup import stats_handler
+from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 
 # A fixed point ~2 weeks into the current season, so season-scoped stats
 # assertions stay valid no matter when the suite runs.
@@ -41,7 +42,7 @@ class TestFullMatchLifecycle:
         await self._create_meetup(real_container)
         await self._add_players(real_container)
         await self._remove_player(real_container)
-        await self._search_substitutes(bot_update, bot_context)
+        await self._search_substitutes(bot_context, real_container)
         await self._generate_teams_twice(real_container)
         await self._finish_match(real_container)
         await self._verify_stats(bot_update, bot_context, real_container, monkeypatch)
@@ -95,15 +96,16 @@ class TestFullMatchLifecycle:
         assert meetup.teams is not None
         assert meetup.current_match() is not None
 
-    async def _search_substitutes(self, bot_update, bot_context):
-        bot_update.message.reply_text.reset_mock()
+    async def _search_substitutes(self, bot_context, real_container):
         bot_context.bot.send_message.reset_mock()
-        bot_context.args = _DATE_ARGS
-        await search_handler(bot_update, bot_context)
+        meetup = real_container.open_substitute_search().execute(_MATCH_DATE)
+        notifier = TelegramMatchNotifier(
+            bot_context.bot, bot_context.bot_data["settings"], real_container
+        )
+        await notifier.on_substitute_search_opened(meetup)
 
+        assert meetup.substitute_search
         bot_context.bot.send_message.assert_called_once()
-        bot_context.bot.set_message_reaction.assert_called()
-        bot_update.message.reply_text.assert_not_called()
 
     async def _finish_match(self, real_container):
         events = [
