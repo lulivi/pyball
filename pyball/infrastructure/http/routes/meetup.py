@@ -24,16 +24,19 @@ from __future__ import annotations
 import functools
 import locale
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Callable, cast
 
 from fastapi import FastAPI, HTTPException
 
 from pyball.domain.meetup.errors import (
     DuplicateMeetupError,
+    InvalidCapacityError,
     MeetupAlreadyClosedError,
+    MeetupFullError,
     MeetupHasNoTeamsError,
     MeetupHasRecordedResultsError,
     MeetupNotFoundError,
+    SignupClosedError,
     UnknownAlgorithmError,
 )
 from pyball.domain.player.errors import InvalidPlayerIdError
@@ -45,6 +48,7 @@ from pyball.infrastructure.http.schemas import (
     AssignTeamsInput,
     CreateMeetupInput,
     GenerateTeamsInput,
+    MeetupCapacityInput,
     MeetupDateInput,
     ParseCallupInput,
     UpdateMeetupDateInput,
@@ -54,6 +58,7 @@ from pyball.infrastructure.http.schemas import (
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.application.notifier import MatchNotifier
+    from pyball.domain.meetup.models import Meetup
 
 
 def register_meetup_routes(
@@ -180,6 +185,36 @@ def register_meetup_routes(
         """Change a meetup's location."""
         return await _handle_update_meetup_location(container, notifier, body)
 
+    @app.post("/api/meetup/capacity")
+    async def set_meetup_capacity_endpoint(body: MeetupCapacityInput):
+        """Set how many players the meetup plays with, or 404/409/422."""
+        meetup_date = _parse_date(body.date)
+        meetup = _run_meetup_change(
+            lambda: container.set_meetup_capacity().execute(meetup_date, body.capacity)
+        )
+        await notifier.on_meetup_updated(meetup)
+        return build_meetup_active_response(container, enable_web_signup)
+
+    @app.post("/api/meetup/substitute-search/open")
+    async def open_substitute_search_endpoint(body: MeetupDateInput):
+        """Open the meetup's substitute search, or 404/409."""
+        meetup_date = _parse_date(body.date)
+        meetup = _run_meetup_change(
+            lambda: container.open_substitute_search().execute(meetup_date)
+        )
+        await notifier.on_substitute_search_opened(meetup)
+        return build_meetup_active_response(container, enable_web_signup)
+
+    @app.post("/api/meetup/substitute-search/close")
+    async def close_substitute_search_endpoint(body: MeetupDateInput):
+        """Close the meetup's substitute search, or 404."""
+        meetup_date = _parse_date(body.date)
+        meetup = _run_meetup_change(
+            lambda: container.close_substitute_search().execute(meetup_date)
+        )
+        await notifier.on_meetup_updated(meetup)
+        return build_meetup_active_response(container, enable_web_signup)
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -232,6 +267,8 @@ async def _handle_create_meetup(
         "players": players,
         "teams": None,
         "location": meetup.location,
+        "capacity": meetup.capacity,
+        "substituteSearch": meetup.substitute_search,
     }
     if enable_web_signup:
         response["signupUrl"] = container.signup_link_builder().build()
@@ -254,6 +291,8 @@ async def _handle_create_next_meetup(
         "players": [],
         "teams": None,
         "location": meetup.location,
+        "capacity": meetup.capacity,
+        "substituteSearch": meetup.substitute_search,
     }
     if enable_web_signup:
         response["signupUrl"] = container.signup_link_builder().build()
@@ -357,6 +396,28 @@ async def _handle_update_meetup_location(
 
     await notifier.on_meetup_updated(meetup)
     return {"date": meetup.date.strftime("%Y-%m-%dT%H:%M"), "location": meetup.location}
+
+
+def _parse_date(value: str) -> datetime:
+    """Parse an ISO meetup date from a request body, or 422."""
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid date format. Use ISO 8601: YYYY-MM-DDTHH:MM") from exc
+
+
+def _run_meetup_change(change: Callable[[], Meetup]) -> Meetup:
+    """Run a capacity or substitute search change, mapping domain errors to HTTP errors."""
+    try:
+        return change()
+    except MeetupNotFoundError as exc:
+        raise HTTPException(404, "No meetup found at the given date") from exc
+    except SignupClosedError as exc:
+        raise HTTPException(409, "Los equipos ya están hechos") from exc
+    except MeetupFullError as exc:
+        raise HTTPException(409, "Ya estáis completos") from exc
+    except InvalidCapacityError as exc:
+        raise HTTPException(422, "La capacidad debe ser al menos 2") from exc
 
 
 def _get_next_default_date(

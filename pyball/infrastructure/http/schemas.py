@@ -78,6 +78,13 @@ class CreateMeetupInput(BaseModel):
     player_ids: list[str]
 
 
+class MeetupCapacityInput(BaseModel):
+    """Request body for POST /api/meetup/capacity."""
+
+    date: str
+    capacity: int
+
+
 class GenerateTeamsInput(BaseModel):
     """Request body for POST /api/meetup/generate-teams."""
 
