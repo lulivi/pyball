@@ -40,8 +40,6 @@ pyball/
 
 Fuera de `pyball/`:
 
-- `scripts/` — scripts de migración de datos puntuales y autocontenidos. `pyball/` no los
-  importa; se ejecutan a mano cuando cambia el formato de un JSON guardado.
 - `docs/` — documentación para el usuario, en inglés y español.
 
 ## Arranque
@@ -83,15 +81,16 @@ Un plugin es un programa aparte, en cualquier lenguaje, declarado en
 - `PluginCredentials` da a cada plugin un token bearer aleatorio en cada arranque,
   limitado a los permisos (scopes) que declara.
 - `create_plugin_api()` sirve el contrato en `/api/v1`, una subaplicación FastAPI con su
-  propio esquema OpenAPI. Sus rutas devuelven los modelos de `plugins/schemas.py` y nunca
-  los presenters que usa `/manage`, así `/manage` puede cambiar sin romper los plugins.
+  propio esquema OpenAPI. Sus rutas devuelven los modelos de `plugins/schemas.py`,
+  separados de los presenters que usa `/manage`, así cada uno puede cambiar por su lado.
 - `EventLogNotifier` escribe cada evento de `MatchNotifier` en `data/events.jsonl`, y
   `GET /api/v1/events` sirve ese registro como server-sent events. `pyball-telegram` lo
   pone delante del notificador de Telegram con `CompositeMatchNotifier`, así un fallo de
   Telegram nunca pierde un evento.
 
-Un cambio en `plugins/schemas.py` o en una ruta de `/api/v1` es un cambio del contrato de
-plugins: mantenlo compatible hacia atrás, o pasa a `/api/v2`.
+`plugins/schemas.py` y las rutas de `/api/v1` son el contrato de plugins: un cambio en
+cualquiera de ellos actualiza en el mismo cambio los plugins que lo usan y
+`docs/setup.es.md`.
 
 ## Formatos de partido
 

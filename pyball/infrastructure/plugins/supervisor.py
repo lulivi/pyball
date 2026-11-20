@@ -138,7 +138,7 @@ class PluginSupervisor:  # pylint: disable=too-many-instance-attributes
                 plugin_logger.info("%s", line.decode(errors="replace").rstrip())
         finally:
             if process.returncode is None and not self._stopping.is_set():
-                _signal_group(process, signal.SIGKILL)  # its output can no longer be read
+                _signal_group(process, signal.SIGKILL)  # its output stopped being readable
         code = await process.wait()
         logger.info("Plugin %s exited with code %d", plugin.name, code)
 

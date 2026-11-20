@@ -27,7 +27,7 @@ from pyball.domain.meetup.repository import MeetupRepository
 
 
 class CloseSubstituteSearch:
-    """Use case for no longer looking for substitutes for a meetup."""
+    """Use case for ending a meetup's substitute search."""
 
     def __init__(self, meetup_repository: MeetupRepository) -> None:
         """Initialize with the meetup repository."""

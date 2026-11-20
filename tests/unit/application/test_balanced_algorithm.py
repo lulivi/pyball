@@ -566,10 +566,10 @@ class TestSnakeDraft:
     def test_keeps_balance_with_distinct_scores(self):
         """The weighted lottery still favors balance over many draws, not just luck.
 
-        A single draw's balance is no longer a hard guarantee now that picks are
-        randomized (that's the point of this fix) — averaged over many draws it
-        must still clearly beat an unweighted random 3-way split of the same
-        players (empirically ~1.25 mean imbalance for this score distribution).
+        Picks are randomized, so a single draw's balance is no hard guarantee;
+        averaged over many draws it must still clearly beat an unweighted random
+        3-way split of the same players (empirically ~1.25 mean imbalance for this
+        score distribution).
         """
         players = [PlayerId.generate() for _ in range(15)]
         scores = {pid: i / 14 for i, pid in enumerate(players)}

@@ -7,7 +7,7 @@ from telegram import Message, Update, User
 from telegram.ext import ContextTypes
 
 from pyball.application.container import Container
-from pyball.application.notifier import NullMatchNotifier
+from pyball.application.notifier import MatchNotifier
 from pyball.infrastructure.persistence.meetup_repository import JsonMeetupRepository
 from pyball.infrastructure.persistence.player_repository import JsonPlayerRepository
 
@@ -80,7 +80,7 @@ def bot_context(real_container, bot_settings):
     context.bot_data = {
         "container": real_container,
         "settings": bot_settings,
-        "notifier": AsyncMock(spec=NullMatchNotifier),
+        "notifier": AsyncMock(spec=MatchNotifier),
     }
     context.bot = AsyncMock()
     sent_msg = AsyncMock()

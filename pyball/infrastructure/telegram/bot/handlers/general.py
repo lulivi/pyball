@@ -66,16 +66,6 @@ def build_bot_commands() -> list[BotCommand]:
     return [BotCommand(name, desc) for name, desc in COMMAND_DESCRIPTIONS.items()]
 
 
-def registered_commands(application) -> set[str]:
-    """Collect every command name from the application's registered CommandHandlers."""
-    names: set[str] = set()
-    for group in application.handlers.values():
-        for handler in group:
-            if isinstance(handler, CommandHandler):
-                names.update(handler.commands)
-    return names
-
-
 @log_func
 async def help_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""

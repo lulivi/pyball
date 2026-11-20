@@ -38,8 +38,6 @@ pyball/
 
 Outside `pyball/`:
 
-- `scripts/` — one-off, self-contained data migration scripts. They aren't imported by
-  `pyball/`; run one by hand when a stored JSON format changes.
 - `docs/` — user-facing documentation, in English and Spanish.
 
 ## Startup
@@ -79,15 +77,15 @@ Both topologies host plugins the same way:
 - `PluginCredentials` gives each plugin a random bearer token at every start, limited to
   its declared scopes.
 - `create_plugin_api()` serves the contract at `/api/v1`, a FastAPI sub-application with
-  its own OpenAPI schema. Its routes return the models in `plugins/schemas.py` and never
-  the presenters `/manage` uses, so `/manage` can change without breaking plugins.
+  its own OpenAPI schema. Its routes return the models in `plugins/schemas.py`, separate
+  from the presenters `/manage` uses, so each can change on its own.
 - `EventLogNotifier` writes every `MatchNotifier` event to `data/events.jsonl`, and
   `GET /api/v1/events` serves that log as server-sent events. `pyball-telegram` puts it in
   front of the Telegram notifier through `CompositeMatchNotifier`, so a Telegram failure
   never loses an event.
 
-A change to `plugins/schemas.py` or to a `/api/v1` route is a change to the plugin
-contract: keep it backward compatible, or bump to `/api/v2`.
+`plugins/schemas.py` and the `/api/v1` routes are the plugin contract: a change to either
+updates the plugins that call it and `docs/setup.md` in the same change.
 
 ## Match formats
 

@@ -69,37 +69,6 @@ class MatchNotifier(ABC):
         """Handle a player leaving a meetup by notifying the activity feed."""
 
 
-class NullMatchNotifier(MatchNotifier):
-    """No-op notifier, for callers that need no notifications."""
-
-    async def on_meetup_created(self, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_match_closed(self, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_meetup_updated(self, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_meetup_date_changed(self, old_date: datetime, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_match_edited(self, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_meetup_cancelled(self, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_substitute_search_opened(self, meetup: Meetup) -> None:
-        """Do nothing."""
-
-    async def on_player_joined(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
-        """Do nothing."""
-
-    async def on_player_left(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
-        """Do nothing."""
-
-
 class CompositeMatchNotifier(MatchNotifier):
     """Forwards every event to several notifiers in order; one failing never skips the rest."""
 

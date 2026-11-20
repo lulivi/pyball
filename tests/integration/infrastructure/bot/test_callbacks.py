@@ -372,7 +372,7 @@ async def test_join_sub_rejected_when_no_search_open(
 async def test_join_sub_rejected_when_target_reached(
     callback_update, bot_context, linked_player, saved_meetup
 ):
-    """A stale open target already reached by the roster still blocks joins."""
+    """A search the roster already filled refuses substitute joins."""
     _open_search(bot_context, saved_meetup, 10)
     _fill(bot_context, saved_meetup, 10)
     callback_update.callback_query.data = "join_sub:2026-04-25T20:00"
