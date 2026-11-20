@@ -30,8 +30,10 @@ import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
 from pyball.application.notifier import CompositeMatchNotifier
-from pyball.infrastructure.http.app import _Server, create_app
+from pyball.infrastructure.http.app import _Server, create_app, wait_until_serving
+from pyball.infrastructure.plugins.auth import PluginCredentials
 from pyball.infrastructure.plugins.event_log import EventLogNotifier
+from pyball.infrastructure.plugins.supervisor import PluginSupervisor
 from pyball.infrastructure.telegram.bot.entrypoint import create_application
 from pyball.infrastructure.telegram.bot.handlers import (
     register_bot_commands,
@@ -99,11 +101,19 @@ async def _main_async(config_path: Path) -> None:
     setup_meetup_handlers(application)
     setup_general_handlers(application)
 
+    credentials = PluginCredentials(app_settings.plugins, app_settings.pyball.manage_token)
     fastapi_app = create_app(
         container,
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
+        plugin_credentials=credentials,
+    )
+    supervisor = PluginSupervisor(
+        app_settings.plugins,
+        credentials,
+        f"http://127.0.0.1:{app_settings.pyball.api_port}/api/v1",
+        Path.cwd(),
     )
     server_config = uvicorn.Config(
         fastapi_app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
@@ -130,14 +140,20 @@ async def _main_async(config_path: Path) -> None:
         logger.info("Bot polling started")
 
         server_task = asyncio.create_task(server.serve())
+        await wait_until_serving(server, server_task)
+        supervisor.start()
 
         await stop_event.wait()
+
+        logger.info("Stopping plugins...")
+        await supervisor.stop()
 
         logger.info("Stopping bot polling...")
         await application.updater.stop()
         await application.stop()
 
         logger.info("Stopping HTTP server...")
+        container.event_log.close_subscribers()
         server.should_exit = True
         await server_task
 

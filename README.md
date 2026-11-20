@@ -20,10 +20,10 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-tel
 docker compose up -d
 ```
 
-`--bootstrap` generates `config.toml`, `compose.yaml`, `.env`, and the `data/`/`logs/`
-directories in the current folder — see **[docs/setup.md](docs/setup.md)** for the full
+`--bootstrap` generates `config.toml`, `compose.yaml`, `.env`, and the `data/`, `logs/`
+and `plugins/` directories in the current folder — see **[docs/setup.md](docs/setup.md)** for the full
 walkthrough: choosing a topology, configuring `config.toml`, what `/manage` and `/match`
-are for, and access tokens.
+are for, access tokens, and plugins.
 
 - **[docs/setup.md](docs/setup.md)** — install, configure, and run PyBall.
 - **[docs/workflow.md](docs/workflow.md)** — how a meetup goes from creation to

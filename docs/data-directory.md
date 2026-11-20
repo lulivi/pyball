@@ -17,6 +17,7 @@ pyball/
 ├── compose.yaml       # docker compose service definition
 ├── .env               # UID/GID/PORT/TAG
 ├── README.md          # short pointer back to docs/setup.md
+├── plugins/           # plugin programs, if any — see docs/setup.md
 ├── data/
 │   ├── players.json   # every player, regardless of meetup
 │   ├── legacy_stats.json   # optional — historical assists imported from before PyBall

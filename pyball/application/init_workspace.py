@@ -94,7 +94,7 @@ icons_dir = ""
 # Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
 # Scopes: players:read  players:write  meetups:read  meetups:write
 # [pyball.plugins.siesta]
-# command = ["./pyball-siesta", "run"]
+# command = ["./plugins/pyball-siesta", "run"]
 # scopes = ["players:read", "meetups:read", "meetups:write"]
 """
 
@@ -155,6 +155,7 @@ services:
       - "./config.toml:/pyball/config.toml"
       - "./logs:/pyball/logs"
       - "./data:/pyball/data"
+      - "./plugins:/pyball/plugins"
     restart: unless-stopped
 """
 
@@ -169,6 +170,7 @@ services:
       - "./config.toml:/pyball/config.toml"
       - "./logs:/pyball/logs"
       - "./data:/pyball/data"
+      - "./plugins:/pyball/plugins"
     restart: unless-stopped
 """
 
@@ -270,7 +272,7 @@ def init_workspace(topology: str, config_path: Path) -> None:
 
     print(f"Bootstrapping {_TOPOLOGY_LABELS.get(topology, topology)} workspace in {workspace} ...")
 
-    for rel in ("data", "data/meetups", "logs"):
+    for rel in ("data", "data/meetups", "logs", "plugins"):
         (workspace / rel).mkdir(parents=True, exist_ok=True)
         print(f"  Created  {rel}/")
 

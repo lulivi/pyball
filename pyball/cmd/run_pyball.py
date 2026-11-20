@@ -28,8 +28,10 @@ from pathlib import Path
 import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
-from pyball.infrastructure.http.app import _Server, create_app
+from pyball.infrastructure.http.app import _Server, create_app, wait_until_serving
+from pyball.infrastructure.plugins.auth import PluginCredentials
 from pyball.infrastructure.plugins.event_log import EventLogNotifier
+from pyball.infrastructure.plugins.supervisor import PluginSupervisor
 from pyball.settings import SettingsValidationError
 
 
@@ -67,6 +69,7 @@ async def _main_async(config_path: Path) -> None:
     """Boot the pyball topology, with /signup enabled or not per config."""
     app_settings, container = bootstrap_core(config_path)
     notifier = EventLogNotifier(container.event_log)
+    credentials = PluginCredentials(app_settings.plugins, app_settings.pyball.manage_token)
     app = create_app(
         container,
         notifier,
@@ -74,6 +77,13 @@ async def _main_async(config_path: Path) -> None:
         manage_token=app_settings.pyball.manage_token,
         signup_token=app_settings.pyball.signup_token,
         enable_web_signup=app_settings.pyball.enable_web_signup,
+        plugin_credentials=credentials,
+    )
+    supervisor = PluginSupervisor(
+        app_settings.plugins,
+        credentials,
+        f"http://127.0.0.1:{app_settings.pyball.api_port}/api/v1",
+        Path.cwd(),
     )
 
     server_config = uvicorn.Config(
@@ -88,7 +98,11 @@ async def _main_async(config_path: Path) -> None:
         loop.add_signal_handler(sig, stop_event.set)
 
     server_task = asyncio.create_task(server.serve())
+    await wait_until_serving(server, server_task)
+    supervisor.start()
     await stop_event.wait()
 
+    await supervisor.stop()
+    container.event_log.close_subscribers()
     server.should_exit = True
     await server_task

@@ -21,6 +21,7 @@ class TestInitWorkspacePyball:
         assert (tmp_path / "data").is_dir()
         assert (tmp_path / "data" / "meetups").is_dir()
         assert (tmp_path / "logs").is_dir()
+        assert (tmp_path / "plugins").is_dir()
 
     def test_config_excludes_telegram_section(self, tmp_path):
         """Bare config.toml must not contain the [pyball.telegram] section."""

@@ -126,7 +126,7 @@ One table per plugin, named after it. Both topologies run them (see
 
 | Key | Description | Required |
 |---|---|---|
-| `command` | Program and arguments that start the plugin, run from the workspace, e.g. `["./pyball-siesta", "run"]` | **Yes** |
+| `command` | Program and arguments that start the plugin, run from the workspace, e.g. `["./plugins/pyball-siesta", "run"]` | **Yes** |
 | `scopes` | What the plugin may do through the plugin API: any of `players:read`, `players:write`, `meetups:read` (includes the event stream), `meetups:write` | No (none) |
 
 ## 4. Start the app
@@ -195,6 +195,58 @@ docker compose up -d
 
 Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.0` in
 `.env`.
+
+## 8. Plugins
+
+A plugin is an optional program, written in any language, that extends PyBall without
+touching its code. Declare it in `config.toml` (see
+[`[pyball.plugins.<name>]`](#pyballpluginsname--optional-plugins)) and put the program
+in the workspace's `plugins/` folder, which the generated `compose.yaml` mounts at
+`/pyball/plugins`. Then start PyBall as usual: it is still one command.
+
+PyBall runs every declared plugin as a child process, from the workspace directory:
+
+- **Start:** once the web server is up, with three environment variables:
+  `PYBALL_API_URL` (the plugin API, e.g. `http://127.0.0.1:8000/api/v1`),
+  `PYBALL_API_TOKEN` (the plugin's own token, new at every start) and
+  `PYBALL_PLUGIN_NAME`.
+- **Output:** whatever the plugin prints goes to PyBall's log, under
+  `pyball.plugins.<name>`.
+- **Crashes:** a plugin that exits is started again after 1 s, then 2 s, 4 s, ... up to
+  60 s; one that ran for a minute starts again after 1 s. PyBall itself keeps running.
+- **Shutdown:** PyBall sends `SIGTERM` to each plugin and, 10 s later, `SIGKILL` to any
+  still running.
+
+### The plugin API
+
+A plugin talks to PyBall only through `PYBALL_API_URL`, sending
+`Authorization: Bearer $PYBALL_API_TOKEN`. Each call is one logical action and records
+one event. The full contract, with every request and response shape, is the OpenAPI
+schema at `/api/v1/openapi.json`, browsable at `/api/v1/docs`.
+
+| Call | Scope | What it does |
+|---|---|---|
+| `GET /players` | `players:read` | Every player |
+| `GET /meetups/active` | `meetups:read` | The active meetup, with its capacity and substitute search |
+| `POST /meetups` | `meetups:write` | Create a meetup; `location` and `capacity` are optional |
+| `DELETE /meetups/{id}` | `meetups:write` | Cancel the active meetup |
+| `PUT` / `DELETE /meetups/{id}/players/{player_id}` | `meetups:write` | Add or remove a player |
+| `PUT /meetups/{id}/lineup` | `meetups:write` | Set the roster and, with `team_algorithm` (`balanceado` or `random`), make the teams |
+| `PUT /meetups/{id}/capacity` | `meetups:write` | Change the capacity |
+| `POST` / `DELETE /meetups/{id}/substitute-search` | `meetups:write` | Open or close the substitute search |
+| `GET /events` | `meetups:read` | The event stream, below |
+
+### The event stream
+
+`GET /api/v1/events` is a stream of
+[server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html).
+Each event has an `id`, its type as `event`, and a JSON `data` with the meetup as it was
+right after (see [`data/events.jsonl`](data-directory.md#dataeventsjsonl) for the types
+and fields). To miss nothing, a plugin keeps the last `id` it handled and reconnects
+with `Last-Event-ID: <id>` (or `?after=<id>`): it receives every later event, in order
+and without duplicates, then new ones as they happen. `?after=0` replays the whole log;
+with neither, the stream starts with the next event. An idle stream sends a comment
+every 15 s.
 
 ## Running on Windows (WSL2)
 

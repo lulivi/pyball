@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """FastAPI application factory."""
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -89,6 +90,12 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     return app
+
+
+async def wait_until_serving(server: uvicorn.Server, server_task: asyncio.Task) -> None:
+    """Return once ``server`` accepts connections, or as soon as it fails to start."""
+    while not server.started and not server_task.done():
+        await asyncio.sleep(0.05)
 
 
 class _Server(uvicorn.Server):

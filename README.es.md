@@ -21,9 +21,10 @@ docker compose up -d
 ```
 
 `--bootstrap` genera `config.toml`, `compose.yaml`, `.env` y los directorios
-`data/`/`logs/` en la carpeta actual — consulta **[docs/setup.es.md](docs/setup.es.md)**
-para la guía completa: elegir topología, configurar `config.toml`, para qué sirven
-`/manage` y `/match`, y los tokens de acceso.
+`data/`, `logs/` y `plugins/` en la carpeta actual — consulta
+**[docs/setup.es.md](docs/setup.es.md)** para la guía completa: elegir topología,
+configurar `config.toml`, para qué sirven `/manage` y `/match`, los tokens de acceso y los
+plugins.
 
 - **[docs/setup.es.md](docs/setup.es.md)** — instalar, configurar y ejecutar PyBall.
 - **[docs/workflow.es.md](docs/workflow.es.md)** — cómo va un partido desde que se crea
