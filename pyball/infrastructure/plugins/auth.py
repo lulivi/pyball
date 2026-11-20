@@ -25,7 +25,8 @@ import hmac
 import secrets
 from typing import Callable
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from pyball.settings import PLUGIN_SCOPES, PluginConfig
 
@@ -55,16 +56,20 @@ class PluginCredentials:
                 return scopes
         return None
 
-    def require(self, scope: str) -> Callable[[Request], None]:
-        """Return a FastAPI dependency that lets through only bearers holding ``scope``."""
+    def require(self, scope: str) -> Callable[..., None]:
+        """Return a FastAPI dependency that lets through only bearers holding ``scope``.
 
-        def check(request: Request) -> None:
-            header = request.headers.get("authorization", "")
-            kind, _, token = header.partition(" ")
-            scopes = self.scopes_for(token) if kind.lower() == "bearer" and token else None
+        It declares bearer authentication in the OpenAPI schema, so /api/v1/docs offers it.
+        """
+
+        def check(bearer: HTTPAuthorizationCredentials | None = Depends(_BEARER)) -> None:
+            scopes = self.scopes_for(bearer.credentials) if bearer else None
             if scopes is None:
                 raise HTTPException(401, "Unauthorized", headers={"WWW-Authenticate": "Bearer"})
             if scope not in scopes:
                 raise HTTPException(403, f"Missing scope {scope}")
 
         return check
+
+
+_BEARER = HTTPBearer(auto_error=False, description="PYBALL_API_TOKEN, or the manage token")

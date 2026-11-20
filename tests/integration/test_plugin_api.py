@@ -185,3 +185,12 @@ async def test_stream_sends_keepalives_while_idle(container):
     stream = event_stream(container.event_log, after=None, keepalive=0.01)
     assert await asyncio.wait_for(anext(stream), 1) == ": keepalive\n\n"
     await stream.aclose()
+
+
+@pytest.mark.asyncio
+async def test_openapi_declares_bearer_auth(siesta):
+    """The schema declares bearer authentication, so /api/v1/docs can send a token."""
+    schema = (await siesta.get("/openapi.json")).json()
+    assert schema["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
+    docs = await siesta.get("/docs")
+    assert docs.status_code == 200
