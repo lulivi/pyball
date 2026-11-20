@@ -171,7 +171,8 @@ class TelegramMatchNotifier(MatchNotifier):
     async def on_player_joined(
         self, meetup: Meetup, player: "Player", is_substitute: bool
     ) -> None:
-        """Handle a player joining a meetup by posting to the activity chat."""
+        """Refresh the callups with the new roster and post the join to the activity chat."""
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
         status = "suplente" if is_substitute else "titular"
         date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
         name = _escape_code_span(player.name)
@@ -182,7 +183,8 @@ class TelegramMatchNotifier(MatchNotifier):
         await _send_activity_message(self._bot, self._settings, text)
 
     async def on_player_left(self, meetup: Meetup, player: "Player", is_substitute: bool) -> None:
-        """Handle a player leaving a meetup by posting to the activity chat."""
+        """Refresh the callups with the new roster and post the leave to the activity chat."""
+        await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
         status = "suplente" if is_substitute else "titular"
         date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
         name = _escape_code_span(player.name)

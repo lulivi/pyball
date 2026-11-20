@@ -325,7 +325,7 @@ class TestJoinLeave:
 
     @pytest.mark.asyncio
     async def test_join_and_leave_notify(self, tmp_path):
-        """A web join and leave refresh the callups and post activity, like Telegram."""
+        """A web join and leave are announced like Telegram ones."""
         ana = Player.create("Ana", group="substitute")
         container = _container_with_code_store(tmp_path, ana)
         meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
@@ -342,7 +342,6 @@ class TestJoinLeave:
 
         notifier.on_player_joined.assert_awaited_once_with(meetup, ana, True)
         notifier.on_player_left.assert_awaited_once_with(meetup, ana, True)
-        assert notifier.on_meetup_updated.await_count == 2
 
     @pytest.mark.asyncio
     async def test_join_when_already_in_notifies_nothing(self, tmp_path):

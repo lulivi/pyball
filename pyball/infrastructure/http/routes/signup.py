@@ -112,7 +112,6 @@ def register_signup_routes(
             raise HTTPException(409, str(exc)) from exc
         player = container.player_repository.find_by_id(player_id)
         if not already_in and player is not None:
-            await notifier.on_meetup_updated(updated)
             await notifier.on_player_joined(updated, player, player.group == "substitute")
         return build_signup_meetup_response(container, player_id)
 
@@ -127,7 +126,6 @@ def register_signup_routes(
             raise HTTPException(409, str(exc)) from exc
         player = container.player_repository.find_by_id(player_id)
         if player is not None:
-            await notifier.on_meetup_updated(updated)
             await notifier.on_player_left(updated, player, player.group == "substitute")
         return build_signup_meetup_response(container, player_id)
 

@@ -23,7 +23,6 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import telegram
 from telegram import CallbackQuery, Update
 from telegram.ext import ContextTypes
 
@@ -33,13 +32,11 @@ from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import PlayerId
 from pyball.infrastructure.telegram.formatters import parse_callback_data
 from pyball.infrastructure.telegram.mapping import TelegramMappingStore
-from pyball.infrastructure.telegram.notifications import refresh_callup_messages
 from pyball.logger import log_func
 
 if TYPE_CHECKING:
     from pyball.application.notifier import MatchNotifier
     from pyball.domain.player.models import Player
-    from pyball.infrastructure.telegram.settings import TelegramAppSettings
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +86,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         query,
         container,
         mapping_store,
-        context.bot,
-        settings,
         notifier,
     )
 
@@ -103,8 +98,6 @@ async def _handle_player_action(
     query: CallbackQuery,
     container: Container,
     mapping_store: TelegramMappingStore,
-    bot: telegram.Bot,
-    settings: "TelegramAppSettings",
     notifier: "MatchNotifier",
 ) -> None:
     """Handle join/leave/join_sub/leave_sub callback actions.
@@ -163,7 +156,6 @@ async def _handle_player_action(
     if modified:
         updated_meetup = container.meetup_repository.find_by_datetime(meetup_date)
         if updated_meetup:
-            await refresh_callup_messages(bot, settings, container, updated_meetup)
             is_substitute = "_sub" in action
             if "join" in action:
                 await notifier.on_player_joined(updated_meetup, player, is_substitute)

@@ -388,7 +388,7 @@ async def test_join_sub_rejected_when_target_reached(
 async def test_regular_join_reaching_target_closes_search(
     callback_update, bot_context, linked_player, saved_meetup  # pylint: disable=unused-argument
 ):
-    """The 10th player (a regular) closes the search and strips the subs keyboard."""
+    """The 10th player (a regular) closes the search."""
     _open_search(bot_context, saved_meetup, 10)
     _fill(bot_context, saved_meetup, 9)
     callback_update.callback_query.data = "join:2026-04-25T20:00"
@@ -396,11 +396,6 @@ async def test_regular_join_reaching_target_closes_search(
     await callback_handler(callback_update, bot_context)
 
     assert not _stored(bot_context).substitute_search
-    subs_edit = next(
-        c for c in bot_context.bot.edit_message_text.call_args_list if c.kwargs["message_id"] == 7
-    )
-    assert subs_edit.kwargs["reply_markup"] is None
-    assert "Completo" in subs_edit.kwargs["text"]
 
 
 @pytest.mark.asyncio
