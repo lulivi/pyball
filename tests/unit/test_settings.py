@@ -380,13 +380,13 @@ class TestPluginsSetting:
     def test_plugin_table(self, tmp_path):
         """A plugin table gives its name, command and scopes."""
         plugin_table = (
-            '[pyball.plugins.siesta]\ncommand = ["./pyball-siesta", "run"]\n'
+            '[pyball.plugins.example]\ncommand = ["./plugins/example-plugin", "--verbose"]\n'
             'scopes = ["players:read", "meetups:write"]\n'
         )
         config = f"{_FULL_CORE}\n{plugin_table}"
         (plugin,) = load_app_settings(_write(tmp_path, config)).plugins
-        assert plugin.name == "siesta"
-        assert plugin.command == ("./pyball-siesta", "run")
+        assert plugin.name == "example"
+        assert plugin.command == ("./plugins/example-plugin", "--verbose")
         assert plugin.scopes == {"players:read", "meetups:write"}
 
     @pytest.mark.parametrize(

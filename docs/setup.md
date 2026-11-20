@@ -126,7 +126,7 @@ One table per plugin, named after it. Both topologies run them (see
 
 | Key | Description | Required |
 |---|---|---|
-| `command` | Program and arguments that start the plugin, run from the workspace, e.g. `["./plugins/pyball-siesta", "run"]` | **Yes** |
+| `command` | Program and arguments that start the plugin, run from the workspace, e.g. `["./plugins/example-plugin", "--verbose"]` | **Yes** |
 | `scopes` | What the plugin may do through the plugin API: any of `players:read`, `players:write`, `meetups:read` (includes the event stream), `meetups:write` | No (none) |
 
 ## 4. Start the app
@@ -198,8 +198,9 @@ Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.
 
 ## 8. Plugins
 
-A plugin is an optional program, written in any language, that extends PyBall without
-touching its code. Declare it in `config.toml` (see
+A plugin is an optional, long-running program, written in any language, that extends
+PyBall without touching its code. It runs for as long as PyBall does, reacting to the
+event stream or keeping its own schedule: a job that runs once and exits belongs in cron. Declare it in `config.toml` (see
 [`[pyball.plugins.<name>]`](#pyballpluginsname--optional-plugins)) and put the program
 in the workspace's `plugins/` folder, which the generated `compose.yaml` mounts at
 `/pyball/plugins`. Then start PyBall as usual: it is still one command.

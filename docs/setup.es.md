@@ -130,7 +130,7 @@ Una tabla por plugin, con su nombre. Las dos topologías los ejecutan (ver
 
 | Clave | Descripción | Obligatorio |
 |---|---|---|
-| `command` | Programa y argumentos que arrancan el plugin, ejecutado desde el espacio de trabajo, p. ej. `["./plugins/pyball-siesta", "run"]` | **Sí** |
+| `command` | Programa y argumentos que arrancan el plugin, ejecutado desde el espacio de trabajo, p. ej. `["./plugins/example-plugin", "--verbose"]` | **Sí** |
 | `scopes` | Lo que el plugin puede hacer con la API de plugins: cualquiera de `players:read`, `players:write`, `meetups:read` (incluye el flujo de eventos), `meetups:write` | No (ninguno) |
 
 ## 4. Arranca la aplicación
@@ -203,8 +203,10 @@ Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.
 
 ## 8. Plugins
 
-Un plugin es un programa opcional, escrito en cualquier lenguaje, que amplía PyBall sin
-tocar su código. Decláralo en `config.toml` (ver
+Un plugin es un programa opcional y de larga duración, escrito en cualquier lenguaje, que
+amplía PyBall sin tocar su código. Se ejecuta mientras PyBall esté en marcha, reaccionando
+al flujo de eventos o con su propio calendario: una tarea que se ejecuta una vez y
+termina va en cron. Decláralo en `config.toml` (ver
 [`[pyball.plugins.<nombre>]`](#pyballpluginsnombre--plugins-opcionales)) y pon el
 programa en la carpeta `plugins/` del espacio de trabajo, que el `compose.yaml` generado
 monta en `/pyball/plugins`. Luego arranca PyBall como siempre: sigue siendo un solo

@@ -264,7 +264,7 @@ def _parse_plugins(section: dict) -> list[PluginConfig]:
         if not command or not valid_parts:
             raise SettingsValidationError(
                 f"plugins.{name}.command debe ser una lista no vacía de textos, "
-                f'p. ej. ["./mi-plugin", "run"].'
+                f'p. ej. ["./plugins/mi-plugin", "--verbose"].'
             )
         scopes = table.get("scopes", [])
         unknown = [s for s in scopes if s not in PLUGIN_SCOPES] if isinstance(scopes, list) else []

@@ -31,7 +31,7 @@ touches all of them in the same commit.
    existing `_parse_*` helpers, raising `SettingsValidationError` for bad values.
 2. **Template.** Add the key, with its default and a one-line comment, to the
    `config.toml` template in `pyball/application/init_workspace.py`: `_CORE_CONFIG` for
-   core keys and the commented `[pyball.plugins.siesta]` example, `_TG_CONFIG_EXTRA` for
+   core keys and the commented `[pyball.plugins.example]` example, `_TG_CONFIG_EXTRA` for
    Telegram keys.
 3. **Docs.** Add a row to the section's table in `docs/setup.md` and the same row,
    translated, in `docs/setup.es.md`.
