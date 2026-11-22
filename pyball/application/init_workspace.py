@@ -92,6 +92,18 @@ theme_color = "#0f172a"
 # Override with PYBALL_CORE_ICONS_DIR
 icons_dir = ""
 
+[pyball.alerts.telegram]
+# Core warnings and errors, plugin crashes included, in every topology; no plugin needed.
+# chat_id = 0 disables alerts. The bot token may be the one the Telegram bot uses.
+# Point the deploy notification secrets (DEPLOY_NOTIFY_*) at this chat too.
+# Override with PYBALL_ALERTS_TELEGRAM_BOT_TOKEN
+bot_token = ""
+# Override with PYBALL_ALERTS_TELEGRAM_CHAT_ID (negative for groups)
+chat_id = 0
+# Forum topic thread (empty string = no topic)
+# Override with PYBALL_ALERTS_TELEGRAM_MESSAGE_THREAD_ID
+message_thread_id = ""
+
 # Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
 # A plugin is a long-running program, bundled (siesta) or yours in plugins/; one that
 # exits is started again. Bundled ones: docs/plugins/README.md
@@ -129,14 +141,6 @@ message_thread_id = ""
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID (negative for groups)
 chat_id = -1000000000001
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_MESSAGE_THREAD_ID
-message_thread_id = ""
-
-[pyball.telegram.management.logging]
-# Operational log records. chat_id = 0 disables the log handler.
-# Point deploy/deploy.sh (TELEGRAM_CHAT_ID / TELEGRAM_MESSAGE_THREAD_ID) here too.
-# Override with PYBALL_TELEGRAM_MANAGEMENT_LOGGING_CHAT_ID
-chat_id = 0
-# Override with PYBALL_TELEGRAM_MANAGEMENT_LOGGING_MESSAGE_THREAD_ID
 message_thread_id = ""
 
 [pyball.telegram.management.activity]

@@ -3,10 +3,12 @@
 # pylint: disable=redefined-outer-name
 
 import asyncio
+import logging
 import socket
 import sys
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -14,6 +16,7 @@ import pytest_asyncio
 import uvicorn
 
 from pyball.application.container import Container
+from pyball.infrastructure.alerts import TelegramAlertHandler, _AlertFilter
 from pyball.infrastructure.http.app import _Server, create_app, wait_until_serving
 from pyball.infrastructure.plugins.auth import PluginCredentials
 from pyball.infrastructure.plugins.event_log import EventLogNotifier
@@ -104,6 +107,34 @@ async def test_crashing_plugin_is_restarted_and_the_core_keeps_serving(tmp_path,
             )
         assert resp.status_code == 200
     finally:
+        await supervisor.stop()
+
+
+@pytest.mark.asyncio
+async def test_crash_loop_gives_one_alert_per_plugin(tmp_path):
+    """Two plugins crashing over and over give one alert each inside the repeat window."""
+    runs = {name: tmp_path / name for name in ("first", "second")}
+    plugins = [
+        _plugin(name, "-c", f"open({str(path)!r}, 'a').write('x'); raise SystemExit(1)")
+        for name, path in runs.items()
+    ]
+    handler = TelegramAlertHandler("tok", -1)
+    handler.addFilter(_AlertFilter())
+    root = logging.getLogger()
+    root.addHandler(handler)
+    supervisor = PluginSupervisor(
+        plugins, PluginCredentials(plugins, "manage-tok"), "http://unused", tmp_path, **_FAST
+    )
+    try:
+        with patch("pyball.infrastructure.alerts.urllib.request.urlopen") as urlopen:
+            supervisor.start()
+            await _until(
+                lambda: all(p.exists() and len(p.read_text()) >= 5 for p in runs.values())
+            )
+            await supervisor.stop()
+        assert urlopen.call_count == 2
+    finally:
+        root.removeHandler(handler)
         await supervisor.stop()
 
 

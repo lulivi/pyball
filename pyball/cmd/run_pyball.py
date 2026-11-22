@@ -28,6 +28,7 @@ from pathlib import Path
 import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
+from pyball.infrastructure.alerts import config_alerts
 from pyball.infrastructure.http.app import _Server, create_app, wait_until_serving
 from pyball.infrastructure.plugins.auth import PluginCredentials
 from pyball.infrastructure.plugins.event_log import EventLogNotifier
@@ -68,6 +69,7 @@ def main() -> None:
 async def _main_async(config_path: Path) -> None:
     """Boot the pyball topology, with /signup enabled or not per config."""
     app_settings, container = bootstrap_core(config_path)
+    config_alerts(app_settings.alerts)
     notifier = EventLogNotifier(container.event_log)
     credentials = PluginCredentials(app_settings.plugins, app_settings.pyball.manage_token)
     app = create_app(
@@ -87,7 +89,7 @@ async def _main_async(config_path: Path) -> None:
     )
 
     server_config = uvicorn.Config(
-        app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+        app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info", log_config=None
     )
     server = _Server(server_config)
 

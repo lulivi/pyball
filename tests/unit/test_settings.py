@@ -7,6 +7,7 @@ from pyball.settings import (
     AppSettings,
     PyballConfig,
     SettingsValidationError,
+    TelegramAlerts,
     _parse_team_colors,
     load_app_settings,
 )
@@ -402,6 +403,62 @@ class TestPluginsSetting:
         config = _FULL_CORE + f"\n[pyball.plugins.bad]\n{table}\n"
         with pytest.raises(SettingsValidationError, match=match):
             load_app_settings(_write(tmp_path, config))
+
+
+class TestAlertsSetting:
+    """Tests for the [pyball.alerts.telegram] section."""
+
+    def test_off_by_default(self, tmp_path):
+        """Without the section alerts are off."""
+        assert load_app_settings(_write(tmp_path, _FULL_CORE)).alerts is None
+
+    def test_off_when_chat_id_zero(self, tmp_path):
+        """chat_id = 0 turns alerts off, even with a token."""
+        config = _FULL_CORE + '\n[pyball.alerts.telegram]\nbot_token = "t"\nchat_id = 0\n'
+        assert load_app_settings(_write(tmp_path, config)).alerts is None
+
+    def test_section_values(self, tmp_path):
+        """bot_token, chat_id and message_thread_id load from the file."""
+        config = _FULL_CORE + (
+            '\n[pyball.alerts.telegram]\nbot_token = "t"\nchat_id = -100\n'
+            'message_thread_id = "7"\n'
+        )
+        alerts = load_app_settings(_write(tmp_path, config)).alerts
+        assert alerts == TelegramAlerts("t", -100, 7)
+
+    def test_empty_thread_is_none(self, tmp_path):
+        """An empty message_thread_id means no topic."""
+        config = _FULL_CORE + (
+            '\n[pyball.alerts.telegram]\nbot_token = "t"\nchat_id = -100\n'
+            'message_thread_id = ""\n'
+        )
+        alerts = load_app_settings(_write(tmp_path, config)).alerts
+        assert alerts is not None and alerts.message_thread_id is None
+
+    def test_env_overrides(self, tmp_path, monkeypatch):
+        """PYBALL_ALERTS_TELEGRAM_* override the file, and enable alerts without it."""
+        monkeypatch.setenv("PYBALL_ALERTS_TELEGRAM_BOT_TOKEN", "envtok")
+        monkeypatch.setenv("PYBALL_ALERTS_TELEGRAM_CHAT_ID", "-200")
+        monkeypatch.setenv("PYBALL_ALERTS_TELEGRAM_MESSAGE_THREAD_ID", "3")
+        alerts = load_app_settings(_write(tmp_path, _FULL_CORE)).alerts
+        assert alerts == TelegramAlerts("envtok", -200, 3)
+
+    def test_chat_without_token_raises(self, tmp_path):
+        """A chat with no bot token is rejected instead of silently sending nothing."""
+        config = _FULL_CORE + "\n[pyball.alerts.telegram]\nchat_id = -100\n"
+        with pytest.raises(SettingsValidationError, match="bot_token"):
+            load_app_settings(_write(tmp_path, config))
+
+    def test_non_numeric_chat_id_raises(self, tmp_path):
+        """A chat_id that is not a number is rejected."""
+        config = _FULL_CORE + '\n[pyball.alerts.telegram]\nbot_token = "t"\nchat_id = "x"\n'
+        with pytest.raises(SettingsValidationError, match="chat_id"):
+            load_app_settings(_write(tmp_path, config))
+
+    def test_old_telegram_logging_section_is_not_read(self, tmp_path):
+        """[pyball.telegram.management.logging] no longer turns alerts on."""
+        config = _FULL_CORE + "\n[pyball.telegram.management.logging]\nchat_id = -100\n"
+        assert load_app_settings(_write(tmp_path, config)).alerts is None
 
 
 class TestWorkspacePaths:

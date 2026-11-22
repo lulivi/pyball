@@ -124,7 +124,6 @@ class TestTelegramSettings:
             s.regulars.meetups,
             s.regulars.stats,
             s.substitutes.meetups,
-            s.management.logging,
             s.management.activity,
         ):
             assert isinstance(leaf, ChatConfig)
@@ -170,33 +169,26 @@ class TestLoadTelegramAppSettings:
     def test_leaves_default_to_disabled_when_section_absent(self, tmp_path):
         """Optional sections default to a falsy ChatConfig when not in the file."""
         s = self._load(tmp_path).telegram
-        assert not s.management.logging
         assert not s.management.activity
         assert s.regulars.meetups.message_thread_id is None
 
     def test_parses_message_thread_id_as_int(self, tmp_path):
-        """message_thread_id is parsed to int from both bare int and quoted string."""
+        """message_thread_id is parsed to int from a quoted string."""
         config = _MINIMAL_CONFIG + (
             "\n[pyball.telegram.management.activity]\n"
-            "chat_id = -100333\nmessage_thread_id = 2\n"
-            "\n[pyball.telegram.management.logging]\n"
             "chat_id = -100333\nmessage_thread_id = '77'\n"
         )
         s = self._load(tmp_path, config).telegram
-        assert s.management.activity.message_thread_id == 2
-        assert s.management.logging.message_thread_id == 77
+        assert s.management.activity.message_thread_id == 77
 
     def test_zero_message_thread_id_is_none(self, tmp_path):
-        """message_thread_id = 0 (and "0") means no topic, never a literal 0."""
+        """message_thread_id = 0 means no topic, never a literal 0."""
         config = _MINIMAL_CONFIG + (
             "\n[pyball.telegram.management.activity]\n"
             "chat_id = -100333\nmessage_thread_id = 0\n"
-            "\n[pyball.telegram.management.logging]\n"
-            "chat_id = -100333\nmessage_thread_id = '0'\n"
         )
         s = self._load(tmp_path, config).telegram
         assert s.management.activity.message_thread_id is None
-        assert s.management.logging.message_thread_id is None
 
     def test_empty_message_thread_id_is_none(self, tmp_path):
         """message_thread_id = '' means no topic."""
@@ -283,9 +275,3 @@ class TestLoadTelegramAppSettings:
         with caplog.at_level(logging.WARNING, logger="pyball.infrastructure.telegram.settings"):
             self._load(tmp_path)
         assert not any("telegram.regulars.stats no está configurado" in m for m in caplog.messages)
-
-    def test_warns_when_management_logging_unconfigured(self, tmp_path, caplog):
-        """A config without management.logging warns that operational logs stay local."""
-        with caplog.at_level(logging.WARNING, logger="pyball.infrastructure.telegram.settings"):
-            self._load(tmp_path)
-        assert any("telegram.management.logging no está configurado" in m for m in caplog.messages)
