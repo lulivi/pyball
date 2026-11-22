@@ -2,7 +2,6 @@
 
 # pylint: disable=redefined-outer-name
 
-import asyncio
 from datetime import datetime
 
 import pytest
@@ -176,15 +175,17 @@ async def test_stream_resumes_after_the_last_seen_event_in_order(container):
     with pytest.raises(StopAsyncIteration):
         await anext(stream)
 
-    assert [f.split("\n")[0] for f in frames] == ["id: 2", "id: 3", "id: 4"]
+    assert [f["id"] for f in frames] == [2, 3, 4]
 
 
 @pytest.mark.asyncio
-async def test_stream_sends_keepalives_while_idle(container):
-    """An idle stream sends a comment so proxies keep the connection open."""
-    stream = event_stream(container.event_log, after=None, keepalive=0.01)
-    assert await asyncio.wait_for(anext(stream), 1) == ": keepalive\n\n"
-    await stream.aclose()
+async def test_openapi_describes_each_event_as_an_event_out(siesta):
+    """Every event on the stream is an SSE item whose data is an EventOut."""
+    schema = (await siesta.get("/openapi.json")).json()
+    content = schema["paths"]["/events"]["get"]["responses"]["200"]["content"]
+    data = content["text/event-stream"]["itemSchema"]["properties"]["data"]
+    assert data["contentSchema"] == {"$ref": "#/components/schemas/EventOut"}
+    assert "EventOut" in schema["components"]["schemas"]
 
 
 @pytest.mark.asyncio

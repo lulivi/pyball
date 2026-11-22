@@ -21,13 +21,11 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterable, AsyncIterator, Callable
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 
 from pyball.domain.meetup.errors import (
@@ -45,15 +43,19 @@ from pyball.domain.meetup.errors import (
 from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import Player, PlayerId
-from pyball.infrastructure.plugins.schemas import MeetupOut, PlayerOut, meetup_out, player_out
+from pyball.infrastructure.plugins.schemas import (
+    EventOut,
+    MeetupOut,
+    PlayerOut,
+    meetup_out,
+    player_out,
+)
 
 if TYPE_CHECKING:
     from pyball.application.container import Container
     from pyball.application.notifier import MatchNotifier
     from pyball.infrastructure.plugins.auth import PluginCredentials
     from pyball.infrastructure.plugins.event_log import EventLog
-
-_KEEPALIVE_SECONDS = 15.0
 
 
 class CreateMeetupBody(BaseModel):
@@ -99,7 +101,12 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         """List every player."""
         return [player_out(p) for p in container.player_repository.find_all()]
 
-    @api.get("/meetups/active", response_model=MeetupOut, dependencies=meetups_read)
+    @api.get(
+        "/meetups/active",
+        response_model=MeetupOut,
+        responses={404: {"description": "No active meetup"}},
+        dependencies=meetups_read,
+    )
     async def active_meetup():
         """Return the active meetup: the latest one not closed yet."""
         return meetup_out(_active(container))
@@ -209,57 +216,41 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         await notifier.on_meetup_updated(updated)
         return meetup_out(updated)
 
-    @api.get(
-        "/events",
-        dependencies=meetups_read,
-        response_class=StreamingResponse,
-        responses={200: {"content": {"text/event-stream": {}}}},
-    )
+    @api.get("/events", dependencies=meetups_read, response_class=EventSourceResponse)
     async def events(
         after: int | None = Query(default=None, ge=0),
         last_event_id: int | None = Header(default=None, ge=0),
-    ):
+    ) -> AsyncIterable[EventOut]:
         """Stream events as server-sent events, each with its id, type and JSON data.
 
         Resume with the Last-Event-ID header or ?after=<id> to receive every later event in
         order, then the live ones; ?after=0 replays the whole log. With neither, only new
-        events are sent.
+        events are sent. An idle stream sends a `: ping` comment every 15 s.
         """
         seen = last_event_id if last_event_id is not None else after
-        return StreamingResponse(
-            event_stream(container.event_log, seen), media_type="text/event-stream"
-        )
+        async for event in event_stream(container.event_log, seen):
+            # The annotation documents each item's data as EventOut in the OpenAPI schema;
+            # FastAPI sends ServerSentEvent items as they are, with their id and type.
+            yield ServerSentEvent(  # type: ignore[misc]
+                data=event, event=event["type"], id=str(event["id"])
+            )
 
     return api
 
 
-async def event_stream(
-    log: "EventLog", after: int | None, keepalive: float = _KEEPALIVE_SECONDS
-) -> AsyncIterator[str]:
-    """Yield the events after ``after`` (none if None), then live ones, as SSE frames.
+async def event_stream(log: "EventLog", after: int | None) -> AsyncIterator[dict[str, Any]]:
+    """Yield the events after ``after`` (none if None), then live ones.
 
     Ends when the log closes its subscribers, on shutdown.
     """
     last_id, queue = log.subscribe()
     try:
         for event in log.after(last_id if after is None else after, up_to=last_id):
-            yield _frame(event)
-        while True:
-            try:
-                live = await asyncio.wait_for(queue.get(), timeout=keepalive)
-            except asyncio.TimeoutError:
-                yield ": keepalive\n\n"
-                continue
-            if live is None:
-                return
-            yield _frame(live)
+            yield event
+        while (live := await queue.get()) is not None:
+            yield live
     finally:
         log.unsubscribe(queue)
-
-
-def _frame(event: dict[str, Any]) -> str:
-    data = json.dumps(event, ensure_ascii=False)
-    return f"id: {event['id']}\nevent: {event['type']}\ndata: {data}\n\n"
 
 
 def _active(container: "Container") -> Meetup:
