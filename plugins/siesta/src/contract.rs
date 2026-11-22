@@ -53,6 +53,16 @@ fn siesta_can_resume_the_event_stream() {
     );
 }
 
+#[test]
+fn no_active_meetup_is_a_404() {
+    let schema: Value = serde_json::from_str(SCHEMA).unwrap();
+    let responses = &operation(&schema, "get", "/meetups/active")["responses"];
+    assert!(
+        responses.get("404").is_some(),
+        "GET /meetups/active no longer answers 404 when there is no active meetup"
+    );
+}
+
 /// The answer to `method path`, sampled from its schema, decodes into `T`; and every
 /// field `T` reads is in the sample.
 fn check<T: DeserializeOwned + Serialize>(schema: &Value, method: &str, path: &str) {

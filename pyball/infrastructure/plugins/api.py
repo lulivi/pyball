@@ -101,7 +101,12 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         """List every player."""
         return [player_out(p) for p in container.player_repository.find_all()]
 
-    @api.get("/meetups/active", response_model=MeetupOut, dependencies=meetups_read)
+    @api.get(
+        "/meetups/active",
+        response_model=MeetupOut,
+        responses={404: {"description": "No active meetup"}},
+        dependencies=meetups_read,
+    )
     async def active_meetup():
         """Return the active meetup: the latest one not closed yet."""
         return meetup_out(_active(container))
