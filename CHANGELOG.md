@@ -2,6 +2,53 @@
 
 <!-- version list -->
 
+## v7.3.0 (2026-11-22)
+
+### Documentation
+
+- Point plugins at the committed schema and the contract checks
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+### Features
+
+- **plugins**: Commit the plugin API schema and check siesta against it
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+- **plugins**: Commit the plugin API schema as plugins/openapi.json
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+- **plugins**: Declare the 404 of GET /meetups/active in the contract
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+- **plugins**: Serve /api/v1/events with FastAPI's native server-sent events
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+### Refactoring
+
+- **siesta**: Declare each call's request body in the endpoints! table
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+- **siesta**: Decode each answer as the type its endpoint declares
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+- **siesta**: Send every PyBall call through one endpoints! table
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+### Testing
+
+- **siesta**: Check siesta's calls against the committed plugin contract
+  ([#27](https://github.com/lulivi/pyball/pull/27),
+  [`5c73485`](https://github.com/lulivi/pyball/commit/5c734857450040b500f788ea0cae5aada34bc0ba))
+
+
 ## v7.2.0 (2026-11-22)
 
 ### Bug Fixes
