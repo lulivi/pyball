@@ -39,6 +39,7 @@ pyball/
 Outside `pyball/`:
 
 - `docs/` — user-facing documentation, in English and Spanish.
+- `plugins/` — the bundled plugins, one folder each (see [Bundled plugins](#bundled-plugins)).
 
 ## Startup
 
@@ -85,7 +86,26 @@ Both topologies host plugins the same way:
   never loses an event.
 
 `plugins/schemas.py` and the `/api/v1` routes are the plugin contract: a change to either
-updates the plugins that call it and `docs/setup.md` in the same change.
+updates the plugins that call it and `docs/plugins/README.md` in the same change.
+
+### Bundled plugins
+
+A bundled plugin lives in `plugins/<name>/` at the repository root, in any language, and
+uses only the plugin API, like any other plugin. Each one:
+
+- has a `Makefile` with a `check` target (its format check, lint and tests, failing on
+  any error) and a `build` target (a release build, for local development). The root
+  `make plugins-check` and `make plugins-build` run them for every plugin, and the
+  `plugins` CI job runs `make plugins-check` in the CI image, which carries each
+  plugin's toolchain;
+- has its own build stage in `docker/Dockerfile`, which installs it in both images
+  outside `/pyball/plugins`, the folder the workspace mounts over: a binary goes to
+  `/usr/local/bin/<name>`, so `command = ["<name>", ...]` finds it;
+- is documented in `docs/plugins/<name>/README.md` (EN/ES) and listed in
+  `docs/plugins/README.md`.
+
+`siesta` is written in Rust: `plugins/siesta/rust-toolchain.toml` pins its Rust version,
+and `docker/Dockerfile.ci` and the `siesta` stage of `docker/Dockerfile` use the same one.
 
 ## Match formats
 

@@ -32,6 +32,8 @@ plugins.
   triangular (3 equipos).
 - **[docs/pages.es.md](docs/pages.es.md)** — un recorrido estructural por `/manage`,
   `/match` y `/signup`: sus pestañas, pantallas, y qué muestra cada una.
+- **[docs/plugins/README.es.md](docs/plugins/README.es.md)** — plugins opcionales: los
+  incluidos, como el sorteo justo de quién descansa, y cómo escribir los tuyos.
 - **[docs/data-directory.es.md](docs/data-directory.es.md)** — la estructura de
   directorios que crea PyBall y el formato de sus archivos JSON.
 - **[docs/deployment.es.md](docs/deployment.es.md)** — cómo exponer tu instancia

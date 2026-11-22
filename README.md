@@ -30,6 +30,8 @@ are for, access tokens, and plugins.
   finished stats, including the classic (2-team) and triangular (3-team) match formats.
 - **[docs/pages.md](docs/pages.md)** — a structural tour of `/manage`, `/match`, and
   `/signup`: their tabs, screens, and what each one shows.
+- **[docs/plugins/README.md](docs/plugins/README.md)** — optional plugins: the bundled
+  ones, such as the fair sit-out draw, and how to write your own.
 - **[docs/data-directory.md](docs/data-directory.md)** — the directory structure PyBall
   creates and the JSON file formats it uses.
 - **[docs/deployment.md](docs/deployment.md)** — reaching your instance from outside
