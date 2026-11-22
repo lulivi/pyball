@@ -4,9 +4,9 @@ use std::io::{BufRead, BufReader, Read};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use ureq::http::{Response, StatusCode};
 use ureq::{Agent, Body};
 
@@ -19,6 +19,7 @@ pub struct Api {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Meetup {
     pub id: String,
     /// `YYYY-MM-DDTHH:MM:SS`, PyBall's local time.
@@ -42,17 +43,20 @@ impl Meetup {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Team {
     pub name: String,
     pub players: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Match {
     pub score: Option<Vec<u32>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Player {
     pub id: String,
     pub name: String,
@@ -66,8 +70,16 @@ impl Player {
     }
 }
 
+/// Body of `PUT /meetups/{id}/lineup`.
+#[derive(Serialize)]
+pub struct LineupBody<'a> {
+    pub players: &'a [String],
+    pub team_algorithm: &'a str,
+}
+
 /// One server-sent event: its id, its type and the meetup as it was right after.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Event {
     pub id: u64,
     #[serde(rename = "type")]
@@ -120,7 +132,10 @@ impl Api {
         algorithm: &str,
     ) -> Result<Meetup> {
         let path = format!("/meetups/{meetup_id}/lineup");
-        let body = json!({ "players": players, "team_algorithm": algorithm });
+        let body = LineupBody {
+            players,
+            team_algorithm: algorithm,
+        };
         let sent = self
             .auth(self.http.put(format!("{}{path}", self.base)))
             .send_json(&body);

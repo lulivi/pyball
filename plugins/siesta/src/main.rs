@@ -8,6 +8,8 @@
 
 mod api;
 mod config;
+#[cfg(test)]
+mod contract;
 mod draw;
 mod message;
 mod schedule;
