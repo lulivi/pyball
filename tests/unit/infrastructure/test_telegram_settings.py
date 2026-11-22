@@ -26,7 +26,6 @@ import pytest
 
 from pyball.infrastructure.telegram.settings import (
     ChatConfig,
-    ManagementChats,
     RegularsChats,
     SubstitutesChats,
     TelegramAppSettings,
@@ -119,12 +118,10 @@ class TestTelegramSettings:
         s = TelegramSettings()
         assert isinstance(s.regulars, RegularsChats)
         assert isinstance(s.substitutes, SubstitutesChats)
-        assert isinstance(s.management, ManagementChats)
         for leaf in (
             s.regulars.meetups,
             s.regulars.stats,
             s.substitutes.meetups,
-            s.management.activity,
         ):
             assert isinstance(leaf, ChatConfig)
             assert not leaf
@@ -167,28 +164,27 @@ class TestLoadTelegramAppSettings:
         assert s.substitutes.meetups.chat_id == -100222
 
     def test_leaves_default_to_disabled_when_section_absent(self, tmp_path):
-        """Optional sections default to a falsy ChatConfig when not in the file."""
+        """An optional message_thread_id defaults to no topic when not in the file."""
         s = self._load(tmp_path).telegram
-        assert not s.management.activity
         assert s.regulars.meetups.message_thread_id is None
 
     def test_parses_message_thread_id_as_int(self, tmp_path):
         """message_thread_id is parsed to int from a quoted string."""
-        config = _MINIMAL_CONFIG + (
-            "\n[pyball.telegram.management.activity]\n"
-            "chat_id = -100333\nmessage_thread_id = '77'\n"
+        config = _MINIMAL_CONFIG.replace(
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\n",
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\nmessage_thread_id = '77'\n",
         )
         s = self._load(tmp_path, config).telegram
-        assert s.management.activity.message_thread_id == 77
+        assert s.regulars.meetups.message_thread_id == 77
 
     def test_zero_message_thread_id_is_none(self, tmp_path):
         """message_thread_id = 0 means no topic, never a literal 0."""
-        config = _MINIMAL_CONFIG + (
-            "\n[pyball.telegram.management.activity]\n"
-            "chat_id = -100333\nmessage_thread_id = 0\n"
+        config = _MINIMAL_CONFIG.replace(
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\n",
+            "[pyball.telegram.regulars.meetups]\nchat_id = -100111\nmessage_thread_id = 0\n",
         )
         s = self._load(tmp_path, config).telegram
-        assert s.management.activity.message_thread_id is None
+        assert s.regulars.meetups.message_thread_id is None
 
     def test_empty_message_thread_id_is_none(self, tmp_path):
         """message_thread_id = '' means no topic."""
@@ -200,10 +196,10 @@ class TestLoadTelegramAppSettings:
         assert s.regulars.meetups.message_thread_id is None
 
     def test_env_override_nested_chat_id(self, tmp_path, monkeypatch):
-        """PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID overrides config."""
-        monkeypatch.setenv("PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID", "-100444")
+        """PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID overrides config."""
+        monkeypatch.setenv("PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID", "-100444")
         s = self._load(tmp_path).telegram
-        assert s.management.activity.chat_id == -100444
+        assert s.substitutes.meetups.chat_id == -100444
 
     def test_env_override_nested_message_thread_id(self, tmp_path, monkeypatch):
         """PYBALL_TELEGRAM_REGULARS_MEETUPS_MESSAGE_THREAD_ID overrides config."""

@@ -62,11 +62,11 @@ class MatchNotifier(ABC):
 
     @abstractmethod
     async def on_player_joined(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
-        """Handle a player joining a meetup by notifying the activity feed."""
+        """Handle a player joining a meetup by refreshing platform messages."""
 
     @abstractmethod
     async def on_player_left(self, meetup: Meetup, player: Player, is_substitute: bool) -> None:
-        """Handle a player leaving a meetup by notifying the activity feed."""
+        """Handle a player leaving a meetup by refreshing platform messages."""
 
 
 class CompositeMatchNotifier(MatchNotifier):

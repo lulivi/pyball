@@ -142,13 +142,6 @@ message_thread_id = ""
 chat_id = -1000000000001
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_MESSAGE_THREAD_ID
 message_thread_id = ""
-
-[pyball.telegram.management.activity]
-# Meetup activity feed — joins, leaves, created/closed/cancelled. chat_id = 0 disables it.
-# Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID
-chat_id = 0
-# Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_MESSAGE_THREAD_ID
-message_thread_id = ""
 """
 
 _PYBALL_COMPOSE = """\

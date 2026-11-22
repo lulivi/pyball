@@ -88,8 +88,9 @@ todavía estás formando la convocatoria como después de generar los equipos.
 - **Apuntarse o bajarse:** mientras el alta sigue abierta (antes de generar los
   equipos — ver [paso 3](#3-generar-equipos)), un botón "Apuntarme" / "Salir" añade o
   quita al jugador de la convocatoria, igual que si lo hiciera un admin desde `/manage`.
-  El alta o la baja queda registrada en el flujo de eventos para los plugins, y cuenta
-  para la búsqueda de suplentes.
+  El alta o la baja queda registrada en el flujo de eventos para los plugins, el plugin
+  [activity](plugins/activity/README.es.md) la publica en el chat del club si está
+  activado, y cuenta para la búsqueda de suplentes.
 - **Una vez hay equipos:** el botón de apuntarse/bajarse desaparece; el jugador ve todos
   los equipos, en modo solo lectura, la misma vista que ven todos desde `/manage` o
   `/match` — con su propio nombre resaltado para encontrarse de un vistazo.

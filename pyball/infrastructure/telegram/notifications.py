@@ -35,7 +35,6 @@ from pyball.infrastructure.telegram.formatters import (
     build_main_keyboard,
     build_subs_keyboard,
     escape_summary_for_telegram,
-    format_display,
     format_main_message,
     format_subs_message,
 )
@@ -64,18 +63,12 @@ class TelegramMatchNotifier(MatchNotifier):
         self._container = container
 
     async def on_meetup_created(self, meetup: Meetup) -> None:
-        """Handle a brand-new meetup by posting the regulars callup and the activity line.
+        """Handle a brand-new meetup by posting the regulars callup.
 
         The substitutes chat is never notified here: it is called only when a
         substitute search opens, so regulars get priority before subs are searched.
         """
         await _send_regulars_callup_message(self._bot, self._settings, self._container, meetup)
-        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
-        await _send_activity_message(
-            self._bot,
-            self._settings,
-            f"🆕 *Convocatoria creada* — nueva convocatoria para el `{date_str}`\\.",
-        )
 
     async def on_meetup_updated(self, meetup: Meetup) -> None:
         """Handle a meetup update by refreshing platform messages.
@@ -104,14 +97,8 @@ class TelegramMatchNotifier(MatchNotifier):
         )
 
     async def on_meetup_cancelled(self, meetup: Meetup) -> None:
-        """Edit a cancelled meetup's messages and post the cancellation to the activity feed."""
+        """Edit a cancelled meetup's messages to show the cancellation."""
         await _cancel_callup_messages(self._bot, self._settings, self._container, meetup)
-        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
-        await _send_activity_message(
-            self._bot,
-            self._settings,
-            f"🚫 *Convocatoria cancelada* — se ha cancelado la convocatoria del `{date_str}`\\.",
-        )
 
     async def on_match_closed(self, meetup: Meetup) -> None:
         """Handle a closed match by updating messages, clearing tracking, and posting stats."""
@@ -123,12 +110,6 @@ class TelegramMatchNotifier(MatchNotifier):
         )
         message_store.delete_message(meetup.date, "regular")
         message_store.delete_message(meetup.date, "substitute")
-        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
-        await _send_activity_message(
-            self._bot,
-            self._settings,
-            f"🏁 *Convocatoria cerrada* — la convocatoria del `{date_str}` ha finalizado\\.",
-        )
         asyncio.create_task(_post_match_stats(self._bot, self._container, self._settings))
 
     async def on_match_edited(self, meetup: Meetup) -> None:
@@ -171,28 +152,12 @@ class TelegramMatchNotifier(MatchNotifier):
     async def on_player_joined(
         self, meetup: Meetup, player: "Player", is_substitute: bool
     ) -> None:
-        """Refresh the callups with the new roster and post the join to the activity chat."""
+        """Refresh the callups with the new roster."""
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
-        status = "suplente" if is_substitute else "titular"
-        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
-        name = _escape_code_span(player.name)
-        text = (
-            f"✅ *Alta* — `{name}` se apunta como {status} a la convocatoria del "
-            f"`{date_str}`\\."
-        )
-        await _send_activity_message(self._bot, self._settings, text)
 
     async def on_player_left(self, meetup: Meetup, player: "Player", is_substitute: bool) -> None:
-        """Refresh the callups with the new roster and post the leave to the activity chat."""
+        """Refresh the callups with the new roster."""
         await refresh_callup_messages(self._bot, self._settings, self._container, meetup)
-        status = "suplente" if is_substitute else "titular"
-        date_str = format_display(meetup.date, self._settings.pyball.display_date_format)
-        name = _escape_code_span(player.name)
-        text = (
-            f"❌ *Baja* — `{name}` se desapunta como {status} de la convocatoria del "
-            f"`{date_str}`\\."
-        )
-        await _send_activity_message(self._bot, self._settings, text)
 
 
 async def refresh_callup_messages(
@@ -444,26 +409,3 @@ async def _post_match_stats(
         )
     except Exception:  # pylint: disable=broad-except
         logger.exception("Error posting match stats")
-
-
-def _escape_code_span(text: str) -> str:
-    """Escape backslash and backtick so text is safe inside a MarkdownV2 code span."""
-    return text.replace("\\", "\\\\").replace("`", "\\`")
-
-
-async def _send_activity_message(
-    bot: telegram.Bot, settings: "TelegramAppSettings", text: str
-) -> None:
-    """Send a message to the activity chat, if one is configured."""
-    activity = settings.telegram.management.activity
-    if not activity:
-        return
-    try:
-        await bot.send_message(
-            chat_id=activity.chat_id,
-            text=text,
-            message_thread_id=activity.message_thread_id,
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-    except Exception as error:  # pylint: disable=broad-except
-        logger.error("Error sending activity message: %s", error)

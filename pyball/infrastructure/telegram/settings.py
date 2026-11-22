@@ -60,13 +60,6 @@ class SubstitutesChats:
 
 
 @dataclass
-class ManagementChats:
-    """Message destinations for management output."""
-
-    activity: ChatConfig = field(default_factory=ChatConfig)
-
-
-@dataclass
 class TelegramSettings:
     """Telegram bot and chat configuration."""
 
@@ -74,7 +67,6 @@ class TelegramSettings:
     admins_ids: tuple[int, ...] = ()
     regulars: RegularsChats = field(default_factory=RegularsChats)
     substitutes: SubstitutesChats = field(default_factory=SubstitutesChats)
-    management: ManagementChats = field(default_factory=ManagementChats)
 
     def is_authorized(self, user_id: int) -> bool:
         """Check if user ID is in the admin list."""
@@ -115,7 +107,6 @@ def load_telegram_app_settings(
     telegram_cfg = config.get("pyball", {}).get("telegram", {})
     regulars_cfg = telegram_cfg.get("regulars", {})
     substitutes_cfg = telegram_cfg.get("substitutes", {})
-    management_cfg = telegram_cfg.get("management", {})
 
     telegram = TelegramSettings(
         bot_token=_get_env_override("telegram", "bot_token", telegram_cfg.get("bot_token", "")),
@@ -131,11 +122,6 @@ def load_telegram_app_settings(
         substitutes=SubstitutesChats(
             meetups=_load_chat_config(
                 substitutes_cfg.get("meetups", {}), "telegram.substitutes.meetups"
-            ),
-        ),
-        management=ManagementChats(
-            activity=_load_chat_config(
-                management_cfg.get("activity", {}), "telegram.management.activity"
             ),
         ),
     )
