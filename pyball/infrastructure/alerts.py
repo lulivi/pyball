@@ -33,6 +33,7 @@ import queue
 import time
 import urllib.request
 
+from pyball import __version__
 from pyball.settings import TelegramAlerts
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,8 @@ def config_alerts(alerts: TelegramAlerts | None) -> None:
     """Send alerts to ``alerts``' chat from a background thread, or warn that they are off.
 
     Records are queued on the logging call and sent by a listener thread, so a slow or
-    unreachable Telegram never blocks the event loop. The queue drains at exit.
+    unreachable Telegram never blocks the event loop. Startup and shutdown are alerts too;
+    the queue drains at exit, after the shutdown alert.
     """
     if alerts is None:
         logger.warning("pyball.alerts.telegram no está configurado: las alertas no se enviarán.")
@@ -60,6 +62,8 @@ def config_alerts(alerts: TelegramAlerts | None) -> None:
     listener.start()
     atexit.register(listener.stop)
     logging.getLogger().addHandler(queue_handler)
+    atexit.register(logger.warning, "PyBall detenido.")  # atexit runs it before listener.stop
+    logger.warning("PyBall v%s arrancado.", __version__)
 
 
 class TelegramAlertHandler(logging.Handler):

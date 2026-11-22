@@ -267,14 +267,19 @@ class TestConfigAlerts:
             "pyball.infrastructure.alerts.urllib.request.urlopen"
         ) as urlopen:
             config_alerts(TelegramAlerts("tok", -100111, 5))
-            stop_listener = register.call_args.args[0]
             try:
                 raise ValueError("kaboom")
             except ValueError:
                 logging.getLogger("pyball.application.x").exception("it broke")
             logging.getLogger("pyball.plugins.siesta").info("plugin chatter")
-            stop_listener()  # drains the queue
-        (call,) = urlopen.call_args_list
+            _run_exit_hooks(register)
+        texts = [json.loads(c.args[0].data)["text"] for c in urlopen.call_args_list]
+        assert "arrancado" in texts[0]
+        assert "PyBall detenido." in texts[-1]
+        assert not any("plugin chatter" in t for t in texts)
+        call = next(
+            c for c in urlopen.call_args_list if "it broke" in json.loads(c.args[0].data)["text"]
+        )
         payload = json.loads(call.args[0].data)
         assert call.args[0].full_url == "https://api.telegram.org/bottok/sendMessage"
         assert payload["chat_id"] == -100111
@@ -282,3 +287,10 @@ class TestConfigAlerts:
         assert "it broke" in payload["text"]
         assert "kaboom" in payload["text"]
         assert any(isinstance(h, logging.handlers.QueueHandler) for h in root.handlers)
+
+
+def _run_exit_hooks(register: MagicMock) -> None:
+    """Run what config_alerts gave atexit.register, last first, as the interpreter would."""
+    for call in reversed(register.call_args_list):
+        func, *args = call.args
+        func(*args)

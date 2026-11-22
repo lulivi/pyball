@@ -52,9 +52,13 @@ async def test_pyball_topology_sends_server_errors_to_the_alert_chat(tmp_path):
             logging.getLogger("uvicorn.error").error("Exception in ASGI application")
             os.kill(os.getpid(), signal.SIGTERM)
             await asyncio.wait_for(task, 10)
-            register.call_args.args[0]()  # stop the listener, draining the queue
+            for call in reversed(register.call_args_list):  # atexit order: last first
+                func, *args = call.args
+                func(*args)
         texts = [json.loads(c.args[0].data)["text"] for c in urlopen.call_args_list]
         assert any("Exception in ASGI application" in t for t in texts)
+        assert "arrancado" in texts[0]
+        assert "PyBall detenido." in texts[-1]
     finally:
         for handler in root.handlers[:]:
             if handler not in before:
