@@ -29,6 +29,19 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libpangocairo-1.0-0 \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
+    make \
+    curl \
+    gcc \
+    libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir --root-user-action=ignore uv nox
+
+# Rust for the bundled plugins; keep in step with plugins/*/rust-toolchain.toml.
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:${PATH}
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.97 \
+        --component rustfmt,clippy \
+    && chmod -R a+w "$RUSTUP_HOME" "$CARGO_HOME"

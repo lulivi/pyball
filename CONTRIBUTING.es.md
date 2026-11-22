@@ -12,6 +12,7 @@ Necesitas:
 
 - Python >= 3.11
 - [uv](https://docs.astral.sh/uv/) para gestión de dependencias
+- [rustup](https://rustup.rs/), solo para trabajar en los plugins incluidos en `plugins/`
 
 ```bash
 uv sync --all-extras            # instala todo: Telegram y herramientas de desarrollo
@@ -32,13 +33,15 @@ make up                         # construye la imagen y la ejecuta con Docker Co
 
 ## Comprobaciones
 
-La CI ejecuta las sesiones de lint y tests en cada pull request; ejecútalas antes de
-hacer push:
+La CI ejecuta las sesiones de lint y tests y las comprobaciones de los plugins en cada
+pull request; ejecútalas antes de hacer push:
 
 ```bash
 make test        # alias: make t — suite completa de tests con cobertura
 make lint        # alias: make l — black, isort, pydocstyle, pycodestyle, mypy, pylint
 make format      # alias: make f — formatea el código (black + isort)
+make plugins-check  # formato, lint y tests de cada plugin de plugins/
+make plugins-build  # compilación release de cada plugin, para desarrollo local
 
 # Un solo archivo de tests, o cualquier opción de pytest
 uvx nox -e test -- tests/unit/domain/test_meetup.py -k test_name -v

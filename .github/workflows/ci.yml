@@ -101,6 +101,27 @@ jobs:
           report_paths: TestReport.xml
           check_name: test report
 
+  plugins:
+    needs: ci-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/lulivi/pyball-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: |
+            plugins/*/target
+            /usr/local/cargo/registry
+          key: plugins-${{ hashFiles('plugins/*/Cargo.lock', 'plugins/*/rust-toolchain.toml') }}
+      - run: make plugins-check
+
   actionlint:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -127,7 +148,7 @@ jobs:
   # new workflow run: publish and deploy run here, chained on the release.
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, test]
+    needs: [lint, test, plugins]
     runs-on: ubuntu-latest
     permissions:
       contents: write
