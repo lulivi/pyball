@@ -62,7 +62,7 @@ def config_alerts(alerts: TelegramAlerts | None) -> None:
     listener.start()
     atexit.register(listener.stop)
     logging.getLogger().addHandler(queue_handler)
-    atexit.register(logger.warning, "PyBall detenido.")  # atexit runs it before listener.stop
+    atexit.register(_alert_stopped)  # atexit runs it before listener.stop
     logger.warning("PyBall v%s arrancado.", __version__)
 
 
@@ -141,3 +141,7 @@ class _AlertFilter(logging.Filter):
         if record.name.startswith("pyball."):
             return record.levelno >= logging.WARNING
         return record.levelno >= logging.ERROR
+
+
+def _alert_stopped() -> None:
+    logger.warning("PyBall detenido.")
