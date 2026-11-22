@@ -1,14 +1,62 @@
 //! Client for PyBall's plugin API (`/api/v1`) and its event stream.
 
 use std::io::{BufRead, BufReader, Read};
+use std::marker::PhantomData;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use ureq::http::{Response, StatusCode};
+use ureq::http::{Request, Response, StatusCode, request};
 use ureq::{Agent, Body};
+
+/// Every call siesta makes to PyBall: its method, its path and what it answers with.
+/// The client sends requests only through these, and the contract test checks each one
+/// against `plugins/openapi.json`.
+macro_rules! endpoints {
+    ($($name:ident: $method:ident $path:literal -> $out:ty;)*) => {
+        $(pub const $name: Endpoint<$out> = Endpoint::new(stringify!($method), $path);)*
+
+        /// Run `check` on every endpoint, with the type siesta decodes its answer into.
+        #[cfg(test)]
+        pub fn check_endpoints(schema: &Value) {
+            $(crate::contract::check::<$out>(schema, &$name);)*
+        }
+    };
+}
+
+endpoints! {
+    PLAYERS: GET "/players" -> Vec<Player>;
+    ACTIVE_MEETUP: GET "/meetups/active" -> Meetup;
+    LINEUP: PUT "/meetups/{meetup_id}/lineup" -> Meetup;
+    SUBSTITUTE_SEARCH: POST "/meetups/{meetup_id}/substitute-search" -> Meetup;
+    EVENTS: GET "/events" -> Event;
+}
+
+/// One PyBall call, answering with an `Out`.
+pub struct Endpoint<Out> {
+    pub method: &'static str,
+    pub path: &'static str,
+    out: PhantomData<fn() -> Out>,
+}
+
+impl<Out> Endpoint<Out> {
+    const fn new(method: &'static str, path: &'static str) -> Self {
+        Self {
+            method,
+            path,
+            out: PhantomData,
+        }
+    }
+
+    /// The path for one meetup, and how errors name the call.
+    fn at(&self, meetup_id: &str) -> (String, String) {
+        let path = self.path.replace("{meetup_id}", meetup_id);
+        let what = format!("{} {path}", self.method);
+        (path, what)
+    }
+}
 
 pub struct Api {
     base: String,
@@ -109,18 +157,16 @@ impl Api {
     }
 
     pub fn players(&self) -> Result<Vec<Player>> {
-        let resp = self.call(self.get(&self.http, "/players").call(), "GET /players")?;
-        json_body(resp).context("decoding players")
+        json_body(self.send(&self.http, &PLAYERS, "", None)?).context("decoding players")
     }
 
     /// The meetup not closed yet, or `None` if there isn't one.
     pub fn active_meetup(&self) -> Result<Option<Meetup>> {
-        let sent = self.get(&self.http, "/meetups/active").call();
-        let resp = sent.with_context(|| format!("cannot reach PyBall at {}", self.base))?;
+        let resp = self.request(&self.http, &ACTIVE_MEETUP, "", None)?;
         if resp.status() == StatusCode::NOT_FOUND {
             return Ok(None);
         }
-        let resp = check(resp, "GET /meetups/active")?;
+        let resp = check(resp, &ACTIVE_MEETUP.at("").1)?;
         Ok(Some(json_body(resp).context("decoding the active meetup")?))
     }
 
@@ -131,52 +177,76 @@ impl Api {
         players: &[String],
         algorithm: &str,
     ) -> Result<Meetup> {
-        let path = format!("/meetups/{meetup_id}/lineup");
         let body = LineupBody {
             players,
             team_algorithm: algorithm,
         };
-        let sent = self
-            .auth(self.http.put(format!("{}{path}", self.base)))
-            .send_json(&body);
-        json_body(self.call(sent, &format!("PUT {path}"))?).context("decoding the meetup")
+        let sent = self.send(
+            &self.http,
+            &LINEUP,
+            meetup_id,
+            Some(serde_json::to_vec(&body)?),
+        );
+        json_body(sent?).context("decoding the meetup")
     }
 
     pub fn open_substitute_search(&self, meetup_id: &str) -> Result<Meetup> {
-        let path = format!("/meetups/{meetup_id}/substitute-search");
-        let sent = self
-            .auth(self.http.post(format!("{}{path}", self.base)))
-            .send_empty();
-        json_body(self.call(sent, &format!("POST {path}"))?).context("decoding the meetup")
+        let sent = self.send(&self.http, &SUBSTITUTE_SEARCH, meetup_id, None);
+        json_body(sent?).context("decoding the meetup")
     }
 
     /// Open the event stream after `last_event_id` (only new events if `None`).
     pub fn events(&self, last_event_id: Option<u64>) -> Result<EventStream> {
+        let (path, what) = EVENTS.at("");
         let mut req = self
-            .get(&self.stream, "/events")
+            .builder(&EVENTS, &path)
             .header("Accept", "text/event-stream");
         if let Some(id) = last_event_id {
             req = req.header("Last-Event-ID", id.to_string());
         }
-        let resp = self.call(req.call(), "GET /events")?;
+        let sent = self.stream.run(req.body(())?);
+        let resp = sent.with_context(|| format!("cannot reach PyBall at {}", self.base))?;
+        let resp = check(resp, &what)?;
         Ok(EventStream::new(resp.into_body().into_reader()))
     }
 
-    fn get(&self, agent: &Agent, path: &str) -> ureq::RequestBuilder<ureq::typestate::WithoutBody> {
-        self.auth(agent.get(format!("{}{}", self.base, path)))
-    }
-
-    fn auth<B>(&self, req: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
-        req.header("Authorization", format!("Bearer {}", self.token))
-    }
-
-    fn call(
+    /// Call `endpoint` for `meetup_id` with an optional JSON body; fail on any error status.
+    fn send<Out>(
         &self,
-        sent: Result<Response<Body>, ureq::Error>,
-        what: &str,
+        agent: &Agent,
+        endpoint: &Endpoint<Out>,
+        meetup_id: &str,
+        json: Option<Vec<u8>>,
     ) -> Result<Response<Body>> {
-        let resp = sent.with_context(|| format!("cannot reach PyBall at {}", self.base))?;
-        check(resp, what)
+        let resp = self.request(agent, endpoint, meetup_id, json)?;
+        check(resp, &endpoint.at(meetup_id).1)
+    }
+
+    /// Call `endpoint`, handing back whatever status PyBall answered with.
+    fn request<Out>(
+        &self,
+        agent: &Agent,
+        endpoint: &Endpoint<Out>,
+        meetup_id: &str,
+        json: Option<Vec<u8>>,
+    ) -> Result<Response<Body>> {
+        let (path, _) = endpoint.at(meetup_id);
+        let req = self.builder(endpoint, &path);
+        let sent = match (json, endpoint.method) {
+            (Some(body), _) => {
+                agent.run(req.header("Content-Type", "application/json").body(body)?)
+            }
+            (None, "GET") => agent.run(req.body(())?),
+            (None, _) => agent.run(req.body(Vec::new())?), // Content-Length: 0, not chunked
+        };
+        sent.with_context(|| format!("cannot reach PyBall at {}", self.base))
+    }
+
+    fn builder<Out>(&self, endpoint: &Endpoint<Out>, path: &str) -> request::Builder {
+        Request::builder()
+            .method(endpoint.method)
+            .uri(format!("{}{path}", self.base))
+            .header("Authorization", format!("Bearer {}", self.token))
     }
 }
 

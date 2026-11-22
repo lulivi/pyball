@@ -8,19 +8,26 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
-use crate::api::{Event, LineupBody, Meetup, Player};
+use crate::api::{ACTIVE_MEETUP, EVENTS, Endpoint, LINEUP, LineupBody, check_endpoints};
 
 const SCHEMA: &str = include_str!("../../openapi.json");
 
 #[test]
 fn every_call_siesta_makes_matches_the_schema() {
     let schema: Value = serde_json::from_str(SCHEMA).unwrap();
-    // The calls in api.rs: method, path, and the type siesta decodes the answer into.
-    check::<Vec<Player>>(&schema, "get", "/players");
-    check::<Meetup>(&schema, "get", "/meetups/active");
-    check::<Meetup>(&schema, "put", "/meetups/{meetup_id}/lineup");
-    check::<Meetup>(&schema, "post", "/meetups/{meetup_id}/substitute-search");
-    check::<Event>(&schema, "get", "/events");
+    check_endpoints(&schema);
+}
+
+#[test]
+fn the_client_calls_pyball_only_through_its_endpoints() {
+    // A path written anywhere but the endpoints! table would go unchecked.
+    let source = include_str!("api.rs");
+    let table = source.find("endpoints! {").unwrap();
+    let rest = &source[source[table..].find("\n}\n").unwrap() + table..];
+    assert!(
+        !rest.contains("\"/"),
+        "api.rs builds a PyBall path outside endpoints!: declare the call there"
+    );
 }
 
 #[test]
@@ -31,7 +38,7 @@ fn the_lineup_body_matches_the_schema() {
         team_algorithm: "balanceado",
     })
     .unwrap();
-    let request = &operation(&schema, "put", "/meetups/{meetup_id}/lineup")["requestBody"];
+    let request = &operation(&schema, &LINEUP)["requestBody"];
     let target = &request["content"]["application/json"]["schema"];
     assert!(
         accepts(&schema, target, &body),
@@ -42,7 +49,7 @@ fn the_lineup_body_matches_the_schema() {
 #[test]
 fn siesta_can_resume_the_event_stream() {
     let schema: Value = serde_json::from_str(SCHEMA).unwrap();
-    let params = operation(&schema, "get", "/events")["parameters"]
+    let params = operation(&schema, &EVENTS)["parameters"]
         .as_array()
         .unwrap();
     assert!(
@@ -56,17 +63,18 @@ fn siesta_can_resume_the_event_stream() {
 #[test]
 fn no_active_meetup_is_a_404() {
     let schema: Value = serde_json::from_str(SCHEMA).unwrap();
-    let responses = &operation(&schema, "get", "/meetups/active")["responses"];
+    let responses = &operation(&schema, &ACTIVE_MEETUP)["responses"];
     assert!(
         responses.get("404").is_some(),
         "GET /meetups/active no longer answers 404 when there is no active meetup"
     );
 }
 
-/// The answer to `method path`, sampled from its schema, decodes into `T`; and every
-/// field `T` reads is in the sample.
-fn check<T: DeserializeOwned + Serialize>(schema: &Value, method: &str, path: &str) {
-    let target = response(operation(schema, method, path))
+/// The answer to `endpoint`, sampled from its schema, decodes into `T`; and every field
+/// `T` reads is in the sample.
+pub fn check<T: DeserializeOwned + Serialize>(schema: &Value, endpoint: &Endpoint<T>) {
+    let (method, path) = (endpoint.method, endpoint.path);
+    let target = response(operation(schema, endpoint))
         .unwrap_or_else(|| panic!("{method} {path} has no success response schema"));
     for filled in [true, false] {
         let sample = sample(schema, target, filled);
@@ -79,8 +87,9 @@ fn check<T: DeserializeOwned + Serialize>(schema: &Value, method: &str, path: &s
     }
 }
 
-fn operation<'a>(schema: &'a Value, method: &str, path: &str) -> &'a Value {
-    let op = &schema["paths"][path][method];
+fn operation<'a, T>(schema: &'a Value, endpoint: &Endpoint<T>) -> &'a Value {
+    let (method, path) = (endpoint.method, endpoint.path);
+    let op = &schema["paths"][path][method.to_lowercase()];
     assert!(op.is_object(), "{method} {path} is not in the schema");
     op
 }
