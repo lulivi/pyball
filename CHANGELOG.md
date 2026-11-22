@@ -2,6 +2,45 @@
 
 <!-- version list -->
 
+## v7.2.0 (2026-11-22)
+
+### Bug Fixes
+
+- **alerts**: Keep an alert whose send failed free to retry
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+- **alerts**: Keep an alert's first word visible in Telegram
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+- **alerts**: Name the real source line of the shutdown alert
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+- **alerts**: Send HTTP server errors to the alert chat
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+### Features
+
+- **alerts**: Post to the alert chat when PyBall starts and stops
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+- **alerts**: Rate-limit repeated alerts so a plugin crash loop stays bounded
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+- **alerts**: Send core warnings and errors to [pyball.alerts.telegram]
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+- **alerts**: Send core warnings and errors to an alert channel in every topology
+  ([#26](https://github.com/lulivi/pyball/pull/26),
+  [`8f65181`](https://github.com/lulivi/pyball/commit/8f651815b817b3c355d3c7616ae9113f69c03044))
+
+
 ## v7.1.0 (2026-11-22)
 
 ### Bug Fixes
