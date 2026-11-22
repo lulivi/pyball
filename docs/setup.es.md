@@ -218,6 +218,10 @@ PyBall ejecuta cada plugin declarado como proceso hijo, desde el espacio de trab
   `PYBALL_API_URL` (la API de plugins, p. ej. `http://127.0.0.1:8000/api/v1`),
   `PYBALL_API_TOKEN` (el token propio del plugin, nuevo en cada arranque) y
   `PYBALL_PLUGIN_NAME`.
+- **Estado:** un plugin guarda lo que necesita recordar, como el último evento que
+  procesó, en `data/plugins/<nombre>/`, y crea la carpeta él mismo. Esa carpeta está
+  dentro del `data/` montado, así que sobrevive a los reinicios del contenedor y entra en
+  tus copias de seguridad.
 - **Salida:** lo que el plugin imprime va al log de PyBall, bajo
   `pyball.plugins.<nombre>`.
 - **Caídas:** un plugin que termina se arranca otra vez tras 1 s, luego 2 s, 4 s, ...

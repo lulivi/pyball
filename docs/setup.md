@@ -211,6 +211,9 @@ PyBall runs every declared plugin as a child process, from the workspace directo
   `PYBALL_API_URL` (the plugin API, e.g. `http://127.0.0.1:8000/api/v1`),
   `PYBALL_API_TOKEN` (the plugin's own token, new at every start) and
   `PYBALL_PLUGIN_NAME`.
+- **State:** a plugin keeps whatever it must remember, such as the last event it
+  handled, in `data/plugins/<name>/`, creating the folder itself. That folder sits inside
+  the mounted `data/`, so it survives container restarts and goes into your backups.
 - **Output:** whatever the plugin prints goes to PyBall's log, under
   `pyball.plugins.<name>`.
 - **Crashes:** a plugin that exits is started again after 1 s, then 2 s, 4 s, ... up to

@@ -27,6 +27,8 @@ pyball/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # one file per meetup, named after its date/time
+│   ├── plugins/
+│   │   └── <name>/     # each plugin's own state — see docs/setup.md
 │   ├── signup/
 │   │   └── codes.json   # only when enable_web_signup is set — see below
 │   └── bot/
@@ -37,7 +39,8 @@ pyball/
 
 Every file is plain JSON, written with 2-space indentation, safe to read (or even hand-
 edit, carefully) with any text editor. The exception is `events.jsonl`: one JSON object
-per line, and never to be edited by hand.
+per line, and never to be edited by hand. Each plugin owns the format of its
+`plugins/<name>/` folder.
 
 ## `data/players.json`
 

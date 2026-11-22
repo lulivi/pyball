@@ -28,6 +28,8 @@ pyball/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # un archivo por partido, nombrado según su fecha/hora
+│   ├── plugins/
+│   │   └── <nombre>/   # el estado propio de cada plugin — ver docs/setup.es.md
 │   ├── signup/
 │   │   └── codes.json   # solo si enable_web_signup está activo — ver más abajo
 │   └── bot/
@@ -38,7 +40,8 @@ pyball/
 
 Cada archivo es JSON plano, escrito con sangrado de 2 espacios, seguro de leer (o incluso
 editar a mano, con cuidado) con cualquier editor de texto. La excepción es
-`events.jsonl`: un objeto JSON por línea, y nunca se edita a mano.
+`events.jsonl`: un objeto JSON por línea, y nunca se edita a mano. Cada plugin decide el formato de
+su carpeta `plugins/<nombre>/`.
 
 ## `data/players.json`
 
