@@ -101,8 +101,6 @@ These are ignored by `pyball` — see
 | `telegram.regulars.stats.message_thread_id` | Forum topic for stats (empty = none) | No |
 | `telegram.substitutes.meetups.chat_id` | Chat for the substitutes callup message (negative for groups) | **Yes** |
 | `telegram.substitutes.meetups.message_thread_id` | Forum topic for the substitutes message (empty = none) | No |
-| `telegram.management.logging.chat_id` | Operational log channel (`0` / omit to disable) | No |
-| `telegram.management.logging.message_thread_id` | Forum topic for log records (empty = none) | No |
 | `telegram.management.activity.chat_id` | Meetup activity feed chat — joins, leaves, created/closed/cancelled (`0` / omit to disable) | No |
 | `telegram.management.activity.message_thread_id` | Forum topic for the activity feed (empty = none) | No |
 
@@ -116,8 +114,22 @@ follow `PYBALL_<PATH>_<KEY>`, e.g.
 `deploy/deploy.sh` sends its own deploy notifications with the bot token, chat and
 forum topic in the `DEPLOY_NOTIFY_TOKEN`, `DEPLOY_NOTIFY_CHAT_ID` and
 `DEPLOY_NOTIFY_THREAD_ID` GitHub secrets — point them at the same chat and topic as
-`telegram.management.logging`. Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
+[`alerts.telegram`](#pyballalertstelegram--alerts-all-topologies). Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
 notifications.
+
+### `[pyball.alerts.telegram]` — alerts, all topologies
+
+PyBall's own warnings and errors, a plugin that crashes or keeps restarting included, go
+to this Telegram chat. The core sends them itself, so they need no plugin running and
+work in `pyball` as well as `pyball-telegram`. Without the section, or with
+`chat_id = 0`, alerts are off and PyBall says so in its startup log. Env overrides follow
+`PYBALL_ALERTS_TELEGRAM_<KEY>`.
+
+| Key | Description | Required |
+|---|---|---|
+| `bot_token` | Token of the bot that sends the alerts; it may be the same as `telegram.bot_token` | When `chat_id` is set |
+| `chat_id` | Chat that receives the alerts (negative for groups; `0` / omit to disable) | No |
+| `message_thread_id` | Forum topic for the alerts (empty = none) | No |
 
 ### `[pyball.plugins.<name>]` — optional plugins
 

@@ -24,6 +24,7 @@ pyball/
 │   ├── signup/        #   Personal signup codes
 │   ├── telegram/      #   Telegram bot, settings, notifications
 │   ├── plugins/       #   Plugin API (/api/v1), event log, credentials, supervisor
+│   ├── alerts.py      #   Core warnings and errors sent to the alert chat
 │   └── http/          #   FastAPI app, routes, token auth, static web pages
 ├── cmd/               # One entrypoint per topology — its Composition Root
 └── settings.py        # AppSettings and the config.toml loader

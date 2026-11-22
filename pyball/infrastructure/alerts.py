@@ -17,33 +17,49 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Telegram-specific logging handler and setup."""
+"""Alerts: core warnings and errors sent to a Telegram chat, in every topology.
+
+Alerts run in the core process and need no plugin, so they keep arriving while every plugin
+is down, including one that keeps crashing.
+"""
 
 from __future__ import annotations
 
+import atexit
 import json
 import logging
+import logging.handlers
+import queue
 import urllib.request
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from pyball.infrastructure.telegram.settings import TelegramSettings
+from pyball.settings import TelegramAlerts
 
-
-def config_telegram_logging(tg: TelegramSettings) -> None:
-    """Add a TelegramLogHandler to the root logger if a management logging chat is set."""
-    if tg.management.logging:
-        handler = TelegramLogHandler(
-            tg.bot_token,
-            tg.management.logging.chat_id,
-            tg.management.logging.message_thread_id,
-        )
-        handler.addFilter(_ManagementFilter())
-        logging.getLogger().addHandler(handler)
+logger = logging.getLogger(__name__)
 
 
-class TelegramLogHandler(logging.Handler):
-    """Logging handler that sends records to a Telegram chat via the Bot API."""
+def config_alerts(alerts: TelegramAlerts | None) -> None:
+    """Send alerts to ``alerts``' chat from a background thread, or warn that they are off.
+
+    Records are queued on the logging call and sent by a listener thread, so a slow or
+    unreachable Telegram never blocks the event loop. The queue drains at exit.
+    """
+    if alerts is None:
+        logger.warning("pyball.alerts.telegram no está configurado: las alertas no se enviarán.")
+        return
+    records: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
+    queue_handler = logging.handlers.QueueHandler(records)
+    queue_handler.addFilter(_AlertFilter())
+    listener = logging.handlers.QueueListener(
+        records,
+        TelegramAlertHandler(alerts.bot_token, alerts.chat_id, alerts.message_thread_id),
+    )
+    listener.start()
+    atexit.register(listener.stop)
+    logging.getLogger().addHandler(queue_handler)
+
+
+class TelegramAlertHandler(logging.Handler):
+    """Logging handler that sends each record to a Telegram chat via the Bot API."""
 
     _formatter: logging.Formatter = logging.Formatter()
     _LEVEL_EMOJI: dict[int, str] = {
@@ -61,7 +77,7 @@ class TelegramLogHandler(logging.Handler):
         self._message_thread_id = message_thread_id
 
     def emit(self, record: logging.LogRecord) -> None:
-        """Send the formatted log record to the Telegram management channel."""
+        """Send the record to the alert chat."""
         try:
             emoji = self._LEVEL_EMOJI.get(record.levelno, "❓")
             message = record.getMessage()
@@ -91,15 +107,11 @@ class TelegramLogHandler(logging.Handler):
             self.handleError(record)
 
 
-class _ManagementFilter(logging.Filter):
-    """Passes pyball.* records at INFO+ and telegram records at ERROR+."""
+class _AlertFilter(logging.Filter):
+    """Passes pyball.* records at WARNING+ and records of any other logger at ERROR+."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """Return True if the record should be forwarded to the management channel."""
-        if record.name.startswith("pyball.") and record.levelno >= logging.INFO:
-            return True
-        if (
-            record.name == "telegram" or record.name.startswith("telegram.")
-        ) and record.levelno >= logging.ERROR:
-            return True
-        return False
+        """Return True if the record is an alert."""
+        if record.name.startswith("pyball."):
+            return record.levelno >= logging.WARNING
+        return record.levelno >= logging.ERROR

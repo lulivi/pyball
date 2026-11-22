@@ -89,7 +89,7 @@ class TestInitWorkspaceTg:
         assert "[pyball.telegram]" in content
 
     def test_config_includes_new_chat_sections(self, tmp_path):
-        """Telegram config.toml contains the five nested chat sections."""
+        """Telegram config.toml contains the four nested chat sections."""
         init_workspace("tg", tmp_path / "config.toml")
 
         content = (tmp_path / "config.toml").read_text()
@@ -97,11 +97,18 @@ class TestInitWorkspaceTg:
             "[pyball.telegram.regulars.meetups]",
             "[pyball.telegram.regulars.stats]",
             "[pyball.telegram.substitutes.meetups]",
-            "[pyball.telegram.management.logging]",
             "[pyball.telegram.management.activity]",
         ):
             assert section in content
         assert "message_thread_id" in content
+
+    def test_both_configs_include_alerts_section(self, tmp_path):
+        """Every topology's config.toml has the core [pyball.alerts.telegram] section."""
+        for topology in ("pyball", "tg"):
+            init_workspace(topology, tmp_path / topology / "config.toml")
+            content = (tmp_path / topology / "config.toml").read_text()
+            assert "[pyball.alerts.telegram]" in content
+            assert "management.logging" not in content
 
     def test_config_has_no_legacy_chat_keys(self, tmp_path):
         """The old flat keys are gone from the generated template."""

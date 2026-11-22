@@ -116,10 +116,12 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     if pyball.icons_dir:
         pyball.icons_dir = str(workspace / pyball.icons_dir)
     plugins = _parse_plugins(config.get("pyball", {}).get("plugins", {}))
+    alerts = _parse_alerts(config.get("pyball", {}).get("alerts", {}).get("telegram", {}))
     return AppSettings(
         pyball=pyball,
         paths=Paths(workspace=workspace, data_dir=Path(pyball.data_dir)),
         plugins=plugins,
+        alerts=alerts,
     )
 
 
@@ -209,6 +211,15 @@ class PluginConfig:
     scopes: frozenset[str]
 
 
+@dataclass(frozen=True)
+class TelegramAlerts:
+    """The Telegram chat alerts go to, from [pyball.alerts.telegram], and its bot token."""
+
+    bot_token: str
+    chat_id: int
+    message_thread_id: int | None = None
+
+
 @dataclass
 class Paths:
     """File system paths, relative ones resolved against the workspace.
@@ -238,6 +249,7 @@ class AppSettings:
     pyball: PyballConfig = field(default_factory=PyballConfig)
     paths: Paths = field(default_factory=Paths)
     plugins: list[PluginConfig] = field(default_factory=list)
+    alerts: TelegramAlerts | None = None
 
 
 def _parse_api_port(value) -> int:
@@ -285,6 +297,27 @@ def _parse_plugins(section: dict) -> list[PluginConfig]:
     return plugins
 
 
+def _parse_alerts(section: dict) -> TelegramAlerts | None:
+    """Parse [pyball.alerts.telegram]; None (alerts off) when chat_id is missing or 0."""
+    path = "alerts.telegram"
+    chat_id = _get_env_override(path, "chat_id", section.get("chat_id", 0))
+    thread_id = _get_env_override(path, "message_thread_id", section.get("message_thread_id"))
+    bot_token = _get_env_override(path, "bot_token", section.get("bot_token", ""))
+    try:
+        chat_id = int(chat_id or 0)
+        thread_id = int(thread_id) if str(thread_id or "").strip() else None
+    except (TypeError, ValueError) as exc:
+        raise SettingsValidationError(
+            f"{path}.chat_id y {path}.message_thread_id deben ser números enteros, "
+            f"se recibió: {chat_id!r}, {thread_id!r}."
+        ) from exc
+    if not chat_id:
+        return None
+    if not bot_token:
+        raise SettingsValidationError(f"Falta {path}.bot_token para enviar las alertas.")
+    return TelegramAlerts(bot_token, chat_id, thread_id or None)
+
+
 def _parse_bool(value) -> bool:
     """Parse enable_web_signup from a native TOML bool or an env var string."""
     if isinstance(value, bool):
@@ -320,14 +353,10 @@ def _parse_team_colors(value) -> tuple[str, ...]:
 def _get_env_override(section: str, key: str, default):
     """Get environment variable override for config value.
 
-    Env var format: PYBALL_<SECTION>_<KEY>
-    Example: section="core", key="location" -> PYBALL_CORE_LOCATION
-
-    This core loader is only ever called with section "core"; the nested
-    Telegram sections are handled by ``infrastructure/telegram/settings.py``.
+    Env var format: PYBALL_<SECTION>_<KEY>, dots in the section turned into underscores.
+    Example: section="alerts.telegram", key="chat_id" -> PYBALL_ALERTS_TELEGRAM_CHAT_ID
     """
-    section_for_env = section.replace("pyball.", "")
-    env_key = f"PYBALL_{section_for_env.upper()}_{key.upper()}"
+    env_key = f"PYBALL_{section.upper().replace('.', '_')}_{key.upper()}"
     env_value = os.environ.get(env_key)
     if env_value is None:
         return default

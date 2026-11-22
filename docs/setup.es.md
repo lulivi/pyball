@@ -105,8 +105,6 @@ para saber por qué.
 | `telegram.regulars.stats.message_thread_id` | Hilo de foro para las estadísticas (vacío = ninguno) | No |
 | `telegram.substitutes.meetups.chat_id` | Chat para el mensaje de suplentes (negativo para grupos) | **Sí** |
 | `telegram.substitutes.meetups.message_thread_id` | Hilo de foro para el mensaje de suplentes (vacío = ninguno) | No |
-| `telegram.management.logging.chat_id` | Canal de log operacional (`0` / omitir para desactivar) | No |
-| `telegram.management.logging.message_thread_id` | Hilo de foro para los registros de log (vacío = ninguno) | No |
 | `telegram.management.activity.chat_id` | Chat del feed de actividad de la convocatoria — altas, bajas, creada/cerrada/cancelada (`0` / omitir para desactivar) | No |
 | `telegram.management.activity.message_thread_id` | Hilo de foro para el feed de actividad (vacío = ninguno) | No |
 
@@ -120,8 +118,22 @@ variable de entorno siguen `PYBALL_<RUTA>_<CLAVE>`, p. ej.
 `deploy/deploy.sh` envía sus propias notificaciones de despliegue con el token del
 bot, el chat y el tema del foro de los secretos de GitHub `DEPLOY_NOTIFY_TOKEN`,
 `DEPLOY_NOTIFY_CHAT_ID` y `DEPLOY_NOTIFY_THREAD_ID` — apúntalos al mismo chat y tema
-que `telegram.management.logging`. Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
+que [`alerts.telegram`](#pyballalertstelegram--alertas-todas-las-topologías). Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
 envían notificaciones.
+
+### `[pyball.alerts.telegram]` — alertas, todas las topologías
+
+Los avisos y errores del propio PyBall, incluido un plugin que falla o se reinicia una y
+otra vez, llegan a este chat de Telegram. Los envía el núcleo, así que no necesitan ningún
+plugin en marcha y funcionan tanto en `pyball` como en `pyball-telegram`. Sin la sección,
+o con `chat_id = 0`, las alertas están desactivadas y PyBall lo indica en su log de
+arranque. Las variables de entorno siguen `PYBALL_ALERTS_TELEGRAM_<CLAVE>`.
+
+| Clave | Descripción | Requerido |
+|---|---|---|
+| `bot_token` | Token del bot que envía las alertas; puede ser el mismo que `telegram.bot_token` | Si se fija `chat_id` |
+| `chat_id` | Chat que recibe las alertas (negativo para grupos; `0` / omitir para desactivar) | No |
+| `message_thread_id` | Hilo de foro para las alertas (vacío = ninguno) | No |
 
 ### `[pyball.plugins.<nombre>]` — plugins opcionales
 

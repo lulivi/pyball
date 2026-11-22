@@ -30,6 +30,7 @@ import uvicorn
 
 from pyball.application.bootstrap import bootstrap_core
 from pyball.application.notifier import CompositeMatchNotifier
+from pyball.infrastructure.alerts import config_alerts
 from pyball.infrastructure.http.app import _Server, create_app, wait_until_serving
 from pyball.infrastructure.plugins.auth import PluginCredentials
 from pyball.infrastructure.plugins.event_log import EventLogNotifier
@@ -41,7 +42,6 @@ from pyball.infrastructure.telegram.bot.handlers import (
     setup_meetup_handlers,
     setup_player_handlers,
 )
-from pyball.infrastructure.telegram.logging import config_telegram_logging
 from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 from pyball.infrastructure.telegram.settings import load_telegram_app_settings
 from pyball.settings import SettingsValidationError
@@ -82,8 +82,8 @@ def main() -> None:
 async def _main_async(config_path: Path) -> None:
     """Boot the Telegram+FastAPI topology."""
     app_settings, container = bootstrap_core(config_path)
+    config_alerts(app_settings.alerts)
     tg_settings = load_telegram_app_settings(app_settings, config_path)
-    config_telegram_logging(tg_settings.telegram)
 
     application = create_application(tg_settings)
     application.bot_data["container"] = container

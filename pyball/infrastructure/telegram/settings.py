@@ -61,9 +61,8 @@ class SubstitutesChats:
 
 @dataclass
 class ManagementChats:
-    """Message destinations for operational and management output."""
+    """Message destinations for management output."""
 
-    logging: ChatConfig = field(default_factory=ChatConfig)
     activity: ChatConfig = field(default_factory=ChatConfig)
 
 
@@ -135,9 +134,6 @@ def load_telegram_app_settings(
             ),
         ),
         management=ManagementChats(
-            logging=_load_chat_config(
-                management_cfg.get("logging", {}), "telegram.management.logging"
-            ),
             activity=_load_chat_config(
                 management_cfg.get("activity", {}), "telegram.management.activity"
             ),
@@ -164,11 +160,6 @@ def load_telegram_app_settings(
         logger.warning(
             "telegram.regulars.stats no está configurado: no se publicarán "
             "estadísticas tras los partidos."
-        )
-    if not telegram.management.logging.chat_id:
-        logger.warning(
-            "telegram.management.logging no está configurado: los registros "
-            "operativos no se enviarán a Telegram."
         )
 
     return TelegramAppSettings(
