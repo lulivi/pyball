@@ -11,42 +11,47 @@ use serde_json::Value;
 use ureq::http::{Request, Response, StatusCode, request};
 use ureq::{Agent, Body};
 
-/// Every call siesta makes to PyBall: its method, its path and what it answers with.
-/// The client sends requests only through these, and the contract test checks each one
-/// against `plugins/openapi.json`.
+/// Every call siesta makes to PyBall: its method, its path, the JSON body it sends (if
+/// any, in parentheses) and what it answers with. The client sends requests only through
+/// these, and the contract test checks each one against `plugins/openapi.json`.
 macro_rules! endpoints {
-    ($($name:ident: $method:ident $path:literal -> $out:ty;)*) => {
-        $(pub const $name: Endpoint<$out> = Endpoint::new(stringify!($method), $path);)*
+    ($($name:ident: $method:ident $path:literal $(($body:ty))? -> $out:ty;)*) => {
+        $(
+            pub const $name: Endpoint<endpoints!(@body $($body)?), $out> =
+                Endpoint::new(stringify!($method), $path);
+        )*
 
-        /// Run `check` on every endpoint, with the type siesta decodes its answer into.
+        /// Check every endpoint, with the body siesta sends and the type it decodes.
         #[cfg(test)]
         pub fn check_endpoints(schema: &Value) {
-            $(crate::contract::check::<$out>(schema, &$name);)*
+            $(crate::contract::check(schema, &$name);)*
         }
     };
+    (@body) => { () };
+    (@body $body:ty) => { $body };
 }
 
 endpoints! {
     PLAYERS: GET "/players" -> Vec<Player>;
     ACTIVE_MEETUP: GET "/meetups/active" -> Meetup;
-    LINEUP: PUT "/meetups/{meetup_id}/lineup" -> Meetup;
+    LINEUP: PUT "/meetups/{meetup_id}/lineup" (LineupBody) -> Meetup;
     SUBSTITUTE_SEARCH: POST "/meetups/{meetup_id}/substitute-search" -> Meetup;
     EVENTS: GET "/events" -> Event;
 }
 
-/// One PyBall call, answering with an `Out`.
-pub struct Endpoint<Out> {
+/// One PyBall call, sending an `In` (`()` for no body) and answering with an `Out`.
+pub struct Endpoint<In, Out> {
     pub method: &'static str,
     pub path: &'static str,
-    out: PhantomData<fn() -> Out>,
+    types: PhantomData<fn(In) -> Out>,
 }
 
-impl<Out> Endpoint<Out> {
+impl<In, Out> Endpoint<In, Out> {
     const fn new(method: &'static str, path: &'static str) -> Self {
         Self {
             method,
             path,
-            out: PhantomData,
+            types: PhantomData,
         }
     }
 
@@ -120,9 +125,9 @@ impl Player {
 
 /// Body of `PUT /meetups/{id}/lineup`.
 #[derive(Serialize)]
-pub struct LineupBody<'a> {
-    pub players: &'a [String],
-    pub team_algorithm: &'a str,
+pub struct LineupBody {
+    pub players: Vec<String>,
+    pub team_algorithm: String,
 }
 
 /// One server-sent event: its id, its type and the meetup as it was right after.
@@ -157,7 +162,7 @@ impl Api {
     }
 
     pub fn players(&self) -> Result<Vec<Player>> {
-        json_body(&PLAYERS, self.send(&self.http, &PLAYERS, "", None)?).context("decoding players")
+        self.call(&PLAYERS, "").context("decoding players")
     }
 
     /// The meetup not closed yet, or `None` if there isn't one.
@@ -180,21 +185,16 @@ impl Api {
         algorithm: &str,
     ) -> Result<Meetup> {
         let body = LineupBody {
-            players,
-            team_algorithm: algorithm,
+            players: players.to_vec(),
+            team_algorithm: algorithm.to_string(),
         };
-        let sent = self.send(
-            &self.http,
-            &LINEUP,
-            meetup_id,
-            Some(serde_json::to_vec(&body)?),
-        );
-        json_body(&LINEUP, sent?).context("decoding the meetup")
+        self.call_with(&LINEUP, meetup_id, &body)
+            .context("decoding the meetup")
     }
 
     pub fn open_substitute_search(&self, meetup_id: &str) -> Result<Meetup> {
-        let sent = self.send(&self.http, &SUBSTITUTE_SEARCH, meetup_id, None);
-        json_body(&SUBSTITUTE_SEARCH, sent?).context("decoding the meetup")
+        self.call(&SUBSTITUTE_SEARCH, meetup_id)
+            .context("decoding the meetup")
     }
 
     /// Open the event stream after `last_event_id` (only new events if `None`).
@@ -212,11 +212,31 @@ impl Api {
         Ok(EventStream::new(&EVENTS, resp.into_body().into_reader()))
     }
 
+    /// Call a bodyless `endpoint` for `meetup_id` and decode its answer.
+    fn call<Out: DeserializeOwned>(
+        &self,
+        endpoint: &Endpoint<(), Out>,
+        meetup_id: &str,
+    ) -> Result<Out> {
+        json_body(endpoint, self.send(&self.http, endpoint, meetup_id, None)?)
+    }
+
+    /// Call `endpoint` for `meetup_id` with `body` as JSON and decode its answer.
+    fn call_with<In: Serialize, Out: DeserializeOwned>(
+        &self,
+        endpoint: &Endpoint<In, Out>,
+        meetup_id: &str,
+        body: &In,
+    ) -> Result<Out> {
+        let json = Some(serde_json::to_vec(body)?);
+        json_body(endpoint, self.send(&self.http, endpoint, meetup_id, json)?)
+    }
+
     /// Call `endpoint` for `meetup_id` with an optional JSON body; fail on any error status.
-    fn send<Out>(
+    fn send<In, Out>(
         &self,
         agent: &Agent,
-        endpoint: &Endpoint<Out>,
+        endpoint: &Endpoint<In, Out>,
         meetup_id: &str,
         json: Option<Vec<u8>>,
     ) -> Result<Response<Body>> {
@@ -225,10 +245,10 @@ impl Api {
     }
 
     /// Call `endpoint`, handing back whatever status PyBall answered with.
-    fn request<Out>(
+    fn request<In, Out>(
         &self,
         agent: &Agent,
-        endpoint: &Endpoint<Out>,
+        endpoint: &Endpoint<In, Out>,
         meetup_id: &str,
         json: Option<Vec<u8>>,
     ) -> Result<Response<Body>> {
@@ -244,7 +264,7 @@ impl Api {
         sent.with_context(|| format!("cannot reach PyBall at {}", self.base))
     }
 
-    fn builder<Out>(&self, endpoint: &Endpoint<Out>, path: &str) -> request::Builder {
+    fn builder<In, Out>(&self, endpoint: &Endpoint<In, Out>, path: &str) -> request::Builder {
         Request::builder()
             .method(endpoint.method)
             .uri(format!("{}{path}", self.base))
@@ -265,7 +285,7 @@ pub enum Frame<Out> {
 }
 
 impl<Out: DeserializeOwned> EventStream<Out> {
-    fn new(_: &Endpoint<Out>, reader: impl Read + Send + Sync + 'static) -> Self {
+    fn new<In>(_: &Endpoint<In, Out>, reader: impl Read + Send + Sync + 'static) -> Self {
         let boxed: Box<dyn Read + Send + Sync> = Box::new(reader);
         Self {
             lines: BufReader::new(boxed).lines(),
@@ -297,7 +317,10 @@ impl<Out: DeserializeOwned> EventStream<Out> {
 }
 
 /// Decode `endpoint`'s answer as the type its table entry declares.
-fn json_body<Out: DeserializeOwned>(_: &Endpoint<Out>, mut resp: Response<Body>) -> Result<Out> {
+fn json_body<In, Out: DeserializeOwned>(
+    _: &Endpoint<In, Out>,
+    mut resp: Response<Body>,
+) -> Result<Out> {
     Ok(resp.body_mut().read_json()?)
 }
 

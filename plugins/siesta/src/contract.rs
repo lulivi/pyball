@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
-use crate::api::{ACTIVE_MEETUP, EVENTS, Endpoint, LINEUP, LineupBody, check_endpoints};
+use crate::api::{ACTIVE_MEETUP, EVENTS, Endpoint, LineupBody, check_endpoints};
 
 const SCHEMA: &str = include_str!("../../openapi.json");
 
@@ -27,22 +27,6 @@ fn the_client_calls_pyball_only_through_its_endpoints() {
     assert!(
         !rest.contains("\"/"),
         "api.rs builds a PyBall path outside endpoints!: declare the call there"
-    );
-}
-
-#[test]
-fn the_lineup_body_matches_the_schema() {
-    let schema: Value = serde_json::from_str(SCHEMA).unwrap();
-    let body = serde_json::to_value(LineupBody {
-        players: &["p1".to_string()],
-        team_algorithm: "balanceado",
-    })
-    .unwrap();
-    let request = &operation(&schema, &LINEUP)["requestBody"];
-    let target = &request["content"]["application/json"]["schema"];
-    assert!(
-        accepts(&schema, target, &body),
-        "PyBall no longer accepts {body} as a lineup body"
     );
 }
 
@@ -70,10 +54,48 @@ fn no_active_meetup_is_a_404() {
     );
 }
 
-/// The answer to `endpoint`, sampled from its schema, decodes into `T`; and every field
-/// `T` reads is in the sample.
-pub fn check<T: DeserializeOwned + Serialize>(schema: &Value, endpoint: &Endpoint<T>) {
+/// A body siesta sends, as the contract test sends it; `()` sends none.
+pub trait Sample: Serialize + Sized {
+    fn sample() -> Option<Self>;
+}
+
+impl Sample for () {
+    fn sample() -> Option<Self> {
+        None
+    }
+}
+
+impl Sample for LineupBody {
+    fn sample() -> Option<Self> {
+        Some(LineupBody {
+            players: vec!["p1".to_string()],
+            team_algorithm: "balanceado".to_string(),
+        })
+    }
+}
+
+/// PyBall accepts the body siesta sends to `endpoint`, or needs none if it sends none; the
+/// answer, sampled from its schema, decodes into `T`; and every field `T` reads is in it.
+pub fn check<In: Sample, T: DeserializeOwned + Serialize>(
+    schema: &Value,
+    endpoint: &Endpoint<In, T>,
+) {
     let (method, path) = (endpoint.method, endpoint.path);
+    let request = &operation(schema, endpoint)["requestBody"];
+    match In::sample() {
+        Some(body) => {
+            let body = serde_json::to_value(body).unwrap();
+            let target = &request["content"]["application/json"]["schema"];
+            assert!(
+                accepts(schema, target, &body),
+                "{method} {path}: PyBall no longer accepts {body} as its body"
+            );
+        }
+        None => assert!(
+            request["required"] != json!(true),
+            "{method} {path} now needs a body, which siesta does not send"
+        ),
+    }
     let target = response(operation(schema, endpoint))
         .unwrap_or_else(|| panic!("{method} {path} has no success response schema"));
     for filled in [true, false] {
@@ -87,7 +109,7 @@ pub fn check<T: DeserializeOwned + Serialize>(schema: &Value, endpoint: &Endpoin
     }
 }
 
-fn operation<'a, T>(schema: &'a Value, endpoint: &Endpoint<T>) -> &'a Value {
+fn operation<'a, In, T>(schema: &'a Value, endpoint: &Endpoint<In, T>) -> &'a Value {
     let (method, path) = (endpoint.method, endpoint.path);
     let op = &schema["paths"][path][method.to_lowercase()];
     assert!(op.is_object(), "{method} {path} is not in the schema");
