@@ -43,6 +43,7 @@ Fuera de `pyball/`:
 
 - `docs/` — documentación para el usuario, en inglés y español.
 - `plugins/` — los plugins incluidos, una carpeta cada uno (ver [Plugins incluidos](#plugins-incluidos)).
+- `crates/` — bibliotecas de Rust que comparten los plugins incluidos; ninguna es un plugin.
 
 ## Arranque
 
@@ -117,6 +118,14 @@ lenguaje, y usa solo la API de plugins, como cualquier otro plugin. Cada uno:
 
 `siesta` está escrito en Rust: `plugins/siesta/rust-toolchain.toml` fija su versión de
 Rust, y `docker/Dockerfile.ci` y la etapa `siesta` de `docker/Dockerfile` usan la misma.
+
+Un plugin en Rust habla con PyBall a través de `crates/pyball-client`, una dependencia por
+ruta: el cliente de la API de plugins y su flujo de eventos, la tabla `endpoints!` por la
+que pasa cada llamada, la comprobación de esas llamadas contra `plugins/openapi.json`, y
+el entorno, la tabla de `config.toml` y la carpeta `data/plugins/<nombre>/` de un plugin.
+Cada plugin define sus propios tipos, solo con los campos que lee. `crates/pyball-client`
+tiene los mismos objetivos `check` y `build` y la misma versión de Rust, y la etapa de
+`docker/Dockerfile` de cada plugin que lo usa también lo copia.
 
 ## Formatos de partido
 

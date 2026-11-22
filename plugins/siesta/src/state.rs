@@ -7,6 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use pyball_client::plugin::write_atomic;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -99,38 +100,6 @@ impl State {
     pub fn draw_for_mut(&mut self, meetup: &str) -> Option<&mut Draw> {
         self.draws.iter_mut().rev().find(|d| d.meetup == meetup)
     }
-}
-
-/// The id of the last event read from the stream, or `None` before the first one.
-///
-/// It lives in its own file so that following the stream never rewrites the list
-/// under a command run by hand at the same time.
-pub fn load_event_id(path: &Path) -> Result<Option<u64>> {
-    if !path.exists() {
-        return Ok(None);
-    }
-    let raw = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let id = raw
-        .trim()
-        .parse()
-        .with_context(|| format!("parsing {}", path.display()))?;
-    Ok(Some(id))
-}
-
-pub fn save_event_id(path: &Path, id: u64) -> Result<()> {
-    write_atomic(path, &format!("{id}\n"))
-}
-
-/// Write through a temp file + rename, so a crash never leaves half a file. The temp
-/// name carries the process id: the plugin and a command run by hand may write at once.
-fn write_atomic(path: &Path, contents: &str) -> Result<()> {
-    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-        fs::create_dir_all(dir)?;
-    }
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(format!(".tmp.{}", std::process::id()));
-    fs::write(&tmp, contents)?;
-    fs::rename(&tmp, path).with_context(|| format!("writing {}", path.display()))
 }
 
 #[cfg(test)]

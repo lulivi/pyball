@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 RUN pip install --no-cache-dir --root-user-action=ignore uv nox
 
-# Rust for the bundled plugins; keep in step with plugins/*/rust-toolchain.toml.
+# Rust for the bundled plugins; keep in step with {crates,plugins}/*/rust-toolchain.toml.
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:${PATH}

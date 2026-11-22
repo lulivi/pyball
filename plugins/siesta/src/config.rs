@@ -6,12 +6,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use chrono::{NaiveTime, Weekday};
 use chrono_tz::Tz;
-use toml::Value;
+use pyball_client::plugin;
 
-/// Where the state lives, relative to the workspace the core runs plugins from.
-const STATE_FILE: &str = "data/plugins/siesta/state.json";
-const EVENT_ID_FILE: &str = "data/plugins/siesta/last_event_id";
-const DEFAULT_API_URL: &str = "http://127.0.0.1:8000/api/v1";
+/// The plugin's table and its folder under `data/plugins/`.
+const NAME: &str = "siesta";
 
 #[derive(Debug)]
 pub struct Config {
@@ -44,16 +42,12 @@ pub struct TelegramTarget {
 
 impl Config {
     pub fn load(config_path: &Path) -> Result<Self> {
-        let raw = std::fs::read_to_string(config_path)
-            .with_context(|| format!("reading PyBall config {}", config_path.display()))?;
-        let doc: Value =
-            toml::from_str(&raw).with_context(|| format!("parsing {}", config_path.display()))?;
-        let table = doc
-            .get("pyball")
-            .and_then(|p| p.get("plugins"))
-            .and_then(|p| p.get("siesta"))
-            .and_then(Value::as_table);
-        Self::from_table(table, env("PYBALL_API_URL"), env("PYBALL_API_TOKEN"))
+        let table = plugin::table(config_path, NAME)?;
+        Self::from_table(
+            table.as_ref(),
+            plugin::env("PYBALL_API_URL"),
+            plugin::env("PYBALL_API_TOKEN"),
+        )
     }
 
     fn from_table(
@@ -61,10 +55,7 @@ impl Config {
         api_url: Option<String>,
         api_token: Option<String>,
     ) -> Result<Self> {
-        let api_token = api_token.context(
-            "PYBALL_API_TOKEN is not set: PyBall sets it for the plugin; \
-             by hand, pass the manage token",
-        )?;
+        let api_token = plugin::api_token(api_token)?;
 
         let team_algorithm = string(t, "team_algorithm")?.unwrap_or_else(|| "balanceado".into());
         if !matches!(team_algorithm.as_str(), "balanceado" | "random") {
@@ -111,10 +102,7 @@ impl Config {
         };
 
         Ok(Self {
-            api_url: api_url
-                .unwrap_or_else(|| DEFAULT_API_URL.into())
-                .trim_end_matches('/')
-                .to_string(),
+            api_url: plugin::api_url(api_url),
             api_token,
             team_algorithm,
             schedule: Schedule {
@@ -122,26 +110,15 @@ impl Config {
                 time,
                 timezone,
             },
-            state_file: PathBuf::from(STATE_FILE),
-            event_id_file: PathBuf::from(EVENT_ID_FILE),
+            state_file: plugin::data_dir(NAME).join("state.json"),
+            event_id_file: plugin::data_dir(NAME).join("last_event_id"),
             telegram,
         })
     }
 }
 
-/// A config value as a string; numbers are accepted too (chat IDs).
 fn string(t: Option<&toml::Table>, key: &str) -> Result<Option<String>> {
-    Ok(match t.and_then(|t| t.get(key)) {
-        None => None,
-        Some(Value::String(s)) if s.trim().is_empty() => None,
-        Some(Value::String(s)) => Some(s.trim().to_string()),
-        Some(Value::Integer(n)) => Some(n.to_string()),
-        Some(_) => bail!("plugins.siesta.{key} must be a text or a number"),
-    })
-}
-
-fn env(var: &str) -> Option<String> {
-    std::env::var(var).ok().filter(|v| !v.is_empty())
+    plugin::string(t, NAME, key)
 }
 
 #[cfg(test)]
@@ -156,7 +133,7 @@ mod tests {
     #[test]
     fn defaults_to_monday_ten_in_madrid_without_telegram() {
         let cfg = load("").unwrap();
-        assert_eq!(cfg.api_url, DEFAULT_API_URL);
+        assert_eq!(cfg.api_url, plugin::DEFAULT_API_URL);
         assert_eq!(cfg.schedule.weekday, Weekday::Mon);
         assert_eq!(cfg.schedule.time.to_string(), "10:00:00");
         assert_eq!(cfg.schedule.timezone, chrono_tz::Europe::Madrid);

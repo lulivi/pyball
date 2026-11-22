@@ -38,9 +38,11 @@ FROM rust:1.97-alpine AS siesta
 RUN apk add --no-cache musl-dev
 
 WORKDIR /src
-COPY plugins/siesta/Cargo.toml plugins/siesta/Cargo.lock ./
-COPY plugins/siesta/src ./src
-RUN cargo build --release --locked
+COPY crates/pyball-client/Cargo.toml crates/pyball-client/
+COPY crates/pyball-client/src crates/pyball-client/src
+COPY plugins/siesta/Cargo.toml plugins/siesta/Cargo.lock plugins/siesta/
+COPY plugins/siesta/src plugins/siesta/src
+RUN cd plugins/siesta && cargo build --release --locked
 
 
 # --- base: shared system deps, locale, venv, unprivileged user ---
@@ -70,7 +72,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && chown -R pyballuser:pyballgroup $VIRTUAL_ENV
 
 # Bundled plugins go outside /pyball/plugins, which the workspace mounts over.
-COPY --from=siesta /src/target/release/siesta /usr/local/bin/siesta
+COPY --from=siesta /src/plugins/siesta/target/release/siesta /usr/local/bin/siesta
 
 WORKDIR /builder
 COPY --from=builder /dist/*.whl .

@@ -30,15 +30,15 @@ l: lint
 openapi:
 	uv run python -m pyball.infrastructure.plugins.openapi
 
-# Bundled plugins: every plugins/<name>/Makefile has check and build targets
+# Bundled plugins and the crates they share: each folder's Makefile has check and build
 
 .PHONY: plugins-check
 plugins-check:
-	for dir in plugins/*/; do $(MAKE) -C "$$dir" check || exit 1; done
+	for dir in crates/*/ plugins/*/; do $(MAKE) -C "$$dir" check || exit 1; done
 
 .PHONY: plugins-build
 plugins-build:
-	for dir in plugins/*/; do $(MAKE) -C "$$dir" build || exit 1; done
+	for dir in crates/*/ plugins/*/; do $(MAKE) -C "$$dir" build || exit 1; done
 
 # Docker development
 
