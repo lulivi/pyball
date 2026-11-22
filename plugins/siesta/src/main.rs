@@ -193,17 +193,25 @@ impl Ctx {
         }))
     }
 
+    /// Post to Telegram. A failure is only reported: PyBall and the list are already
+    /// updated, and failing would restart the plugin into the same failure.
     fn announce(&self, html: &str) -> Result<()> {
         match &self.cfg.telegram {
             Some(tg) => {
-                Telegram {
+                let sent = Telegram {
                     bot_token: tg.bot_token.clone(),
                     chat_id: tg.chat_id.clone(),
                     thread_id: tg.thread_id,
                 }
-                .send_html(html)
-                .context("PyBall and the list are updated, but posting to Telegram failed")?;
-                println!("Posted to Telegram.");
+                .send_html(html);
+                match sent {
+                    Ok(()) => println!("Posted to Telegram."),
+                    Err(err) => eprintln!(
+                        "error: PyBall and the list are updated, but posting to Telegram \
+                         failed: {err:#}\n{}",
+                        message::to_plain(html)
+                    ),
+                }
             }
             None => println!(
                 "(no Telegram chat configured; message not sent)\n{}",
@@ -228,7 +236,9 @@ fn cmd_run(ctx: &mut Ctx) -> Result<()> {
     );
     loop {
         check_schedule(ctx)?;
-        let mut stream = ctx.api.events(ctx.state.last_event_id)?;
+        let mut stream = ctx
+            .api
+            .events(state::load_event_id(&ctx.cfg.event_id_file)?)?;
         while let Some(frame) = stream.next_frame()? {
             check_schedule(ctx)?;
             if let Frame::Event(event) = frame {
@@ -274,16 +284,14 @@ fn on_event(ctx: &mut Ctx, event: Event) -> Result<()> {
         && !m.closed
         && m.teams.is_none()
         && m.players.len() >= m.capacity;
-    ctx.state = State::load(&ctx.cfg.state_file)?;
-    if fills_search && ctx.state.searches.contains(&m.id) {
+    if fills_search && State::load(&ctx.cfg.state_file)?.searches.contains(&m.id) {
         println!("The substitute search filled the meetup; drawing.");
         ctx.refresh()?;
         if let Some(active) = ctx.api.active_meetup()?.filter(|a| a.id == m.id) {
             draw(ctx, active, false)?;
         }
     }
-    ctx.state.last_event_id = Some(event.id);
-    ctx.save()
+    state::save_event_id(&ctx.cfg.event_id_file, event.id)
 }
 
 /// Draw on `meetup`: at most once per meetup, so running it again changes nothing.

@@ -20,9 +20,6 @@ pub struct State {
     /// The latest scheduled draw time already handled (RFC 3339).
     #[serde(default)]
     pub last_slot: Option<String>,
-    /// The id of the last event read from the stream.
-    #[serde(default)]
-    pub last_event_id: Option<u64>,
     /// Meetups whose substitute search siesta opened and still has to draw.
     #[serde(default)]
     pub searches: Vec<String>,
@@ -58,13 +55,7 @@ impl State {
 
     /// Write atomically (temp file + rename) so a crash never leaves half a file.
     pub fn save(&self, path: &Path) -> Result<()> {
-        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-            fs::create_dir_all(dir)?;
-        }
-        let tmp = path.with_extension("json.tmp");
-        fs::write(&tmp, serde_json::to_string_pretty(self)? + "\n")?;
-        fs::rename(&tmp, path).with_context(|| format!("writing {}", path.display()))?;
-        Ok(())
+        write_atomic(path, &(serde_json::to_string_pretty(self)? + "\n"))
     }
 
     /// Add every current regular who isn't on the list yet, starting at the
@@ -108,6 +99,38 @@ impl State {
     pub fn draw_for_mut(&mut self, meetup: &str) -> Option<&mut Draw> {
         self.draws.iter_mut().rev().find(|d| d.meetup == meetup)
     }
+}
+
+/// The id of the last event read from the stream, or `None` before the first one.
+///
+/// It lives in its own file so that following the stream never rewrites the list
+/// under a command run by hand at the same time.
+pub fn load_event_id(path: &Path) -> Result<Option<u64>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    let id = raw
+        .trim()
+        .parse()
+        .with_context(|| format!("parsing {}", path.display()))?;
+    Ok(Some(id))
+}
+
+pub fn save_event_id(path: &Path, id: u64) -> Result<()> {
+    write_atomic(path, &format!("{id}\n"))
+}
+
+/// Write through a temp file + rename, so a crash never leaves half a file. The temp
+/// name carries the process id: the plugin and a command run by hand may write at once.
+fn write_atomic(path: &Path, contents: &str) -> Result<()> {
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        fs::create_dir_all(dir)?;
+    }
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(format!(".tmp.{}", std::process::id()));
+    fs::write(&tmp, contents)?;
+    fs::rename(&tmp, path).with_context(|| format!("writing {}", path.display()))
 }
 
 #[cfg(test)]

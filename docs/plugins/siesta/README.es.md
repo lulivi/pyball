@@ -69,13 +69,14 @@ claves no admiten variables de entorno.
 
 Además de `run`, que arranca PyBall, siesta tiene comandos para ejecutar a mano dentro
 del contenedor, desde el espacio de trabajo. Hablan con la API de plugins con el
-`manage_token`:
+`manage_token`, así que tiene que estar definido en `config.toml`:
 
 ```bash
 docker compose exec -e PYBALL_API_TOKEN=<manage_token> pyball siesta status
 ```
 
-(El servicio se llama `bot` en un espacio de trabajo de `pyball-telegram`.)
+El servicio se llama `bot` en un espacio de trabajo de `pyball-telegram`. Si `api_port`
+no es `8000`, pasa también `-e PYBALL_API_URL=http://127.0.0.1:<api_port>/api/v1`.
 
 | Comando | Qué hace |
 |---|---|
@@ -90,6 +91,7 @@ nombre que no se repita (`reinstate ivan --instead-of jose m`).
 ## Sus datos
 
 siesta guarda su lista en `data/plugins/siesta/state.json`: el contador de cada fijo,
-todos los sorteos y por dónde iba en el calendario y en el flujo de eventos. Solo guarda
-IDs de jugadores y partidos; los nombres vienen siempre de PyBall, así que renombrar a
+todos los sorteos y la última hora programada que atendió.
+`data/plugins/siesta/last_event_id` guarda por dónde iba en el flujo de eventos. Los dos
+solo guardan IDs de jugadores y partidos; los nombres vienen siempre de PyBall, así que renombrar a
 un jugador no cambia nada.

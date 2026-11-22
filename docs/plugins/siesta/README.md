@@ -65,13 +65,15 @@ instead. These keys have no env overrides.
 ## Commands
 
 Besides `run`, which PyBall starts, siesta has commands to run by hand inside the
-container, from the workspace. They talk to the plugin API with the manage token:
+container, from the workspace. They talk to the plugin API with `manage_token`, so it
+must be set in `config.toml`:
 
 ```bash
 docker compose exec -e PYBALL_API_TOKEN=<manage_token> pyball siesta status
 ```
 
-(The service is `bot` in a `pyball-telegram` workspace.)
+The service is `bot` in a `pyball-telegram` workspace. If `api_port` is not `8000`, also
+pass `-e PYBALL_API_URL=http://127.0.0.1:<api_port>/api/v1`.
 
 | Command | What it does |
 |---|---|
@@ -86,5 +88,5 @@ Names match ignoring case and accents, and a unique start of a name is enough
 ## Its data
 
 siesta keeps its list in `data/plugins/siesta/state.json`: each regular's count, every
-draw, and where it left off in the schedule and the event stream. It holds player and
-meetup IDs only; names always come from PyBall, so renaming a player changes nothing.
+draw and the latest scheduled time it handled. `data/plugins/siesta/last_event_id` holds
+where it left off in the event stream. Both hold player and meetup IDs only; names always come from PyBall, so renaming a player changes nothing.

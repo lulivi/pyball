@@ -10,6 +10,7 @@ use toml::Value;
 
 /// Where the state lives, relative to the workspace the core runs plugins from.
 const STATE_FILE: &str = "data/plugins/siesta/state.json";
+const EVENT_ID_FILE: &str = "data/plugins/siesta/last_event_id";
 const DEFAULT_API_URL: &str = "http://127.0.0.1:8000/api/v1";
 
 #[derive(Debug)]
@@ -21,6 +22,7 @@ pub struct Config {
     pub team_algorithm: String,
     pub schedule: Schedule,
     pub state_file: PathBuf,
+    pub event_id_file: PathBuf,
     pub telegram: Option<TelegramTarget>,
 }
 
@@ -121,6 +123,7 @@ impl Config {
                 timezone,
             },
             state_file: PathBuf::from(STATE_FILE),
+            event_id_file: PathBuf::from(EVENT_ID_FILE),
             telegram,
         })
     }
