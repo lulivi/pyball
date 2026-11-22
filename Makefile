@@ -26,6 +26,10 @@ lint:
 .PHONY: l
 l: lint
 
+.PHONY: openapi
+openapi:
+	uv run python -m pyball.infrastructure.plugins.openapi
+
 # Bundled plugins: every plugins/<name>/Makefile has check and build targets
 
 .PHONY: plugins-check
