@@ -41,6 +41,7 @@ pyball/
 Fuera de `pyball/`:
 
 - `docs/` — documentación para el usuario, en inglés y español.
+- `plugins/` — los plugins incluidos, una carpeta cada uno (ver [Plugins incluidos](#plugins-incluidos)).
 
 ## Arranque
 
@@ -90,7 +91,26 @@ Un plugin es un programa aparte, en cualquier lenguaje, declarado en
 
 `plugins/schemas.py` y las rutas de `/api/v1` son el contrato de plugins: un cambio en
 cualquiera de ellos actualiza en el mismo cambio los plugins que lo usan y
-`docs/setup.es.md`.
+`docs/plugins/README.es.md`.
+
+### Plugins incluidos
+
+Un plugin incluido vive en `plugins/<nombre>/` en la raíz del repositorio, en cualquier
+lenguaje, y usa solo la API de plugins, como cualquier otro plugin. Cada uno:
+
+- tiene un `Makefile` con un objetivo `check` (su comprobación de formato, lint y tests,
+  que falla ante cualquier error) y un objetivo `build` (una compilación release, para
+  desarrollo local). Los `make plugins-check` y `make plugins-build` de la raíz los
+  ejecutan para cada plugin, y el job `plugins` de la CI ejecuta `make plugins-check` en
+  la imagen de CI, que lleva la herramienta de cada plugin;
+- tiene su propia etapa en `docker/Dockerfile`, que lo instala en las dos imágenes fuera
+  de `/pyball/plugins`, la carpeta que monta encima el espacio de trabajo: un binario va
+  a `/usr/local/bin/<nombre>`, así `command = ["<nombre>", ...]` lo encuentra;
+- se documenta en `docs/plugins/<nombre>/README.es.md` (EN/ES) y aparece en
+  `docs/plugins/README.es.md`.
+
+`siesta` está escrito en Rust: `plugins/siesta/rust-toolchain.toml` fija su versión de
+Rust, y `docker/Dockerfile.ci` y la etapa `siesta` de `docker/Dockerfile` usan la misma.
 
 ## Formatos de partido
 

@@ -8,3 +8,4 @@ __pycache__
 config.toml
 test_data
 docs
+plugins/*/target

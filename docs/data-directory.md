@@ -18,7 +18,7 @@ pyball/
 ├── compose.yaml       # docker compose service definition
 ├── .env               # UID/GID/PORT/TAG
 ├── README.md          # short pointer back to docs/setup.md
-├── plugins/           # plugin programs, if any — see docs/setup.md
+├── plugins/           # your own plugin programs, if any — see docs/plugins/README.md
 ├── data/
 │   ├── players.json   # every player, regardless of meetup
 │   ├── legacy_stats.json   # optional — historical assists imported from before PyBall
@@ -28,7 +28,7 @@ pyball/
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # one file per meetup, named after its date/time
 │   ├── plugins/
-│   │   └── <name>/     # each plugin's own state — see docs/setup.md
+│   │   └── <name>/     # each plugin's own state — see docs/plugins/README.md
 │   ├── signup/
 │   │   └── codes.json   # only when enable_web_signup is set — see below
 │   └── bot/

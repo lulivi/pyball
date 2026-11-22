@@ -26,6 +26,16 @@ lint:
 .PHONY: l
 l: lint
 
+# Bundled plugins: every plugins/<name>/Makefile has check and build targets
+
+.PHONY: plugins-check
+plugins-check:
+	for dir in plugins/*/; do $(MAKE) -C "$$dir" check || exit 1; done
+
+.PHONY: plugins-build
+plugins-build:
+	for dir in plugins/*/; do $(MAKE) -C "$$dir" build || exit 1; done
+
 # Docker development
 
 .PHONY: build

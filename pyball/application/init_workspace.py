@@ -93,7 +93,8 @@ theme_color = "#0f172a"
 icons_dir = ""
 
 # Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
-# A plugin is a long-running program in plugins/; one that exits is started again.
+# A plugin is a long-running program, bundled (siesta) or yours in plugins/; one that
+# exits is started again. Bundled ones: docs/plugins/README.md
 # Scopes: players:read  players:write  meetups:read  meetups:write
 # [pyball.plugins.example]
 # command = ["./plugins/example-plugin", "--verbose"]
