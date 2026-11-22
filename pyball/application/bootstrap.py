@@ -46,7 +46,7 @@ def bootstrap_core(config_path: Path = Path("config.toml")) -> tuple[AppSettings
     """
     settings = load_app_settings(config_path)
     container = Container(settings)
-    config_logging()
+    config_logging(settings.paths.logs_dir)
     locale.setlocale(locale.LC_ALL, settings.pyball.locale)
     _log_startup_info(settings, container)
     return settings, container

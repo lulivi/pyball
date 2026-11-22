@@ -1,7 +1,5 @@
 """Tests for pyball.logger shared utilities."""
 
-from unittest.mock import patch
-
 from pyball.logger import log_func, timed_rotating_file_handler
 
 
@@ -32,9 +30,8 @@ class TestTimedRotatingFileHandler:
 
     def test_returns_handler_with_filter(self, tmp_path):
         """Returns a handler that has a filter for the given string."""
-        with patch("pyball.logger.LOGS_DIRECTORY_PATH", tmp_path):
-            handler = timed_rotating_file_handler("test.log", "pyball.test")
-            try:
-                assert any(f.name == "pyball.test" for f in handler.filters)
-            finally:
-                handler.close()
+        handler = timed_rotating_file_handler(tmp_path / "test.log", "pyball.test")
+        try:
+            assert any(f.name == "pyball.test" for f in handler.filters)
+        finally:
+            handler.close()

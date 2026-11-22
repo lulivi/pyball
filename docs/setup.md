@@ -75,13 +75,13 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `base_url` | Public URL used to build the `/match` link | *(required)* |
 | `api_port` | HTTP server port | `8000` |
 | `locale` | Locale used to sort player names | `es_ES.UTF-8` |
-| `data_dir` | Directory for JSON data files | `data` |
+| `data_dir` | Directory for JSON data files; a relative path starts from the folder holding `config.toml` | `data` |
 | `match_token` | Access token for `/match` only (optional, see [Access tokens](#6-access-tokens)) | *(empty)* |
 | `manage_token` | Access token for everything, including `/manage` (optional) | *(empty)* |
 | `enable_web_signup` | Enables the self-service `/signup` page | `false` |
 | `signup_token` | Access token for `/signup` only (optional; only relevant if `enable_web_signup` is true, harmless if left unset) | *(empty)* |
 | `theme_color` | PWA theme/background color | `#0f172a` |
-| `icons_dir` | Custom PWA icons directory (optional) | *(empty)* |
+| `icons_dir` | Custom PWA icons directory (optional); a relative path starts from the folder holding `config.toml` | *(empty)* |
 
 Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` `azul`
 `morado` `marron`.

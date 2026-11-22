@@ -112,13 +112,16 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         meetup_capacity=_parse_meetup_capacity(raw["meetup_capacity"]),
     )
 
+    workspace = config_path.parent.resolve()
+    if pyball.icons_dir:
+        pyball.icons_dir = str(workspace / pyball.icons_dir)
     plugins = _parse_plugins(config.get("pyball", {}).get("plugins", {}))
     return AppSettings(
-        pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir), plugins=plugins
+        pyball=pyball,
+        paths=Paths(workspace=workspace, data_dir=Path(pyball.data_dir)),
+        plugins=plugins,
     )
 
-
-LOGS_DIRECTORY_PATH = Path("logs")
 
 PLUGIN_SCOPES = ("players:read", "players:write", "meetups:read", "meetups:write")
 
@@ -208,19 +211,24 @@ class PluginConfig:
 
 @dataclass
 class Paths:
-    """File system paths for data storage."""
+    """File system paths, relative ones resolved against the workspace.
 
-    data_dir: Path = field(default_factory=lambda: Path("data"))
+    The workspace is the folder holding config.toml: it holds data/, logs/ and plugins/,
+    and plugins run from it, wherever PyBall itself is started from.
+    """
+
+    workspace: Path = field(default_factory=Path.cwd)
+    data_dir: Path = Path("data")
     players_file: Path = field(init=False)
     meetups_dir: Path = field(init=False)
-    _data_dir_override: str | None = field(default=None, repr=False)
+    logs_dir: Path = field(init=False)
 
     def __post_init__(self) -> None:
-        """Initialize dependent path fields."""
-        if self._data_dir_override:
-            self.data_dir = Path(self._data_dir_override)
+        """Resolve data_dir against the workspace and derive the dependent paths."""
+        self.data_dir = self.workspace / self.data_dir
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
+        self.logs_dir = self.workspace / "logs"
 
 
 @dataclass

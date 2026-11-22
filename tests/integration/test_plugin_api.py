@@ -28,7 +28,7 @@ def container(tmp_path):
     """A real container over a temp data directory, with 12 regulars."""
     settings = AppSettings(
         pyball=PyballConfig(location="Campo", name="Test", manage_token="manage-tok"),
-        paths=Paths(_data_dir_override=str(tmp_path)),
+        paths=Paths(workspace=tmp_path),
     )
     real = Container(settings)
     for i in range(12):

@@ -66,6 +66,7 @@ api_port = 8000
 # Override with PYBALL_CORE_LOCALE
 locale = "es_ES.UTF-8"
 
+# Relative to this file's folder, like icons_dir; logs/ and plugins/ live here too
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 

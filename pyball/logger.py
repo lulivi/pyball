@@ -23,14 +23,13 @@ import datetime
 import functools
 import logging
 import logging.handlers
+from pathlib import Path
 from typing import Any, Callable, TypeVar, cast
 
-from pyball.settings import LOGS_DIRECTORY_PATH
 
-
-def config_logging() -> None:
-    """Configure log files and stream output."""
-    LOGS_DIRECTORY_PATH.mkdir(parents=True, exist_ok=True)
+def config_logging(logs_dir: Path) -> None:
+    """Configure stream output and the log files in ``logs_dir``."""
+    logs_dir.mkdir(parents=True, exist_ok=True)
     handlers: list[logging.Handler] = []
 
     stream_log = logging.StreamHandler()
@@ -38,14 +37,16 @@ def config_logging() -> None:
     handlers.append(stream_log)
     handlers.append(
         logging.handlers.RotatingFileHandler(
-            LOGS_DIRECTORY_PATH.joinpath("full.log"),
+            logs_dir / "full.log",
             maxBytes=1024 * 1024,
             backupCount=5,
         )
     )
-    handlers.append(timed_rotating_file_handler("pyball.log", "pyball"))
-    handlers.append(timed_rotating_file_handler("bot.log", "pyball.bot"))
-    handlers.append(timed_rotating_file_handler("infrastructure.log", "pyball.infrastructure"))
+    handlers.append(timed_rotating_file_handler(logs_dir / "pyball.log", "pyball"))
+    handlers.append(timed_rotating_file_handler(logs_dir / "bot.log", "pyball.bot"))
+    handlers.append(
+        timed_rotating_file_handler(logs_dir / "infrastructure.log", "pyball.infrastructure")
+    )
 
     logging.basicConfig(
         format="{asctime}|{levelname}|{name}:{lineno: 4d}| {message}",
@@ -61,17 +62,17 @@ def config_logging() -> None:
 
 
 def timed_rotating_file_handler(
-    file_name: str,
+    file_path: Path,
     filter_string: str,
 ) -> logging.handlers.TimedRotatingFileHandler:
     """Create a log file handler with filter.
 
-    :param file_name: Name of the file inside the logs directory.
+    :param file_path: The log file.
     :param filter_string: Log filter prefix.
     :returns: The newly created log handler.
     """
     log = logging.handlers.TimedRotatingFileHandler(
-        LOGS_DIRECTORY_PATH.joinpath(file_name),
+        file_path,
         when="W2",
         backupCount=5,
         atTime=datetime.time(hour=23, minute=59),

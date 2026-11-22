@@ -8,8 +8,9 @@ directly, or migrate it somewhere else.
 
 ## Workspace layout
 
-After running `--bootstrap` (see [docs/setup.md](setup.md)), your workspace directory
-looks like this:
+The workspace is the folder holding `config.toml`: PyBall finds `data/`, `logs/` and
+`plugins/` there, and runs plugins from it, wherever it is started from. After running
+`--bootstrap` (see [docs/setup.md](setup.md)), it looks like this:
 
 ```
 pyball/

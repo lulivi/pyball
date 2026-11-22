@@ -402,3 +402,29 @@ class TestPluginsSetting:
         config = _FULL_CORE + f"\n[pyball.plugins.bad]\n{table}\n"
         with pytest.raises(SettingsValidationError, match=match):
             load_app_settings(_write(tmp_path, config))
+
+
+class TestWorkspacePaths:
+    """Relative paths resolve against the folder holding config.toml, not the current one."""
+
+    def test_relative_paths_follow_the_config_file(self, tmp_path, monkeypatch):
+        """data_dir, icons_dir and logs/ hang off the config's folder wherever PyBall runs."""
+        workspace = tmp_path / "club"
+        workspace.mkdir()
+        config = _FULL_CORE.replace("[pyball.core]", '[pyball.core]\nicons_dir = "icons"')
+        config_path = _write(workspace, config)
+        monkeypatch.chdir(tmp_path)
+
+        settings = load_app_settings(config_path)
+
+        assert settings.paths.workspace == workspace.resolve()
+        assert settings.paths.meetups_dir == workspace.resolve() / "data" / "meetups"
+        assert settings.paths.logs_dir == workspace.resolve() / "logs"
+        assert settings.pyball.icons_dir == str(workspace.resolve() / "icons")
+
+    def test_absolute_data_dir_stays_absolute(self, tmp_path):
+        """An absolute data_dir is used as given."""
+        elsewhere = tmp_path / "elsewhere"
+        config = _FULL_CORE.replace('data_dir = "data"', f'data_dir = "{elsewhere}"')
+        settings = load_app_settings(_write(tmp_path, config))
+        assert settings.paths.data_dir == elsewhere

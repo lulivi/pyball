@@ -8,8 +8,10 @@ de seguridad de tus datos, inspeccionarlos directamente, o migrarlos a otro siti
 
 ## Estructura del espacio de trabajo
 
-Después de ejecutar `--bootstrap` (ver [docs/setup.es.md](setup.es.md)), tu directorio
-de trabajo queda así:
+El espacio de trabajo es la carpeta que contiene `config.toml`: PyBall busca ahí `data/`,
+`logs/` y `plugins/`, y ejecuta los plugins desde ella, lo arranques desde donde lo
+arranques. Después de ejecutar `--bootstrap` (ver [docs/setup.es.md](setup.es.md)),
+queda así:
 
 ```
 pyball/

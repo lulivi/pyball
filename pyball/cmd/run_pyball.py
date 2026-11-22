@@ -83,7 +83,7 @@ async def _main_async(config_path: Path) -> None:
         app_settings.plugins,
         credentials,
         f"http://127.0.0.1:{app_settings.pyball.api_port}/api/v1",
-        Path.cwd(),
+        app_settings.paths.workspace,
     )
 
     server_config = uvicorn.Config(
