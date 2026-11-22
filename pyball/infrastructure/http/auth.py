@@ -31,6 +31,8 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
     - Cookie pyball_<scope>_token=<value> → validates on every subsequent request
 
     When all three tokens are empty the middleware is disabled (no-op).
+
+    The plugin API (/api/v1/*) is left alone: its routes check bearer tokens themselves.
     """
 
     def __init__(
@@ -70,6 +72,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
         self._signup_page = "/signup"
         self._signup_api_prefix = "/api/signup/"
         self._api_prefix = "/api/"
+        self._plugin_api_prefix = "/api/v1/"
         self._icons_prefix = "/icons/"
         self._js_prefix = "/js/"
         self._signup_static_prefix = "/signup-static/"
@@ -81,7 +84,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-many-insta
 
         path = request.url.path
 
-        if self._is_public(path):
+        if self._is_public(path) or path.startswith(self._plugin_api_prefix):
             return await call_next(request)
 
         token_param = request.query_params.get("token")

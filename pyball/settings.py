@@ -68,6 +68,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "enable_web_signup",
         "theme_color",
         "icons_dir",
+        "meetup_capacity",
     )
     raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
     raw["match_token"] = raw["match_token"] or ""
@@ -76,6 +77,8 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     raw["enable_web_signup"] = raw["enable_web_signup"] or False
     raw["theme_color"] = raw["theme_color"] or "#0f172a"
     raw["icons_dir"] = raw["icons_dir"] or ""
+    if raw["meetup_capacity"] is None:
+        raw["meetup_capacity"] = 10
 
     missing = [f"core.{k}" for k, v in raw.items() if v is None]
     if raw.get("location") is not None and not raw["location"]:
@@ -106,12 +109,21 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         enable_web_signup=_parse_bool(raw["enable_web_signup"]),
         theme_color=raw["theme_color"],
         icons_dir=raw["icons_dir"],
+        meetup_capacity=_parse_meetup_capacity(raw["meetup_capacity"]),
     )
 
-    return AppSettings(pyball=pyball, paths=Paths(_data_dir_override=pyball.data_dir))
+    workspace = config_path.parent.resolve()
+    if pyball.icons_dir:
+        pyball.icons_dir = str(workspace / pyball.icons_dir)
+    plugins = _parse_plugins(config.get("pyball", {}).get("plugins", {}))
+    return AppSettings(
+        pyball=pyball,
+        paths=Paths(workspace=workspace, data_dir=Path(pyball.data_dir)),
+        plugins=plugins,
+    )
 
 
-LOGS_DIRECTORY_PATH = Path("logs")
+PLUGIN_SCOPES = ("players:read", "players:write", "meetups:read", "meetups:write")
 
 COLOR_PALETTE: dict[str, dict[str, str]] = {
     # Colores disponibles: blanco ⚪  negro ⚫  rojo 🔴  naranja 🟠  amarillo 🟡
@@ -155,6 +167,7 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     enable_web_signup: bool = False
     theme_color: str = "#0f172a"
     icons_dir: str = ""
+    meetup_capacity: int = 10
 
     def __post_init__(self) -> None:
         """Resolve team_colors into derived emoji and hex fields.
@@ -187,21 +200,35 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
         )
 
 
+@dataclass(frozen=True)
+class PluginConfig:
+    """A plugin declared under [pyball.plugins.<name>]: how to start it and what it may do."""
+
+    name: str
+    command: tuple[str, ...]
+    scopes: frozenset[str]
+
+
 @dataclass
 class Paths:
-    """File system paths for data storage."""
+    """File system paths, relative ones resolved against the workspace.
 
-    data_dir: Path = field(default_factory=lambda: Path("data"))
+    The workspace is the folder holding config.toml: it holds data/, logs/ and plugins/,
+    and plugins run from it, wherever PyBall itself is started from.
+    """
+
+    workspace: Path = field(default_factory=Path.cwd)
+    data_dir: Path = Path("data")
     players_file: Path = field(init=False)
     meetups_dir: Path = field(init=False)
-    _data_dir_override: str | None = field(default=None, repr=False)
+    logs_dir: Path = field(init=False)
 
     def __post_init__(self) -> None:
-        """Initialize dependent path fields."""
-        if self._data_dir_override:
-            self.data_dir = Path(self._data_dir_override)
+        """Resolve data_dir against the workspace and derive the dependent paths."""
+        self.data_dir = self.workspace / self.data_dir
         self.players_file = self.data_dir / "players.json"
         self.meetups_dir = self.data_dir / "meetups"
+        self.logs_dir = self.workspace / "logs"
 
 
 @dataclass
@@ -210,6 +237,7 @@ class AppSettings:
 
     pyball: PyballConfig = field(default_factory=PyballConfig)
     paths: Paths = field(default_factory=Paths)
+    plugins: list[PluginConfig] = field(default_factory=list)
 
 
 def _parse_api_port(value) -> int:
@@ -218,6 +246,43 @@ def _parse_api_port(value) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 8000
+
+
+def _parse_meetup_capacity(value) -> int:
+    """Parse meetup_capacity from a config int or env var string; at least two players."""
+    try:
+        capacity = int(value)
+    except (TypeError, ValueError) as exc:
+        raise SettingsValidationError(
+            f"meetup_capacity debe ser un número entero, se recibió: {value!r}."
+        ) from exc
+    if capacity < 2:
+        raise SettingsValidationError(
+            f"meetup_capacity debe ser al menos 2, se recibió: {capacity}."
+        )
+    return capacity
+
+
+def _parse_plugins(section: dict) -> list[PluginConfig]:
+    """Parse every [pyball.plugins.<name>] table; these have no env overrides."""
+    plugins = []
+    for name, table in section.items():
+        command = table.get("command") if isinstance(table, dict) else None
+        valid_parts = isinstance(command, list) and all(isinstance(c, str) and c for c in command)
+        if not command or not valid_parts:
+            raise SettingsValidationError(
+                f"plugins.{name}.command debe ser una lista no vacía de textos, "
+                f'p. ej. ["./plugins/mi-plugin", "--verbose"].'
+            )
+        scopes = table.get("scopes", [])
+        unknown = [s for s in scopes if s not in PLUGIN_SCOPES] if isinstance(scopes, list) else []
+        if not isinstance(scopes, list) or unknown:
+            raise SettingsValidationError(
+                f"plugins.{name}.scopes solo admite {', '.join(PLUGIN_SCOPES)}; "
+                f"se recibió: {scopes!r}."
+            )
+        plugins.append(PluginConfig(name, tuple(command), frozenset(scopes)))
+    return plugins
 
 
 def _parse_bool(value) -> bool:

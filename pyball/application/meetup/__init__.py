@@ -23,6 +23,7 @@ from pyball.application.meetup.add_player_by_id import AddPlayerToMeetupById
 from pyball.application.meetup.assign_teams_by_id import AssignTeamsById
 from pyball.application.meetup.cancel_meetup import CancelMeetup
 from pyball.application.meetup.close_meetup import CloseMeetup
+from pyball.application.meetup.close_substitute_search import CloseSubstituteSearch
 from pyball.application.meetup.compute_stats import (
     ChemistryPair,
     ComputeStats,
@@ -37,6 +38,7 @@ from pyball.application.meetup.edit_match_result import EditMatchResult
 from pyball.application.meetup.finish_match import FinishMatch
 from pyball.application.meetup.format_match_summary import FormatMatchSummary
 from pyball.application.meetup.get_active_meetup import GetActiveMeetup
+from pyball.application.meetup.open_substitute_search import OpenSubstituteSearch
 from pyball.application.meetup.parse_callup import CallupParseOutcome, ParseCallup
 from pyball.application.meetup.parse_callup_text import (
     MatchedPlayer,
@@ -45,6 +47,8 @@ from pyball.application.meetup.parse_callup_text import (
     PlayerCandidate,
 )
 from pyball.application.meetup.remove_player_by_id import RemovePlayerFromMeetupById
+from pyball.application.meetup.set_lineup import SetLineup
+from pyball.application.meetup.set_meetup_capacity import SetMeetupCapacity
 from pyball.application.meetup.set_meetup_players import SetMeetupPlayers
 from pyball.application.meetup.update_meetup_date import UpdateMeetupDate
 from pyball.application.meetup.update_meetup_location import UpdateMeetupLocation
@@ -65,6 +69,10 @@ __all__ = [
     "AssignTeamsById",
     "CancelMeetup",
     "CloseMeetup",
+    "CloseSubstituteSearch",
+    "OpenSubstituteSearch",
+    "SetLineup",
+    "SetMeetupCapacity",
     "DestroyTeams",
     "MeetupHasNoTeamsError",
     "EditMatchResult",

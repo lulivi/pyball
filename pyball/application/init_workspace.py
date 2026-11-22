@@ -43,6 +43,10 @@ default_week_day = "wednesday"
 # Override with PYBALL_CORE_DEFAULT_HOUR (HH:MM)
 default_hour = "20:00"
 
+# Players a new meetup plays with; change it per meetup from /manage
+# Override with PYBALL_CORE_MEETUP_CAPACITY
+meetup_capacity = 10
+
 # Override with PYBALL_CORE_DISPLAY_DATE_FORMAT
 display_date_format = "%Y-%m-%d %H:%M"
 
@@ -62,6 +66,7 @@ api_port = 8000
 # Override with PYBALL_CORE_LOCALE
 locale = "es_ES.UTF-8"
 
+# Relative to this file's folder, like icons_dir; logs/ and plugins/ live here too
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
@@ -86,6 +91,13 @@ theme_color = "#0f172a"
 
 # Override with PYBALL_CORE_ICONS_DIR
 icons_dir = ""
+
+# Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
+# A plugin is a long-running program in plugins/; one that exits is started again.
+# Scopes: players:read  players:write  meetups:read  meetups:write
+# [pyball.plugins.example]
+# command = ["./plugins/example-plugin", "--verbose"]
+# scopes = ["players:read", "meetups:read", "meetups:write"]
 """
 
 _TG_CONFIG_EXTRA = """
@@ -145,6 +157,7 @@ services:
       - "./config.toml:/pyball/config.toml"
       - "./logs:/pyball/logs"
       - "./data:/pyball/data"
+      - "./plugins:/pyball/plugins"
     restart: unless-stopped
 """
 
@@ -159,6 +172,7 @@ services:
       - "./config.toml:/pyball/config.toml"
       - "./logs:/pyball/logs"
       - "./data:/pyball/data"
+      - "./plugins:/pyball/plugins"
     restart: unless-stopped
 """
 
@@ -260,7 +274,7 @@ def init_workspace(topology: str, config_path: Path) -> None:
 
     print(f"Bootstrapping {_TOPOLOGY_LABELS.get(topology, topology)} workspace in {workspace} ...")
 
-    for rel in ("data", "data/meetups", "logs"):
+    for rel in ("data", "data/meetups", "logs", "plugins"):
         (workspace / rel).mkdir(parents=True, exist_ok=True)
         print(f"  Created  {rel}/")
 

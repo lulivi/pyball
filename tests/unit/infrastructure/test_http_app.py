@@ -66,6 +66,7 @@ class _StubNotifier(MatchNotifier):
         self.updated = []
         self.cancelled = []
         self.date_changed = []
+        self.search_opened = []
 
     async def on_meetup_created(self, meetup):
         """Record the created meetup."""
@@ -90,6 +91,10 @@ class _StubNotifier(MatchNotifier):
     async def on_meetup_date_changed(self, old_date, meetup):
         """Record the old date and the updated meetup."""
         self.date_changed.append((old_date, meetup))
+
+    async def on_substitute_search_opened(self, meetup):
+        """Record the meetup whose search opened."""
+        self.search_opened.append(meetup)
 
     async def on_player_joined(self, meetup, player, is_substitute):
         """Do nothing."""
@@ -2759,6 +2764,8 @@ class TestCreateNextMeetup:
             "players": [],
             "teams": None,
             "location": "Parque Central",
+            "capacity": 10,
+            "substituteSearch": False,
         }
         assert notifier.created == [meetup]
 
@@ -2796,3 +2803,111 @@ class TestCreateNextMeetup:
             resp = await c.post("/api/meetup/create-next")
 
         assert resp.json()["signupUrl"] == "http://x/signup?token=t"
+
+
+class TestCapacityAndSubstituteSearchEndpoints:
+    """Tests for the /manage capacity and substitute search endpoints."""
+
+    async def _post(self, container, path, body):
+        from unittest.mock import patch
+
+        notifier = _StubNotifier()
+        container.meetup_repository.find_by_datetime.return_value = None
+        app = create_app(container, notifier)
+        with patch(
+            "pyball.infrastructure.http.routes.meetup.build_meetup_active_response",
+            return_value={"ok": True},
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.post(path, json=body)
+        return resp, notifier
+
+    @pytest.mark.asyncio
+    async def test_set_capacity_notifies_update(self):
+        """POST /api/meetup/capacity sets the capacity and refreshes the callups."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(datetime(2026, 6, 8, 20, 0), "Parque", capacity=14)
+        container = MagicMock()
+        container.set_meetup_capacity.return_value.execute.return_value = meetup
+
+        resp, notifier = await self._post(
+            container, "/api/meetup/capacity", {"date": "2026-06-08T20:00", "capacity": 14}
+        )
+
+        assert resp.status_code == 200
+        container.set_meetup_capacity.return_value.execute.assert_called_once_with(
+            datetime(2026, 6, 8, 20, 0), 14
+        )
+        assert notifier.updated == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_open_search_notifies_search_opened(self):
+        """POST /api/meetup/substitute-search/open calls for substitutes."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(datetime(2026, 6, 8, 20, 0), "Parque")
+        container = MagicMock()
+        container.open_substitute_search.return_value.execute.return_value = meetup
+
+        resp, notifier = await self._post(
+            container, "/api/meetup/substitute-search/open", {"date": "2026-06-08T20:00"}
+        )
+
+        assert resp.status_code == 200
+        assert notifier.search_opened == [meetup]
+
+    @pytest.mark.asyncio
+    async def test_close_search_notifies_update(self):
+        """POST /api/meetup/substitute-search/close refreshes the callups."""
+        from pyball.domain.meetup.models import Meetup
+
+        meetup = Meetup.create(datetime(2026, 6, 8, 20, 0), "Parque")
+        container = MagicMock()
+        container.close_substitute_search.return_value.execute.return_value = meetup
+
+        resp, notifier = await self._post(
+            container, "/api/meetup/substitute-search/close", {"date": "2026-06-08T20:00"}
+        )
+
+        assert resp.status_code == 200
+        assert notifier.updated == [meetup]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error, status",
+        [
+            ("MeetupFullError", 409),
+            ("SignupClosedError", 409),
+            ("MeetupNotFoundError", 404),
+        ],
+    )
+    async def test_open_search_errors(self, error, status):
+        """Domain refusals map to HTTP errors and notify nothing."""
+        from pyball.domain.meetup import errors
+
+        container = MagicMock()
+        container.open_substitute_search.return_value.execute.side_effect = getattr(errors, error)(
+            "x"
+        )
+
+        resp, notifier = await self._post(
+            container, "/api/meetup/substitute-search/open", {"date": "2026-06-08T20:00"}
+        )
+
+        assert resp.status_code == status
+        assert not notifier.search_opened
+
+    @pytest.mark.asyncio
+    async def test_capacity_below_two_is_422(self):
+        """A capacity under two is rejected."""
+        from pyball.domain.meetup.errors import InvalidCapacityError
+
+        container = MagicMock()
+        container.set_meetup_capacity.return_value.execute.side_effect = InvalidCapacityError("x")
+
+        resp, _ = await self._post(
+            container, "/api/meetup/capacity", {"date": "2026-06-08T20:00", "capacity": 1}
+        )
+
+        assert resp.status_code == 422

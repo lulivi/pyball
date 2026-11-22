@@ -3,12 +3,12 @@
 import hashlib
 import hmac
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from pyball.application.notifier import NullMatchNotifier
+from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.errors import MeetupNotFoundError, SignupClosedError
 from pyball.domain.meetup.models import Meetup, Team
 from pyball.domain.player.models import Player
@@ -52,7 +52,7 @@ def _container_with_code_store(tmp_path, player: Player, code: str = "ABCD2345")
 def _make_app(container):
     return create_app(
         container,
-        NullMatchNotifier(),
+        AsyncMock(spec=MatchNotifier),
         signup_token=SIGNUP_TOKEN,
         enable_web_signup=True,
     )
@@ -324,6 +324,43 @@ class TestJoinLeave:
         )
 
     @pytest.mark.asyncio
+    async def test_join_and_leave_notify(self, tmp_path):
+        """A web join and leave are announced like Telegram ones."""
+        ana = Player.create("Ana", group="substitute")
+        container = _container_with_code_store(tmp_path, ana)
+        meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        container.add_player_to_meetup_by_id.return_value.execute.return_value = meetup
+        container.remove_player_from_meetup_by_id.return_value.execute.return_value = meetup
+        notifier = AsyncMock(spec=MatchNotifier)
+        app = create_app(container, notifier, signup_token=SIGNUP_TOKEN, enable_web_signup=True)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(ana.id.value)))
+            await c.post("/api/signup/join")
+            await c.post("/api/signup/leave")
+
+        notifier.on_player_joined.assert_awaited_once_with(meetup, ana, True)
+        notifier.on_player_left.assert_awaited_once_with(meetup, ana, True)
+
+    @pytest.mark.asyncio
+    async def test_join_when_already_in_notifies_nothing(self, tmp_path):
+        """Joining twice changes nothing, so nothing is announced."""
+        ana = Player.create("Ana")
+        container = _container_with_code_store(tmp_path, ana)
+        meetup = Meetup.create(date=datetime(2026, 6, 17, 20, 0), location="Campo")
+        meetup.add_player(ana.id)
+        container.get_active_meetup.return_value.execute.return_value = meetup
+        notifier = AsyncMock(spec=MatchNotifier)
+        app = create_app(container, notifier, signup_token=SIGNUP_TOKEN, enable_web_signup=True)
+
+        async with _client(app) as c:
+            c.cookies.set("pyball_signup_player", _identity_cookie(str(ana.id.value)))
+            await c.post("/api/signup/join")
+
+        notifier.on_player_joined.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_requires_identity(self, tmp_path):
         ana = Player.create("Ana")
         container = _container_with_code_store(tmp_path, ana)
@@ -341,7 +378,7 @@ class TestSignupRoutesDisabledByDefault:
     @pytest.mark.asyncio
     async def test_verify_returns_404_when_signup_disabled(self):
         container = MagicMock()
-        app = create_app(container, NullMatchNotifier())
+        app = create_app(container, AsyncMock(spec=MatchNotifier))
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.post("/api/signup/verify", json={"code": "ABCD2345"})
@@ -376,7 +413,7 @@ class TestSignupPage:
     @pytest.mark.asyncio
     async def test_signup_page_404_when_disabled(self):
         container = MagicMock()
-        app = create_app(container, NullMatchNotifier())
+        app = create_app(container, AsyncMock(spec=MatchNotifier))
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/signup")
@@ -399,7 +436,7 @@ class TestSignupPage:
     @pytest.mark.asyncio
     async def test_signup_static_js_404_when_disabled(self):
         container = MagicMock()
-        app = create_app(container, NullMatchNotifier())
+        app = create_app(container, AsyncMock(spec=MatchNotifier))
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             response = await c.get("/signup-static/js/main.js")

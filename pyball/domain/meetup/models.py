@@ -26,7 +26,13 @@ from datetime import datetime, time
 from uuid import UUID, uuid4
 
 from pyball.domain.base import Entity, ValueObject
-from pyball.domain.meetup.errors import InvalidMeetupIdError, PlayerNotInMeetupError
+from pyball.domain.meetup.errors import (
+    InvalidCapacityError,
+    InvalidMeetupIdError,
+    MeetupFullError,
+    PlayerNotInMeetupError,
+    SignupClosedError,
+)
 from pyball.domain.player.models import PlayerId
 
 
@@ -41,30 +47,70 @@ class Meetup(Entity["MeetupId"]):  # pylint: disable=too-many-instance-attribute
     teams: list[Team] | None = None
     matches: list[Match] = field(default_factory=list)
     closed: bool = False
+    capacity: int = 10
+    substitute_search: bool = False
 
     @classmethod
-    def create(cls, date: datetime, location: str) -> "Meetup":
-        """Create a new meetup with the given date and location."""
+    def create(cls, date: datetime, location: str, capacity: int = 10) -> "Meetup":
+        """Create a new meetup with the given date, location and capacity."""
         if not location or not location.strip():
             raise ValueError("Location cannot be empty")
-        return cls(id=MeetupId.generate(), date=date, location=location.strip())
+        _check_capacity(capacity)
+        return cls(id=MeetupId.generate(), date=date, location=location.strip(), capacity=capacity)
 
     def add_player(self, player_id: PlayerId) -> None:
-        """Add a player to the meetup."""
+        """Add a player to the meetup; reaching capacity closes the substitute search."""
         if player_id not in self.players:
             self.players.append(player_id)
+        self._close_search_if_full()
 
-    def remove_player(self, player_id: PlayerId) -> None:
-        """Remove a player from the meetup."""
+    def remove_player(self, player_id: PlayerId, default_capacity: int) -> None:
+        """Remove a player from the meetup.
+
+        During a substitute search for more than the club's ``default_capacity``, a roster
+        that falls back to the default or below returns the capacity to the default, which
+        closes the search when the roster sits exactly on it.
+        """
         if player_id not in self.players:
             raise PlayerNotInMeetupError(str(player_id.value))
         self.players.remove(player_id)
+        self._fall_back_to_default_capacity(default_capacity)
+
+    def replace_players(self, player_ids: list[PlayerId], default_capacity: int) -> None:
+        """Replace the whole roster, under the same capacity rules as joins and leaves."""
+        self.players = list(dict.fromkeys(player_ids))
+        self._fall_back_to_default_capacity(default_capacity)
+        self._close_search_if_full()
+
+    def set_capacity(self, capacity: int) -> None:
+        """Set how many players the meetup plays with; reaching it closes the search."""
+        _check_capacity(capacity)
+        self._require_signup_open()
+        self.capacity = capacity
+        self._close_search_if_full()
+
+    def open_substitute_search(self) -> None:
+        """Start looking for substitutes until the roster reaches the capacity."""
+        self._require_signup_open()
+        if len(self.players) >= self.capacity:
+            raise MeetupFullError(
+                f"The roster already has {len(self.players)} of {self.capacity} players."
+            )
+        self.substitute_search = True
+
+    def close_substitute_search(self) -> None:
+        """Stop looking for substitutes."""
+        self.substitute_search = False
 
     def set_teams(self, teams: list[Team]) -> None:
-        """Assign pre-computed teams to this meetup. Accepts 2 (classic) or 3 (triangular)."""
+        """Assign pre-computed teams to this meetup. Accepts 2 (classic) or 3 (triangular).
+
+        Teams close signup, and with it any substitute search.
+        """
         if len(teams) not in (2, 3):
             raise ValueError("Two or three teams required")
         self.teams = teams
+        self.substitute_search = False
 
     def clear_teams(self) -> None:
         """Clear any assigned teams, and any matches/closed state tied to them."""
@@ -114,6 +160,19 @@ class Meetup(Entity["MeetupId"]):  # pylint: disable=too-many-instance-attribute
     def set_date(self, date: datetime) -> None:
         """Set the meetup date."""
         self.date = date
+
+    def _require_signup_open(self) -> None:
+        if not self.is_signup_open():
+            raise SignupClosedError("The meetup already has teams.")
+
+    def _fall_back_to_default_capacity(self, default_capacity: int) -> None:
+        if self.substitute_search and len(self.players) <= default_capacity < self.capacity:
+            self.capacity = default_capacity
+            self._close_search_if_full()
+
+    def _close_search_if_full(self) -> None:
+        if len(self.players) >= self.capacity:
+            self.substitute_search = False
 
 
 @dataclass
@@ -189,3 +248,8 @@ class MeetupId(ValueObject):
     def generate(cls) -> "MeetupId":
         """Generate a new random MeetupId."""
         return cls(uuid4())
+
+
+def _check_capacity(capacity: int) -> None:
+    if capacity < 2:
+        raise InvalidCapacityError(f"Capacity must be at least 2, got {capacity}.")

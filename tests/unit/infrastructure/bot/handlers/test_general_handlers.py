@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from telegram import BotCommand
 from telegram.constants import ParseMode
-from telegram.ext import Application
+from telegram.ext import Application, CommandHandler
 
 from pyball.infrastructure.telegram.bot.handlers import (
     setup_general_handlers,
@@ -17,7 +17,6 @@ from pyball.infrastructure.telegram.bot.handlers.general import (
     build_bot_commands,
     help_handler,
     register_bot_commands,
-    registered_commands,
     short_alias,
 )
 
@@ -30,11 +29,21 @@ def _build_app() -> Application:
     return app
 
 
+def _registered_commands(application) -> set[str]:
+    return {
+        name
+        for group in application.handlers.values()
+        for handler in group
+        if isinstance(handler, CommandHandler)
+        for name in handler.commands
+    }
+
+
 def test_registered_commands_match_descriptions():
     app = _build_app()
     expected = set(COMMAND_DESCRIPTIONS)
     expected |= {short_alias(n) for n in COMMAND_DESCRIPTIONS if short_alias(n)}
-    assert registered_commands(app) == expected
+    assert _registered_commands(app) == expected
 
 
 def test_build_bot_commands_one_per_description_in_order():
@@ -60,7 +69,7 @@ async def test_help_handler_renders_categories():
     text = update.message.reply_text.call_args.args[0]
     assert "*Player:*" in text
     assert r"`/player_link`" in text
-    assert r"`/meetup_search`" in text
+    assert r"`/meetup_show`" in text
     assert update.message.reply_text.call_args.kwargs["parse_mode"] == ParseMode.MARKDOWN_V2
 
 

@@ -29,7 +29,7 @@ class TestMeetup:
         meetup = Meetup.create(date=datetime(2024, 3, 20, 20, 0), location="Parque Central")
         player_id = PlayerId.generate()
         meetup.add_player(player_id)
-        meetup.remove_player(player_id)
+        meetup.remove_player(player_id, default_capacity=10)
         assert player_id not in meetup.players
 
     def test_meetup_location_required(self):

@@ -57,24 +57,7 @@ class CreateTeams:
                 f"Meetup at {meetup_date} already has a recorded result, cannot regenerate teams."
             )
 
-        if len(meetup.players) < team_count:
-            raise ValueError(f"Need at least {team_count} players to create teams.")
-
-        all_meetups = self.meetup_repository.find_all()
-        scope = season_scope(all_meetups)
-
-        assignments = self.algorithm.assign(
-            meetup.players, scope.finished, scope.season_meetups, scope.season_start, team_count
-        )
-
-        names = ["A", "B", "C"][:team_count]
-        meetup.set_teams(
-            [
-                Team.create(name, assignment.players, goalkeeper=assignment.goalkeeper)
-                for name, assignment in zip(names, assignments)
-            ]
-        )
-        ensure_first_match(meetup)
+        self.build(meetup, team_count)
         self.meetup_repository.save(meetup)
         logger.info(
             "Teams generated for %s: %d teams from %d players (%s)",
@@ -84,3 +67,23 @@ class CreateTeams:
             type(self.algorithm).__name__,
         )
         return meetup
+
+    def build(self, meetup: Meetup, team_count: int = 2) -> None:
+        """Assign the meetup's players to teams and open its first match, without saving."""
+        if team_count not in (2, 3):
+            raise ValueError("team_count must be 2 or 3")
+        if len(meetup.players) < team_count:
+            raise ValueError(f"Need at least {team_count} players to create teams.")
+
+        scope = season_scope(self.meetup_repository.find_all())
+        assignments = self.algorithm.assign(
+            meetup.players, scope.finished, scope.season_meetups, scope.season_start, team_count
+        )
+        names = ["A", "B", "C"][:team_count]
+        meetup.set_teams(
+            [
+                Team.create(name, assignment.players, goalkeeper=assignment.goalkeeper)
+                for name, assignment in zip(names, assignments)
+            ]
+        )
+        ensure_first_match(meetup)

@@ -109,6 +109,8 @@ def build_meetup_active_response(container: Container, enable_web_signup: bool =
             "players": players,
             "teams": None,
             "signupOpen": meetup.is_signup_open(),
+            "capacity": meetup.capacity,
+            "substituteSearch": meetup.substitute_search,
         }
         if signup_url is not None:
             no_teams_response["signupUrl"] = signup_url
@@ -164,6 +166,8 @@ def build_meetup_active_response(container: Container, enable_web_signup: bool =
         "players": players,
         "teams": teams_payload,
         "signupOpen": meetup.is_signup_open(),
+        "capacity": meetup.capacity,
+        "substituteSearch": meetup.substitute_search,
     }
     if signup_url is not None:
         response["signupUrl"] = signup_url

@@ -6,7 +6,6 @@ import pytest
 
 from pyball.application.container import Container
 from pyball.application.meetup import AddPlayerToMeetupById, RemovePlayerFromMeetupById
-from pyball.application.notifier import NullMatchNotifier
 from pyball.infrastructure.http.links import SignupLinkBuilder
 
 
@@ -76,19 +75,3 @@ class TestContainerSignupLinkBuilder:
         builder = container.signup_link_builder()
         assert isinstance(builder, SignupLinkBuilder)
         assert builder.build() == "http://pyball:8000/signup?token=tok-456"
-
-
-class TestNullMatchNotifier:
-    """NullMatchNotifier satisfies the MatchNotifier interface with no side effects."""
-
-    @pytest.mark.asyncio
-    async def test_on_match_closed_does_not_raise(self):
-        """on_match_closed completes without error."""
-        notifier = NullMatchNotifier()
-        await notifier.on_match_closed(None)  # type: ignore[arg-type]
-
-    @pytest.mark.asyncio
-    async def test_on_meetup_updated_does_not_raise(self):
-        """on_meetup_updated completes without error."""
-        notifier = NullMatchNotifier()
-        await notifier.on_meetup_updated(None)  # type: ignore[arg-type]

@@ -69,18 +69,19 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `name` | Instance name shown in the UI | *(required)* |
 | `default_week_day` | Default day (`monday`–`sunday`) for new meetups | `wednesday` |
 | `default_hour` | Default start time (`HH:MM`) | `20:00` |
+| `meetup_capacity` | Players a new meetup plays with; each meetup's capacity can then be changed from `/manage` | `10` |
 | `display_date_format` | Date format used in messages | `%Y-%m-%d %H:%M` |
 | `team_colors` | Two or three color names: the first two are the classic-match teams, the third is only used for triangulars (auto-filled if you list just two) | `["blanco", "negro", "rojo"]` |
 | `base_url` | Public URL used to build the `/match` link | *(required)* |
 | `api_port` | HTTP server port | `8000` |
 | `locale` | Locale used to sort player names | `es_ES.UTF-8` |
-| `data_dir` | Directory for JSON data files | `data` |
+| `data_dir` | Directory for JSON data files; a relative path starts from the folder holding `config.toml` | `data` |
 | `match_token` | Access token for `/match` only (optional, see [Access tokens](#6-access-tokens)) | *(empty)* |
 | `manage_token` | Access token for everything, including `/manage` (optional) | *(empty)* |
 | `enable_web_signup` | Enables the self-service `/signup` page | `false` |
 | `signup_token` | Access token for `/signup` only (optional; only relevant if `enable_web_signup` is true, harmless if left unset) | *(empty)* |
 | `theme_color` | PWA theme/background color | `#0f172a` |
-| `icons_dir` | Custom PWA icons directory (optional) | *(empty)* |
+| `icons_dir` | Custom PWA icons directory (optional); a relative path starts from the folder holding `config.toml` | *(empty)* |
 
 Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` `azul`
 `morado` `marron`.
@@ -117,6 +118,16 @@ forum topic in the `DEPLOY_NOTIFY_TOKEN`, `DEPLOY_NOTIFY_CHAT_ID` and
 `DEPLOY_NOTIFY_THREAD_ID` GitHub secrets — point them at the same chat and topic as
 `telegram.management.logging`. Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
 notifications.
+
+### `[pyball.plugins.<name>]` — optional plugins
+
+One table per plugin, named after it. Both topologies run them (see
+[Plugins](#8-plugins)). These tables have no env overrides.
+
+| Key | Description | Required |
+|---|---|---|
+| `command` | Program and arguments that start the plugin, run from the workspace, e.g. `["./plugins/example-plugin", "--verbose"]` | **Yes** |
+| `scopes` | What the plugin may do through the plugin API: any of `players:read`, `players:write`, `meetups:read` (includes the event stream), `meetups:write` | No (none) |
 
 ## 4. Start the app
 
@@ -160,6 +171,7 @@ etc.) is up to you — these tokens work the same regardless.
 | `/`, static assets, PWA manifests | None (always public) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **or** `manage_token` |
 | `/signup` and `/api/signup/*` (only when `enable_web_signup` is true) | `signup_token` **or** `manage_token` |
+| `/api/v1/*` (the plugin API) | `Authorization: Bearer` with a plugin's own token **or** `manage_token` — see [Plugins](#8-plugins) |
 | `/manage` and everything else under `/api/*` | `manage_token` only |
 
 Give the scoreboard-only `match_token` to a device that should only ever see `/match`
@@ -183,6 +195,62 @@ docker compose up -d
 
 Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.0` in
 `.env`.
+
+## 8. Plugins
+
+A plugin is an optional, long-running program, written in any language, that extends
+PyBall without touching its code. It runs for as long as PyBall does, reacting to the
+event stream or keeping its own schedule: a job that runs once and exits belongs in cron. Declare it in `config.toml` (see
+[`[pyball.plugins.<name>]`](#pyballpluginsname--optional-plugins)) and put the program
+in the workspace's `plugins/` folder, which the generated `compose.yaml` mounts at
+`/pyball/plugins`. Then start PyBall as usual: it is still one command.
+
+PyBall runs every declared plugin as a child process, from the workspace directory:
+
+- **Start:** once the web server is up, with three environment variables:
+  `PYBALL_API_URL` (the plugin API, e.g. `http://127.0.0.1:8000/api/v1`),
+  `PYBALL_API_TOKEN` (the plugin's own token, new at every start) and
+  `PYBALL_PLUGIN_NAME`.
+- **State:** a plugin keeps whatever it must remember, such as the last event it
+  handled, in `data/plugins/<name>/`, creating the folder itself. That folder sits inside
+  the mounted `data/`, so it survives container restarts and goes into your backups.
+- **Output:** whatever the plugin prints goes to PyBall's log, under
+  `pyball.plugins.<name>`.
+- **Crashes:** a plugin that exits is started again after 1 s, then 2 s, 4 s, ... up to
+  60 s; one that ran for a minute starts again after 1 s. PyBall itself keeps running.
+- **Shutdown:** PyBall sends `SIGTERM` to each plugin and, 10 s later, `SIGKILL` to any
+  still running.
+
+### The plugin API
+
+A plugin talks to PyBall only through `PYBALL_API_URL`, sending
+`Authorization: Bearer $PYBALL_API_TOKEN`. Each call is one logical action and records
+one event. The full contract, with every request and response shape, is the OpenAPI
+schema at `/api/v1/openapi.json`, browsable at `/api/v1/docs`.
+
+| Call | Scope | What it does |
+|---|---|---|
+| `GET /players` | `players:read` | Every player |
+| `GET /meetups/active` | `meetups:read` | The active meetup, with its capacity and substitute search |
+| `POST /meetups` | `meetups:write` | Create a meetup; `location` and `capacity` are optional |
+| `DELETE /meetups/{id}` | `meetups:write` | Cancel the active meetup |
+| `PUT` / `DELETE /meetups/{id}/players/{player_id}` | `meetups:write` | Add or remove a player |
+| `PUT /meetups/{id}/lineup` | `meetups:write` | Set the roster and, with `team_algorithm` (`balanceado` or `random`), make the teams |
+| `PUT /meetups/{id}/capacity` | `meetups:write` | Change the capacity |
+| `POST` / `DELETE /meetups/{id}/substitute-search` | `meetups:write` | Open or close the substitute search |
+| `GET /events` | `meetups:read` | The event stream, below |
+
+### The event stream
+
+`GET /api/v1/events` is a stream of
+[server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html).
+Each event has an `id`, its type as `event`, and a JSON `data` with the meetup as it was
+right after (see [`data/events.jsonl`](data-directory.md#dataeventsjsonl) for the types
+and fields). To miss nothing, a plugin keeps the last `id` it handled and reconnects
+with `Last-Event-ID: <id>` (or `?after=<id>`): it receives every later event, in order
+and without duplicates, then new ones as they happen. `?after=0` replays the whole log;
+with neither, the stream starts with the next event. An idle stream sends a comment
+every 15 s.
 
 ## Running on Windows (WSL2)
 

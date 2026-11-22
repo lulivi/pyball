@@ -30,7 +30,6 @@ COMMAND_DESCRIPTIONS: dict[str, str] = {
     "player_link": "Link Telegram ID to player",
     "player_unlink": "Unlink a player's Telegram ID",
     "meetup_show": "Repost the current convocatoria",
-    "meetup_search": "Send substitutes message",
     "meetup_stats": "Show statistics",
 }
 
@@ -65,16 +64,6 @@ async def register_bot_commands(bot) -> None:
 def build_bot_commands() -> list[BotCommand]:
     """Build the BotCommand list from COMMAND_DESCRIPTIONS (canonical names only)."""
     return [BotCommand(name, desc) for name, desc in COMMAND_DESCRIPTIONS.items()]
-
-
-def registered_commands(application) -> set[str]:
-    """Collect every command name from the application's registered CommandHandlers."""
-    names: set[str] = set()
-    for group in application.handlers.values():
-        for handler in group:
-            if isinstance(handler, CommandHandler):
-                names.update(handler.commands)
-    return names
 
 
 @log_func

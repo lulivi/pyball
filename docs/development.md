@@ -23,6 +23,7 @@ pyball/
 │   ├── images/        #   Stats image rendering (WeasyPrint + Jinja2)
 │   ├── signup/        #   Personal signup codes
 │   ├── telegram/      #   Telegram bot, settings, notifications
+│   ├── plugins/       #   Plugin API (/api/v1), event log, credentials, supervisor
 │   └── http/          #   FastAPI app, routes, token auth, static web pages
 ├── cmd/               # One entrypoint per topology — its Composition Root
 └── settings.py        # AppSettings and the config.toml loader
@@ -37,8 +38,6 @@ pyball/
 
 Outside `pyball/`:
 
-- `scripts/` — one-off, self-contained data migration scripts. They aren't imported by
-  `pyball/`; run one by hand when a stored JSON format changes.
 - `docs/` — user-facing documentation, in English and Spanish.
 
 ## Startup
@@ -47,7 +46,8 @@ Outside `pyball/`:
 sets the locale and builds the dependency container. Each `cmd/run_*.py` is the
 Composition Root for its topology: it calls `bootstrap_core()`, loads any
 integration-specific settings, wires the infrastructure components together, and handles
-graceful shutdown.
+graceful shutdown: plugins start once the HTTP server accepts connections, and stop
+first, before the event streams close and the server exits.
 
 Both entrypoints also accept `--bootstrap`, which only generates a deployment workspace
 (`config.toml`, `compose.yaml`, `.env`, ...) and exits. It never touches a running app.
@@ -66,6 +66,26 @@ Every feature is reachable from `/manage` and `/match` alone, on either topology
 and `/signup` are convenience layers over the same use cases, never a requirement: an
 admin can always add, remove or move a player between teams from `/manage`, with no
 player visiting `/signup` and no Telegram bot configured.
+
+## Plugins
+
+A plugin is a separate program, in any language, declared under `[pyball.plugins.<name>]`.
+Both topologies host plugins the same way:
+
+- `PluginSupervisor` runs each one as a child process, restarts it with backoff when it
+  exits, and stops it on shutdown.
+- `PluginCredentials` gives each plugin a random bearer token at every start, limited to
+  its declared scopes.
+- `create_plugin_api()` serves the contract at `/api/v1`, a FastAPI sub-application with
+  its own OpenAPI schema. Its routes return the models in `plugins/schemas.py`, separate
+  from the presenters `/manage` uses, so each can change on its own.
+- `EventLogNotifier` writes every `MatchNotifier` event to `data/events.jsonl`, and
+  `GET /api/v1/events` serves that log as server-sent events. `pyball-telegram` puts it in
+  front of the Telegram notifier through `CompositeMatchNotifier`, so a Telegram failure
+  never loses an event.
+
+`plugins/schemas.py` and the `/api/v1` routes are the plugin contract: a change to either
+updates the plugins that call it and `docs/setup.md` in the same change.
 
 ## Match formats
 

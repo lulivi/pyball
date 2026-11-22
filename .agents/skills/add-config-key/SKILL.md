@@ -19,6 +19,9 @@ touches all of them in the same commit.
    - `[pyball.telegram]` and its sub-sections: `TelegramSettings` (or its chat config
      classes) and `load_telegram_app_settings()` in
      `pyball/infrastructure/telegram/settings.py`.
+   - `[pyball.plugins.<name>]`: `PluginConfig` and `_parse_plugins()` in
+     `pyball/settings.py`. These tables have no env override; skip the next paragraph
+     and the env-override test.
 
    Read the value through the module's `_get_env_override()`, so it can be overridden by
    the env var `PYBALL_<SECTION>_<KEY>`: the `pyball.` prefix dropped, dots turned into
@@ -28,7 +31,8 @@ touches all of them in the same commit.
    existing `_parse_*` helpers, raising `SettingsValidationError` for bad values.
 2. **Template.** Add the key, with its default and a one-line comment, to the
    `config.toml` template in `pyball/application/init_workspace.py`: `_CORE_CONFIG` for
-   core keys, `_TG_CONFIG_EXTRA` for Telegram keys.
+   core keys and the commented `[pyball.plugins.example]` example, `_TG_CONFIG_EXTRA` for
+   Telegram keys.
 3. **Docs.** Add a row to the section's table in `docs/setup.md` and the same row,
    translated, in `docs/setup.es.md`.
 4. **Tests.** Cover the default, a `config.toml` value and the env override in

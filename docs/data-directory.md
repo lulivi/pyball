@@ -8,8 +8,9 @@ directly, or migrate it somewhere else.
 
 ## Workspace layout
 
-After running `--bootstrap` (see [docs/setup.md](setup.md)), your workspace directory
-looks like this:
+The workspace is the folder holding `config.toml`: PyBall finds `data/`, `logs/` and
+`plugins/` there, and runs plugins from it, wherever it is started from. After running
+`--bootstrap` (see [docs/setup.md](setup.md)), it looks like this:
 
 ```
 pyball/
@@ -17,13 +18,17 @@ pyball/
 ├── compose.yaml       # docker compose service definition
 ├── .env               # UID/GID/PORT/TAG
 ├── README.md          # short pointer back to docs/setup.md
+├── plugins/           # plugin programs, if any — see docs/setup.md
 ├── data/
 │   ├── players.json   # every player, regardless of meetup
 │   ├── legacy_stats.json   # optional — historical assists imported from before PyBall
+│   ├── events.jsonl   # every event plugins can read — see below
 │   ├── meetups/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # one file per meetup, named after its date/time
+│   ├── plugins/
+│   │   └── <name>/     # each plugin's own state — see docs/setup.md
 │   ├── signup/
 │   │   └── codes.json   # only when enable_web_signup is set — see below
 │   └── bot/
@@ -33,7 +38,9 @@ pyball/
 ```
 
 Every file is plain JSON, written with 2-space indentation, safe to read (or even hand-
-edit, carefully) with any text editor.
+edit, carefully) with any text editor. The exception is `events.jsonl`: one JSON object
+per line, and never to be edited by hand. Each plugin owns the format of its
+`plugins/<name>/` folder.
 
 ## `data/players.json`
 
@@ -96,7 +103,9 @@ A finished **triangular** (3-team) meetup, after 3 rounds and closed:
     { "teams_playing": ["A", "C"], "result": { "score_a": 1, "score_b": 1, "events": [] } },
     { "teams_playing": ["C", "B"], "result": { "score_a": 2, "score_b": 1, "events": [] } }
   ],
-  "closed": true
+  "closed": true,
+  "capacity": 10,
+  "substitute_search": false
 }
 ```
 
@@ -127,6 +136,33 @@ Field notes:
   moment its one match gets a result; a triangular stays open across multiple rounds
   until explicitly closed (see
   [docs/workflow.md](workflow.md#5-close-a-triangular-session)).
+- `capacity` — how many players this meetup plays with. A new meetup takes
+  `meetup_capacity` from `config.toml`; a file without the field loads with it too.
+- `substitute_search` — `true` while a substitute search is open (see
+  [docs/workflow.md](workflow.md#2-manage-the-roster)); a file without the field loads
+  with it closed.
+
+## `data/events.jsonl`
+
+The event log plugins read through `GET /api/v1/events`: one line per thing that
+happened to a meetup, in order, kept forever so a plugin that was down can catch up.
+
+```json
+{"id": 41, "type": "player.joined", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"id": "a1b2c3d4-...", "date": "2026-04-15T20:00:00", "location": "Parque Central", "capacity": 10, "substitute_search": true, "players": ["11111111-...", "..."], "teams": null, "matches": [], "closed": false}, "player": {"id": "11111111-...", "name": "Manu García", "group": "substitute", "position": null}, "is_substitute": true}
+{"id": 42, "type": "substitute_search.closed", "occurred_at": "2026-04-13T18:02:11+02:00", "meetup": {"...": "..."}}
+```
+
+- `id` — increases by one per event; a plugin resumes from the last id it saw.
+- `type` — `meetup.created`, `meetup.updated`, `meetup.date_changed`, `meetup.cancelled`,
+  `match.closed`, `match.edited`, `player.joined`, `player.left`,
+  `substitute_search.opened` or `substitute_search.closed`.
+- `meetup` — the meetup right after the event, in the same shape as
+  `GET /api/v1/meetups/active`.
+- `player` and `is_substitute` — only on `player.joined` and `player.left`;
+  `previous_date` — only on `meetup.date_changed`.
+
+Back it up with the rest of `data/`. Deleting it loses the history plugins resume from,
+nothing else.
 
 ## `data/legacy_stats.json` (optional)
 
@@ -192,12 +228,7 @@ when the meetup closes):
 {
   "2026-04-15T20:00": {
     "regular": { "chat_id": -1000000000000, "thread_id": null, "message_id": 4821 },
-    "substitute": {
-      "chat_id": -1000000000001,
-      "thread_id": null,
-      "message_id": 512,
-      "search_target": 12
-    }
+    "substitute": { "chat_id": -1000000000001, "thread_id": null, "message_id": 512 }
   }
 }
 ```
@@ -206,8 +237,6 @@ The key is the meetup's date/time (`YYYY-MM-DDTHH:MM`, matching the meetup filen
 without the `.json` extension). `thread_id` is `null` unless the chat uses forum topics
 (see `telegram.regulars.meetups.message_thread_id` in [docs/setup.md](setup.md); the
 `substitute` entry likewise picks up `telegram.substitutes.meetups.message_thread_id`).
-`search_target` (only on the `substitute` entry) is the roster size an open substitute
-search is looking for; `null` or missing means the search is closed.
 
 ## Related documentation
 

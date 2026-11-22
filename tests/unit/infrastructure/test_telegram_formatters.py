@@ -431,22 +431,23 @@ def _subs_meetup(n_regulars: int, n_subs: int):
     return meetup, names, groups
 
 
-def test_format_subs_message_open_search_shows_target():
-    """An open search shows the roster size against the search target."""
+def test_format_subs_message_open_search_shows_capacity():
+    """An open search shows the roster size against the meetup capacity."""
     meetup, names, groups = _subs_meetup(9, 0)
+    meetup.open_substitute_search()
 
-    text = format_subs_message(meetup, names, groups, search_target=10)
+    text = format_subs_message(meetup, names, groups)
 
     assert "Jugadores apuntados 9/10" in text
     assert "*No hay suplentes*" in text
     assert "Completo" not in text
 
 
-def test_format_subs_message_closed_below_first_threshold_shows_count():
-    """A closed search with fewer than the first threshold shows the plain count, no Completo."""
+def test_format_subs_message_closed_below_capacity_shows_count():
+    """A closed search below capacity shows the plain count, no Completo."""
     meetup, names, groups = _subs_meetup(5, 0)
 
-    text = format_subs_message(meetup, names, groups, search_target=None)
+    text = format_subs_message(meetup, names, groups)
 
     assert "Jugadores apuntados 5" in text
     assert "Completo" not in text
@@ -457,7 +458,7 @@ def test_format_subs_message_closed_without_subs_shows_completo():
     """A closed search with no substitutes shows only the Completo line."""
     meetup, names, groups = _subs_meetup(10, 0)
 
-    text = format_subs_message(meetup, names, groups, search_target=None)
+    text = format_subs_message(meetup, names, groups)
 
     assert r"✅ *Completo* \(10 jugadores\)" in text
     assert "No hay suplentes" not in text
@@ -468,7 +469,7 @@ def test_format_subs_message_closed_with_subs_keeps_list():
     """A closed search that got substitutes keeps their list under Completo."""
     meetup, names, groups = _subs_meetup(9, 1)
 
-    text = format_subs_message(meetup, names, groups, search_target=None)
+    text = format_subs_message(meetup, names, groups)
 
     assert r"✅ *Completo* \(10 jugadores\)" in text
     assert r"*Suplentes \(1\):*" in text
