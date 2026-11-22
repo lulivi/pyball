@@ -2,6 +2,46 @@
 
 <!-- version list -->
 
+## v7.1.0 (2026-11-22)
+
+### Bug Fixes
+
+- **siesta**: Keep manual commands' changes while the plugin runs
+  ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+### Build System
+
+- **docker**: Ship siesta in the PyBall images ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+### Chores
+
+- **siesta**: Import the siesta tool into plugins/siesta
+  ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+### Continuous Integration
+
+- Check bundled plugins with make plugins-check ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+### Documentation
+
+- Document bundled plugins and siesta ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+### Features
+
+- **siesta**: Run siesta as a scheduled plugin on the plugin API
+  ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+- **siesta**: Run siesta as a scheduled plugin shipped with PyBall
+  ([#25](https://github.com/lulivi/pyball/pull/25),
+  [`d2d9b47`](https://github.com/lulivi/pyball/commit/d2d9b47436c1b7468f93c83579367f5dd9cda3fd))
+
+
 ## v7.0.0 (2026-11-22)
 
 ### Bug Fixes
