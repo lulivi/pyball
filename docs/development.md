@@ -110,8 +110,8 @@ uses only the plugin API, like any other plugin. Each one:
 - is documented in `docs/plugins/<name>/README.md` (EN/ES) and listed in
   `docs/plugins/README.md`.
 
-`siesta` is written in Rust: `plugins/siesta/rust-toolchain.toml` pins its Rust version,
-and `docker/Dockerfile.ci` and the `siesta` stage of `docker/Dockerfile` use the same one.
+`siesta` and `activity` are written in Rust: each `rust-toolchain.toml` pins the same Rust
+version, and `docker/Dockerfile.ci` and their stages in `docker/Dockerfile` use it too.
 
 A Rust plugin talks to PyBall through `crates/pyball-client`, a path dependency: the
 plugin API client and its event stream, the `endpoints!` table every call goes through,

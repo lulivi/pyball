@@ -25,5 +25,8 @@ drawn at random, and each player left out gets +1 on the siesta list.
 **Event**: a record that something happened to a meetup, kept in order so a plugin can
 resume from the last one it saw.
 
+**Activity feed**: the messages announcing that a player joined or left a meetup, or that
+a meetup was created, closed or cancelled, posted to a chat the club chooses.
+
 **Alert**: a warning or error about the PyBall deployment itself, including a plugin that
 crashes, sent to the club's alert channel whether or not any plugin is running.

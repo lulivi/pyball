@@ -116,8 +116,8 @@ lenguaje, y usa solo la API de plugins, como cualquier otro plugin. Cada uno:
 - se documenta en `docs/plugins/<nombre>/README.es.md` (EN/ES) y aparece en
   `docs/plugins/README.es.md`.
 
-`siesta` está escrito en Rust: `plugins/siesta/rust-toolchain.toml` fija su versión de
-Rust, y `docker/Dockerfile.ci` y la etapa `siesta` de `docker/Dockerfile` usan la misma.
+`siesta` y `activity` están escritos en Rust: cada `rust-toolchain.toml` fija la misma
+versión de Rust, y `docker/Dockerfile.ci` y sus etapas de `docker/Dockerfile` la usan también.
 
 Un plugin en Rust habla con PyBall a través de `crates/pyball-client`, una dependencia por
 ruta: el cliente de la API de plugins y su flujo de eventos, la tabla `endpoints!` por la

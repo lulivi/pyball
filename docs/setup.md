@@ -217,7 +217,8 @@ Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.
 
 A plugin is an optional, long-running program that extends PyBall without touching its
 code. Some come bundled in the PyBall images, such as
-[siesta](plugins/siesta/README.md), the fair sit-out draw; you can also add your own to
+[siesta](plugins/siesta/README.md), the fair sit-out draw, and
+[activity](plugins/activity/README.md), the activity feed; you can also add your own to
 the workspace's `plugins/` folder. Either kind runs only once you declare it under
 [`[pyball.plugins.<name>]`](#pyballpluginsname--optional-plugins).
 

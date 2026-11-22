@@ -105,7 +105,7 @@ chat_id = 0
 message_thread_id = ""
 
 # Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
-# A plugin is a long-running program, bundled (siesta) or yours in plugins/; one that
+# A plugin is a long-running program, bundled (siesta, activity) or yours in plugins/; one that
 # exits is started again. Bundled ones: docs/plugins/README.md
 # Scopes: players:read  players:write  meetups:read  meetups:write
 # [pyball.plugins.example]

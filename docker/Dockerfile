@@ -45,6 +45,19 @@ COPY plugins/siesta/src plugins/siesta/src
 RUN cd plugins/siesta && cargo build --release --locked
 
 
+# --- activity: the bundled activity feed plugin, a static (musl) binary ---
+# Same Rust version as plugins/activity/rust-toolchain.toml.
+FROM rust:1.97-alpine AS activity
+
+RUN apk add --no-cache musl-dev
+
+WORKDIR /src
+COPY crates/pyball-client/Cargo.toml crates/pyball-client/
+COPY crates/pyball-client/src crates/pyball-client/src
+COPY plugins/activity/Cargo.toml plugins/activity/Cargo.lock plugins/activity/
+COPY plugins/activity/src plugins/activity/src
+RUN cd plugins/activity && cargo build --release --locked
+
 # --- base: shared system deps, locale, venv, unprivileged user ---
 FROM python:3.12.13-slim-trixie AS base
 
@@ -73,6 +86,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 # Bundled plugins go outside /pyball/plugins, which the workspace mounts over.
 COPY --from=siesta /src/plugins/siesta/target/release/siesta /usr/local/bin/siesta
+COPY --from=activity /src/plugins/activity/target/release/activity /usr/local/bin/activity
 
 WORKDIR /builder
 COPY --from=builder /dist/*.whl .

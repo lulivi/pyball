@@ -17,6 +17,7 @@ Luego arranca PyBall como siempre: sigue siendo un solo comando.
 
 | Plugin | Qué hace | `command` |
 |---|---|---|
+| [activity](activity/README.es.md) | Publica en un chat de Telegram quién se apunta o se desapunta, y cada convocatoria creada, cerrada o cancelada | `["activity"]` |
 | [siesta](siesta/README.es.md) | Decide de forma justa quién descansa cuando se apuntan más jugadores de los que caben en un partido, y hace los equipos | `["siesta", "run"]` |
 
 ## Cómo ejecuta PyBall un plugin

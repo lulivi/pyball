@@ -223,7 +223,8 @@ Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.
 
 Un plugin es un programa opcional y de larga duración que amplía PyBall sin tocar su
 código. Algunos vienen incluidos en las imágenes de PyBall, como
-[siesta](plugins/siesta/README.es.md), el sorteo justo de quién descansa; también puedes
+[siesta](plugins/siesta/README.es.md), el sorteo justo de quién descansa, y
+[activity](plugins/activity/README.es.md), la actividad de las convocatorias; también puedes
 añadir los tuyos en la carpeta `plugins/` del espacio de trabajo. Los dos tipos solo se
 ejecutan cuando los declaras en
 [`[pyball.plugins.<nombre>]`](#pyballpluginsnombre--plugins-opcionales).
