@@ -90,9 +90,11 @@ Un plugin es un programa aparte, en cualquier lenguaje, declarado en
   pone delante del notificador de Telegram con `CompositeMatchNotifier`, así un fallo de
   Telegram nunca pierde un evento.
 
-`plugins/schemas.py` y las rutas de `/api/v1` son el contrato de plugins: un cambio en
-cualquiera de ellos actualiza en el mismo cambio los plugins que lo usan y
-`docs/plugins/README.es.md`.
+`plugins/schemas.py` y las rutas de `/api/v1` son el contrato de plugins, guardado en el
+repositorio como `plugins/openapi.json`. Un cambio en cualquiera de ellos ejecuta
+`make openapi` para regenerar ese fichero y actualiza los plugins que lo usan y
+`docs/plugins/README.es.md`, todo en el mismo cambio; un test unitario falla mientras el
+fichero guardado difiera de lo que sirve `create_plugin_api()`.
 
 ### Plugins incluidos
 
@@ -107,6 +109,9 @@ lenguaje, y usa solo la API de plugins, como cualquier otro plugin. Cada uno:
 - tiene su propia etapa en `docker/Dockerfile`, que lo instala en las dos imágenes fuera
   de `/pyball/plugins`, la carpeta que monta encima el espacio de trabajo: un binario va
   a `/usr/local/bin/<nombre>`, así `command = ["<nombre>", ...]` lo encuentra;
+- comprueba, en su objetivo `check`, cada llamada que hace contra
+  `plugins/openapi.json`: cada ruta que llama, los campos que lee con sus tipos y los
+  cuerpos que envía;
 - se documenta en `docs/plugins/<nombre>/README.es.md` (EN/ES) y aparece en
   `docs/plugins/README.es.md`.
 

@@ -40,8 +40,11 @@ PyBall runs every declared plugin as a child process, from the workspace directo
 
 A plugin talks to PyBall only through `PYBALL_API_URL`, sending
 `Authorization: Bearer $PYBALL_API_TOKEN`. Each call is one logical action and records
-one event. The full contract, with every request and response shape, is the OpenAPI
-schema at `/api/v1/openapi.json`, browsable at `/api/v1/docs`.
+one event. The full contract, with every request and response shape and the data of each
+event, is the OpenAPI schema at `/api/v1/openapi.json`, browsable at `/api/v1/docs`. The
+same schema is committed in the repository as
+[`plugins/openapi.json`](../../plugins/openapi.json), so a plugin can generate a client
+from it or check its own types against it without a running PyBall.
 
 | Call | Scope | What it does |
 |---|---|---|

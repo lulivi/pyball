@@ -86,8 +86,10 @@ Both topologies host plugins the same way:
   front of the Telegram notifier through `CompositeMatchNotifier`, so a Telegram failure
   never loses an event.
 
-`plugins/schemas.py` and the `/api/v1` routes are the plugin contract: a change to either
-updates the plugins that call it and `docs/plugins/README.md` in the same change.
+`plugins/schemas.py` and the `/api/v1` routes are the plugin contract, committed as
+`plugins/openapi.json`. A change to either runs `make openapi` to regenerate that file
+and updates the plugins that call it and `docs/plugins/README.md`, all in the same change;
+a unit test fails while the committed file differs from what `create_plugin_api()` serves.
 
 ### Bundled plugins
 
@@ -102,6 +104,8 @@ uses only the plugin API, like any other plugin. Each one:
 - has its own build stage in `docker/Dockerfile`, which installs it in both images
   outside `/pyball/plugins`, the folder the workspace mounts over: a binary goes to
   `/usr/local/bin/<name>`, so `command = ["<name>", ...]` finds it;
+- checks, in its `check` target, every call it makes against `plugins/openapi.json`:
+  each route it calls, the fields it reads with their types, and the bodies it sends;
 - is documented in `docs/plugins/<name>/README.md` (EN/ES) and listed in
   `docs/plugins/README.md`.
 

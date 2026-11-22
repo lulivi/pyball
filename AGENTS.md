@@ -16,6 +16,7 @@ make t                                           # tests, with coverage
 make l                                           # lint (black, isort, pydocstyle, mypy, ...)
 make f                                           # format
 make plugins-check                               # format, lint and tests of plugins/*
+make openapi                                     # regenerate plugins/openapi.json
 uvx nox -e test -- tests/unit/<path>.py -k <name> -v # one test file or test
 ```
 

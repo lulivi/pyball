@@ -43,8 +43,11 @@ PyBall ejecuta cada plugin declarado como proceso hijo, desde el espacio de trab
 
 Un plugin habla con PyBall solo a través de `PYBALL_API_URL`, enviando
 `Authorization: Bearer $PYBALL_API_TOKEN`. Cada llamada es una acción lógica y registra
-un evento. El contrato completo, con cada petición y respuesta, es el esquema OpenAPI de
-`/api/v1/openapi.json`, navegable en `/api/v1/docs`.
+un evento. El contrato completo, con cada petición y respuesta y los datos de cada
+evento, es el esquema OpenAPI de `/api/v1/openapi.json`, navegable en `/api/v1/docs`. El
+mismo esquema está guardado en el repositorio como
+[`plugins/openapi.json`](../../plugins/openapi.json), así un plugin puede generar un
+cliente a partir de él o comprobar sus propios tipos sin un PyBall en marcha.
 
 | Llamada | Scope | Qué hace |
 |---|---|---|
