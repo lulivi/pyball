@@ -157,7 +157,7 @@ impl Api {
     }
 
     pub fn players(&self) -> Result<Vec<Player>> {
-        json_body(self.send(&self.http, &PLAYERS, "", None)?).context("decoding players")
+        json_body(&PLAYERS, self.send(&self.http, &PLAYERS, "", None)?).context("decoding players")
     }
 
     /// The meetup not closed yet, or `None` if there isn't one.
@@ -167,7 +167,9 @@ impl Api {
             return Ok(None);
         }
         let resp = check(resp, &ACTIVE_MEETUP.at("").1)?;
-        Ok(Some(json_body(resp).context("decoding the active meetup")?))
+        Ok(Some(
+            json_body(&ACTIVE_MEETUP, resp).context("decoding the active meetup")?,
+        ))
     }
 
     /// Replace the roster with exactly `players` and build teams with `algorithm`.
@@ -187,16 +189,16 @@ impl Api {
             meetup_id,
             Some(serde_json::to_vec(&body)?),
         );
-        json_body(sent?).context("decoding the meetup")
+        json_body(&LINEUP, sent?).context("decoding the meetup")
     }
 
     pub fn open_substitute_search(&self, meetup_id: &str) -> Result<Meetup> {
         let sent = self.send(&self.http, &SUBSTITUTE_SEARCH, meetup_id, None);
-        json_body(sent?).context("decoding the meetup")
+        json_body(&SUBSTITUTE_SEARCH, sent?).context("decoding the meetup")
     }
 
     /// Open the event stream after `last_event_id` (only new events if `None`).
-    pub fn events(&self, last_event_id: Option<u64>) -> Result<EventStream> {
+    pub fn events(&self, last_event_id: Option<u64>) -> Result<EventStream<Event>> {
         let (path, what) = EVENTS.at("");
         let mut req = self
             .builder(&EVENTS, &path)
@@ -207,7 +209,7 @@ impl Api {
         let sent = self.stream.run(req.body(())?);
         let resp = sent.with_context(|| format!("cannot reach PyBall at {}", self.base))?;
         let resp = check(resp, &what)?;
-        Ok(EventStream::new(resp.into_body().into_reader()))
+        Ok(EventStream::new(&EVENTS, resp.into_body().into_reader()))
     }
 
     /// Call `endpoint` for `meetup_id` with an optional JSON body; fail on any error status.
@@ -250,27 +252,29 @@ impl Api {
     }
 }
 
-/// Reads server-sent events one at a time.
-pub struct EventStream {
+/// Reads server-sent events one at a time, each decoded as its endpoint's `Out`.
+pub struct EventStream<Out> {
     lines: std::io::Lines<BufReader<Box<dyn Read + Send + Sync + 'static>>>,
+    out: PhantomData<fn() -> Out>,
 }
 
 /// What the stream gave: an event, or a keepalive comment (sent every 15 s when idle).
-pub enum Frame {
-    Event(Box<Event>),
+pub enum Frame<Out> {
+    Event(Box<Out>),
     Keepalive,
 }
 
-impl EventStream {
-    fn new(reader: impl Read + Send + Sync + 'static) -> Self {
+impl<Out: DeserializeOwned> EventStream<Out> {
+    fn new(_: &Endpoint<Out>, reader: impl Read + Send + Sync + 'static) -> Self {
         let boxed: Box<dyn Read + Send + Sync> = Box::new(reader);
         Self {
             lines: BufReader::new(boxed).lines(),
+            out: PhantomData,
         }
     }
 
     /// The next frame, or `None` when PyBall closes the stream.
-    pub fn next_frame(&mut self) -> Result<Option<Frame>> {
+    pub fn next_frame(&mut self) -> Result<Option<Frame<Out>>> {
         let mut data = String::new();
         for line in self.lines.by_ref() {
             let line = line.context("reading the event stream")?;
@@ -278,7 +282,7 @@ impl EventStream {
                 if data.is_empty() {
                     continue;
                 }
-                let event: Event = serde_json::from_str(&data).context("decoding an event")?;
+                let event: Out = serde_json::from_str(&data).context("decoding an event")?;
                 return Ok(Some(Frame::Event(Box::new(event))));
             }
             if line.starts_with(':') {
@@ -292,7 +296,8 @@ impl EventStream {
     }
 }
 
-fn json_body<T: DeserializeOwned>(mut resp: Response<Body>) -> Result<T> {
+/// Decode `endpoint`'s answer as the type its table entry declares.
+fn json_body<Out: DeserializeOwned>(_: &Endpoint<Out>, mut resp: Response<Body>) -> Result<Out> {
     Ok(resp.body_mut().read_json()?)
 }
 
@@ -326,7 +331,7 @@ mod tests {
         let raw = format!(
             "id: 7\nevent: substitute_search.closed\ndata: {{\"id\":7,\"type\":\"substitute_search.closed\",\"occurred_at\":\"x\",\"meetup\":{MEETUP}}}\n\n: ping\n\n"
         );
-        let mut stream = EventStream::new(std::io::Cursor::new(raw.into_bytes()));
+        let mut stream = EventStream::new(&EVENTS, std::io::Cursor::new(raw.into_bytes()));
         let Some(Frame::Event(event)) = stream.next_frame().unwrap() else {
             panic!("expected an event");
         };
