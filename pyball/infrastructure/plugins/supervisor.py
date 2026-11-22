@@ -95,12 +95,17 @@ class PluginSupervisor:  # pylint: disable=too-many-instance-attributes
             try:
                 await self._run_once(plugin)
             except Exception:  # pylint: disable=broad-except
-                logger.exception("Plugin %s failed", plugin.name)
+                logger.exception("Plugin %s failed", plugin.name, extra={"plugin": plugin.name})
             if self._stopping.is_set():
                 return
             if loop.time() - started >= self._stable_after:
                 backoff = self._min_backoff
-            logger.warning("Plugin %s stopped; restarting in %.0fs", plugin.name, backoff)
+            logger.warning(
+                "Plugin %s stopped; restarting in %.0fs",
+                plugin.name,
+                backoff,
+                extra={"plugin": plugin.name},
+            )
             try:
                 await asyncio.wait_for(self._stopping.wait(), timeout=backoff)
             except asyncio.TimeoutError:
@@ -125,7 +130,9 @@ class PluginSupervisor:  # pylint: disable=too-many-instance-attributes
                 start_new_session=True,
             )
         except OSError as exc:
-            logger.error("Plugin %s could not start: %s", plugin.name, exc)
+            logger.error(
+                "Plugin %s could not start: %s", plugin.name, exc, extra={"plugin": plugin.name}
+            )
             return
         self._processes[plugin.name] = process
         if self._stopping.is_set():  # stop() began while it was spawning

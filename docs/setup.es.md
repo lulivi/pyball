@@ -125,7 +125,9 @@ envían notificaciones.
 
 Los avisos y errores del propio PyBall, incluido un plugin que falla o se reinicia una y
 otra vez, llegan a este chat de Telegram. Los envía el núcleo, así que no necesitan ningún
-plugin en marcha y funcionan tanto en `pyball` como en `pyball-telegram`. Sin la sección,
+plugin en marcha y funcionan tanto en `pyball` como en `pyball-telegram`. La misma alerta
+se envía como mucho una vez cada 10 minutos, y la siguiente indica cuántas repeticiones
+omitió, así que un plugin que falla en bucle no inunda el chat. Sin la sección,
 o con `chat_id = 0`, las alertas están desactivadas y PyBall lo indica en su log de
 arranque. Las variables de entorno siguen `PYBALL_ALERTS_TELEGRAM_<CLAVE>`.
 

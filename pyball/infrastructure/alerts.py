@@ -30,11 +30,15 @@ import json
 import logging
 import logging.handlers
 import queue
+import time
 import urllib.request
 
 from pyball.settings import TelegramAlerts
 
 logger = logging.getLogger(__name__)
+
+REPEAT_WINDOW = 600.0
+"""Seconds the same alert stays quiet after it is sent; repeats in between are counted."""
 
 
 def config_alerts(alerts: TelegramAlerts | None) -> None:
@@ -59,7 +63,12 @@ def config_alerts(alerts: TelegramAlerts | None) -> None:
 
 
 class TelegramAlertHandler(logging.Handler):
-    """Logging handler that sends each record to a Telegram chat via the Bot API."""
+    """Logging handler that sends records to a Telegram chat via the Bot API.
+
+    The same alert, one logging call for one plugin (its ``plugin`` extra), is sent at
+    most once per ``REPEAT_WINDOW``; the next one sent says how many were left out, so a
+    crash loop or an error inside a loop gives a bounded number of messages.
+    """
 
     _formatter: logging.Formatter = logging.Formatter()
     _LEVEL_EMOJI: dict[int, str] = {
@@ -75,9 +84,19 @@ class TelegramAlertHandler(logging.Handler):
         self._token = bot_token
         self._chat_id = chat_id
         self._message_thread_id = message_thread_id
+        self._last_sent: dict[tuple[str, int, str | None], float] = {}
+        self._suppressed: dict[tuple[str, int, str | None], int] = {}
 
     def emit(self, record: logging.LogRecord) -> None:
         """Send the record to the alert chat."""
+        key = (record.name, record.lineno, getattr(record, "plugin", None))
+        now = time.monotonic()
+        last = self._last_sent.get(key)
+        if last is not None and now - last < REPEAT_WINDOW:
+            self._suppressed[key] = self._suppressed.get(key, 0) + 1
+            return
+        self._last_sent[key] = now
+        suppressed = self._suppressed.pop(key, 0)
         try:
             emoji = self._LEVEL_EMOJI.get(record.levelno, "❓")
             message = record.getMessage()
@@ -88,6 +107,8 @@ class TelegramAlertHandler(logging.Handler):
                 f"{emoji} {record.levelname}\n`{record.name}:{record.lineno}`\n"
                 f"```{safe_message}\n```"
             )
+            if suppressed:
+                text += f"\n\\(\\+{suppressed} alertas iguales omitidas\\)"
             payload_data: dict[str, object] = {
                 "chat_id": self._chat_id,
                 "text": text,

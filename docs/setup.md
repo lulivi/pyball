@@ -121,7 +121,9 @@ notifications.
 
 PyBall's own warnings and errors, a plugin that crashes or keeps restarting included, go
 to this Telegram chat. The core sends them itself, so they need no plugin running and
-work in `pyball` as well as `pyball-telegram`. Without the section, or with
+work in `pyball` as well as `pyball-telegram`. The same alert is sent at most once
+every 10 minutes, and the next one says how many repeats it left out, so a crash loop
+can't flood the chat. Without the section, or with
 `chat_id = 0`, alerts are off and PyBall says so in its startup log. Env overrides follow
 `PYBALL_ALERTS_TELEGRAM_<KEY>`.
 

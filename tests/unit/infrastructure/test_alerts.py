@@ -181,6 +181,54 @@ class TestTelegramAlertHandler:
         assert "message_thread_id" not in self._payload(m)
 
 
+class TestRepeatedAlerts:
+    """Tests for the per-alert REPEAT_WINDOW in TelegramAlertHandler."""
+
+    _URLOPEN = "pyball.infrastructure.alerts.urllib.request.urlopen"
+    _CLOCK = "pyball.infrastructure.alerts.time.monotonic"
+
+    def _record(self, plugin: str | None = None, lineno: int = 10) -> logging.LogRecord:
+        record = logging.LogRecord(
+            "pyball.infrastructure.plugins.supervisor",
+            logging.WARNING,
+            "",
+            lineno,
+            "Plugin stopped",
+            (),
+            None,
+        )
+        if plugin:
+            record.plugin = plugin
+        return record
+
+    def _send(self, handler, clock, now: float, record: logging.LogRecord) -> None:
+        clock.return_value = now
+        handler.emit(record)
+
+    def test_repeats_inside_the_window_are_counted_not_sent(self):
+        """A crash loop sends one alert per window, the next one counting the rest."""
+        handler = TelegramAlertHandler("tok", -1)
+        with patch(self._URLOPEN) as urlopen, patch(self._CLOCK) as clock:
+            for second in range(0, 600, 60):  # ten restarts, one a minute
+                self._send(handler, clock, second, self._record("siesta"))
+            assert urlopen.call_count == 1
+            self._send(handler, clock, 600, self._record("siesta"))
+        assert urlopen.call_count == 2
+        text = json.loads(urlopen.call_args.args[0].data)["text"]
+        assert text.endswith("\\(\\+9 alertas iguales omitidas\\)")
+
+    def test_different_plugins_and_lines_are_separate_alerts(self):
+        """One plugin's crash loop does not hide another's, nor a different alert."""
+        handler = TelegramAlertHandler("tok", -1)
+        with patch(self._URLOPEN) as urlopen, patch(self._CLOCK) as clock:
+            self._send(handler, clock, 0, self._record("siesta"))
+            self._send(handler, clock, 1, self._record("activity"))
+            self._send(handler, clock, 2, self._record("siesta", lineno=99))
+            self._send(handler, clock, 3, self._record("siesta"))
+        assert urlopen.call_count == 3
+        assert "omitidas" not in json.loads(urlopen.call_args.args[0].data)["text"]
+
+
 class TestConfigAlerts:
     """Tests for config_alerts."""
 
