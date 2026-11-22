@@ -2,6 +2,95 @@
 
 <!-- version list -->
 
+## v7.0.0 (2026-11-22)
+
+### Bug Fixes
+
+- **plugins**: Harden supervision and make reopening a search a no-op
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **settings**: Resolve workspace paths from the folder holding config.toml
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+### Build System
+
+- **ci**: Install uv and nox with --root-user-action=ignore
+  ([#16](https://github.com/lulivi/pyball/pull/16),
+  [`21037dc`](https://github.com/lulivi/pyball/commit/21037dc3520c75b4913b55ae01b709173ffe1e6e))
+
+### Continuous Integration
+
+- Move actions off Node.js 20 and clear the pipeline warnings
+  ([#16](https://github.com/lulivi/pyball/pull/16),
+  [`21037dc`](https://github.com/lulivi/pyball/commit/21037dc3520c75b4913b55ae01b709173ffe1e6e))
+
+- Move every action to its Node.js 24 major ([#16](https://github.com/lulivi/pyball/pull/16),
+  [`21037dc`](https://github.com/lulivi/pyball/commit/21037dc3520c75b4913b55ae01b709173ffe1e6e))
+
+### Documentation
+
+- **plugins**: Keep each plugin's state in data/plugins/<name>/
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **plugins**: Show a neutral long-running plugin in the examples
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+### Features
+
+- Expose a versioned plugin API with an event stream and host plugins
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **api**: Declare bearer authentication in the plugin API schema
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **api**: Expose a versioned plugin API at /api/v1 with an event stream
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **events**: Record every meetup event in a persistent, ordered log
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **manage**: Set a meetup's capacity and open or close its substitute search
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **meetup**: Give meetups a capacity and a substitute search
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **plugins**: Give each declared plugin its own scoped credential
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **plugins**: Run declared plugins as supervised child processes
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **signup**: Announce web joins and leaves like Telegram ones
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **telegram**: Post the substitutes callup when the core opens a search
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+### Refactoring
+
+- Drop dead code and transition wording ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+- **telegram**: Refresh the callups from the join and leave hooks
+  ([#21](https://github.com/lulivi/pyball/pull/21),
+  [`7f23574`](https://github.com/lulivi/pyball/commit/7f235740de83e397a801568364710dd7817dbad0))
+
+
 ## v6.10.0 (2026-11-19)
 
 ### Build System
