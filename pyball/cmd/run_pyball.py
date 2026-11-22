@@ -89,7 +89,7 @@ async def _main_async(config_path: Path) -> None:
     )
 
     server_config = uvicorn.Config(
-        app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+        app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info", log_config=None
     )
     server = _Server(server_config)
 

@@ -1,0 +1,61 @@
+"""The pyball topology sends core errors to the alert chat with no bot and no plugins."""
+
+import asyncio
+import json
+import logging
+import os
+import signal
+import socket
+from unittest.mock import patch
+
+import pytest
+
+from pyball.cmd.run_pyball import _main_async
+
+
+async def _until(condition, timeout: float = 10.0) -> None:
+    async def poll():
+        while not condition():
+            await asyncio.sleep(0.05)
+
+    await asyncio.wait_for(poll(), timeout)
+
+
+def _serving(port: int) -> bool:
+    with socket.socket() as sock:
+        return sock.connect_ex(("127.0.0.1", port)) == 0
+
+
+@pytest.mark.asyncio
+async def test_pyball_topology_sends_server_errors_to_the_alert_chat(tmp_path):
+    """An error logged by the HTTP server, after it configured logging, reaches the chat."""
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    config = tmp_path / "config.toml"
+    config.write_text(
+        '[pyball.core]\nlocation = "Campo"\nname = "Test"\ndefault_week_day = "monday"\n'
+        'default_hour = "20:00"\nbase_url = "http://localhost"\n'
+        'team_colors = ["blanco", "negro"]\n'
+        'locale = "C.UTF-8"\ndisplay_date_format = "%Y-%m-%d"\ndata_dir = "data"\n'
+        f"api_port = {port}\n"
+        '\n[pyball.alerts.telegram]\nbot_token = "tok"\nchat_id = -100111\n'
+    )
+    root = logging.getLogger()
+    before = list(root.handlers)
+    try:
+        with patch("pyball.infrastructure.alerts.atexit.register") as register, patch(
+            "pyball.infrastructure.alerts.urllib.request.urlopen"
+        ) as urlopen:
+            task = asyncio.create_task(_main_async(config))
+            await _until(lambda: _serving(port) or task.done())
+            logging.getLogger("uvicorn.error").error("Exception in ASGI application")
+            os.kill(os.getpid(), signal.SIGTERM)
+            await asyncio.wait_for(task, 10)
+            register.call_args.args[0]()  # stop the listener, draining the queue
+        texts = [json.loads(c.args[0].data)["text"] for c in urlopen.call_args_list]
+        assert any("Exception in ASGI application" in t for t in texts)
+    finally:
+        for handler in root.handlers[:]:
+            if handler not in before:
+                root.removeHandler(handler)

@@ -116,7 +116,11 @@ async def _main_async(config_path: Path) -> None:
         app_settings.paths.workspace,
     )
     server_config = uvicorn.Config(
-        fastapi_app, host="0.0.0.0", port=app_settings.pyball.api_port, log_level="info"
+        fastapi_app,
+        host="0.0.0.0",
+        port=app_settings.pyball.api_port,
+        log_level="info",
+        log_config=None,
     )
     server = _Server(server_config)
 
