@@ -2,7 +2,14 @@
 
 use chrono::{Datelike, NaiveDateTime};
 
-use crate::pyball::ActiveMeetup;
+/// A meetup as the messages show it: names, not ids.
+pub struct MeetupView {
+    pub date: String,
+    pub location: String,
+    pub players: Vec<String>,
+    /// Each team's name and its players' names.
+    pub teams: Option<Vec<(String, Vec<String>)>>,
+}
 
 /// One row of the siesta list as shown to the group.
 pub struct SiestaRow {
@@ -11,7 +18,7 @@ pub struct SiestaRow {
 }
 
 pub struct DrawSummary<'a> {
-    pub meetup: &'a ActiveMeetup,
+    pub meetup: &'a MeetupView,
     pub signed_up: usize,
     pub left_out: Vec<String>,
     pub siesta: Vec<SiestaRow>,
@@ -38,17 +45,17 @@ pub fn draw_message(d: &DrawSummary) -> String {
     s
 }
 
-pub fn not_full_message(meetup: &ActiveMeetup, max_players: usize) -> String {
+pub fn not_full_message(meetup: &MeetupView, capacity: usize) -> String {
     let mut s = header("📣", "Convocatoria", meetup);
     s += &format!(
-        "Apuntados: {}/{max_players}\nLa convocatoria no está llena, pasamos a buscar suplentes. 🔎\n",
+        "Apuntados: {}/{capacity}\nLa convocatoria no está llena, pasamos a buscar suplentes. 🔎\n",
         meetup.players.len()
     );
     s
 }
 
 pub fn reinstate_message(
-    meetup: &ActiveMeetup,
+    meetup: &MeetupView,
     player_in: &str,
     player_out: Option<&str>,
     siesta: &[SiestaRow],
@@ -84,13 +91,13 @@ pub fn to_plain(html: &str) -> String {
         .replace("&amp;", "&")
 }
 
-fn header(emoji: &str, title: &str, meetup: &ActiveMeetup) -> String {
+fn header(emoji: &str, title: &str, meetup: &MeetupView) -> String {
     let mut s = format!(
         "{emoji} <b>{title} · {}</b>\n",
         esc(&spanish_date(&meetup.date))
     );
-    if let Some(loc) = meetup.location.as_deref().filter(|l| !l.is_empty()) {
-        s += &format!("📍 {}\n", esc(loc));
+    if !meetup.location.is_empty() {
+        s += &format!("📍 {}\n", esc(&meetup.location));
     }
     s
 }
@@ -99,28 +106,17 @@ fn bullets(names: &[String]) -> String {
     names.iter().map(|n| format!("• {}\n", esc(n))).collect()
 }
 
-fn lineup(meetup: &ActiveMeetup) -> String {
+fn lineup(meetup: &MeetupView) -> String {
     match &meetup.teams {
-        Some(t) => {
-            let line = |emoji: &Option<String>, name: &Option<String>, fb: &str, ps: &[String]| {
-                let names: Vec<String> = ps.iter().map(|p| esc(p)).collect();
-                format!(
-                    "{} <b>{}</b>: {}\n",
-                    emoji.as_deref().unwrap_or("👕"),
-                    esc(name.as_deref().unwrap_or(fb)),
-                    names.join(", ")
-                )
-            };
-            format!(
-                "\n⚽ <b>Equipos</b>\n{}{}",
-                line(&t.emoji_a, &t.name_a, "A", &t.team_a),
-                line(&t.emoji_b, &t.name_b, "B", &t.team_b)
-            )
+        Some(teams) => {
+            let mut s = String::from("\n⚽ <b>Equipos</b>\n");
+            for (name, players) in teams {
+                let names: Vec<String> = players.iter().map(|p| esc(p)).collect();
+                s += &format!("👕 <b>{}</b>: {}\n", esc(name), names.join(", "));
+            }
+            s
         }
-        None => {
-            let names: Vec<String> = meetup.players.iter().map(|p| p.name.clone()).collect();
-            format!("\n⚽ <b>Juegan</b>\n{}", bullets(&names))
-        }
+        None => format!("\n⚽ <b>Juegan</b>\n{}", bullets(&meetup.players)),
     }
 }
 
@@ -165,7 +161,9 @@ fn spanish_date(iso: &str) -> String {
         "noviembre",
         "diciembre",
     ];
-    match NaiveDateTime::parse_from_str(iso, "%Y-%m-%dT%H:%M") {
+    let parsed = NaiveDateTime::parse_from_str(iso, "%Y-%m-%dT%H:%M:%S")
+        .or_else(|_| NaiveDateTime::parse_from_str(iso, "%Y-%m-%dT%H:%M"));
+    match parsed {
         Ok(dt) => format!(
             "{} {} de {}, {}",
             DAYS[dt.weekday().num_days_from_monday() as usize],
@@ -206,7 +204,7 @@ mod tests {
     #[test]
     fn formats_spanish_dates() {
         assert_eq!(
-            spanish_date("2026-11-18T20:00"),
+            spanish_date("2026-11-18T20:00:00"),
             "miércoles 18 de noviembre, 20:00"
         );
         assert_eq!(

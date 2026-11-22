@@ -1,4 +1,6 @@
-//! The siesta list: player IDs only (names live in PyBall's players.json).
+//! The siesta list and what the plugin remembers, in `data/plugins/siesta/state.json`.
+//!
+//! Player and meetup IDs only: names live in PyBall.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -15,17 +17,30 @@ pub struct State {
     /// Every draw ever made, oldest first.
     #[serde(default)]
     pub draws: Vec<Draw>,
+    /// The latest scheduled draw time already handled (RFC 3339).
+    #[serde(default)]
+    pub last_slot: Option<String>,
+    /// The id of the last event read from the stream.
+    #[serde(default)]
+    pub last_event_id: Option<u64>,
+    /// Meetups whose substitute search siesta opened and still has to draw.
+    #[serde(default)]
+    pub searches: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Draw {
-    /// PyBall meetup date, `YYYY-MM-DDTHH:MM`.
+    /// PyBall meetup ID.
     pub meetup: String,
+    /// The meetup's date, for people reading the file.
+    pub meetup_date: String,
     /// When the draw ran (local time, RFC 3339).
     pub drawn_at: String,
     pub signed_up: Vec<String>,
     /// Players left out (each got +1).
     pub left_out: Vec<String>,
+    /// The roster sent to PyBall; sent again if teams are missing after a crash.
+    pub playing: Vec<String>,
     /// Left-out players who later got a spot (their +1 was refunded).
     #[serde(default)]
     pub reinstated: Vec<String>,

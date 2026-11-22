@@ -1,26 +1,35 @@
-//! Settings, read straight from PyBall's own config.toml.
-//!
-//! Uses `[pyball.core]` (manage_token, base_url, data_dir) and
-//! `[pyball.telegram]` (bot_token, regulars.meetups.chat_id), honouring the
-//! same `PYBALL_*` environment overrides PyBall does. Siesta-specific options
-//! go in an optional `[pyball.siesta]` section, which PyBall ignores.
+//! Settings: the plugin API from the environment, the rest from siesta's own
+//! `[pyball.plugins.siesta]` table in PyBall's config.toml.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
+use chrono::{NaiveTime, Weekday};
+use chrono_tz::Tz;
 use toml::Value;
+
+/// Where the state lives, relative to the workspace the core runs plugins from.
+const STATE_FILE: &str = "data/plugins/siesta/state.json";
+const DEFAULT_API_URL: &str = "http://127.0.0.1:8000/api/v1";
 
 #[derive(Debug)]
 pub struct Config {
-    /// Where the PyBall API is reachable from this machine.
+    /// `PYBALL_API_URL`, ending in `/api/v1`.
     pub api_url: String,
-    /// How `api_url` was chosen, for log lines.
-    pub api_url_source: &'static str,
-    pub manage_token: String,
-    pub max_players: usize,
+    /// `PYBALL_API_TOKEN`: the plugin's own token, or the manage token by hand.
+    pub api_token: String,
     pub team_algorithm: String,
+    pub schedule: Schedule,
     pub state_file: PathBuf,
     pub telegram: Option<TelegramTarget>,
+}
+
+/// When the weekly draw runs.
+#[derive(Debug, Clone, Copy)]
+pub struct Schedule {
+    pub weekday: Weekday,
+    pub time: NaiveTime,
+    pub timezone: Tz,
 }
 
 #[derive(Debug)]
@@ -37,64 +46,61 @@ impl Config {
             .with_context(|| format!("reading PyBall config {}", config_path.display()))?;
         let doc: Value =
             toml::from_str(&raw).with_context(|| format!("parsing {}", config_path.display()))?;
-        let workspace = config_path
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or(Path::new("."));
+        let table = doc
+            .get("pyball")
+            .and_then(|p| p.get("plugins"))
+            .and_then(|p| p.get("siesta"))
+            .and_then(Value::as_table);
+        Self::from_table(table, env("PYBALL_API_URL"), env("PYBALL_API_TOKEN"))
+    }
 
-        let core = table(&doc, &["pyball", "core"]);
-        let tg = table(&doc, &["pyball", "telegram"]);
-        let meetups = table(&doc, &["pyball", "telegram", "regulars", "meetups"]);
-        let siesta = table(&doc, &["pyball", "siesta"]);
+    fn from_table(
+        t: Option<&toml::Table>,
+        api_url: Option<String>,
+        api_token: Option<String>,
+    ) -> Result<Self> {
+        let api_token = api_token.context(
+            "PYBALL_API_TOKEN is not set: PyBall sets it for the plugin; \
+             by hand, pass the manage token",
+        )?;
 
-        let manage_token = env_or("PYBALL_CORE_MANAGE_TOKEN", string(core, "manage_token"));
-        // Relative to the current directory, exactly like PyBall resolves it.
-        let data_dir = PathBuf::from(
-            env_or("PYBALL_CORE_DATA_DIR", string(core, "data_dir"))
-                .unwrap_or_else(|| "data".into()),
-        );
-
-        let (api_url, api_url_source) = resolve_api_url(siesta, core, workspace)?;
-
-        let state_file = string(siesta, "state_file")
-            .map_or_else(|| data_dir.join("siesta.json"), PathBuf::from);
-        if let Some(dir) = state_file.parent().filter(|d| !d.as_os_str().is_empty())
-            && !dir.is_dir()
-        {
-            bail!(
-                "data folder {} not found (relative paths start from the current directory, \
-                 like PyBall); run from the folder PyBall runs in",
-                dir.display()
-            );
+        let team_algorithm = string(t, "team_algorithm")?.unwrap_or_else(|| "balanceado".into());
+        if !matches!(team_algorithm.as_str(), "balanceado" | "random") {
+            bail!("plugins.siesta.team_algorithm must be \"balanceado\" or \"random\"");
         }
 
-        let max_players = match siesta.and_then(|t| t.get("max_players")) {
-            Some(v) => v
-                .as_integer()
-                .filter(|n| *n > 0)
-                .context("pyball.siesta.max_players must be a positive number")?
-                as usize,
-            None => 10,
+        let weekday = match string(t, "weekday")? {
+            Some(day) => day
+                .parse::<Weekday>()
+                .ok()
+                .context("plugins.siesta.weekday must be a day in English, e.g. \"monday\"")?,
+            None => Weekday::Mon,
         };
-        let team_algorithm =
-            string(siesta, "team_algorithm").unwrap_or_else(|| "balanceado".into());
-        if !matches!(team_algorithm.as_str(), "balanceado" | "aleatorio") {
-            bail!("pyball.siesta.team_algorithm must be \"balanceado\" or \"aleatorio\"");
-        }
+        let time = match string(t, "time")? {
+            Some(hm) => NaiveTime::parse_from_str(&hm, "%H:%M")
+                .context("plugins.siesta.time must be HH:MM, e.g. \"10:00\"")?,
+            None => NaiveTime::from_hms_opt(10, 0, 0).expect("valid time"),
+        };
+        let timezone = match string(t, "timezone")? {
+            Some(tz) => tz
+                .parse::<Tz>()
+                .ok()
+                .context("plugins.siesta.timezone must be an IANA name, e.g. \"Europe/Madrid\"")?,
+            None => chrono_tz::Europe::Madrid,
+        };
 
-        let bot_token =
-            env_or("PYBALL_TELEGRAM_BOT_TOKEN", string(tg, "bot_token")).unwrap_or_default();
-        let chat_id = env_or(
-            "PYBALL_TELEGRAM_REGULARS_MEETUPS_CHAT_ID",
-            string(meetups, "chat_id"),
-        )
-        .filter(|c| !c.is_empty() && c != "0");
-        let thread_id = match siesta.and_then(|t| t.get("message_thread_id")) {
-            Some(v) => parse_thread(v)?,
+        let bot_token = string(t, "telegram_bot_token")?;
+        let chat_id = string(t, "telegram_chat_id")?.filter(|c| c != "0");
+        let thread_id = match string(t, "telegram_message_thread_id")? {
+            Some(n) => Some(
+                n.parse::<i64>()
+                    .context("plugins.siesta.telegram_message_thread_id must be a number")?,
+            )
+            .filter(|n| *n != 0),
             None => None,
         };
-        let telegram = match (bot_token.is_empty(), chat_id) {
-            (false, Some(chat_id)) => Some(TelegramTarget {
+        let telegram = match (bot_token, chat_id) {
+            (Some(bot_token), Some(chat_id)) => Some(TelegramTarget {
                 bot_token,
                 chat_id,
                 thread_id,
@@ -103,127 +109,86 @@ impl Config {
         };
 
         Ok(Self {
-            api_url,
-            api_url_source,
-            manage_token: manage_token.unwrap_or_default(),
-            max_players,
+            api_url: api_url
+                .unwrap_or_else(|| DEFAULT_API_URL.into())
+                .trim_end_matches('/')
+                .to_string(),
+            api_token,
             team_algorithm,
-            state_file,
+            schedule: Schedule {
+                weekday,
+                time,
+                timezone,
+            },
+            state_file: PathBuf::from(STATE_FILE),
             telegram,
         })
     }
 }
 
-/// Pick the URL to reach PyBall's API:
-/// 1. `[pyball.siesta] api_url`, if set;
-/// 2. `http://127.0.0.1:<PORT>` from the workspace's `.env` (how compose publishes it);
-/// 3. `[pyball.core] base_url`.
-fn resolve_api_url(
-    siesta: Option<&toml::Table>,
-    core: Option<&toml::Table>,
-    workspace: &Path,
-) -> Result<(String, &'static str)> {
-    if let Some(url) = env_or("PYBALL_SIESTA_API_URL", string(siesta, "api_url")) {
-        return Ok((url, "pyball.siesta.api_url"));
-    }
-    if let Some(port) = dotenv_port(&workspace.join(".env")) {
-        return Ok((format!("http://127.0.0.1:{port}"), "PORT in .env"));
-    }
-    if let Some(url) = env_or("PYBALL_CORE_BASE_URL", string(core, "base_url")) {
-        return Ok((url, "pyball.core.base_url"));
-    }
-    bail!("can't tell where PyBall is: set [pyball.siesta] api_url in config.toml")
-}
-
-fn dotenv_port(path: &Path) -> Option<u16> {
-    let raw = std::fs::read_to_string(path).ok()?;
-    raw.lines()
-        .filter_map(|l| l.trim().strip_prefix("PORT="))
-        .find_map(|v| v.trim().trim_matches('"').trim_matches('\'').parse().ok())
-}
-
-fn table<'a>(doc: &'a Value, path: &[&str]) -> Option<&'a toml::Table> {
-    let mut cur = doc;
-    for key in path {
-        cur = cur.get(key)?;
-    }
-    cur.as_table()
-}
-
 /// A config value as a string; numbers are accepted too (chat IDs).
-fn string(t: Option<&toml::Table>, key: &str) -> Option<String> {
-    match t?.get(key)? {
-        Value::String(s) if !s.trim().is_empty() => Some(s.trim().to_string()),
-        Value::Integer(n) => Some(n.to_string()),
-        _ => None,
-    }
-}
-
-fn env_or(var: &str, fallback: Option<String>) -> Option<String> {
-    match std::env::var(var) {
-        Ok(v) => Some(v).filter(|v| !v.is_empty()),
-        Err(_) => fallback,
-    }
-}
-
-fn parse_thread(v: &Value) -> Result<Option<i64>> {
-    Ok(match v {
-        Value::Integer(0) => None,
-        Value::Integer(n) => Some(*n),
-        Value::String(s) if s.trim().is_empty() => None,
-        Value::String(s) => Some(
-            s.trim()
-                .parse()
-                .context("pyball.siesta.message_thread_id must be a number")?,
-        ),
-        _ => bail!("pyball.siesta.message_thread_id must be a number"),
+fn string(t: Option<&toml::Table>, key: &str) -> Result<Option<String>> {
+    Ok(match t.and_then(|t| t.get(key)) {
+        None => None,
+        Some(Value::String(s)) if s.trim().is_empty() => None,
+        Some(Value::String(s)) => Some(s.trim().to_string()),
+        Some(Value::Integer(n)) => Some(n.to_string()),
+        Some(_) => bail!("plugins.siesta.{key} must be a text or a number"),
     })
+}
+
+fn env(var: &str) -> Option<String> {
+    std::env::var(var).ok().filter(|v| !v.is_empty())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn write(dir: &Path, name: &str, body: &str) -> PathBuf {
-        let p = dir.join(name);
-        std::fs::write(&p, body).unwrap();
-        p
+    fn load(toml: &str) -> Result<Config> {
+        let doc: toml::Table = toml::from_str(toml).unwrap();
+        Config::from_table(Some(&doc), None, Some("t".into()))
     }
 
     #[test]
-    fn reads_everything_from_pyball_config() {
-        let dir = std::env::temp_dir().join(format!("siesta-cfg-{}", std::process::id()));
-        let data = dir.join("data");
-        std::fs::create_dir_all(&data).unwrap();
-        let _ = std::fs::remove_file(dir.join(".env"));
-        let toml = r#"
-[pyball.core]
-base_url = "https://futbol.example.com"
-manage_token = "m"
-data_dir = "DATA"
+    fn defaults_to_monday_ten_in_madrid_without_telegram() {
+        let cfg = load("").unwrap();
+        assert_eq!(cfg.api_url, DEFAULT_API_URL);
+        assert_eq!(cfg.schedule.weekday, Weekday::Mon);
+        assert_eq!(cfg.schedule.time.to_string(), "10:00:00");
+        assert_eq!(cfg.schedule.timezone, chrono_tz::Europe::Madrid);
+        assert_eq!(cfg.team_algorithm, "balanceado");
+        assert!(cfg.telegram.is_none());
+    }
 
-[pyball.telegram]
-bot_token = "123:abc"
-
-[pyball.telegram.regulars.meetups]
-chat_id = -1001234
-message_thread_id = 55
-"#
-        .replace("DATA", &data.display().to_string());
-        let cfg_path = write(&dir, "config.toml", &toml);
-        let cfg = Config::load(&cfg_path).unwrap();
-        assert_eq!(cfg.api_url, "https://futbol.example.com");
-        assert_eq!(cfg.manage_token, "m");
-        assert_eq!(cfg.state_file, data.join("siesta.json"));
+    #[test]
+    fn reads_its_own_table() {
+        let cfg = load(
+            r#"
+weekday = "tuesday"
+time = "09:30"
+timezone = "America/Lima"
+team_algorithm = "random"
+telegram_bot_token = "123:abc"
+telegram_chat_id = -1001234
+telegram_message_thread_id = 0
+"#,
+        )
+        .unwrap();
+        assert_eq!(cfg.schedule.weekday, Weekday::Tue);
+        assert_eq!(cfg.schedule.time.to_string(), "09:30:00");
+        assert_eq!(cfg.schedule.timezone, chrono_tz::America::Lima);
         let tg = cfg.telegram.unwrap();
         assert_eq!(tg.chat_id, "-1001234");
-        assert_eq!(
-            tg.thread_id, None,
-            "goes to the general chat, not the callup topic"
-        );
+        assert_eq!(tg.thread_id, None, "0 is the group's main chat");
+    }
 
-        write(&dir, ".env", "UID=1000\nPORT=8123\n");
-        let cfg = Config::load(&cfg_path).unwrap();
-        assert_eq!(cfg.api_url, "http://127.0.0.1:8123");
+    #[test]
+    fn rejects_bad_values_and_a_missing_token() {
+        assert!(load("weekday = \"lunes\"").is_err());
+        assert!(load("time = \"10h\"").is_err());
+        assert!(load("timezone = \"Madrid\"").is_err());
+        assert!(load("team_algorithm = \"aleatorio\"").is_err());
+        assert!(Config::from_table(None, None, None).is_err());
     }
 }
