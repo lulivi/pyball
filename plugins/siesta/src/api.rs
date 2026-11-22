@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn reads_events_and_keepalives() {
         let raw = format!(
-            "id: 7\nevent: substitute_search.closed\ndata: {{\"id\":7,\"type\":\"substitute_search.closed\",\"occurred_at\":\"x\",\"meetup\":{MEETUP}}}\n\n: keepalive\n\n"
+            "id: 7\nevent: substitute_search.closed\ndata: {{\"id\":7,\"type\":\"substitute_search.closed\",\"occurred_at\":\"x\",\"meetup\":{MEETUP}}}\n\n: ping\n\n"
         );
         let mut stream = EventStream::new(std::io::Cursor::new(raw.into_bytes()));
         let Some(Frame::Event(event)) = stream.next_frame().unwrap() else {

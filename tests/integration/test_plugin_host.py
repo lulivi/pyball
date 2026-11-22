@@ -3,6 +3,7 @@
 # pylint: disable=redefined-outer-name
 
 import asyncio
+import json
 import logging
 import socket
 import sys
@@ -228,6 +229,31 @@ async def test_reconnecting_client_gets_every_missed_event_once(server, containe
     second = await asyncio.wait_for(read_ids(2, {"Last-Event-ID": str(first[-1])}), 5)
 
     assert first + second == [1, 2, 3, 4]
+
+
+@pytest.mark.asyncio
+async def test_each_event_is_sent_with_its_id_type_and_json_data(server, container):
+    """An SSE frame carries the event id and type; fields left unset are not sent."""
+    api_url, _ = await server([])
+    meetup = container.create_meetup().execute(datetime(2026, 11, 25, 20, 0))
+    container.event_log.append("meetup.created", meetup)
+    frame: list[str] = []
+    async with httpx.AsyncClient(timeout=5) as client:
+        async with client.stream(
+            "GET", f"{api_url}/events?after=0", headers={"Authorization": "Bearer manage-tok"}
+        ) as resp:
+            async for line in resp.aiter_lines():
+                if not line and frame:
+                    break
+                if line:
+                    frame.append(line)
+
+    fields = dict(line.split(": ", 1) for line in frame)
+    assert fields["id"] == "1"
+    assert fields["event"] == "meetup.created"
+    data = json.loads(fields["data"])
+    assert data["meetup"]["id"] == str(meetup.id.value)
+    assert not {"player", "is_substitute", "previous_date"} & data.keys()
 
 
 @pytest.mark.asyncio
