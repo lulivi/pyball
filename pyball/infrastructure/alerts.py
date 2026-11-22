@@ -95,8 +95,7 @@ class TelegramAlertHandler(logging.Handler):
         if last is not None and now - last < REPEAT_WINDOW:
             self._suppressed[key] = self._suppressed.get(key, 0) + 1
             return
-        self._last_sent[key] = now
-        suppressed = self._suppressed.pop(key, 0)
+        suppressed = self._suppressed.get(key, 0)
         try:
             emoji = self._LEVEL_EMOJI.get(record.levelno, "❓")
             message = record.getMessage()
@@ -124,6 +123,8 @@ class TelegramAlertHandler(logging.Handler):
             )
             with urllib.request.urlopen(req, timeout=5.0):
                 pass
+            self._last_sent[key] = now  # a failed send leaves the alert free to retry
+            self._suppressed.pop(key, None)
         except Exception:  # pylint: disable=broad-except
             self.handleError(record)
 

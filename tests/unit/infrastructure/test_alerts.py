@@ -217,6 +217,17 @@ class TestRepeatedAlerts:
         text = json.loads(urlopen.call_args.args[0].data)["text"]
         assert text.endswith("\\(\\+9 alertas iguales omitidas\\)")
 
+    def test_failed_send_does_not_start_the_window(self):
+        """An alert Telegram refused is sent with the next repeat, not held back."""
+        handler = TelegramAlertHandler("tok", -1)
+        setattr(handler, "handleError", MagicMock())
+        with patch(self._URLOPEN) as urlopen, patch(self._CLOCK) as clock:
+            urlopen.side_effect = OSError("network down")
+            self._send(handler, clock, 0, self._record("siesta"))
+            urlopen.side_effect = None
+            self._send(handler, clock, 60, self._record("siesta"))
+        assert urlopen.call_count == 2
+
     def test_different_plugins_and_lines_are_separate_alerts(self):
         """One plugin's crash loop does not hide another's, nor a different alert."""
         handler = TelegramAlertHandler("tok", -1)
