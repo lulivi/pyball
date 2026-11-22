@@ -152,8 +152,7 @@ class TestTelegramAlertHandler:
         with patch(self._PATCH) as m:
             handler.emit(self._make_record())
         text = self._payload(m)["text"]
-        assert "```" in text
-        assert text.endswith("\n```")
+        assert "```\ntest message\n```" in text  # no first word taken as the block's language
 
     def test_silences_network_exception(self):
         """Network errors in emit() call handleError, not propagate."""

@@ -108,7 +108,7 @@ class TelegramAlertHandler(logging.Handler):
             safe_message = message.replace("```", "'''")
             text = (
                 f"{emoji} {record.levelname}\n`{record.name}:{record.lineno}`\n"
-                f"```{safe_message}\n```"
+                f"```\n{safe_message}\n```"
             )
             if suppressed:
                 text += f"\n\\(\\+{suppressed} alertas iguales omitidas\\)"
