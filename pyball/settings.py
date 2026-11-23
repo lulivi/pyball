@@ -43,7 +43,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     if not config_path.exists():
         raise SettingsValidationError(
             f"No se encontró el archivo de configuración: '{config_path}'. "
-            "Ejecuta 'pyball --bootstrap' o 'pyball-telegram --bootstrap' para generar "
+            "Ejecuta 'pyball --bootstrap' para generar "
             "un config.toml de ejemplo."
         )
     with open(config_path, "rb") as f:
@@ -88,7 +88,7 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     if missing:
         raise SettingsValidationError(
             f"Faltan parámetros requeridos: {', '.join(missing)}. "
-            "Ejecuta 'pyball --bootstrap' o 'pyball-telegram --bootstrap' para generar "
+            "Ejecuta 'pyball --bootstrap' para generar "
             "un config.toml de ejemplo."
         )
 

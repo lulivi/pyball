@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""FastAPI topology entrypoint — /manage, /match, and optional /signup, no Telegram."""
+"""The PyBall entrypoint: /manage, /match, optional /signup, the plugin API and plugins."""
 
 import argparse
 import asyncio
@@ -37,7 +37,7 @@ from pyball.settings import SettingsValidationError
 
 
 def main() -> None:
-    """Start the FastAPI server without any Telegram integration."""
+    """Start the server and its plugins."""
     parser = argparse.ArgumentParser(description="PyBall server (manage, match, optional signup)")
     parser.add_argument(
         "--config",
@@ -57,7 +57,7 @@ def main() -> None:
     if args.bootstrap:
         from pyball.application.init_workspace import init_workspace  # pylint: disable=C0415
 
-        init_workspace("pyball", args.config)
+        init_workspace(args.config)
         return
     try:
         asyncio.run(_main_async(args.config))
@@ -67,7 +67,7 @@ def main() -> None:
 
 
 async def _main_async(config_path: Path) -> None:
-    """Boot the pyball topology, with /signup enabled or not per config."""
+    """Boot PyBall, with /signup enabled or not per config."""
     app_settings, container = bootstrap_core(config_path)
     config_alerts(app_settings.alerts)
     notifier = EventLogNotifier(container.event_log)

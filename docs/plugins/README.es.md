@@ -7,7 +7,7 @@ amplía PyBall sin tocar su código. Se ejecuta mientras PyBall esté en marcha,
 al flujo de eventos o con su propio calendario: una tarea que se ejecuta una vez y
 termina va en cron.
 
-Un plugin viene **incluido** en las imágenes de PyBall o es un programa tuyo en la carpeta
+Un plugin viene **incluido** en la imagen de PyBall o es un programa tuyo en la carpeta
 `plugins/` del espacio de trabajo, que el `compose.yaml` generado monta en
 `/pyball/plugins`. En los dos casos solo se ejecuta cuando `config.toml` lo declara (ver
 [`[pyball.plugins.<nombre>]`](../setup.es.md#pyballpluginsnombre--plugins-opcionales)).

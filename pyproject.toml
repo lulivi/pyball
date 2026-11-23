@@ -22,12 +22,8 @@ dependencies = [
     "pymupdf>=1.24,<2",
 ]
 
-[project.optional-dependencies]
-telegram = ["python-telegram-bot>=22,<23"]
-
 [project.scripts]
 pyball = "pyball.cmd.run_pyball:main"
-pyball-telegram = "pyball.cmd.run_telegram:main"
 
 [dependency-groups]
 dev = [
@@ -42,6 +38,9 @@ dev = [
     "pytest-asyncio",
     "pytest-cov",
     "python-semantic-release>=9",
+    "httpx",
+    # Same range as docker/Dockerfile.funnelbot, to lint deploy/caddy/funnelbot.py
+    "python-telegram-bot>=22,<23",
 ]
 
 [tool.black]

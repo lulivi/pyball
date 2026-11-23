@@ -74,8 +74,7 @@ must be set in `config.toml`:
 docker compose exec -e PYBALL_API_TOKEN=<manage_token> pyball siesta status
 ```
 
-The service is `bot` in a `pyball-telegram` workspace. If `api_port` is not `8000`, also
-pass `-e PYBALL_API_URL=http://127.0.0.1:<api_port>/api/v1`.
+If `api_port` is not `8000`, also pass `-e PYBALL_API_URL=http://127.0.0.1:<api_port>/api/v1`.
 
 | Command | What it does |
 |---|---|

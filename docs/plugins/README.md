@@ -6,7 +6,7 @@ A plugin is an optional, long-running program, written in any language, that ext
 PyBall without touching its code. It runs for as long as PyBall does, reacting to the
 event stream or keeping its own schedule: a job that runs once and exits belongs in cron.
 
-A plugin is either **bundled**, shipped inside the PyBall images, or your own program in
+A plugin is either **bundled**, shipped inside the PyBall image, or your own program in
 the workspace's `plugins/` folder, which the generated `compose.yaml` mounts at
 `/pyball/plugins`. Either way it runs only once `config.toml` declares it (see
 [`[pyball.plugins.<name>]`](../setup.md#pyballpluginsname--optional-plugins)). Then start

@@ -6,7 +6,7 @@ telegram is PyBall's Telegram bot: it posts each meetup's callup to the regulars
 with "✔ Unirse" / "✖ Salir" buttons, calls the substitutes when a substitute search
 opens, keeps both messages up to date, posts the result and the stats after each match,
 and answers the admin commands. It is a [bundled plugin](../README.md#bundled-plugins):
-every PyBall image includes it, and it runs once you declare it. Everything it does can
+the PyBall image includes it, and it runs once you declare it. Everything it does can
 also be done from `/manage` and `/match`.
 
 ## What it posts

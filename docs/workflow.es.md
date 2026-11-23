@@ -5,9 +5,10 @@
 Este documento recorre la vida completa de un partido en PyBall: crearlo, generar
 equipos, jugarlo, y cerrarlo — cubriendo los dos formatos de partido que soporta PyBall.
 Todos los pasos se pueden hacer desde las páginas web `/manage` y `/match`; donde
-también existe un comando de Telegram (solo si usas la topología `pyball-telegram`), se
-indica junto al paso, y donde los jugadores pueden actuar por su cuenta desde `/signup`
-(solo si `enable_web_signup` está activo en `config.toml`), también se indica.
+también existe un comando de Telegram (solo con el plugin
+[telegram](plugins/telegram/README.es.md) activado), se indica junto al paso, y donde los
+jugadores pueden actuar por su cuenta desde `/signup` (solo si `enable_web_signup` está
+activo en `config.toml`), también se indica.
 
 ## Los dos formatos de partido
 

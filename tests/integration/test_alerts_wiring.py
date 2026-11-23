@@ -1,4 +1,4 @@
-"""The pyball topology sends core errors to the alert chat with no bot and no plugins."""
+"""PyBall sends core errors to the alert chat with no plugins."""
 
 import asyncio
 import json
@@ -27,7 +27,7 @@ def _serving(port: int) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_pyball_topology_sends_server_errors_to_the_alert_chat(tmp_path):
+async def test_pyball_sends_server_errors_to_the_alert_chat(tmp_path):
     """An error logged by the HTTP server, after it configured logging, reaches the chat."""
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))

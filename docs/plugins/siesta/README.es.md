@@ -4,7 +4,7 @@
 
 siesta decide, de forma justa, quién descansa cuando se apuntan más jugadores de los que
 caben en un partido, y hace los equipos. Es un [plugin incluido](../README.es.md#plugins-incluidos):
-todas las imágenes de PyBall lo traen y se ejecuta en cuanto lo declaras.
+la imagen de PyBall lo trae y se ejecuta en cuanto lo declaras.
 
 ## La regla
 
@@ -77,8 +77,7 @@ del contenedor, desde el espacio de trabajo. Hablan con la API de plugins con el
 docker compose exec -e PYBALL_API_TOKEN=<manage_token> pyball siesta status
 ```
 
-El servicio se llama `bot` en un espacio de trabajo de `pyball-telegram`. Si `api_port`
-no es `8000`, pasa también `-e PYBALL_API_URL=http://127.0.0.1:<api_port>/api/v1`.
+Si `api_port` no es `8000`, pasa también `-e PYBALL_API_URL=http://127.0.0.1:<api_port>/api/v1`.
 
 | Comando | Qué hace |
 |---|---|

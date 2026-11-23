@@ -10,25 +10,22 @@ This guide assumes Linux with Docker installed — the simplest, most-tested way
 run PyBall. Installing on a Windows PC instead? Follow this guide as written, but
 read [Running on Windows (WSL2)](#running-on-windows-wsl2) before step 1.
 
-## 1. Choose a topology
+## 1. What PyBall runs
 
-PyBall ships as two Docker images, built from the same codebase:
-
-| Image | What it runs | Needs a Telegram bot? |
-|---|---|---|
-| `lulivi/pyball` | FastAPI — `/manage`, `/match`, and an optional self-service `/signup` (see below) | No |
-| `lulivi/pyball-telegram` | Telegram bot + FastAPI (`/manage` and `/match`) | Yes |
+PyBall ships as one Docker image, `lulivi/pyball`: the web server with `/manage`, `/match`
+and an optional self-service `/signup` (see below), plus the bundled plugins, which run
+only once `config.toml` declares them.
 
 Every feature — creating meetups, building teams (classic or triangular), tracking a
 match, closing a triangular session, viewing stats — is reachable from `/manage` and
-`/match` on either image; Telegram and `/signup` are convenience layers on top, never a
-requirement. If your group doesn't use Telegram, use `pyball`: set `enable_web_signup =
-true` in `config.toml` if you want players to join or leave a meetup themselves from a
-personal code at `/signup` (see
+`/match`; Telegram and `/signup` are convenience layers on top, never a requirement. Set
+`enable_web_signup = true` in `config.toml` if you want players to join or leave a meetup
+themselves from a personal code at `/signup` (see
 [Application Workflow](workflow.md#self-service-signup-via-signup)) without touching
 `/manage`, or leave it `false` (the default) to keep signup an admin-only,
-`/manage`-driven task. Use `pyball-telegram` if you want meetups posted to a group chat
-automatically, admin commands from Telegram, and reactions/notifications in the chat.
+`/manage`-driven task. Enable the [telegram](plugins/telegram/README.md) plugin if you
+want meetups posted to a group chat automatically, with join/leave buttons, and admin
+commands from Telegram.
 
 ## 2. Bootstrap a workspace
 
@@ -37,15 +34,13 @@ Pick an empty directory for this instance's config and data, then run:
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# or, for Telegram:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 ```
 
 This creates, in the current directory:
 
 ```
 config.toml     # your settings — edit this next
-compose.yaml    # docker compose service definition, pinned to the image you bootstrapped
+compose.yaml    # docker compose service definition
 .env            # UID/GID/PORT/TAG used by compose.yaml
 README.md       # a short pointer back to this guide
 data/           # JSON data files (see docs/data-directory.md)
@@ -58,10 +53,10 @@ exist in the target directory, so it's safe to re-run — it won't overwrite you
 ## 3. Configure `config.toml`
 
 Every key can also be set with an environment variable, `PYBALL_<SECTION>_<KEY>`
-(e.g. `PYBALL_CORE_LOCATION`, `PYBALL_TELEGRAM_BOT_TOKEN`) — useful for keeping secrets
+(e.g. `PYBALL_CORE_LOCATION`, `PYBALL_ALERTS_TELEGRAM_BOT_TOKEN`) — useful for keeping secrets
 out of `config.toml` or overriding a value per-deployment without editing the file.
 
-### `[pyball.core]` — all topologies
+### `[pyball.core]`
 
 | Key | Description | Default |
 |---|---|---|
@@ -70,11 +65,11 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `default_week_day` | Default day (`monday`–`sunday`) for new meetups | `wednesday` |
 | `default_hour` | Default start time (`HH:MM`) | `20:00` |
 | `meetup_capacity` | Players a new meetup plays with; each meetup's capacity can then be changed from `/manage` | `10` |
-| `display_date_format` | Date format used in messages | `%Y-%m-%d %H:%M` |
+| `display_date_format` | Date format used in messages, served to plugins by `GET /api/v1/settings` | `%Y-%m-%d %H:%M` |
 | `team_colors` | Two or three color names: the first two are the classic-match teams, the third is only used for triangulars (auto-filled if you list just two) | `["blanco", "negro", "rojo"]` |
 | `base_url` | Public URL used to build the `/match` link | *(required)* |
 | `api_port` | HTTP server port | `8000` |
-| `locale` | Locale used to sort player names | `es_ES.UTF-8` |
+| `locale` | Locale used to sort player names, served to plugins by `GET /api/v1/settings` | `es_ES.UTF-8` |
 | `data_dir` | Directory for JSON data files; a relative path starts from the folder holding `config.toml` | `data` |
 | `match_token` | Access token for `/match` only (optional, see [Access tokens](#6-access-tokens)) | *(empty)* |
 | `manage_token` | Access token for everything, including `/manage` (optional) | *(empty)* |
@@ -86,55 +81,30 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 Available team colors: `blanco` `negro` `rojo` `naranja` `amarillo` `verde` `azul`
 `morado` `marron`.
 
-### `[pyball.telegram]` and sub-sections — `pyball-telegram` only
-
-These are ignored by `pyball` — see
-[Telegram config is bot-only](data-directory.md#telegram-config-is-bot-only) for why.
-
-| Key | Description | Required |
-|---|---|---|
-| `telegram.bot_token` | Bot token from [@BotFather](https://t.me/BotFather) | **Yes** |
-| `telegram.admins_ids` | Telegram user IDs allowed to run admin commands | **Yes** |
-| `telegram.regulars.meetups.chat_id` | Chat for meetup callup + corrected-result messages (negative for groups) | **Yes** |
-| `telegram.regulars.meetups.message_thread_id` | Forum topic for those messages (empty = none) | No |
-| `telegram.regulars.stats.chat_id` | Chat for post-match stats + `/meetup_stats` (`0` / omit disables stats posting) | No |
-| `telegram.regulars.stats.message_thread_id` | Forum topic for stats (empty = none) | No |
-| `telegram.substitutes.meetups.chat_id` | Chat for the substitutes callup message (negative for groups) | **Yes** |
-| `telegram.substitutes.meetups.message_thread_id` | Forum topic for the substitutes message (empty = none) | No |
-
-To find a chat ID: add the bot to the group, send any message, then check
-`https://api.telegram.org/bot<TOKEN>/getUpdates` for the `chat.id` field.
-
-Each of these can point at the same or a different group/topic. Env overrides
-follow `PYBALL_<PATH>_<KEY>`, e.g.
-`PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID`.
-
 `deploy/deploy.sh` sends its own deploy notifications with the bot token, chat and
 forum topic in the `DEPLOY_NOTIFY_TOKEN`, `DEPLOY_NOTIFY_CHAT_ID` and
 `DEPLOY_NOTIFY_THREAD_ID` GitHub secrets — point them at the same chat and topic as
-[`alerts.telegram`](#pyballalertstelegram--alerts-all-topologies). Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
+[`alerts.telegram`](#pyballalertstelegram--alerts). Without `DEPLOY_NOTIFY_TOKEN`, deploys send no
 notifications.
 
-### `[pyball.alerts.telegram]` — alerts, all topologies
+### `[pyball.alerts.telegram]` — alerts
 
 PyBall's own warnings and errors, a plugin that crashes or keeps restarting included, go
-to this Telegram chat. The core sends them itself, so they need no plugin running and
-work in `pyball` as well as `pyball-telegram`. The same alert is sent at most once
-every 10 minutes, and the next one says how many repeats it left out, so a crash loop
-can't flood the chat. PyBall also posts there when it starts and when it stops. Without the section, or with
-`chat_id = 0`, alerts are off and PyBall says so in its startup log. Env overrides follow
-`PYBALL_ALERTS_TELEGRAM_<KEY>`.
+to this Telegram chat. The core sends them itself, so they need no plugin running. The
+same alert is sent at most once every 10 minutes, and the next one says how many repeats
+it left out, so a crash loop can't flood the chat. PyBall also posts there when it starts
+and when it stops. Without the section, or with `chat_id = 0`, alerts are off and PyBall
+says so in its startup log. Env overrides follow `PYBALL_ALERTS_TELEGRAM_<KEY>`.
 
 | Key | Description | Required |
 |---|---|---|
-| `bot_token` | Token of the bot that sends the alerts; it may be the same as `telegram.bot_token` | When `chat_id` is set |
+| `bot_token` | Token of the bot that sends the alerts; it may be the same bot as the telegram plugin's | When `chat_id` is set |
 | `chat_id` | Chat that receives the alerts (negative for groups; `0` / omit to disable) | No |
 | `message_thread_id` | Forum topic for the alerts (empty = none) | No |
 
 ### `[pyball.plugins.<name>]` — optional plugins
 
-One table per plugin, named after it. Both topologies run them (see
-[Plugins](#8-plugins)). These tables have no env overrides.
+One table per plugin, named after it (see [Plugins](#8-plugins)). These tables have no env overrides.
 
 | Key | Description | Required |
 |---|---|---|
@@ -214,9 +184,10 @@ Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.
 ## 8. Plugins
 
 A plugin is an optional, long-running program that extends PyBall without touching its
-code. Some come bundled in the PyBall images, such as
-[siesta](plugins/siesta/README.md), the fair sit-out draw, and
-[activity](plugins/activity/README.md), the activity feed; you can also add your own to
+code. Some come bundled in the PyBall image:
+[telegram](plugins/telegram/README.md), the Telegram bot;
+[siesta](plugins/siesta/README.md), the fair sit-out draw; and
+[activity](plugins/activity/README.md), the activity feed. You can also add your own to
 the workspace's `plugins/` folder. Either kind runs only once you declare it under
 [`[pyball.plugins.<name>]`](#pyballpluginsname--optional-plugins).
 

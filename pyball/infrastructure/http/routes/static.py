@@ -43,7 +43,7 @@ def register_static_routes(
 
     @app.get("/api/config")
     async def app_config():
-        """Return topology capability flags for the shared /manage frontend."""
+        """Return the capability flags of the /manage frontend."""
         return {"signup_enabled": enable_web_signup}
 
     @app.get("/match")

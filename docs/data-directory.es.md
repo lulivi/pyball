@@ -30,10 +30,8 @@ pyball/
 │   │   └── ...         # un archivo por partido, nombrado según su fecha/hora
 │   ├── plugins/
 │   │   └── <nombre>/   # el estado propio de cada plugin — ver docs/plugins/README.es.md
-│   ├── signup/
-│   │   └── codes.json   # solo si enable_web_signup está activo — ver más abajo
-│   └── bot/
-│       └── messages.json   # solo pyball-telegram — ver más abajo
+│   └── signup/
+│       └── codes.json   # solo si enable_web_signup está activo — ver más abajo
 └── logs/
     └── ...             # archivos de log de la aplicación
 ```
@@ -192,8 +190,8 @@ correcto — PyBall lo trata igual que un archivo vacío:
 ## El alta web es opcional mediante `enable_web_signup`
 
 El directorio `data/signup/` de abajo solo existe cuando `enable_web_signup` está
-activo (`true`) en `config.toml`. Si se deja en `false` (por defecto), o en
-`pyball-telegram`, nada lo lee ni lo escribe.
+activo (`true`) en `config.toml`. Si se deja en `false` (por defecto), nada lo lee ni
+lo escribe.
 
 ### `data/signup/codes.json`
 
@@ -219,34 +217,6 @@ jugador en `/manage`, o automáticamente la primera vez que se crea un jugador c
 `enable_web_signup` activo; ver [docs/workflow.es.md](workflow.es.md)). Este archivo se crea
 automáticamente la primera vez que hace falta, y es seguro borrarlo: hacerlo simplemente
 invalida el código de todos los jugadores, obligando a generarles uno nuevo a cada uno.
-
-## La configuración de Telegram es solo para el bot
-
-La sección `[pyball.telegram]` de `config.toml`, y el directorio `data/bot/` de más
-abajo, solo existen para la topología `pyball-telegram`. Ejecutar `pyball` (con o sin
-`enable_web_signup`) nunca lee ni escribe ninguno de los dos — ese despliegue no tiene
-directorio `data/bot/` en absoluto.
-
-### `data/bot/messages.json`
-
-Rastrea qué mensaje de Telegram (en los chats de titulares/suplentes) corresponde a la
-convocatoria de cada partido, para que PyBall pueda editarlo o borrarlo más tarde (ej.
-cuando cambia la convocatoria, o cuando el partido se cierra):
-
-```json
-{
-  "2026-04-15T20:00": {
-    "regular": { "chat_id": -1000000000000, "thread_id": null, "message_id": 4821 },
-    "substitute": { "chat_id": -1000000000001, "thread_id": null, "message_id": 512 }
-  }
-}
-```
-
-La clave es la fecha/hora del partido (`YYYY-MM-DDTHH:MM`, coincidiendo con el nombre
-del archivo del meetup sin la extensión `.json`). `thread_id` es `null` a menos que el
-chat use temas de foro (ver `telegram.regulars.meetups.message_thread_id` en
-[docs/setup.es.md](setup.es.md); la entrada `substitute` toma igualmente
-`telegram.substitutes.meetups.message_thread_id`).
 
 ## Documentación relacionada
 

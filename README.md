@@ -13,8 +13,6 @@ Most people just want to run the app. All you need is Docker.
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# or, for Telegram:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 
 # edit config.toml with your settings, then:
 docker compose up -d
@@ -22,8 +20,8 @@ docker compose up -d
 
 `--bootstrap` generates `config.toml`, `compose.yaml`, `.env`, and the `data/`, `logs/`
 and `plugins/` directories in the current folder — see **[docs/setup.md](docs/setup.md)** for the full
-walkthrough: choosing a topology, configuring `config.toml`, what `/manage` and `/match`
-are for, access tokens, and plugins.
+walkthrough: configuring `config.toml`, what `/manage` and `/match` are for, access
+tokens, and plugins, the Telegram bot among them.
 
 - **[docs/setup.md](docs/setup.md)** — install, configure, and run PyBall.
 - **[docs/workflow.md](docs/workflow.md)** — how a meetup goes from creation to

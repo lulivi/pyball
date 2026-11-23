@@ -6,7 +6,7 @@ telegram es el bot de Telegram de PyBall: publica la convocatoria de cada partid
 chat de titulares con los botones "✔ Unirse" / "✖ Salir", llama a los suplentes cuando
 se abre una búsqueda de suplentes, mantiene los dos mensajes al día, publica el
 resultado y las estadísticas tras cada partido y atiende los comandos de administración.
-Es un [plugin incluido](../README.es.md#plugins-incluidos): viene en todas las imágenes
+Es un [plugin incluido](../README.es.md#plugins-incluidos): viene en la imagen
 de PyBall y funciona en cuanto lo declaras. Todo lo que hace se puede hacer también
 desde `/manage` y `/match`.
 

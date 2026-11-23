@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Alerts: core warnings and errors sent to a Telegram chat, in every topology.
+"""Alerts: core warnings and errors sent to a Telegram chat.
 
 Alerts run in the core process and need no plugin, so they keep arriving while every plugin
 is down, including one that keeps crashing.

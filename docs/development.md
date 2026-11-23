@@ -2,8 +2,8 @@
 
 🇬🇧 English | 🇪🇸 [Español](development.es.md)
 
-How PyBall's code is organised: its layers, how a process starts up, and the two runnable
-topologies. For setting up a development environment, running the checks, and the commit
+How PyBall's code is organised: its layers, how the process starts up, and the plugins it
+hosts. For setting up a development environment, running the checks, and the commit
 and pull request conventions, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Layers
@@ -22,11 +22,10 @@ pyball/
 │   ├── persistence/   #   JSON repositories
 │   ├── images/        #   Stats image rendering (WeasyPrint + Jinja2)
 │   ├── signup/        #   Personal signup codes
-│   ├── telegram/      #   Telegram bot, settings, notifications
 │   ├── plugins/       #   Plugin API (/api/v1), event log, credentials, supervisor
 │   ├── alerts.py      #   Core warnings and errors sent to the alert chat
 │   └── http/          #   FastAPI app, routes, token auth, static web pages
-├── cmd/               # One entrypoint per topology — its Composition Root
+├── cmd/               # The entrypoint, run_pyball.py — the Composition Root
 └── settings.py        # AppSettings and the config.toml loader
 ```
 
@@ -47,34 +46,27 @@ Outside `pyball/`:
 ## Startup
 
 `bootstrap_core()` (in `application/bootstrap.py`) loads `AppSettings`, configures logging,
-sets the locale and builds the dependency container. Each `cmd/run_*.py` is the
-Composition Root for its topology: it calls `bootstrap_core()`, loads any
-integration-specific settings, wires the infrastructure components together, and handles
-graceful shutdown: plugins start once the HTTP server accepts connections, and stop
-first, before the event streams close and the server exits.
+sets the locale and builds the dependency container. `cmd/run_pyball.py` is the
+Composition Root: it calls `bootstrap_core()`, wires the infrastructure components
+together, and handles graceful shutdown: plugins start once the HTTP server accepts
+connections, and stop first, before the event streams close and the server exits.
 
-Both entrypoints also accept `--bootstrap`, which only generates a deployment workspace
-(`config.toml`, `compose.yaml`, `.env`, ...) and exits. It never touches a running app.
+`pyball --bootstrap` only generates a deployment workspace (`config.toml`,
+`compose.yaml`, `.env`, ...) and exits. It never touches a running app.
 
-## Topologies
+## One server
 
-One codebase runs as two topologies:
-
-- **`pyball`** (`cmd/run_pyball.py`): FastAPI only. It always serves `/manage` and
-  `/match`; `/signup` is opt-in via `enable_web_signup` in `config.toml`.
-- **`pyball-telegram`** (`cmd/run_telegram.py`): the Telegram bot plus FastAPI serving
-  `/manage` and `/match` (no `/signup`), both in the same asyncio event loop. Only this
-  topology needs `python-telegram-bot` installed.
-
-Every feature is reachable from `/manage` and `/match` alone, on either topology. Telegram
-and `/signup` are convenience layers over the same use cases, never a requirement: an
-admin can always add, remove or move a player between teams from `/manage`, with no
-player visiting `/signup` and no Telegram bot configured.
+`pyball` always serves `/manage` and `/match`; `/signup` is opt-in via
+`enable_web_signup` in `config.toml`. Every integration, Telegram included, is a plugin.
+Every feature is reachable from `/manage` and `/match` alone. Telegram and `/signup` are
+convenience layers over the same use cases, never a requirement: an admin can always add,
+remove or move a player between teams from `/manage`, with no player visiting `/signup`
+and no plugin running.
 
 ## Plugins
 
 A plugin is a separate program, in any language, declared under `[pyball.plugins.<name>]`.
-Both topologies host plugins the same way:
+PyBall hosts them like this:
 
 - `PluginSupervisor` runs each one as a child process, restarts it with backoff when it
   exits, and stops it on shutdown.
@@ -84,9 +76,7 @@ Both topologies host plugins the same way:
   its own OpenAPI schema. Its routes return the models in `plugins/schemas.py`, separate
   from the presenters `/manage` uses, so each can change on its own.
 - `EventLogNotifier` writes every `MatchNotifier` event to `data/events.jsonl`, and
-  `GET /api/v1/events` serves that log as server-sent events. `pyball-telegram` puts it in
-  front of the Telegram notifier through `CompositeMatchNotifier`, so a Telegram failure
-  never loses an event.
+  `GET /api/v1/events` serves that log as server-sent events.
 
 `plugins/schemas.py` and the `/api/v1` routes are the plugin contract, committed as
 `plugins/openapi.json`. A change to either runs `make openapi` to regenerate that file

@@ -11,7 +11,7 @@ architecture; the rest of `docs/` and `README.md` are the user documentation.
 ## Commands
 
 ```bash
-uv sync --extra telegram                         # install, Telegram support included
+uv sync                                          # install, dev tools included
 make t                                           # tests, with coverage
 make l                                           # lint (black, isort, pydocstyle, mypy, ...)
 make f                                           # format
@@ -32,8 +32,8 @@ conventions: the release automation tags `main` from the commit types.
 
 - `domain/` depends on no other layer.
 - `application/` holds one use case per file, injected with repository interfaces.
-- Each `cmd/run_*.py` is the Composition Root of its topology: integration wiring lives
-  there, never in `domain/` or `application/`.
+- `cmd/run_pyball.py` is the Composition Root: wiring lives there, never in `domain/` or
+  `application/`. Integrations are plugins on `/api/v1`.
 - Every feature is reachable from `/manage` and `/match` alone. Telegram and `/signup` are
   convenience layers over the same use cases, so a feature works with no Telegram bot
   configured and no player visiting `/signup`.
@@ -71,5 +71,5 @@ Skills live in `.agents/skills/`. Read the skill before the change it covers:
 - **Config keys** — adding, renaming or removing a `config.toml` key changes the settings
   class, the `init_workspace.py` template and the `docs/setup.md` tables together:
   [add-config-key](.agents/skills/add-config-key/SKILL.md).
-- **Topologies** — a new runnable integration beside `pyball` and `pyball-telegram`:
-  [add-topology](.agents/skills/add-topology/SKILL.md).
+- **Plugins** — a new bundled plugin, or a new integration (WhatsApp, Slack, ...), follows
+  [Bundled plugins](docs/development.md#bundled-plugins).

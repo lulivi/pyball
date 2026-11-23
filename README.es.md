@@ -13,8 +13,6 @@ La mayoría de gente solo quiere ejecutar la app. Lo único que necesitas es Doc
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# o, para Telegram:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 
 # edita config.toml con tus valores y luego:
 docker compose up -d
@@ -22,9 +20,9 @@ docker compose up -d
 
 `--bootstrap` genera `config.toml`, `compose.yaml`, `.env` y los directorios
 `data/`, `logs/` y `plugins/` en la carpeta actual — consulta
-**[docs/setup.es.md](docs/setup.es.md)** para la guía completa: elegir topología,
-configurar `config.toml`, para qué sirven `/manage` y `/match`, los tokens de acceso y los
-plugins.
+**[docs/setup.es.md](docs/setup.es.md)** para la guía completa: configurar
+`config.toml`, para qué sirven `/manage` y `/match`, los tokens de acceso y los plugins,
+entre ellos el bot de Telegram.
 
 - **[docs/setup.es.md](docs/setup.es.md)** — instalar, configurar y ejecutar PyBall.
 - **[docs/workflow.es.md](docs/workflow.es.md)** — cómo va un partido desde que se crea

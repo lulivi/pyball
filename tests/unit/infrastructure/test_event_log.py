@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from pyball.application.notifier import CompositeMatchNotifier, MatchNotifier
 from pyball.domain.meetup.models import Meetup
 from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.plugins.event_log import EventLog, EventLogNotifier
@@ -106,20 +105,6 @@ async def test_search_state_survives_a_restart(tmp_path):
     await EventLogNotifier(log).on_meetup_updated(meetup)
 
     assert _types(log)[-1] == "substitute_search.closed"
-
-
-@pytest.mark.asyncio
-async def test_composite_keeps_going_when_a_notifier_fails():
-    """A failing notifier is logged and the next one still runs."""
-    failing = MagicMock(spec=MatchNotifier)
-    failing.on_meetup_updated = AsyncMock(side_effect=RuntimeError("telegram down"))
-    other = MagicMock(spec=MatchNotifier)
-    other.on_meetup_updated = AsyncMock()
-    meetup = Meetup.create(DATE, "Campo")
-
-    await CompositeMatchNotifier([failing, other]).on_meetup_updated(meetup)
-
-    other.on_meetup_updated.assert_awaited_once_with(meetup)
 
 
 def test_a_line_torn_by_a_crash_is_dropped(tmp_path):

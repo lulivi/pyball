@@ -93,8 +93,8 @@ theme_color = "#0f172a"
 icons_dir = ""
 
 [pyball.alerts.telegram]
-# Core warnings and errors, plugin crashes included, in every topology; no plugin needed.
-# chat_id = 0 disables alerts. The bot token may be the one the Telegram bot uses.
+# Core warnings and errors, plugin crashes included; no plugin needed.
+# chat_id = 0 disables alerts. The bot token may be the one the telegram plugin uses.
 # Point the deploy notification secrets (DEPLOY_NOTIFY_*) at this chat too.
 # Override with PYBALL_ALERTS_TELEGRAM_BOT_TOKEN
 bot_token = ""
@@ -105,64 +105,18 @@ chat_id = 0
 message_thread_id = ""
 
 # Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
-# A plugin is a long-running program, bundled (siesta, activity) or yours in plugins/; one that
-# exits is started again. Bundled ones: docs/plugins/README.md
+# A plugin is a long-running program, bundled (siesta, activity, telegram) or yours in plugins/;
+# one that exits is started again. Bundled ones: docs/plugins/README.md
 # Scopes: players:read  players:write  meetups:read  meetups:write
 # [pyball.plugins.example]
 # command = ["./plugins/example-plugin", "--verbose"]
 # scopes = ["players:read", "meetups:read", "meetups:write"]
 """
 
-_TG_CONFIG_EXTRA = """
-[pyball.telegram]
-# Override with PYBALL_TELEGRAM_BOT_TOKEN
-bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-
-# Override with PYBALL_TELEGRAM_ADMINS_IDS (comma-separated)
-admins_ids = [123456789, 987654321]
-
-[pyball.telegram.regulars.meetups]
-# Meetup callup + corrected-result messages.
-# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_CHAT_ID (negative for groups)
-chat_id = -1000000000000
-# Forum topic thread (empty string = no topic)
-# Override with PYBALL_TELEGRAM_REGULARS_MEETUPS_MESSAGE_THREAD_ID
-message_thread_id = ""
-
-[pyball.telegram.regulars.stats]
-# Post-match statistics image + /meetup_stats. Set chat_id = 0 to disable stats posting.
-# Override with PYBALL_TELEGRAM_REGULARS_STATS_CHAT_ID (negative for groups)
-chat_id = -1000000000000
-# Override with PYBALL_TELEGRAM_REGULARS_STATS_MESSAGE_THREAD_ID
-message_thread_id = ""
-
-[pyball.telegram.substitutes.meetups]
-# Substitutes callup message.
-# Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID (negative for groups)
-chat_id = -1000000000001
-# Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_MESSAGE_THREAD_ID
-message_thread_id = ""
-"""
-
 _PYBALL_COMPOSE = """\
 services:
   pyball:
     image: lulivi/pyball:${TAG:-latest}
-    user: "${UID}:${GID}"
-    ports:
-      - "127.0.0.1:${PORT}:8000"
-    volumes:
-      - "./config.toml:/pyball/config.toml"
-      - "./logs:/pyball/logs"
-      - "./data:/pyball/data"
-      - "./plugins:/pyball/plugins"
-    restart: unless-stopped
-"""
-
-_TG_COMPOSE = """\
-services:
-  bot:
-    image: lulivi/pyball-telegram:${TAG:-latest}
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"
@@ -182,7 +136,8 @@ _PYBALL_README = f"""\
 PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
 managing players, and recording results — including an optional self-service /signup
 page where players join or leave a meetup with their own personal code (enable it with
-`enable_web_signup = true` in config.toml).
+`enable_web_signup = true` in config.toml), and an optional Telegram bot, the bundled
+`telegram` plugin.
 
 ## Quick Start
 
@@ -209,47 +164,11 @@ docker compose up -d
 Pin a specific version in `.env`: `TAG=4.13.0`
 """
 
-_TG_README = f"""\
-# PyBall
 
-PyBall is a self-hosted football meetup manager with a Telegram bot and web UI for
-tracking matches, managing players, and recording results.
-
-## Quick Start
-
-```bash
-docker compose up -d
-```
-
-Edit `config.toml` first — see the full setup guide for configuration (including the
-Telegram-specific settings), access tokens, and how to use `/manage` and `/match`:
-
-- [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
-- [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \
-[Flujo de la aplicación]({_DOCS_BASE_URL}/workflow.es.md)
-- [Data Directory]({_DOCS_BASE_URL}/data-directory.md) / \
-[Directorio de datos]({_DOCS_BASE_URL}/data-directory.es.md)
-
-## Updating
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Pin a specific version in `.env`: `TAG=4.13.0`
-"""
-
-
-_TOPOLOGY_LABELS = {"pyball": "pyball", "tg": "pyball-telegram"}
-
-
-def init_workspace(topology: str, config_path: Path) -> None:
+def init_workspace(config_path: Path) -> None:
     """Generate a deployment workspace and exit without starting the app.
 
     Args:
-        topology: "pyball" or "tg" — controls which config/compose/README
-            template is used.
         config_path: Path where config.toml will be written; all other files go in
             the same directory.
     """
@@ -270,16 +189,16 @@ def init_workspace(topology: str, config_path: Path) -> None:
             print(f"Error: {msg}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Bootstrapping {_TOPOLOGY_LABELS.get(topology, topology)} workspace in {workspace} ...")
+    print(f"Bootstrapping pyball workspace in {workspace} ...")
 
     for rel in ("data", "data/meetups", "logs", "plugins"):
         (workspace / rel).mkdir(parents=True, exist_ok=True)
         print(f"  Created  {rel}/")
 
-    config_path.write_text(_config_template(topology), encoding="utf-8")
+    config_path.write_text(_CORE_CONFIG, encoding="utf-8")
     print("  Written  config.toml")
 
-    compose_path.write_text(_compose_template(topology), encoding="utf-8")
+    compose_path.write_text(_PYBALL_COMPOSE, encoding="utf-8")
     print("  Written  compose.yaml")
 
     env_path.write_text(_env_template(), encoding="utf-8")
@@ -288,7 +207,7 @@ def init_workspace(topology: str, config_path: Path) -> None:
     if readme_path.exists():
         print("  Skipped  README.md (already exists)")
     else:
-        readme_path.write_text(_readme_template(topology), encoding="utf-8")
+        readme_path.write_text(_PYBALL_README, encoding="utf-8")
         print("  Written  README.md")
 
     print()
@@ -298,27 +217,6 @@ def init_workspace(topology: str, config_path: Path) -> None:
     print("  3. docker compose up -d")
 
 
-def _config_template(topology: str) -> str:
-    """Return the config.toml content for the given topology."""
-    if topology == "tg":
-        return _CORE_CONFIG + _TG_CONFIG_EXTRA
-    return _CORE_CONFIG
-
-
-def _compose_template(topology: str) -> str:
-    """Return the compose.yaml content for the given topology."""
-    if topology == "tg":
-        return _TG_COMPOSE
-    return _PYBALL_COMPOSE
-
-
 def _env_template() -> str:
     """Return the .env content with auto-detected UID and GID."""
     return f"UID={os.getuid()}\n" f"GID={os.getgid()}\n" "PORT=8000\n" "TAG=latest\n"
-
-
-def _readme_template(topology: str) -> str:
-    """Return the README.md content for the given topology."""
-    if topology == "tg":
-        return _TG_README
-    return _PYBALL_README

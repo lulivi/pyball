@@ -35,7 +35,7 @@ nox.options.error_on_missing_interpreters = False
 @nox.session
 def lint(session: nox.Session):
     """Lint the code."""
-    session.run("uv", "sync", "--group", "dev", "--extra", "telegram", external=True)
+    session.run("uv", "sync", "--group", "dev", external=True)
 
     targets = (
         str(ROOT_DIRECTORY.joinpath("pyball")),
@@ -68,7 +68,7 @@ def lint(session: nox.Session):
 @nox.session(python=["3.12"])
 def test(session: nox.Session):
     """Test the code."""
-    session.run("uv", "sync", "--group", "dev", "--extra", "telegram", external=True)
+    session.run("uv", "sync", "--group", "dev", external=True)
 
     target_dir = ROOT_DIRECTORY.joinpath("tests")
     cov_dir = ROOT_DIRECTORY.joinpath("pyball")
