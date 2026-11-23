@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v9.0.1 (2026-11-23)
+
+### Bug Fixes
+
+- **images**: Import pymupdf instead of the deprecated fitz
+  ([#31](https://github.com/lulivi/pyball/pull/31),
+  [`1148fa3`](https://github.com/lulivi/pyball/commit/1148fa38553e4e09d3719703e53570d2d4c8bf5a))
+
+
 ## v9.0.0 (2026-11-23)
 
 ### Chores
