@@ -29,7 +29,6 @@ use crate::api::{Api, Event, Meetup, Player};
 use crate::config::Config;
 use crate::message::{DrawSummary, MeetupView, SiestaRow};
 use crate::state::{Draw, State};
-use crate::telegram::Telegram;
 
 #[derive(Parser)]
 #[command(
@@ -202,22 +201,14 @@ impl Ctx {
     /// updated, and failing would restart the plugin into the same failure.
     fn announce(&self, html: &str) -> Result<()> {
         match &self.cfg.telegram {
-            Some(tg) => {
-                let sent = Telegram {
-                    bot_token: tg.bot_token.clone(),
-                    chat_id: tg.chat_id.clone(),
-                    thread_id: tg.thread_id,
-                }
-                .send_html(html);
-                match sent {
-                    Ok(()) => println!("Posted to Telegram."),
-                    Err(err) => eprintln!(
-                        "error: PyBall and the list are updated, but posting to Telegram \
+            Some(tg) => match tg.send_html(html) {
+                Ok(()) => println!("Posted to Telegram."),
+                Err(err) => eprintln!(
+                    "error: PyBall and the list are updated, but posting to Telegram \
                          failed: {err:#}\n{}",
-                        message::to_plain(html)
-                    ),
-                }
-            }
+                    message::to_plain(html)
+                ),
+            },
             None => println!(
                 "(no Telegram chat configured; message not sent)\n{}",
                 message::to_plain(html)

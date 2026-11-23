@@ -8,6 +8,8 @@ use chrono::{NaiveTime, Weekday};
 use chrono_tz::Tz;
 use pyball_client::plugin;
 
+use crate::telegram::Telegram;
+
 /// The plugin's table and its folder under `data/plugins/`.
 const NAME: &str = "siesta";
 
@@ -21,7 +23,7 @@ pub struct Config {
     pub schedule: Schedule,
     pub state_file: PathBuf,
     pub event_id_file: PathBuf,
-    pub telegram: Option<TelegramTarget>,
+    pub telegram: Option<Telegram>,
 }
 
 /// When the weekly draw runs.
@@ -30,14 +32,6 @@ pub struct Schedule {
     pub weekday: Weekday,
     pub time: NaiveTime,
     pub timezone: Tz,
-}
-
-#[derive(Debug)]
-pub struct TelegramTarget {
-    pub bot_token: String,
-    pub chat_id: String,
-    /// `None` = the group's main ("General") chat.
-    pub thread_id: Option<i64>,
 }
 
 impl Config {
@@ -82,25 +76,6 @@ impl Config {
             None => chrono_tz::Europe::Madrid,
         };
 
-        let bot_token = string(t, "telegram_bot_token")?;
-        let chat_id = string(t, "telegram_chat_id")?.filter(|c| c != "0");
-        let thread_id = match string(t, "telegram_message_thread_id")? {
-            Some(n) => Some(
-                n.parse::<i64>()
-                    .context("plugins.siesta.telegram_message_thread_id must be a number")?,
-            )
-            .filter(|n| *n != 0),
-            None => None,
-        };
-        let telegram = match (bot_token, chat_id) {
-            (Some(bot_token), Some(chat_id)) => Some(TelegramTarget {
-                bot_token,
-                chat_id,
-                thread_id,
-            }),
-            _ => None,
-        };
-
         Ok(Self {
             api_url: plugin::api_url(api_url),
             api_token,
@@ -112,7 +87,7 @@ impl Config {
             },
             state_file: plugin::data_dir(NAME).join("state.json"),
             event_id_file: plugin::data_dir(NAME).join("last_event_id"),
-            telegram,
+            telegram: Telegram::from_table(t, NAME)?,
         })
     }
 }
@@ -149,9 +124,11 @@ weekday = "tuesday"
 time = "09:30"
 timezone = "America/Lima"
 team_algorithm = "random"
-telegram_bot_token = "123:abc"
-telegram_chat_id = -1001234
-telegram_message_thread_id = 0
+
+[telegram]
+bot_token = "123:abc"
+chat_id = -1001234
+message_thread_id = 0
 "#,
         )
         .unwrap();
