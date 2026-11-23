@@ -128,6 +128,13 @@ Cada plugin define sus propios tipos, solo con los campos que lee. `clients/pyba
 tiene los mismos objetivos `check` y `build` y la misma versión de Rust, y la etapa de
 `docker/Dockerfile` de cada plugin que lo usa también lo copia.
 
+Un plugin en Python habla con PyBall a través de `clients/pyball-client-py`, una
+dependencia por ruta de uv con las mismas piezas: un `Api` asíncrono sobre httpx y su flujo
+de eventos, los `Endpoint` por los que pasa cada llamada, `contract.check_endpoints` contra
+`plugins/openapi.json`, y las utilidades de `pyball_client.plugin`. Cada plugin define sus
+propios modelos de pydantic, solo con los campos que lee. Su objetivo `check` ejecuta
+black, isort, mypy, pylint y pytest.
+
 ## Formatos de partido
 
 Un partido tiene 2 o 3 equipos. Con 2 equipos es un único partido clásico, que se cierra

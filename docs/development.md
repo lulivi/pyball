@@ -122,6 +122,12 @@ own types, with only the fields it reads. `clients/pyball-client-rs` has the sam
 `build` targets and the same toolchain, and the Dockerfile stage of each plugin that uses
 it copies it too.
 
+A Python plugin talks to PyBall through `clients/pyball-client-py`, a uv path dependency
+with the same pieces: an async `Api` on httpx and its event stream, the `Endpoint` values
+every call goes through, `contract.check_endpoints` against `plugins/openapi.json`, and
+the helpers in `pyball_client.plugin`. Each plugin keeps its own pydantic models, with
+only the fields it reads. Its `check` target runs black, isort, mypy, pylint and pytest.
+
 ## Match formats
 
 A meetup holds 2 or 3 teams. With 2 teams it is a single classic match, which closes the
