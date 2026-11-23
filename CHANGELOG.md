@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v8.0.0 (2026-11-23)
+
+### Documentation
+
+- **activity**: Say date_format writes names in English, and list crates/ in AGENTS.md
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+### Features
+
+- Post the activity feed from a bundled plugin and share the Rust plugin client
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+- **activity**: Post the activity feed from a bundled plugin
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+- **activity**: Read the Telegram chat from a [pyball.plugins.activity.telegram] table
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+- **siesta**: Read the Telegram chat from a [pyball.plugins.siesta.telegram] table
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+- **telegram**: Remove the activity feed from the Telegram notifier
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+### Refactoring
+
+- **siesta**: Move the plugin API client to a shared pyball-client crate
+  ([#28](https://github.com/lulivi/pyball/pull/28),
+  [`5b880e8`](https://github.com/lulivi/pyball/commit/5b880e8daf0d713ad70733adb7259021a80c2163))
+
+
 ## v7.3.0 (2026-11-22)
 
 ### Documentation
