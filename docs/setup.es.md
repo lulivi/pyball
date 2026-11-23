@@ -105,15 +105,13 @@ para saber por qué.
 | `telegram.regulars.stats.message_thread_id` | Hilo de foro para las estadísticas (vacío = ninguno) | No |
 | `telegram.substitutes.meetups.chat_id` | Chat para el mensaje de suplentes (negativo para grupos) | **Sí** |
 | `telegram.substitutes.meetups.message_thread_id` | Hilo de foro para el mensaje de suplentes (vacío = ninguno) | No |
-| `telegram.management.activity.chat_id` | Chat del feed de actividad de la convocatoria — altas, bajas, creada/cerrada/cancelada (`0` / omitir para desactivar) | No |
-| `telegram.management.activity.message_thread_id` | Hilo de foro para el feed de actividad (vacío = ninguno) | No |
 
 Para encontrar un ID de chat: añade el bot al grupo, envía cualquier mensaje, y luego
 consulta `https://api.telegram.org/bot<TOKEN>/getUpdates` buscando el campo `chat.id`.
 
 Cada uno puede apuntar al mismo grupo/hilo o a uno distinto. Los overrides por
 variable de entorno siguen `PYBALL_<RUTA>_<CLAVE>`, p. ej.
-`PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID`.
+`PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID`.
 
 `deploy/deploy.sh` envía sus propias notificaciones de despliegue con el token del
 bot, el chat y el tema del foro de los secretos de GitHub `DEPLOY_NOTIFY_TOKEN`,
@@ -223,7 +221,8 @@ Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.
 
 Un plugin es un programa opcional y de larga duración que amplía PyBall sin tocar su
 código. Algunos vienen incluidos en las imágenes de PyBall, como
-[siesta](plugins/siesta/README.es.md), el sorteo justo de quién descansa; también puedes
+[siesta](plugins/siesta/README.es.md), el sorteo justo de quién descansa, y
+[activity](plugins/activity/README.es.md), la actividad de las convocatorias; también puedes
 añadir los tuyos en la carpeta `plugins/` del espacio de trabajo. Los dos tipos solo se
 ejecutan cuando los declaras en
 [`[pyball.plugins.<nombre>]`](#pyballpluginsnombre--plugins-opcionales).

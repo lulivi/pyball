@@ -105,7 +105,7 @@ chat_id = 0
 message_thread_id = ""
 
 # Plugins the core starts, supervises and stops (one table per plugin, no env overrides).
-# A plugin is a long-running program, bundled (siesta) or yours in plugins/; one that
+# A plugin is a long-running program, bundled (siesta, activity) or yours in plugins/; one that
 # exits is started again. Bundled ones: docs/plugins/README.md
 # Scopes: players:read  players:write  meetups:read  meetups:write
 # [pyball.plugins.example]
@@ -141,13 +141,6 @@ message_thread_id = ""
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID (negative for groups)
 chat_id = -1000000000001
 # Override with PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_MESSAGE_THREAD_ID
-message_thread_id = ""
-
-[pyball.telegram.management.activity]
-# Meetup activity feed — joins, leaves, created/closed/cancelled. chat_id = 0 disables it.
-# Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID
-chat_id = 0
-# Override with PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_MESSAGE_THREAD_ID
 message_thread_id = ""
 """
 

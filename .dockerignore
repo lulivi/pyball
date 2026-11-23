@@ -8,4 +8,5 @@ __pycache__
 config.toml
 test_data
 docs
+crates/*/target
 plugins/*/target

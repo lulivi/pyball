@@ -117,9 +117,10 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: |
+            crates/*/target
             plugins/*/target
             /usr/local/cargo/registry
-          key: plugins-${{ hashFiles('plugins/*/Cargo.lock', 'plugins/*/rust-toolchain.toml') }}
+          key: plugins-${{ hashFiles('crates/*/Cargo.lock', 'crates/*/rust-toolchain.toml', 'plugins/*/Cargo.lock', 'plugins/*/rust-toolchain.toml') }}
       - run: make plugins-check
 
   actionlint:

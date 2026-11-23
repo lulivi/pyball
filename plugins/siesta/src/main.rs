@@ -22,11 +22,13 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 
-use crate::api::{Api, Event, Frame, Meetup, Player};
+use pyball_client::Frame;
+use pyball_client::plugin::{load_event_id, save_event_id};
+
+use crate::api::{Api, Event, Meetup, Player};
 use crate::config::Config;
 use crate::message::{DrawSummary, MeetupView, SiestaRow};
 use crate::state::{Draw, State};
-use crate::telegram::Telegram;
 
 #[derive(Parser)]
 #[command(
@@ -199,22 +201,14 @@ impl Ctx {
     /// updated, and failing would restart the plugin into the same failure.
     fn announce(&self, html: &str) -> Result<()> {
         match &self.cfg.telegram {
-            Some(tg) => {
-                let sent = Telegram {
-                    bot_token: tg.bot_token.clone(),
-                    chat_id: tg.chat_id.clone(),
-                    thread_id: tg.thread_id,
-                }
-                .send_html(html);
-                match sent {
-                    Ok(()) => println!("Posted to Telegram."),
-                    Err(err) => eprintln!(
-                        "error: PyBall and the list are updated, but posting to Telegram \
+            Some(tg) => match tg.send_html(html) {
+                Ok(()) => println!("Posted to Telegram."),
+                Err(err) => eprintln!(
+                    "error: PyBall and the list are updated, but posting to Telegram \
                          failed: {err:#}\n{}",
-                        message::to_plain(html)
-                    ),
-                }
-            }
+                    message::to_plain(html)
+                ),
+            },
             None => println!(
                 "(no Telegram chat configured; message not sent)\n{}",
                 message::to_plain(html)
@@ -238,9 +232,7 @@ fn cmd_run(ctx: &mut Ctx) -> Result<()> {
     );
     loop {
         check_schedule(ctx)?;
-        let mut stream = ctx
-            .api
-            .events(state::load_event_id(&ctx.cfg.event_id_file)?)?;
+        let mut stream = ctx.api.events(load_event_id(&ctx.cfg.event_id_file)?)?;
         while let Some(frame) = stream.next_frame()? {
             check_schedule(ctx)?;
             if let Frame::Event(event) = frame {
@@ -293,7 +285,7 @@ fn on_event(ctx: &mut Ctx, event: Event) -> Result<()> {
             draw(ctx, active, false)?;
         }
     }
-    state::save_event_id(&ctx.cfg.event_id_file, event.id)
+    save_event_id(&ctx.cfg.event_id_file, event.id)
 }
 
 /// Draw on `meetup`: at most once per meetup, so running it again changes nothing.

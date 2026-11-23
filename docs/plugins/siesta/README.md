@@ -44,8 +44,10 @@ Add its table to `config.toml` and restart PyBall:
 [pyball.plugins.siesta]
 command = ["siesta", "run"]
 scopes = ["players:read", "meetups:read", "meetups:write"]
-telegram_bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-telegram_chat_id = -1001234567890
+
+[pyball.plugins.siesta.telegram]
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+chat_id = -1001234567890
 ```
 
 | Key | Description | Default |
@@ -55,11 +57,11 @@ telegram_chat_id = -1001234567890
 | `time` | Time of the draw, `HH:MM` | `10:00` |
 | `timezone` | Time zone of `weekday` and `time`, an IANA name | `Europe/Madrid` |
 | `team_algorithm` | How teams are made: `balanceado` or `random` | `balanceado` |
-| `telegram_bot_token` | Bot that posts the draw; it may be the same bot as PyBall's | none |
-| `telegram_chat_id` | Chat for the draw (negative for groups) | none |
-| `telegram_message_thread_id` | Forum topic for the draw (`0` or empty = the main chat) | none |
+| `telegram.bot_token` | Bot that posts the draw; it may be the same bot as PyBall's | none; required with a `chat_id` |
+| `telegram.chat_id` | Chat for the draw (negative for groups; `0` = none) | none |
+| `telegram.message_thread_id` | Forum topic for the draw (`0` or empty = the main chat) | none |
 
-Without `telegram_bot_token` and `telegram_chat_id`, the message goes to PyBall's log
+Without a `telegram.chat_id`, the message goes to PyBall's log
 instead. These keys have no env overrides.
 
 ## Commands

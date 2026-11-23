@@ -47,8 +47,10 @@ Añade su tabla a `config.toml` y reinicia PyBall:
 [pyball.plugins.siesta]
 command = ["siesta", "run"]
 scopes = ["players:read", "meetups:read", "meetups:write"]
-telegram_bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-telegram_chat_id = -1001234567890
+
+[pyball.plugins.siesta.telegram]
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+chat_id = -1001234567890
 ```
 
 | Clave | Descripción | Por defecto |
@@ -58,11 +60,11 @@ telegram_chat_id = -1001234567890
 | `time` | Hora del sorteo, `HH:MM` | `10:00` |
 | `timezone` | Zona horaria de `weekday` y `time`, un nombre IANA | `Europe/Madrid` |
 | `team_algorithm` | Cómo se hacen los equipos: `balanceado` o `random` | `balanceado` |
-| `telegram_bot_token` | Bot que publica el sorteo; puede ser el mismo bot que el de PyBall | ninguno |
-| `telegram_chat_id` | Chat del sorteo (negativo para grupos) | ninguno |
-| `telegram_message_thread_id` | Tema del foro para el sorteo (`0` o vacío = el chat principal) | ninguno |
+| `telegram.bot_token` | Bot que publica el sorteo; puede ser el mismo bot que el de PyBall | ninguno; obligatorio con un `chat_id` |
+| `telegram.chat_id` | Chat del sorteo (negativo para grupos; `0` = ninguno) | ninguno |
+| `telegram.message_thread_id` | Tema del foro para el sorteo (`0` o vacío = el chat principal) | ninguno |
 
-Sin `telegram_bot_token` y `telegram_chat_id`, el mensaje va al log de PyBall. Estas
+Sin `telegram.chat_id`, el mensaje va al log de PyBall. Estas
 claves no admiten variables de entorno.
 
 ## Comandos

@@ -81,8 +81,9 @@ both while you're still assembling the roster and after teams have been generate
 - **Joining/leaving:** while signup is still open (before teams are generated — see
   [step 3](#3-generate-teams)), an "Apuntarme" / "Salir" button lets the player add or
   remove themselves from the roster, exactly as if an admin had done it from `/manage`.
-  The join or leave is recorded in the event stream for plugins, and counts toward the
-  substitute search.
+  The join or leave is recorded in the event stream for plugins, posted to the club's
+  chat by the [activity](plugins/activity/README.md) plugin if it is enabled, and counts
+  toward the substitute search.
 - **Once teams exist:** the join/leave button disappears; the player instead sees all
   teams, read-only, the same view `/manage` and `/match` show everyone else — with their
   own name highlighted so they can find themselves at a glance.

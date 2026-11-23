@@ -662,6 +662,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pyball-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "toml",
+ "ureq",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -814,6 +825,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "clap",
+ "pyball-client",
  "rand",
  "serde",
  "serde_json",

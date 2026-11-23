@@ -97,7 +97,6 @@ class TestInitWorkspaceTg:
             "[pyball.telegram.regulars.meetups]",
             "[pyball.telegram.regulars.stats]",
             "[pyball.telegram.substitutes.meetups]",
-            "[pyball.telegram.management.activity]",
         ):
             assert section in content
         assert "message_thread_id" in content
@@ -118,6 +117,7 @@ class TestInitWorkspaceTg:
         assert "meetups_thread_id" not in content
         assert "stats_thread_id" not in content
         assert "[pyball.telegram.activity]" not in content
+        assert "management.activity" not in content
 
     def test_substitutes_meetups_has_message_thread_id_line(self, tmp_path):
         """The substitutes.meetups section ships a message_thread_id placeholder line."""

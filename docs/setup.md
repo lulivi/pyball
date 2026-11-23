@@ -101,15 +101,13 @@ These are ignored by `pyball` — see
 | `telegram.regulars.stats.message_thread_id` | Forum topic for stats (empty = none) | No |
 | `telegram.substitutes.meetups.chat_id` | Chat for the substitutes callup message (negative for groups) | **Yes** |
 | `telegram.substitutes.meetups.message_thread_id` | Forum topic for the substitutes message (empty = none) | No |
-| `telegram.management.activity.chat_id` | Meetup activity feed chat — joins, leaves, created/closed/cancelled (`0` / omit to disable) | No |
-| `telegram.management.activity.message_thread_id` | Forum topic for the activity feed (empty = none) | No |
 
 To find a chat ID: add the bot to the group, send any message, then check
 `https://api.telegram.org/bot<TOKEN>/getUpdates` for the `chat.id` field.
 
 Each of these can point at the same or a different group/topic. Env overrides
 follow `PYBALL_<PATH>_<KEY>`, e.g.
-`PYBALL_TELEGRAM_MANAGEMENT_ACTIVITY_CHAT_ID`.
+`PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID`.
 
 `deploy/deploy.sh` sends its own deploy notifications with the bot token, chat and
 forum topic in the `DEPLOY_NOTIFY_TOKEN`, `DEPLOY_NOTIFY_CHAT_ID` and
@@ -217,7 +215,8 @@ Pin a specific version instead of always tracking `latest` by setting `TAG=4.13.
 
 A plugin is an optional, long-running program that extends PyBall without touching its
 code. Some come bundled in the PyBall images, such as
-[siesta](plugins/siesta/README.md), the fair sit-out draw; you can also add your own to
+[siesta](plugins/siesta/README.md), the fair sit-out draw, and
+[activity](plugins/activity/README.md), the activity feed; you can also add your own to
 the workspace's `plugins/` folder. Either kind runs only once you declare it under
 [`[pyball.plugins.<name>]`](#pyballpluginsname--optional-plugins).
 
