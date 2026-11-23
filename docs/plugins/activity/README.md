@@ -46,7 +46,7 @@ telegram_chat_id = -1001234567890
 | `telegram_bot_token` | Bot that posts the feed; it may be the same bot as PyBall's | none |
 | `telegram_chat_id` | Chat for the feed (negative for groups) | none |
 | `telegram_message_thread_id` | Forum topic for the feed (`0` or empty = the main chat) | none |
-| `date_format` | How the meetup date is written, as `display_date_format` | `%Y-%m-%d %H:%M` |
+| `date_format` | How the meetup date is written, with `display_date_format`'s `%` codes; day and month names (`%A`, `%B`, ...) come out in English | `%Y-%m-%d %H:%M` |
 
 Without `telegram_bot_token` and `telegram_chat_id`, the feed goes to PyBall's log
 instead. These keys have no env overrides.
