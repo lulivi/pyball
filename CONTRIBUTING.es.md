@@ -12,21 +12,18 @@ Necesitas:
 
 - Python >= 3.11
 - [uv](https://docs.astral.sh/uv/) para gestión de dependencias
-- [rustup](https://rustup.rs/), solo para trabajar en los plugins incluidos en `plugins/`
+- [rustup](https://rustup.rs/), solo para trabajar en los plugins de Rust de `plugins/`
 
 ```bash
-uv sync --all-extras            # instala todo: Telegram y herramientas de desarrollo
+uv sync                         # instala PyBall y sus herramientas de desarrollo
 ```
 
 ## Ejecutar desde el código fuente
 
 ```bash
 uv run pyball --bootstrap       # solo la primera vez, genera config.toml
-uv run pyball                   # /manage + /match, sin Telegram; añade /signup con
-                                # enable_web_signup = true en config.toml
-
-uv run pyball-telegram --bootstrap
-uv run pyball-telegram          # /manage + /match + bot de Telegram
+uv run pyball                   # /manage + /match y los plugins declarados; añade
+                                # /signup con enable_web_signup = true en config.toml
 
 make up                         # construye la imagen y la ejecuta con Docker Compose
 ```

@@ -38,8 +38,8 @@ FROM rust:1.97-alpine AS siesta
 RUN apk add --no-cache musl-dev
 
 WORKDIR /src
-COPY crates/pyball-client/Cargo.toml crates/pyball-client/
-COPY crates/pyball-client/src crates/pyball-client/src
+COPY clients/pyball-client-rs/Cargo.toml clients/pyball-client-rs/
+COPY clients/pyball-client-rs/src clients/pyball-client-rs/src
 COPY plugins/siesta/Cargo.toml plugins/siesta/Cargo.lock plugins/siesta/
 COPY plugins/siesta/src plugins/siesta/src
 RUN cd plugins/siesta && cargo build --release --locked
@@ -52,11 +52,24 @@ FROM rust:1.97-alpine AS activity
 RUN apk add --no-cache musl-dev
 
 WORKDIR /src
-COPY crates/pyball-client/Cargo.toml crates/pyball-client/
-COPY crates/pyball-client/src crates/pyball-client/src
+COPY clients/pyball-client-rs/Cargo.toml clients/pyball-client-rs/
+COPY clients/pyball-client-rs/src clients/pyball-client-rs/src
 COPY plugins/activity/Cargo.toml plugins/activity/Cargo.lock plugins/activity/
 COPY plugins/activity/src plugins/activity/src
 RUN cd plugins/activity && cargo build --release --locked
+
+# --- telegram: the bundled telegram plugin, in its own venv ---
+# Same Python as base, so the venv runs there unchanged.
+FROM python:3.12.13-slim-trixie AS telegram
+
+RUN pip install uv --no-cache-dir
+
+WORKDIR /src
+COPY clients/pyball-client-py clients/pyball-client-py
+COPY plugins/telegram plugins/telegram
+RUN cd plugins/telegram \
+    && UV_PROJECT_ENVIRONMENT=/opt/telegram uv sync --locked --no-dev --no-editable
+
 
 # --- base: shared system deps, locale, venv, unprivileged user ---
 FROM python:3.12.13-slim-trixie AS base
@@ -87,26 +100,14 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # Bundled plugins go outside /pyball/plugins, which the workspace mounts over.
 COPY --from=siesta /src/plugins/siesta/target/release/siesta /usr/local/bin/siesta
 COPY --from=activity /src/plugins/activity/target/release/activity /usr/local/bin/activity
+COPY --from=telegram /opt/telegram /opt/telegram
+RUN ln -s /opt/telegram/bin/telegram /usr/local/bin/telegram
 
 WORKDIR /builder
 COPY --from=builder /dist/*.whl .
 
 
-# --- telegram: Telegram + FastAPI topology ---
-FROM base AS telegram
-
-RUN WHEEL=$(ls /builder/*.whl) && \
-    $VIRTUAL_ENV/bin/pip install --no-cache "${WHEEL}[telegram]" \
-    && rm -rf /builder
-
-WORKDIR /pyball
-RUN chown -R pyballuser:pyballgroup /pyball
-
-USER pyballuser
-ENTRYPOINT ["pyball-telegram"]
-
-
-# --- pyball: FastAPI topology, /signup opt-in via config (no Telegram) ---
+# --- pyball: the PyBall image, its bundled plugins included ---
 FROM base AS pyball
 
 RUN $VIRTUAL_ENV/bin/pip install --no-cache /builder/*.whl \

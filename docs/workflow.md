@@ -5,9 +5,9 @@
 This document walks through the full life of a meetup in PyBall: creating it, building
 teams, playing, and closing it out — covering both match formats PyBall supports. Every
 step can be done from the `/manage` and `/match` web pages; where a Telegram bot command
-exists too (only if you're running the `pyball-telegram` topology), it's noted alongside,
-and where players can act on their own from `/signup` (only if `enable_web_signup` is
-set in `config.toml`), that's noted too.
+exists too (only with the [telegram](plugins/telegram/README.md) plugin enabled), it's
+noted alongside, and where players can act on their own from `/signup` (only if
+`enable_web_signup` is set in `config.toml`), that's noted too.
 
 ## The two match formats
 

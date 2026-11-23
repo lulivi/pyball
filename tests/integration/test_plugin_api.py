@@ -1,3 +1,23 @@
+# Copyright (c) 2026 Luis Liñán
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 """Integration tests for the /api/v1 plugin API over JSON persistence."""
 
 # pylint: disable=redefined-outer-name
@@ -195,3 +215,67 @@ async def test_openapi_declares_bearer_auth(siesta):
     assert schema["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
     docs = await siesta.get("/docs")
     assert docs.status_code == 200
+
+
+async def _closed_meetup(siesta, container) -> dict:
+    """A 10-player classic meetup with teams, closed 1-0."""
+    meetup = await _meetup_with(siesta, 10)
+    await siesta.put(
+        f"/meetups/{meetup['id']}/lineup",
+        json={"players": meetup["players"], "team_algorithm": "random"},
+    )
+    container.finish_match().execute(DATE, [], {"A": 1, "B": 0})
+    return meetup
+
+
+@pytest.mark.asyncio
+async def test_teams_wear_the_club_colors(siesta):
+    """Each team carries the color and emoji of its position, in responses and events."""
+    meetup = await _meetup_with(siesta, 10)
+    resp = await siesta.put(
+        f"/meetups/{meetup['id']}/lineup",
+        json={"players": meetup["players"], "team_algorithm": "random"},
+    )
+    teams = resp.json()["teams"]
+    assert [(t["color"], t["emoji"]) for t in teams] == [("blanco", "⚪"), ("negro", "⚫")]
+
+
+@pytest.mark.asyncio
+async def test_finds_a_meetup_by_its_date(siesta):
+    """GET /meetups?date= lists the meetup at that date, or nothing."""
+    meetup = await _meetup_with(siesta, 0)
+    found = (await siesta.get("/meetups", params={"date": DATE})).json()
+    missing = (await siesta.get("/meetups", params={"date": "2026-11-26T20:00"})).json()
+    assert [m["id"] for m in found] == [meetup["id"]]
+    assert missing == []
+
+
+@pytest.mark.asyncio
+async def test_summary_only_for_a_closed_meetup(siesta, container):
+    """The summary of an open meetup is a 409; once closed, it holds the score."""
+    meetup = await _meetup_with(siesta, 0)
+    assert (await siesta.get(f"/meetups/{meetup['id']}/summary")).status_code == 409
+
+    await siesta.delete(f"/meetups/{meetup['id']}")
+    closed = await _closed_meetup(siesta, container)
+    text = (await siesta.get(f"/meetups/{closed['id']}/summary")).json()["text"]
+    assert "Blanco" in text and "1" in text
+
+
+@pytest.mark.asyncio
+async def test_stats_image_is_a_png(siesta, container):
+    """GET /stats.png renders the season stats."""
+    await _closed_meetup(siesta, container)
+    resp = await siesta.get("/stats.png", params={"scope": "alltime"})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/png"
+    assert resp.content.startswith(b"\x89PNG")
+
+
+@pytest.mark.asyncio
+async def test_settings_need_only_a_valid_token(siesta, credentials):
+    """Any plugin reads the settings; no token is a 401."""
+    reader = {"Authorization": f"Bearer {credentials.token_for('reader')}"}
+    resp = await siesta.get("/settings", headers=reader)
+    assert resp.json() == {"display_date_format": "%Y-%m-%d %H:%M", "locale": "en_US.UTF-8"}
+    assert (await siesta.get("/settings", headers={"Authorization": ""})).status_code == 401

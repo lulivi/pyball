@@ -7,7 +7,7 @@ amplía PyBall sin tocar su código. Se ejecuta mientras PyBall esté en marcha,
 al flujo de eventos o con su propio calendario: una tarea que se ejecuta una vez y
 termina va en cron.
 
-Un plugin viene **incluido** en las imágenes de PyBall o es un programa tuyo en la carpeta
+Un plugin viene **incluido** en la imagen de PyBall o es un programa tuyo en la carpeta
 `plugins/` del espacio de trabajo, que el `compose.yaml` generado monta en
 `/pyball/plugins`. En los dos casos solo se ejecuta cuando `config.toml` lo declara (ver
 [`[pyball.plugins.<nombre>]`](../setup.es.md#pyballpluginsnombre--plugins-opcionales)).
@@ -19,6 +19,7 @@ Luego arranca PyBall como siempre: sigue siendo un solo comando.
 |---|---|---|
 | [activity](activity/README.es.md) | Publica en un chat de Telegram quién se apunta o se desapunta, y cada convocatoria creada, cerrada o cancelada | `["activity"]` |
 | [siesta](siesta/README.es.md) | Decide de forma justa quién descansa cuando se apuntan más jugadores de los que caben en un partido, y hace los equipos | `["siesta", "run"]` |
+| [telegram](telegram/README.es.md) | El bot de Telegram: convocatorias con botones para unirse o salir, la convocatoria de suplentes, resultados, estadísticas y comandos de administración | `["telegram"]` |
 
 ## Cómo ejecuta PyBall un plugin
 
@@ -43,8 +44,9 @@ PyBall ejecuta cada plugin declarado como proceso hijo, desde el espacio de trab
 ## La API de plugins
 
 Un plugin habla con PyBall solo a través de `PYBALL_API_URL`, enviando
-`Authorization: Bearer $PYBALL_API_TOKEN`. Cada llamada es una acción lógica y registra
-un evento. El contrato completo, con cada petición y respuesta y los datos de cada
+`Authorization: Bearer $PYBALL_API_TOKEN`. Cada escritura es una acción lógica y registra
+un evento. Cada equipo de un partido lleva el `color` y el `emoji` del club para su posición.
+El contrato completo, con cada petición y respuesta y los datos de cada
 evento, es el esquema OpenAPI de `/api/v1/openapi.json`, navegable en `/api/v1/docs`. El
 mismo esquema está guardado en el repositorio como
 [`plugins/openapi.json`](../../plugins/openapi.json), así un plugin puede generar un
@@ -52,8 +54,12 @@ cliente a partir de él o comprobar sus propios tipos sin un PyBall en marcha.
 
 | Llamada | Scope | Qué hace |
 |---|---|---|
+| `GET /settings` | cualquiera | El `display_date_format` y el `locale` del club |
 | `GET /players` | `players:read` | Todos los jugadores |
 | `GET /meetups/active` | `meetups:read` | El partido activo, con su capacidad y su búsqueda de suplentes |
+| `GET /meetups?date=<fecha>` | `meetups:read` | El partido de esa fecha, como una lista de cero o uno |
+| `GET /meetups/{id}/summary` | `meetups:read` | El resumen del resultado de un partido cerrado, el que copia `/manage` |
+| `GET /stats.png?scope=season` | `meetups:read` | La imagen de estadísticas de la temporada, o de siempre con `scope=alltime` |
 | `POST /meetups` | `meetups:write` | Crea un partido; `location` y `capacity` son opcionales |
 | `DELETE /meetups/{id}` | `meetups:write` | Cancela el partido activo |
 | `PUT` / `DELETE /meetups/{id}/players/{player_id}` | `meetups:write` | Apunta o quita a un jugador |

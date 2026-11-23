@@ -6,6 +6,30 @@
     "version": "1"
   },
   "paths": {
+    "/settings": {
+      "get": {
+        "summary": "Settings",
+        "description": "Return the club settings a plugin displays with.",
+        "operationId": "settings_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/players": {
       "get": {
         "summary": "List Players",
@@ -34,47 +58,73 @@
         ]
       }
     },
-    "/meetups/active": {
+    "/meetups": {
       "get": {
-        "summary": "Active Meetup",
-        "description": "Return the active meetup: the latest one not closed yet.",
-        "operationId": "active_meetup_meetups_active_get",
+        "summary": "Find Meetups",
+        "description": "Return the meetup at ``date``, as a list of zero or one.",
+        "operationId": "find_meetups_meetups_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Date"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeetupOut"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MeetupOut"
+                  },
+                  "title": "Response Find Meetups Meetups Get"
                 }
               }
             }
           },
-          "404": {
-            "description": "No active meetup"
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/meetups": {
+        }
+      },
       "post": {
         "summary": "Create Meetup",
         "description": "Create an empty meetup; 409 if one exists at that date.",
         "operationId": "create_meetup_meetups_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateMeetupBody"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -96,6 +146,122 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/meetups/{meetup_id}/summary": {
+      "get": {
+        "summary": "Summary",
+        "description": "Return the result summary of a closed meetup, the one /manage copies.",
+        "operationId": "summary_meetups__meetup_id__summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meetup_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Meetup Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The meetup is not closed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats.png": {
+      "get": {
+        "summary": "Stats Image",
+        "description": "Render the stats image of this season or of all time.",
+        "operationId": "stats_image_stats_png_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "season",
+                "alltime"
+              ],
+              "type": "string",
+              "default": "season",
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stats image",
+            "content": {
+              "image/png": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meetups/active": {
+      "get": {
+        "summary": "Active Meetup",
+        "description": "Return the active meetup: the latest one not closed yet.",
+        "operationId": "active_meetup_meetups_active_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetupOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active meetup"
           }
         },
         "security": [
@@ -851,11 +1017,52 @@
         "title": "PlayerOut",
         "description": "A player."
       },
+      "SettingsOut": {
+        "properties": {
+          "display_date_format": {
+            "type": "string",
+            "title": "Display Date Format"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_date_format",
+          "locale"
+        ],
+        "title": "SettingsOut",
+        "description": "The club settings a plugin displays with: its date format and locale."
+      },
+      "SummaryOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SummaryOut",
+        "description": "The result summary of a closed meetup, as plain text with *bold* spans."
+      },
       "TeamOut": {
         "properties": {
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "emoji": {
+            "type": "string",
+            "title": "Emoji"
           },
           "players": {
             "items": {
@@ -879,11 +1086,13 @@
         "type": "object",
         "required": [
           "name",
+          "color",
+          "emoji",
           "players",
           "goalkeeper"
         ],
         "title": "TeamOut",
-        "description": "One team of a meetup: its positional name, its player ids and its goalkeeper id."
+        "description": "One team of a meetup: its positional name, its club color, its players and goalkeeper."
       },
       "ValidationError": {
         "properties": {

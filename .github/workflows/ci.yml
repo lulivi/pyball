@@ -117,10 +117,10 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: |
-            crates/*/target
+            clients/*/target
             plugins/*/target
             /usr/local/cargo/registry
-          key: plugins-${{ hashFiles('crates/*/Cargo.lock', 'crates/*/rust-toolchain.toml', 'plugins/*/Cargo.lock', 'plugins/*/rust-toolchain.toml') }}
+          key: plugins-${{ hashFiles('clients/*/Cargo.lock', 'clients/*/rust-toolchain.toml', 'plugins/*/Cargo.lock', 'plugins/*/rust-toolchain.toml') }}
       - run: make plugins-check
 
   actionlint:
@@ -194,11 +194,8 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Publish every topology image
-        run: |
-          for topology in pyball telegram; do
-            ./deploy/docker_build.sh --push --release --topology "$topology"
-          done
+      - name: Publish the image
+        run: ./deploy/docker_build.sh --push --release
       - uses: ./.github/actions/ssh-agent
         with:
           private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}

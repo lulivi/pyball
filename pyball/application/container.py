@@ -212,6 +212,16 @@ class Container:  # pylint: disable=too-many-public-methods
         return self._settings.pyball.team_colors
 
     @property
+    def display_date_format(self) -> str:
+        """Return the configured strftime format for dates shown to people."""
+        return self._settings.pyball.display_date_format
+
+    @property
+    def locale(self) -> str:
+        """Return the configured locale."""
+        return self._settings.pyball.locale
+
+    @property
     def team_emojis(self) -> tuple[str, str, str]:
         """Return the configured team emojis."""
         return self._settings.pyball.team_emojis
@@ -289,7 +299,11 @@ class Container:  # pylint: disable=too-many-public-methods
     def event_log(self) -> EventLog:
         """Get the plugin event log, loading it from data/events.jsonl if necessary."""
         if self._event_log is None:
-            self._event_log = EventLog(self._settings.paths.data_dir / "events.jsonl")
+            self._event_log = EventLog(
+                self._settings.paths.data_dir / "events.jsonl",
+                self.team_colors,
+                self.team_emojis,
+            )
         return self._event_log
 
     def _algorithm_registry(self) -> dict[str, TeamAssignmentAlgorithm]:

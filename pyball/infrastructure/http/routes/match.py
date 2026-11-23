@@ -79,7 +79,7 @@ def register_match_routes(app: FastAPI, container: "Container", notifier: "Match
 
     @app.post("/api/match/{date}/edit")
     async def edit_match(date: str, body: FinishMatchInput):
-        """Replace the result of a closed match and re-fire the Telegram notification."""
+        """Replace the result of a closed match and notify it again."""
         return await _handle_edit_match(container, notifier, date, body)
 
 

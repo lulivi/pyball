@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Shared bootstrap logic for all application topologies."""
+"""Bootstrap logic: settings, logging, locale and the dependency container."""
 
 import locale
 import logging
@@ -32,11 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 def bootstrap_core(config_path: Path = Path("config.toml")) -> tuple[AppSettings, Container]:
-    """Initialise shared application components common to all topologies.
+    """Initialise the application components every process needs.
 
     Loads pyball.core settings, configures logging, sets locale, and builds
-    the DI container. Integration-specific setup (Telegram, logging handlers,
-    etc.) is the caller's responsibility.
+    the DI container. The rest of the wiring (alerts, HTTP, plugins) is the
+    caller's responsibility.
 
     Args:
         config_path: Path to the TOML config file.

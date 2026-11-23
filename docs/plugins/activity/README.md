@@ -4,7 +4,7 @@
 
 activity posts the meetup activity feed to a Telegram chat: who joins or leaves a
 meetup, and each meetup created, closed or cancelled. It is a
-[bundled plugin](../README.md#bundled-plugins): every PyBall image includes it, and it
+[bundled plugin](../README.md#bundled-plugins): the PyBall image includes it, and it
 runs once you declare it, with or without the Telegram bot.
 
 ## The messages
@@ -24,7 +24,7 @@ reached, it posts what it missed when it runs again: a message that fails stops 
 plugin, PyBall starts it again (see
 [How PyBall runs a plugin](../README.md#how-pyball-runs-a-plugin)) and it retries from
 that message. Each of those restarts is also an
-[alert](../../setup.md#pyballalertstelegram--alerts-all-topologies).
+[alert](../../setup.md#pyballalertstelegram--alerts).
 
 The very first start posts only what happens from then on, not the meetups before it.
 

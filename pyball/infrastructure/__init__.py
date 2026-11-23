@@ -17,19 +17,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Infrastructure layer - persistence and telegram implementations."""
+"""Infrastructure layer - persistence, HTTP, plugin host and images."""
 
 from pyball.infrastructure.persistence import JsonMeetupRepository, JsonPlayerRepository
-from pyball.infrastructure.telegram import (
-    MessageTracking,
-    TelegramMappingStore,
-    TelegramMessageStore,
-)
 
 __all__ = [
     "JsonPlayerRepository",
     "JsonMeetupRepository",
-    "TelegramMessageStore",
-    "MessageTracking",
-    "TelegramMappingStore",
 ]

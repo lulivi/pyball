@@ -4,7 +4,7 @@
 
 activity publica la actividad de las convocatorias en un chat de Telegram: quién se
 apunta o se desapunta, y cada convocatoria que se crea, se cierra o se cancela. Es un
-[plugin incluido](../README.es.md#plugins-incluidos): todas las imágenes de PyBall lo
+[plugin incluido](../README.es.md#plugins-incluidos): la imagen de PyBall lo
 traen, y se ejecuta cuando lo declaras, con o sin el bot de Telegram.
 
 ## Los mensajes
@@ -24,7 +24,7 @@ a Telegram, publica lo que se perdió cuando vuelve a ejecutarse: un mensaje que
 para el plugin, PyBall lo arranca de nuevo (ver
 [Cómo ejecuta PyBall un plugin](../README.es.md#cómo-ejecuta-pyball-un-plugin)) y vuelve a
 intentarlo desde ese mensaje. Cada uno de esos reinicios es también una
-[alerta](../../setup.es.md#pyballalertstelegram--alertas-todas-las-topologías).
+[alerta](../../setup.es.md#pyballalertstelegram--alertas).
 
 El primer arranque solo publica lo que pasa a partir de entonces, no las convocatorias
 anteriores.

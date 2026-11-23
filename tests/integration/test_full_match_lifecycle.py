@@ -1,3 +1,23 @@
+# Copyright (c) 2026 Luis Liñán
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 """End-to-end integration test: full match lifecycle."""
 
 # pylint: disable=redefined-outer-name
@@ -12,15 +32,11 @@ from pyball.domain.meetup.errors import (
     PlayerNotInMeetupError,
 )
 from pyball.domain.meetup.season import _season_start
-from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
-from pyball.infrastructure.telegram.bot.handlers.meetup import stats_handler
-from pyball.infrastructure.telegram.notifications import TelegramMatchNotifier
 
 # A fixed point ~2 weeks into the current season, so season-scoped stats
 # assertions stay valid no matter when the suite runs.
 _MATCH_DATE = datetime.combine(_season_start(date.today()) + timedelta(days=14), time(20, 0))
 _ISO_DATE = _MATCH_DATE.strftime("%Y-%m-%dT%H:%M")
-_DATE_ARGS = [_MATCH_DATE.strftime("%Y-%m-%d"), _MATCH_DATE.strftime("%H:%M")]
 
 _REGULARS = [f"Regular_{i:02d}" for i in range(1, 11)]  # Regular_01..Regular_10
 _SUBS = [f"Sub_{i:02d}" for i in range(1, 5)]  # Sub_01..Sub_04
@@ -30,29 +46,22 @@ class TestFullMatchLifecycle:
     """Full match lifecycle from player creation to stats."""
 
     @pytest.mark.asyncio
-    async def test_full_lifecycle(
-        self,
-        bot_update,
-        bot_context,
-        real_container,
-        monkeypatch,
-    ):
+    async def test_full_lifecycle(self, real_container):
         """Happy path: create players → meetup → add/remove → search → teams → match → stats."""
-        await self._create_players(bot_update, bot_context, real_container)
+        await self._create_players(real_container)
         await self._create_meetup(real_container)
         await self._add_players(real_container)
         await self._remove_player(real_container)
-        await self._search_substitutes(bot_context, real_container)
+        await self._search_substitutes(real_container)
         await self._generate_teams_twice(real_container)
         await self._finish_match(real_container)
-        await self._verify_stats(bot_update, bot_context, real_container, monkeypatch)
+        self._verify_stats(real_container)
 
     # ------------------------------------------------------------------
     # Phase helpers
     # ------------------------------------------------------------------
 
-    # pylint: disable-next=unused-argument
-    async def _create_players(self, bot_update, bot_context, real_container):
+    async def _create_players(self, real_container):
         for name in _REGULARS:
             real_container.create_player().execute(name, "regular")
         for name in _SUBS:
@@ -96,16 +105,9 @@ class TestFullMatchLifecycle:
         assert meetup.teams is not None
         assert meetup.current_match() is not None
 
-    async def _search_substitutes(self, bot_context, real_container):
-        bot_context.bot.send_message.reset_mock()
+    async def _search_substitutes(self, real_container):
         meetup = real_container.open_substitute_search().execute(_MATCH_DATE)
-        notifier = TelegramMatchNotifier(
-            bot_context.bot, bot_context.bot_data["settings"], real_container
-        )
-        await notifier.on_substitute_search_opened(meetup)
-
         assert meetup.substitute_search
-        bot_context.bot.send_message.assert_called_once()
 
     async def _finish_match(self, real_container):
         events = [
@@ -138,22 +140,9 @@ class TestFullMatchLifecycle:
         assert result.score_b == 1
         assert len(result.events) == 3
 
-    async def _verify_stats(self, bot_update, bot_context, _real_container, monkeypatch):
-        fake_png = b"\x89PNG\r\n\x1a\n"
-        captured = {}
-
-        async def fake_render(_self, report, scope="season"):  # pylint: disable=unused-argument
-            captured["report"] = report
-            return fake_png
-
-        monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
-        bot_context.bot.send_photo.reset_mock()
-        bot_context.args = ["temporada"]
-        await stats_handler(bot_update, bot_context)
-
-        bot_context.bot.send_photo.assert_called_once()
-        assert "report" in captured
-        assert len(captured["report"].season.players) > 0
+    def _verify_stats(self, real_container):
+        report = real_container.compute_stats().execute()
+        assert len(report.season.players) > 0
 
     # ------------------------------------------------------------------
     # Edge cases: player management
@@ -214,28 +203,11 @@ class TestFullMatchLifecycle:
         with pytest.raises(MeetupAlreadyClosedError):
             real_container.finish_match().execute(_ISO_DATE, events, final_score)
 
-    @pytest.mark.asyncio
-    async def test_stats_no_closed_matches(
-        self, bot_update, bot_context, real_container, monkeypatch
-    ):
-        """stats_handler with no closed matches still sends a photo (empty report)."""
+    def test_stats_no_closed_matches(self, real_container):
+        """With no closed match, the season stats are empty."""
         real_container.create_player().execute("Regular_01", "regular")
         real_container.create_meetup().execute(_MATCH_DATE, "Test Field")
         player = real_container.player_repository.find_by_name("Regular_01")
         real_container.add_player_to_meetup_by_id().execute(_MATCH_DATE, player.id)
 
-        fake_png = b"\x89PNG\r\n\x1a\n"
-        captured = {}
-
-        async def fake_render(_self, report, scope="season"):  # pylint: disable=unused-argument
-            captured["report"] = report
-            return fake_png
-
-        monkeypatch.setattr(StatsHtmlRenderer, "render", fake_render)
-        bot_context.bot.send_photo.reset_mock()
-        bot_context.args = ["temporada"]
-        await stats_handler(bot_update, bot_context)
-
-        bot_context.bot.send_photo.assert_called_once()
-        assert "report" in captured
-        assert len(captured["report"].season.players) == 0
+        assert len(real_container.compute_stats().execute().season.players) == 0

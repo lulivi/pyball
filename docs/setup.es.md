@@ -10,26 +10,23 @@ Esta guía asume Linux con Docker instalado — la forma más simple y probada d
 ejecutar PyBall. ¿Vas a instalarlo en un PC con Windows? Sigue esta misma guía tal
 cual, pero lee antes [Ejecutar en Windows (WSL2)](#ejecutar-en-windows-wsl2).
 
-## 1. Elige una topología
+## 1. Qué ejecuta PyBall
 
-PyBall se distribuye como dos imágenes Docker, construidas desde el mismo código:
-
-| Imagen | Qué ejecuta | ¿Necesita un bot de Telegram? |
-|---|---|---|
-| `lulivi/pyball` | FastAPI — `/manage`, `/match`, y opcionalmente alta por cuenta propia en `/signup` (ver abajo) | No |
-| `lulivi/pyball-telegram` | Bot de Telegram + FastAPI (`/manage` y `/match`) | Sí |
+PyBall se distribuye como una imagen Docker, `lulivi/pyball`: el servidor web con
+`/manage`, `/match` y opcionalmente el alta por cuenta propia en `/signup` (ver abajo),
+más los plugins incluidos, que solo se ejecutan cuando `config.toml` los declara.
 
 Todas las funciones — crear partidos, generar equipos (clásico o triangular), seguir un
 partido, cerrar una sesión triangular, ver estadísticas — están disponibles desde
-`/manage` y `/match` en cualquiera de las dos imágenes; Telegram y `/signup` son capas
-de conveniencia añadidas encima, nunca un requisito. Si tu grupo no usa Telegram, usa
-`pyball`: pon `enable_web_signup = true` en `config.toml` si quieres que los jugadores
-se apunten o se bajen ellos mismos de un partido con su código personal en `/signup`
-(ver [Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup)) sin
-tocar `/manage`, o déjalo en `false` (por defecto) para que el alta siga siendo una
-tarea de admin, hecha desde `/manage`. Usa `pyball-telegram` si quieres que las
-convocatorias se publiquen automáticamente en un grupo, comandos de admin desde
-Telegram, y reacciones/notificaciones en el chat.
+`/manage` y `/match`; Telegram y `/signup` son capas de conveniencia añadidas encima,
+nunca un requisito. Pon `enable_web_signup = true` en `config.toml` si quieres que los
+jugadores se apunten o se bajen ellos mismos de un partido con su código personal en
+`/signup` (ver [Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup))
+sin tocar `/manage`, o déjalo en `false` (por defecto) para que el alta siga siendo una
+tarea de admin, hecha desde `/manage`. Activa el plugin
+[telegram](plugins/telegram/README.es.md) si quieres que las convocatorias se publiquen
+automáticamente en un grupo, con botones para unirse o salir, y comandos de admin desde
+Telegram.
 
 ## 2. Genera un espacio de trabajo
 
@@ -38,15 +35,13 @@ Elige un directorio vacío para la configuración y los datos de esta instancia,
 ```bash
 mkdir pyball && cd pyball
 docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball --bootstrap
-# o, para Telegram:
-docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/pyball" lulivi/pyball-telegram --bootstrap
 ```
 
 Esto crea, en el directorio actual:
 
 ```
 config.toml     # tu configuración — edítalo a continuación
-compose.yaml    # definición del servicio de docker compose, fijada a la imagen que generaste
+compose.yaml    # definición del servicio de docker compose
 .env            # UID/GID/PORT/TAG usados por compose.yaml
 README.md       # un enlace corto de vuelta a esta guía
 data/           # archivos de datos en JSON (ver docs/data-directory.es.md)
@@ -60,11 +55,11 @@ configuración.
 ## 3. Configura `config.toml`
 
 Cualquier clave también se puede fijar con una variable de entorno,
-`PYBALL_<SECCIÓN>_<CLAVE>` (ej. `PYBALL_CORE_LOCATION`, `PYBALL_TELEGRAM_BOT_TOKEN`) —
+`PYBALL_<SECCIÓN>_<CLAVE>` (ej. `PYBALL_CORE_LOCATION`, `PYBALL_ALERTS_TELEGRAM_BOT_TOKEN`) —
 útil para mantener secretos fuera de `config.toml` o sobrescribir un valor por
 despliegue sin editar el archivo.
 
-### `[pyball.core]` — todas las topologías
+### `[pyball.core]`
 
 | Clave | Descripción | Por defecto |
 |---|---|---|
@@ -73,11 +68,11 @@ despliegue sin editar el archivo.
 | `default_week_day` | Día por defecto (`monday`–`sunday`) para nuevos partidos | `wednesday` |
 | `default_hour` | Hora de inicio por defecto (`HH:MM`) | `20:00` |
 | `meetup_capacity` | Jugadores con los que juega un partido nuevo; la capacidad de cada partido se cambia luego desde `/manage` | `10` |
-| `display_date_format` | Formato de fecha usado en los mensajes | `%Y-%m-%d %H:%M` |
+| `display_date_format` | Formato de fecha usado en los mensajes, que los plugins leen de `GET /api/v1/settings` | `%Y-%m-%d %H:%M` |
 | `team_colors` | Dos o tres nombres de color: los dos primeros son los equipos del partido clásico, el tercero solo se usa en triangulares (se rellena solo si indicas dos) | `["blanco", "negro", "rojo"]` |
 | `base_url` | URL pública usada para construir el enlace de `/match` | *(obligatorio)* |
 | `api_port` | Puerto del servidor HTTP | `8000` |
-| `locale` | Locale usado para ordenar los nombres de jugadores | `es_ES.UTF-8` |
+| `locale` | Locale usado para ordenar los nombres de jugadores, que los plugins leen de `GET /api/v1/settings` | `es_ES.UTF-8` |
 | `data_dir` | Directorio para los archivos de datos JSON; una ruta relativa parte de la carpeta de `config.toml` | `data` |
 | `match_token` | Token de acceso solo para `/match` (opcional, ver [Tokens de acceso](#6-tokens-de-acceso)) | *(vacío)* |
 | `manage_token` | Token de acceso para todo, incluyendo `/manage` (opcional) | *(vacío)* |
@@ -89,57 +84,31 @@ despliegue sin editar el archivo.
 Colores de equipo disponibles: `blanco` `negro` `rojo` `naranja` `amarillo` `verde`
 `azul` `morado` `marron`.
 
-### `[pyball.telegram]` y subsecciones — solo `pyball-telegram`
-
-Estas claves se ignoran en `pyball` — ver
-[la configuración de Telegram es solo para el bot](data-directory.es.md#la-configuración-de-telegram-es-solo-para-el-bot)
-para saber por qué.
-
-| Clave | Descripción | Requerido |
-|---|---|---|
-| `telegram.bot_token` | Token del bot desde [@BotFather](https://t.me/BotFather) | **Sí** |
-| `telegram.admins_ids` | IDs de usuario de Telegram autorizados a ejecutar comandos de admin | **Sí** |
-| `telegram.regulars.meetups.chat_id` | Chat para la convocatoria y el resultado corregido (negativo para grupos) | **Sí** |
-| `telegram.regulars.meetups.message_thread_id` | Hilo de foro para esos mensajes (vacío = ninguno) | No |
-| `telegram.regulars.stats.chat_id` | Chat para estadísticas post-partido y `/meetup_stats` (`0` / omitir desactiva su publicación) | No |
-| `telegram.regulars.stats.message_thread_id` | Hilo de foro para las estadísticas (vacío = ninguno) | No |
-| `telegram.substitutes.meetups.chat_id` | Chat para el mensaje de suplentes (negativo para grupos) | **Sí** |
-| `telegram.substitutes.meetups.message_thread_id` | Hilo de foro para el mensaje de suplentes (vacío = ninguno) | No |
-
-Para encontrar un ID de chat: añade el bot al grupo, envía cualquier mensaje, y luego
-consulta `https://api.telegram.org/bot<TOKEN>/getUpdates` buscando el campo `chat.id`.
-
-Cada uno puede apuntar al mismo grupo/hilo o a uno distinto. Los overrides por
-variable de entorno siguen `PYBALL_<RUTA>_<CLAVE>`, p. ej.
-`PYBALL_TELEGRAM_SUBSTITUTES_MEETUPS_CHAT_ID`.
-
 `deploy/deploy.sh` envía sus propias notificaciones de despliegue con el token del
 bot, el chat y el tema del foro de los secretos de GitHub `DEPLOY_NOTIFY_TOKEN`,
 `DEPLOY_NOTIFY_CHAT_ID` y `DEPLOY_NOTIFY_THREAD_ID` — apúntalos al mismo chat y tema
-que [`alerts.telegram`](#pyballalertstelegram--alertas-todas-las-topologías). Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
+que [`alerts.telegram`](#pyballalertstelegram--alertas). Sin `DEPLOY_NOTIFY_TOKEN`, los despliegues no
 envían notificaciones.
 
-### `[pyball.alerts.telegram]` — alertas, todas las topologías
+### `[pyball.alerts.telegram]` — alertas
 
 Los avisos y errores del propio PyBall, incluido un plugin que falla o se reinicia una y
 otra vez, llegan a este chat de Telegram. Los envía el núcleo, así que no necesitan ningún
-plugin en marcha y funcionan tanto en `pyball` como en `pyball-telegram`. La misma alerta
-se envía como mucho una vez cada 10 minutos, y la siguiente indica cuántas repeticiones
-omitió, así que un plugin que falla en bucle no inunda el chat. PyBall también avisa ahí
-cuando arranca y cuando se detiene. Sin la sección,
-o con `chat_id = 0`, las alertas están desactivadas y PyBall lo indica en su log de
-arranque. Las variables de entorno siguen `PYBALL_ALERTS_TELEGRAM_<CLAVE>`.
+plugin en marcha. La misma alerta se envía como mucho una vez cada 10 minutos, y la
+siguiente indica cuántas repeticiones omitió, así que un plugin que falla en bucle no
+inunda el chat. PyBall también avisa ahí cuando arranca y cuando se detiene. Sin la
+sección, o con `chat_id = 0`, las alertas están desactivadas y PyBall lo indica en su log
+de arranque. Las variables de entorno siguen `PYBALL_ALERTS_TELEGRAM_<CLAVE>`.
 
 | Clave | Descripción | Requerido |
 |---|---|---|
-| `bot_token` | Token del bot que envía las alertas; puede ser el mismo que `telegram.bot_token` | Si se fija `chat_id` |
+| `bot_token` | Token del bot que envía las alertas; puede ser el mismo bot que el del plugin telegram | Si se fija `chat_id` |
 | `chat_id` | Chat que recibe las alertas (negativo para grupos; `0` / omitir para desactivar) | No |
 | `message_thread_id` | Hilo de foro para las alertas (vacío = ninguno) | No |
 
 ### `[pyball.plugins.<nombre>]` — plugins opcionales
 
-Una tabla por plugin, con su nombre. Las dos topologías los ejecutan (ver
-[Plugins](#8-plugins)). Estas tablas no admiten variables de entorno.
+Una tabla por plugin, con su nombre (ver [Plugins](#8-plugins)). Estas tablas no admiten variables de entorno.
 
 | Clave | Descripción | Obligatorio |
 |---|---|---|
@@ -220,9 +189,10 @@ Fija una versión concreta en vez de seguir siempre `latest` poniendo `TAG=4.13.
 ## 8. Plugins
 
 Un plugin es un programa opcional y de larga duración que amplía PyBall sin tocar su
-código. Algunos vienen incluidos en las imágenes de PyBall, como
-[siesta](plugins/siesta/README.es.md), el sorteo justo de quién descansa, y
-[activity](plugins/activity/README.es.md), la actividad de las convocatorias; también puedes
+código. Algunos vienen incluidos en la imagen de PyBall:
+[telegram](plugins/telegram/README.es.md), el bot de Telegram;
+[siesta](plugins/siesta/README.es.md), el sorteo justo de quién descansa; y
+[activity](plugins/activity/README.es.md), la actividad de las convocatorias. También puedes
 añadir los tuyos en la carpeta `plugins/` del espacio de trabajo. Los dos tipos solo se
 ejecutan cuando los declaras en
 [`[pyball.plugins.<nombre>]`](#pyballpluginsnombre--plugins-opcionales).

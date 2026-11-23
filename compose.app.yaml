@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${IMAGE:?IMAGE must be set in .env}:${TAG:-latest}
+    image: lulivi/pyball:${TAG:-latest}
     user: "${UID}:${GID}"
     ports:
       - "127.0.0.1:${PORT}:8000"

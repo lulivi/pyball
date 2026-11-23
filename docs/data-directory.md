@@ -29,10 +29,8 @@ pyball/
 │   │   └── ...         # one file per meetup, named after its date/time
 │   ├── plugins/
 │   │   └── <name>/     # each plugin's own state — see docs/plugins/README.md
-│   ├── signup/
-│   │   └── codes.json   # only when enable_web_signup is set — see below
-│   └── bot/
-│       └── messages.json   # pyball-telegram only — see below
+│   └── signup/
+│       └── codes.json   # only when enable_web_signup is set — see below
 └── logs/
     └── ...             # application log files
 ```
@@ -185,8 +183,8 @@ empty file:
 ## Web signup is opt-in via `enable_web_signup`
 
 The `data/signup/` directory below only exists when `enable_web_signup` is set to
-`true` in `config.toml`. With it left at the default `false`, or on `pyball-telegram`,
-nothing reads or writes it.
+`true` in `config.toml`. With it left at the default `false`, nothing reads or writes
+it.
 
 ### `data/signup/codes.json`
 
@@ -210,33 +208,6 @@ this file — only regenerated (the "Regenerar código" button on a player's row
 is set; see [docs/workflow.md](workflow.md)). This file is created automatically the
 first time it's needed and is safe to delete: doing so just invalidates every player's
 existing code, forcing everyone to be issued a new one.
-
-## Telegram config is bot-only
-
-The `[pyball.telegram]` section in `config.toml`, and the `data/bot/` directory below,
-only exist for the `pyball-telegram` topology. Running `pyball` (with or without
-`enable_web_signup`) never reads or writes either of them — that deployment has no
-`data/bot/` directory at all.
-
-### `data/bot/messages.json`
-
-Tracks which Telegram message (in the regulars/substitutes chats) corresponds to each
-meetup's callup, so PyBall can edit or delete it later (e.g. when the roster changes, or
-when the meetup closes):
-
-```json
-{
-  "2026-04-15T20:00": {
-    "regular": { "chat_id": -1000000000000, "thread_id": null, "message_id": 4821 },
-    "substitute": { "chat_id": -1000000000001, "thread_id": null, "message_id": 512 }
-  }
-}
-```
-
-The key is the meetup's date/time (`YYYY-MM-DDTHH:MM`, matching the meetup filename
-without the `.json` extension). `thread_id` is `null` unless the chat uses forum topics
-(see `telegram.regulars.meetups.message_thread_id` in [docs/setup.md](setup.md); the
-`substitute` entry likewise picks up `telegram.substitutes.meetups.message_thread_id`).
 
 ## Related documentation
 
