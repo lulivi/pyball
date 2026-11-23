@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Sequence
 
 from pydantic import BaseModel
 
@@ -39,9 +40,11 @@ class PlayerOut(BaseModel):
 
 
 class TeamOut(BaseModel):
-    """One team of a meetup: its positional name, its player ids and its goalkeeper id."""
+    """One team of a meetup: its positional name, its club color, its players and goalkeeper."""
 
     name: str
+    color: str
+    emoji: str
     players: list[str]
     goalkeeper: str | None
 
@@ -67,6 +70,19 @@ class MeetupOut(BaseModel):
     closed: bool
 
 
+class SummaryOut(BaseModel):
+    """The result summary of a closed meetup, as plain text with *bold* spans."""
+
+    text: str
+
+
+class SettingsOut(BaseModel):
+    """The club settings a plugin displays with: its date format and locale."""
+
+    display_date_format: str
+    locale: str
+
+
 class EventOut(BaseModel):
     """Something that happened to a meetup, with the meetup as it was right after."""
 
@@ -79,8 +95,10 @@ class EventOut(BaseModel):
     previous_date: datetime | None = None
 
 
-def meetup_out(meetup: Meetup) -> MeetupOut:
-    """Build the v1 shape of a meetup."""
+def meetup_out(
+    meetup: Meetup, team_colors: Sequence[str], team_emojis: Sequence[str]
+) -> MeetupOut:
+    """Build the v1 shape of a meetup; its i-th team wears the club's i-th color."""
     return MeetupOut(
         id=str(meetup.id.value),
         date=meetup.date,
@@ -92,10 +110,12 @@ def meetup_out(meetup: Meetup) -> MeetupOut:
             [
                 TeamOut(
                     name=t.name,
+                    color=team_colors[i],
+                    emoji=team_emojis[i],
                     players=[str(p.value) for p in t.players],
                     goalkeeper=str(t.goalkeeper.value) if t.goalkeeper else None,
                 )
-                for t in meetup.teams
+                for i, t in enumerate(meetup.teams)
             ]
             if meetup.teams is not None
             else None

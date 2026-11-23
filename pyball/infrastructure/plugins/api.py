@@ -22,9 +22,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, AsyncIterable, AsyncIterator, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterable, AsyncIterator, Callable, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 
@@ -43,10 +43,13 @@ from pyball.domain.meetup.errors import (
 from pyball.domain.meetup.models import Meetup, MeetupId
 from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import Player, PlayerId
+from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.plugins.schemas import (
     EventOut,
     MeetupOut,
     PlayerOut,
+    SettingsOut,
+    SummaryOut,
     meetup_out,
     player_out,
 )
@@ -92,14 +95,63 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
             "`Authorization: Bearer <PYBALL_API_TOKEN>`."
         ),
     )
+    any_token = [Depends(credentials.require(None))]
     players_read = [Depends(credentials.require("players:read"))]
     meetups_read = [Depends(credentials.require("meetups:read"))]
     meetups_write = [Depends(credentials.require("meetups:write"))]
+
+    def out(meetup: Meetup) -> MeetupOut:
+        return meetup_out(meetup, container.team_colors, container.team_emojis)
+
+    @api.get("/settings", response_model=SettingsOut, dependencies=any_token)
+    async def settings():
+        """Return the club settings a plugin displays with."""
+        return SettingsOut(
+            display_date_format=container.display_date_format, locale=container.locale
+        )
 
     @api.get("/players", response_model=list[PlayerOut], dependencies=players_read)
     async def list_players():
         """List every player."""
         return [player_out(p) for p in container.player_repository.find_all()]
+
+    @api.get("/meetups", response_model=list[MeetupOut], dependencies=meetups_read)
+    async def find_meetups(date: datetime):
+        """Return the meetup at ``date``, as a list of zero or one."""
+        meetup = container.meetup_repository.find_by_datetime(date.replace(tzinfo=None))
+        return [out(meetup)] if meetup else []
+
+    @api.get(
+        "/meetups/{meetup_id}/summary",
+        response_model=SummaryOut,
+        responses={409: {"description": "The meetup is not closed"}},
+        dependencies=meetups_read,
+    )
+    async def summary(meetup_id: str):
+        """Return the result summary of a closed meetup, the one /manage copies."""
+        meetup = _meetup(container, meetup_id)
+        if not meetup.is_closed():
+            raise HTTPException(409, "The meetup is not closed")
+        names = {str(p.id.value): p.name for p in container.player_repository.find_all()}
+        text = container.format_match_summary().execute(
+            meetup,
+            names,
+            team_colors=container.team_colors,
+            team_emojis=container.team_emojis,
+            legacy_stats=container.legacy_stats,
+        )
+        return SummaryOut(text=text)
+
+    @api.get(
+        "/stats.png",
+        response_class=Response,
+        responses={200: {"content": {"image/png": {}}, "description": "The stats image"}},
+        dependencies=meetups_read,
+    )
+    async def stats_image(scope: Literal["season", "alltime"] = "season"):
+        """Render the stats image of this season or of all time."""
+        png = await StatsHtmlRenderer().render(container.compute_stats().execute(), scope=scope)
+        return Response(png, media_type="image/png")
 
     @api.get(
         "/meetups/active",
@@ -109,7 +161,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     )
     async def active_meetup():
         """Return the active meetup: the latest one not closed yet."""
-        return meetup_out(_active(container))
+        return out(_active(container))
 
     @api.post("/meetups", response_model=MeetupOut, status_code=201, dependencies=meetups_write)
     async def create_meetup(body: CreateMeetupBody):
@@ -121,7 +173,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         except DuplicateMeetupError as exc:
             raise HTTPException(409, "A meetup already exists at that date") from exc
         await notifier.on_meetup_created(meetup)
-        return meetup_out(meetup)
+        return out(meetup)
 
     @api.delete("/meetups/{meetup_id}", response_model=MeetupOut, dependencies=meetups_write)
     async def cancel_meetup(meetup_id: str):
@@ -130,7 +182,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
             raise HTTPException(409, "Only the active meetup can be cancelled")
         meetup = _guarded(container.cancel_meetup().execute)
         await notifier.on_meetup_cancelled(meetup)
-        return meetup_out(meetup)
+        return out(meetup)
 
     @api.put(
         "/meetups/{meetup_id}/players/{player_id}",
@@ -142,12 +194,12 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         meetup = _meetup(container, meetup_id)
         player = _player(container, player_id)
         if player.id in meetup.players:
-            return meetup_out(meetup)
+            return out(meetup)
         updated = _guarded(
             lambda: container.add_player_to_meetup_by_id().execute(meetup.date, player.id)
         )
         await notifier.on_player_joined(updated, player, player.group == "substitute")
-        return meetup_out(updated)
+        return out(updated)
 
     @api.delete(
         "/meetups/{meetup_id}/players/{player_id}",
@@ -162,7 +214,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
             lambda: container.remove_player_from_meetup_by_id().execute(meetup.date, player.id)
         )
         await notifier.on_player_left(updated, player, player.group == "substitute")
-        return meetup_out(updated)
+        return out(updated)
 
     @api.put("/meetups/{meetup_id}/lineup", response_model=MeetupOut, dependencies=meetups_write)
     async def set_lineup(meetup_id: str, body: LineupBody):
@@ -175,7 +227,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
             )
         )
         await notifier.on_meetup_updated(updated)
-        return meetup_out(updated)
+        return out(updated)
 
     @api.put("/meetups/{meetup_id}/capacity", response_model=MeetupOut, dependencies=meetups_write)
     async def set_capacity(meetup_id: str, body: CapacityBody):
@@ -185,7 +237,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
             lambda: container.set_meetup_capacity().execute(meetup.date, body.capacity)
         )
         await notifier.on_meetup_updated(updated)
-        return meetup_out(updated)
+        return out(updated)
 
     @api.post(
         "/meetups/{meetup_id}/substitute-search",
@@ -199,10 +251,10 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         """
         meetup = _meetup(container, meetup_id)
         if meetup.substitute_search:
-            return meetup_out(meetup)
+            return out(meetup)
         updated = _guarded(lambda: container.open_substitute_search().execute(meetup.date))
         await notifier.on_substitute_search_opened(updated)
-        return meetup_out(updated)
+        return out(updated)
 
     @api.delete(
         "/meetups/{meetup_id}/substitute-search",
@@ -214,7 +266,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         meetup = _meetup(container, meetup_id)
         updated = _guarded(lambda: container.close_substitute_search().execute(meetup.date))
         await notifier.on_meetup_updated(updated)
-        return meetup_out(updated)
+        return out(updated)
 
     @api.get("/events", dependencies=meetups_read, response_class=EventSourceResponse)
     async def events(

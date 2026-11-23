@@ -56,8 +56,10 @@ class PluginCredentials:
                 return scopes
         return None
 
-    def require(self, scope: str) -> Callable[..., None]:
+    def require(self, scope: str | None) -> Callable[..., None]:
         """Return a FastAPI dependency that lets through only bearers holding ``scope``.
+
+        With ``scope`` None, any valid token passes.
 
         It declares bearer authentication in the OpenAPI schema, so /api/v1/docs offers it.
         """
@@ -66,7 +68,7 @@ class PluginCredentials:
             scopes = self.scopes_for(bearer.credentials) if bearer else None
             if scopes is None:
                 raise HTTPException(401, "Unauthorized", headers={"WWW-Authenticate": "Bearer"})
-            if scope not in scopes:
+            if scope is not None and scope not in scopes:
                 raise HTTPException(403, f"Missing scope {scope}")
 
         return check

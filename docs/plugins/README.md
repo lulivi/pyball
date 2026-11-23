@@ -40,8 +40,9 @@ PyBall runs every declared plugin as a child process, from the workspace directo
 ## The plugin API
 
 A plugin talks to PyBall only through `PYBALL_API_URL`, sending
-`Authorization: Bearer $PYBALL_API_TOKEN`. Each call is one logical action and records
-one event. The full contract, with every request and response shape and the data of each
+`Authorization: Bearer $PYBALL_API_TOKEN`. Each write is one logical action and records
+one event. Each team of a meetup carries the club's `color` and `emoji` for its position.
+The full contract, with every request and response shape and the data of each
 event, is the OpenAPI schema at `/api/v1/openapi.json`, browsable at `/api/v1/docs`. The
 same schema is committed in the repository as
 [`plugins/openapi.json`](../../plugins/openapi.json), so a plugin can generate a client
@@ -49,8 +50,12 @@ from it or check its own types against it without a running PyBall.
 
 | Call | Scope | What it does |
 |---|---|---|
+| `GET /settings` | any | The club's `display_date_format` and `locale` |
 | `GET /players` | `players:read` | Every player |
 | `GET /meetups/active` | `meetups:read` | The active meetup, with its capacity and substitute search |
+| `GET /meetups?date=<date>` | `meetups:read` | The meetup at that date, as a list of zero or one |
+| `GET /meetups/{id}/summary` | `meetups:read` | The result summary of a closed meetup, the one `/manage` copies |
+| `GET /stats.png?scope=season` | `meetups:read` | The stats image of the season, or of all time with `scope=alltime` |
 | `POST /meetups` | `meetups:write` | Create a meetup; `location` and `capacity` are optional |
 | `DELETE /meetups/{id}` | `meetups:write` | Cancel the active meetup |
 | `PUT` / `DELETE /meetups/{id}/players/{player_id}` | `meetups:write` | Add or remove a player |

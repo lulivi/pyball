@@ -25,7 +25,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from pyball.application.notifier import MatchNotifier
 from pyball.domain.meetup.models import Meetup
@@ -39,9 +39,14 @@ class EventLog:
     Every event is kept forever and in memory: a club produces a handful per day.
     """
 
-    def __init__(self, path: Path) -> None:
-        """Load the existing events from ``path``, creating its directory if needed."""
+    def __init__(self, path: Path, team_colors: Sequence[str], team_emojis: Sequence[str]) -> None:
+        """Load the existing events from ``path``, creating its directory if needed.
+
+        Each event's teams wear ``team_colors`` and ``team_emojis``, the club's.
+        """
         self._path = path
+        self._team_colors = team_colors
+        self._team_emojis = team_emojis
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._events: list[dict[str, Any]] = []
         if path.exists():
@@ -64,7 +69,7 @@ class EventLog:
             id=self.last_id + 1,
             type=event_type,
             occurred_at=datetime.now().astimezone(),
-            meetup=meetup_out(meetup),
+            meetup=meetup_out(meetup, self._team_colors, self._team_emojis),
             **extra,
         ).model_dump(mode="json", exclude_unset=True)
         with open(self._path, "a", encoding="utf-8") as f:
