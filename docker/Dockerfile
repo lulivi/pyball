@@ -58,6 +58,19 @@ COPY plugins/activity/Cargo.toml plugins/activity/Cargo.lock plugins/activity/
 COPY plugins/activity/src plugins/activity/src
 RUN cd plugins/activity && cargo build --release --locked
 
+# --- telegram-plugin: the bundled telegram plugin, in its own venv ---
+# Same Python as base, so the venv runs there unchanged.
+FROM python:3.12.13-slim-trixie AS telegram-plugin
+
+RUN pip install uv --no-cache-dir
+
+WORKDIR /src
+COPY clients/pyball-client-py clients/pyball-client-py
+COPY plugins/telegram plugins/telegram
+RUN cd plugins/telegram \
+    && UV_PROJECT_ENVIRONMENT=/opt/telegram uv sync --locked --no-dev --no-editable
+
+
 # --- base: shared system deps, locale, venv, unprivileged user ---
 FROM python:3.12.13-slim-trixie AS base
 
@@ -87,6 +100,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # Bundled plugins go outside /pyball/plugins, which the workspace mounts over.
 COPY --from=siesta /src/plugins/siesta/target/release/siesta /usr/local/bin/siesta
 COPY --from=activity /src/plugins/activity/target/release/activity /usr/local/bin/activity
+COPY --from=telegram-plugin /opt/telegram /opt/telegram
+RUN ln -s /opt/telegram/bin/telegram /usr/local/bin/telegram
 
 WORKDIR /builder
 COPY --from=builder /dist/*.whl .

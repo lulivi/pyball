@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyball-telegram"
+version = "0.1.0"
+description = "The bundled telegram plugin: PyBall's callups, buttons and admin commands"
+requires-python = ">=3.12"
+dependencies = ["pyball-client", "python-telegram-bot>=22,<23"]
+
+[project.scripts]
+telegram = "pyball_telegram.main:main"
+
+[tool.uv.sources]
+pyball-client = { path = "../../clients/pyball-client-py" }
+
+[dependency-groups]
+dev = [
+    "black>=25,<26",
+    "isort>=6,<7",
+    "mypy>=1.15,<2",
+    "pylint>=3.3,<4",
+    "pytest>=8,<9",
+    "pytest-asyncio>=0.26,<1",
+]
+
+[tool.black]
+line-length = 99
+
+[tool.isort]
+profile = "black"
+line_length = 99
+known_first_party = ["pyball_telegram"]
+known_third_party = ["telegram"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+[tool.pylint.main]
+max-line-length = 99
+disable = ["too-few-public-methods"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+
+[tool.pylint.imports]
+known-third-party = ["telegram"]

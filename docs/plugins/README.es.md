@@ -19,6 +19,7 @@ Luego arranca PyBall como siempre: sigue siendo un solo comando.
 |---|---|---|
 | [activity](activity/README.es.md) | Publica en un chat de Telegram quién se apunta o se desapunta, y cada convocatoria creada, cerrada o cancelada | `["activity"]` |
 | [siesta](siesta/README.es.md) | Decide de forma justa quién descansa cuando se apuntan más jugadores de los que caben en un partido, y hace los equipos | `["siesta", "run"]` |
+| [telegram](telegram/README.es.md) | El bot de Telegram: convocatorias con botones para unirse o salir, la convocatoria de suplentes, resultados, estadísticas y comandos de administración | `["telegram"]` |
 
 ## Cómo ejecuta PyBall un plugin
 

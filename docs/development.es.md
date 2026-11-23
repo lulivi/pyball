@@ -119,6 +119,9 @@ lenguaje, y usa solo la API de plugins, como cualquier otro plugin. Cada uno:
 
 `siesta` y `activity` están escritos en Rust: cada `rust-toolchain.toml` fija la misma
 versión de Rust, y `docker/Dockerfile.ci` y sus etapas de `docker/Dockerfile` la usan también.
+`telegram` está escrito en Python: su etapa lo instala con sus dependencias fijadas en su
+propio venv, `/opt/telegram`, enlazado como `/usr/local/bin/telegram`, así que no comparte
+nada con el entorno de PyBall.
 
 Un plugin en Rust habla con PyBall a través de `clients/pyball-client-rs`, una dependencia por
 ruta: el cliente de la API de plugins y su flujo de eventos, la tabla `endpoints!` por la

@@ -18,6 +18,7 @@ PyBall as usual: it is still one command.
 |---|---|---|
 | [activity](activity/README.md) | Posts who joins or leaves a meetup, and each meetup created, closed or cancelled, to a Telegram chat | `["activity"]` |
 | [siesta](siesta/README.md) | Decides fairly who sits out when more players sign up than a meetup takes, and builds the teams | `["siesta", "run"]` |
+| [telegram](telegram/README.md) | The Telegram bot: callups with join/leave buttons, the substitutes callup, results, stats and admin commands | `["telegram"]` |
 
 ## How PyBall runs a plugin
 
