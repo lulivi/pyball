@@ -38,8 +38,8 @@ FROM rust:1.97-alpine AS siesta
 RUN apk add --no-cache musl-dev
 
 WORKDIR /src
-COPY crates/pyball-client/Cargo.toml crates/pyball-client/
-COPY crates/pyball-client/src crates/pyball-client/src
+COPY clients/pyball-client-rs/Cargo.toml clients/pyball-client-rs/
+COPY clients/pyball-client-rs/src clients/pyball-client-rs/src
 COPY plugins/siesta/Cargo.toml plugins/siesta/Cargo.lock plugins/siesta/
 COPY plugins/siesta/src plugins/siesta/src
 RUN cd plugins/siesta && cargo build --release --locked
@@ -52,8 +52,8 @@ FROM rust:1.97-alpine AS activity
 RUN apk add --no-cache musl-dev
 
 WORKDIR /src
-COPY crates/pyball-client/Cargo.toml crates/pyball-client/
-COPY crates/pyball-client/src crates/pyball-client/src
+COPY clients/pyball-client-rs/Cargo.toml clients/pyball-client-rs/
+COPY clients/pyball-client-rs/src clients/pyball-client-rs/src
 COPY plugins/activity/Cargo.toml plugins/activity/Cargo.lock plugins/activity/
 COPY plugins/activity/src plugins/activity/src
 RUN cd plugins/activity && cargo build --release --locked
