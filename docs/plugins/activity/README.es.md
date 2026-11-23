@@ -37,19 +37,21 @@ Añade su tabla a `config.toml` y reinicia PyBall:
 [pyball.plugins.activity]
 command = ["activity"]
 scopes = ["meetups:read"]
-telegram_bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-telegram_chat_id = -1001234567890
+
+[pyball.plugins.activity.telegram]
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+chat_id = -1001234567890
 ```
 
 | Clave | Descripción | Por defecto |
 |---|---|---|
 | `command`, `scopes` | Como arriba: cómo lo arranca PyBall y qué puede hacer | — |
-| `telegram_bot_token` | Bot que publica la actividad; puede ser el mismo bot que el de PyBall | ninguno |
-| `telegram_chat_id` | Chat de la actividad (negativo para grupos) | ninguno |
-| `telegram_message_thread_id` | Tema del foro para la actividad (`0` o vacío = el chat principal) | ninguno |
+| `telegram.bot_token` | Bot que publica la actividad; puede ser el mismo bot que el de PyBall | ninguno; obligatorio con un `chat_id` |
+| `telegram.chat_id` | Chat de la actividad (negativo para grupos; `0` = ninguno) | ninguno |
+| `telegram.message_thread_id` | Tema del foro para la actividad (`0` o vacío = el chat principal) | ninguno |
 | `date_format` | Cómo se escribe la fecha de la convocatoria, con los códigos `%` de `display_date_format`; los nombres de día y mes (`%A`, `%B`, ...) salen en inglés | `%Y-%m-%d %H:%M` |
 
-Sin `telegram_bot_token` y `telegram_chat_id`, la actividad va al log de PyBall. Estas
+Sin `telegram.chat_id`, la actividad va al log de PyBall. Estas
 claves no tienen variables de entorno.
 
 ## Sus datos

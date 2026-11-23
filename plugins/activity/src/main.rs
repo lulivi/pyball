@@ -18,7 +18,6 @@ use pyball_client::{Api, Frame};
 use crate::api::{EVENTS, Event};
 use crate::config::Config;
 use crate::target::{FEED, LogTarget, Target, TelegramTarget};
-use crate::telegram::Telegram;
 
 fn main() {
     if let Err(err) = run() {
@@ -41,11 +40,7 @@ fn run() -> Result<()> {
                 chat.chat_id
             );
             Box::new(TelegramTarget {
-                chat: Telegram {
-                    bot_token: chat.bot_token,
-                    chat_id: chat.chat_id,
-                    thread_id: chat.thread_id,
-                },
+                chat,
                 date_format: cfg.date_format,
             })
         }

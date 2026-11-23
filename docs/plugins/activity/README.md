@@ -36,20 +36,22 @@ Add its table to `config.toml` and restart PyBall:
 [pyball.plugins.activity]
 command = ["activity"]
 scopes = ["meetups:read"]
-telegram_bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-telegram_chat_id = -1001234567890
+
+[pyball.plugins.activity.telegram]
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+chat_id = -1001234567890
 ```
 
 | Key | Description | Default |
 |---|---|---|
 | `command`, `scopes` | As above: how PyBall starts it and what it may do | — |
-| `telegram_bot_token` | Bot that posts the feed; it may be the same bot as PyBall's | none |
-| `telegram_chat_id` | Chat for the feed (negative for groups) | none |
-| `telegram_message_thread_id` | Forum topic for the feed (`0` or empty = the main chat) | none |
+| `telegram.bot_token` | Bot that posts the feed; it may be the same bot as PyBall's | none; required with a `chat_id` |
+| `telegram.chat_id` | Chat for the feed (negative for groups; `0` = none) | none |
+| `telegram.message_thread_id` | Forum topic for the feed (`0` or empty = the main chat) | none |
 | `date_format` | How the meetup date is written, with `display_date_format`'s `%` codes; day and month names (`%A`, `%B`, ...) come out in English | `%Y-%m-%d %H:%M` |
 
-Without `telegram_bot_token` and `telegram_chat_id`, the feed goes to PyBall's log
-instead. These keys have no env overrides.
+Without a `telegram.chat_id`, the feed goes to PyBall's log instead. These keys have no
+env overrides.
 
 ## Its data
 

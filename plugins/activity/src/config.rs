@@ -3,9 +3,11 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use chrono::format::{Item, StrftimeItems};
 use pyball_client::plugin;
+
+use crate::telegram::Telegram;
 
 /// The plugin's table and its folder under `data/plugins/`.
 const NAME: &str = "activity";
@@ -18,15 +20,7 @@ pub struct Config {
     pub api_token: String,
     pub date_format: String,
     pub event_id_file: PathBuf,
-    pub telegram: Option<TelegramChat>,
-}
-
-#[derive(Debug)]
-pub struct TelegramChat {
-    pub bot_token: String,
-    pub chat_id: String,
-    /// `None` = the group's main ("General") chat.
-    pub thread_id: Option<i64>,
+    pub telegram: Option<Telegram>,
 }
 
 impl Config {
@@ -50,31 +44,12 @@ impl Config {
             bail!("plugins.activity.date_format is not a valid date format: {date_format}");
         }
 
-        let bot_token = string(t, "telegram_bot_token")?;
-        let chat_id = string(t, "telegram_chat_id")?.filter(|c| c != "0");
-        let thread_id = match string(t, "telegram_message_thread_id")? {
-            Some(n) => Some(
-                n.parse::<i64>()
-                    .context("plugins.activity.telegram_message_thread_id must be a number")?,
-            )
-            .filter(|n| *n != 0),
-            None => None,
-        };
-        let telegram = match (bot_token, chat_id) {
-            (Some(bot_token), Some(chat_id)) => Some(TelegramChat {
-                bot_token,
-                chat_id,
-                thread_id,
-            }),
-            _ => None,
-        };
-
         Ok(Self {
             api_url: plugin::api_url(api_url),
             api_token: plugin::api_token(api_token)?,
             date_format,
             event_id_file: plugin::data_dir(NAME).join("last_event_id"),
-            telegram,
+            telegram: Telegram::from_table(t, NAME)?,
         })
     }
 }
@@ -109,33 +84,21 @@ mod tests {
         let cfg = load(
             r#"
 date_format = "%d/%m %H:%M"
-telegram_bot_token = "123:abc"
-telegram_chat_id = -1001234
-telegram_message_thread_id = 7
+
+[telegram]
+bot_token = "123:abc"
+chat_id = -1001234
 "#,
         )
         .unwrap();
         assert_eq!(cfg.date_format, "%d/%m %H:%M");
-        let tg = cfg.telegram.unwrap();
-        assert_eq!(tg.chat_id, "-1001234");
-        assert_eq!(tg.thread_id, Some(7));
-    }
-
-    #[test]
-    fn a_zero_chat_or_topic_means_none() {
-        let cfg = load("telegram_bot_token = \"1:a\"\ntelegram_chat_id = 0").unwrap();
-        assert!(cfg.telegram.is_none());
-        let cfg = load(
-            "telegram_bot_token = \"1:a\"\ntelegram_chat_id = 5\ntelegram_message_thread_id = 0",
-        )
-        .unwrap();
-        assert_eq!(cfg.telegram.unwrap().thread_id, None);
+        assert_eq!(cfg.telegram.unwrap().chat_id, "-1001234");
     }
 
     #[test]
     fn rejects_bad_values_and_a_missing_token() {
         assert!(load("date_format = \"%Q\"").is_err());
-        assert!(load("telegram_message_thread_id = \"general\"").is_err());
+        assert!(load("[telegram]\nchat_id = -100").is_err());
         assert!(Config::from_table(None, None, None).is_err());
     }
 }
