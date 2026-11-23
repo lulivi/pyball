@@ -26,8 +26,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-import fitz
 import jinja2
+import pymupdf
 import weasyprint
 from markupsafe import Markup
 
@@ -139,9 +139,9 @@ class StatsHtmlRenderer:
         """
         _no_pagination = weasyprint.CSS(string="@page { size: 794px 100000px; margin: 0; }")
         pdf = weasyprint.HTML(string=html).write_pdf(stylesheets=[_no_pagination])
-        doc = fitz.open(stream=pdf, filetype="pdf")
-        mat = fitz.Matrix(4, 4)
-        pixmaps = [page.get_pixmap(matrix=mat) for page in doc]
+        doc = pymupdf.open(stream=pdf, filetype="pdf")
+        mat = pymupdf.Matrix(4, 4)
+        pixmaps = [page.get_pixmap(matrix=mat) for page in doc.pages()]
 
         if len(pixmaps) == 1:
             full = pixmaps[0]
@@ -149,11 +149,11 @@ class StatsHtmlRenderer:
             total_h = sum(p.height for p in pixmaps)
             w = pixmaps[0].width
             all_samples = b"".join(bytes(p.samples) for p in pixmaps)
-            full = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, total_h), all_samples)
+            full = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, w, total_h), all_samples)
 
         return self._crop_whitespace(full).tobytes("png")
 
-    def _crop_whitespace(self, pix: fitz.Pixmap) -> fitz.Pixmap:
+    def _crop_whitespace(self, pix: pymupdf.Pixmap) -> pymupdf.Pixmap:
         """Return a new Pixmap with trailing background rows removed."""
         w, h = pix.width, pix.height
         samples = bytes(pix.samples)
@@ -175,8 +175,8 @@ class StatsHtmlRenderer:
         if crop_h >= h:
             return pix
 
-        result = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, w, crop_h), False)
-        result.copy(pix, fitz.IRect(0, 0, w, crop_h))
+        result = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, w, crop_h), False)
+        result.copy(pix, pymupdf.IRect(0, 0, w, crop_h))
         return result
 
 
