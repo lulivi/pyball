@@ -21,20 +21,25 @@
 """Every source file carries the license header."""
 
 import re
-import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-SOURCES = ("*.py", "*.rs", "*.sh", "*.bash", "*Makefile")
+SOURCES = ("*.py", "*.rs", "*.sh", "*.bash", "Makefile")
+SKIPPED = {".git", ".venv", ".nox", "target", "node_modules", "__pycache__"}
 NOTICE = re.compile(r"Copyright \(c\) \d{4} Luis Liñán")
 
 
 def test_every_source_file_starts_with_the_license():
-    """Each tracked .py, .rs, .sh and Makefile has the copyright notice in its first lines."""
-    tracked = subprocess.run(
-        ["git", "ls-files", *SOURCES], cwd=ROOT, capture_output=True, text=True, check=True
-    ).stdout.split()
-    missing = [
-        path for path in tracked if not NOTICE.search((ROOT / path).read_text("utf-8")[:300])
+    """Each .py, .rs, .sh and Makefile has the copyright notice in its first lines."""
+    sources = [
+        path
+        for pattern in SOURCES
+        for path in ROOT.rglob(pattern)
+        if not SKIPPED & set(path.relative_to(ROOT).parts)
     ]
-    assert not missing, f"add the license header to: {', '.join(missing)}"
+    missing = [
+        str(path.relative_to(ROOT))
+        for path in sources
+        if not NOTICE.search(path.read_text("utf-8")[:300])
+    ]
+    assert not missing, f"add the license header to: {', '.join(sorted(missing))}"
