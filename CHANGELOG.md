@@ -2,6 +2,50 @@
 
 <!-- version list -->
 
+## v9.0.0 (2026-11-23)
+
+### Chores
+
+- Add the license header to every source file ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+### Features
+
+- Run Telegram only as the telegram plugin ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+- Run the Telegram bot as a bundled plugin on the plugin API
+  ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+- **clients**: Add the Python plugin client pyball-client-py
+  ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+- **plugins**: Add the bundled telegram plugin ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+- **plugins**: Serve team colors, meetup lookup by date, summary, stats and settings
+  ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+### Refactoring
+
+- Move the Rust plugin client to clients/pyball-client-rs
+  ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+- **deploy**: Name the one PyBall image in compose.app.yaml
+  ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+### Testing
+
+- Find source files without git in the license header check
+  ([#29](https://github.com/lulivi/pyball/pull/29),
+  [`3d70ff5`](https://github.com/lulivi/pyball/commit/3d70ff52e45b75b743cc4e9181ca739a42acb2cf))
+
+
 ## v8.0.0 (2026-11-23)
 
 ### Documentation
