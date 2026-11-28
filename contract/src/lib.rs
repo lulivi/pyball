@@ -117,6 +117,11 @@ impl Core {
         }
     }
 
+    /// The manage token of this core, which grants every scope.
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
     /// Create a meetup at `date` with the club's defaults and return it.
     pub fn create_meetup(&self, date: &str) -> Value {
         let reply = self.call("POST", "/meetups", &[], Some(json!({ "date": date })));
@@ -342,7 +347,7 @@ name = "Contrato"
 default_week_day = "wednesday"
 default_hour = "20:00"
 base_url = "http://localhost"
-team_colors = ["blanco", "negro"]
+team_colors = ["blanco", "negro", "rojo"]
 locale = "en_US.UTF-8"
 display_date_format = "%Y-%m-%d %H:%M"
 data_dir = "data"

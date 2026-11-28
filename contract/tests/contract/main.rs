@@ -25,3 +25,9 @@ mod players;
 
 #[cfg(feature = "meetups")]
 mod meetups;
+
+#[cfg(feature = "matches")]
+mod matches;
+
+#[cfg(feature = "stats")]
+mod stats;
