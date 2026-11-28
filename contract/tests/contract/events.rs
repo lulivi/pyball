@@ -99,6 +99,19 @@ fn each_write_records_its_event_with_the_meetup_after_it() {
 }
 
 #[test]
+fn a_lineup_records_one_meetup_update() {
+    let core = Core::start();
+    let id = core.create_meetup(DATE)["id"].as_str().unwrap().to_owned();
+    let players: Vec<String> = (1..=10).map(player).collect();
+    let body = json!({ "players": players, "team_algorithm": "random" });
+    let reply = core.call("PUT", "/meetups/{meetup_id}/lineup", &[&id], Some(body));
+    let log = core.event_log();
+    assert_eq!(log.len(), 2);
+    assert_eq!(log[1]["type"], "meetup.updated");
+    assert_eq!(log[1]["meetup"], reply.json);
+}
+
+#[test]
 fn the_stream_replays_the_whole_log_after_zero() {
     let core = Core::start();
     two_events(&core);

@@ -330,6 +330,11 @@ fn reaching_the_capacity_closes_the_substitute_search() {
         None,
     );
     assert_eq!(reopen.status, 409);
+    let search = "/meetups/{meetup_id}/substitute-search";
+    assert_eq!(
+        core.call("POST", search, &[CLOSED_MEETUP], None).status,
+        409
+    );
 }
 
 #[test]
