@@ -117,6 +117,17 @@ impl Core {
         }
     }
 
+    /// Send `method path` with `token` as bearer, if any, and check it is refused as a `401`
+    /// with an `ErrorOut` body.
+    pub fn assert_unauthorized(&self, method: &str, path: &str, token: Option<&str>) {
+        let response = self
+            .request(method, path, token)
+            .send()
+            .expect("request failed");
+        assert_eq!(response.status(), 401, "{method} {path} with {token:?}");
+        check_schema_ref("ErrorOut", &response.json().unwrap_or(Value::Null));
+    }
+
     /// The manage token of this core, which grants every scope.
     pub fn token(&self) -> &str {
         &self.token
@@ -302,21 +313,19 @@ impl Events {
 static OPENAPI: LazyLock<Value> =
     LazyLock::new(|| serde_json::from_str(include_str!("../../plugins/openapi.json")).unwrap());
 
-/// Check a success `body` against the schema `openapi.json` documents for it, if any.
-///
-/// Error bodies are no part of the contract, only their status: the Python core answers
-/// its own 422s with a `detail` string where `openapi.json` documents FastAPI's list.
+/// Check `body` against the schema `openapi.json` documents for its `status`, if any.
 fn check_schema(method: &str, path: &str, status: u16, body: &Value) {
     let operation = &OPENAPI["paths"][path][method.to_lowercase()];
     assert!(
         !operation.is_null(),
         "{method} {path} is not in openapi.json"
     );
-    if !(200..300).contains(&status) {
-        return;
-    }
-    let schema =
-        &operation["responses"][status.to_string()]["content"]["application/json"]["schema"];
+    let response = &operation["responses"][status.to_string()];
+    assert!(
+        !response.is_null(),
+        "{method} {path} {status} is not in openapi.json"
+    );
+    let schema = &response["content"]["application/json"]["schema"];
     if !schema.is_null() {
         validate(schema, body, &format!("{method} {path} {status}"));
     }

@@ -49,6 +49,11 @@ same schema is committed in the repository as
 [`plugins/openapi.json`](../../plugins/openapi.json), so a plugin can generate a client
 from it or check its own types against it without a running PyBall.
 
+An error reply is JSON with a `detail` string saying why: `401` for a missing or wrong
+token, `403` for a token without the scope, `404` for an unknown meetup, `409` when the
+meetup refuses the change. A `422` has either that string or, when the request doesn't
+match its schema, FastAPI's list of the fields at fault.
+
 | Call | Scope | What it does |
 |---|---|---|
 | `GET /settings` | any | The club's `display_date_format` and `locale` |
@@ -74,5 +79,5 @@ right after (see [`data/events.jsonl`](../data-directory.md#dataeventsjsonl) for
 and fields). To miss nothing, a plugin keeps the last `id` it handled and reconnects
 with `Last-Event-ID: <id>` (or `?after=<id>`): it receives every later event, in order
 and without duplicates, then new ones as they happen. `?after=0` replays the whole log;
-with neither, the stream starts with the next event. An idle stream sends a comment
-every 15 s.
+with neither, the stream starts with the next event: every event written after the
+`200` arrives. An idle stream sends a comment every 15 s.

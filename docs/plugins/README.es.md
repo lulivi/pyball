@@ -52,6 +52,11 @@ mismo esquema está guardado en el repositorio como
 [`plugins/openapi.json`](../../plugins/openapi.json), así un plugin puede generar un
 cliente a partir de él o comprobar sus propios tipos sin un PyBall en marcha.
 
+Una respuesta de error es un JSON con un texto `detail` que explica el motivo: `401` si
+falta el token o es incorrecto, `403` si el token no tiene el permiso, `404` si el
+partido no existe, `409` si el partido rechaza el cambio. Un `422` trae ese texto o,
+cuando la petición no encaja con su esquema, la lista de campos erróneos de FastAPI.
+
 | Llamada | Scope | Qué hace |
 |---|---|---|
 | `GET /settings` | cualquiera | El `display_date_format` y el `locale` del club |
@@ -78,4 +83,5 @@ para los tipos y campos). Para no perderse nada, un plugin guarda el último `id
 procesó y se reconecta con `Last-Event-ID: <id>` (o `?after=<id>`): recibe todos los
 eventos posteriores, en orden y sin duplicados, y luego los nuevos según ocurren.
 `?after=0` reproduce todo el registro; sin ninguno de los dos, el flujo empieza en el
-siguiente evento. Un flujo sin actividad envía un comentario cada 15 s.
+siguiente evento: llega todo evento escrito después del `200`. Un flujo sin actividad
+envía un comentario cada 15 s.

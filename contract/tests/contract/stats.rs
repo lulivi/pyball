@@ -54,11 +54,5 @@ fn an_unknown_scope_is_rejected() {
 #[test]
 fn the_stats_image_needs_a_token() {
     let core = Core::start();
-    assert_eq!(
-        core.request("GET", "/stats.png", None)
-            .send()
-            .unwrap()
-            .status(),
-        401
-    );
+    core.assert_unauthorized("GET", "/stats.png", None);
 }

@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, AsyncIterable, AsyncIterator, Callable, Literal
 
@@ -45,6 +46,7 @@ from pyball.domain.player.errors import InvalidPlayerIdError
 from pyball.domain.player.models import Player, PlayerId
 from pyball.infrastructure.images.stats_renderer import StatsHtmlRenderer
 from pyball.infrastructure.plugins.schemas import (
+    ErrorOut,
     EventOut,
     MeetupOut,
     PlayerOut,
@@ -59,6 +61,10 @@ if TYPE_CHECKING:
     from pyball.application.notifier import MatchNotifier
     from pyball.infrastructure.plugins.auth import PluginCredentials
     from pyball.infrastructure.plugins.event_log import EventLog
+
+
+Subscription = tuple[int, asyncio.Queue[dict[str, Any] | None]]
+"""What ``EventLog.subscribe()`` returns: the last id in the log and the live queue."""
 
 
 class CreateMeetupBody(BaseModel):
@@ -94,6 +100,10 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
             "Stable contract for PyBall plugins. Authenticate with "
             "`Authorization: Bearer <PYBALL_API_TOKEN>`."
         ),
+        responses={
+            401: {"model": ErrorOut, "description": "Missing or wrong token"},
+            403: {"model": ErrorOut, "description": "The token lacks the scope"},
+        },
     )
     any_token = [Depends(credentials.require(None))]
     players_read = [Depends(credentials.require("players:read"))]
@@ -124,7 +134,10 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     @api.get(
         "/meetups/{meetup_id}/summary",
         response_model=SummaryOut,
-        responses={409: {"description": "The meetup is not closed"}},
+        responses={
+            **_NOT_FOUND,
+            409: {"model": ErrorOut, "description": "The meetup is not closed"},
+        },
         dependencies=meetups_read,
     )
     async def summary(meetup_id: str):
@@ -156,14 +169,20 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     @api.get(
         "/meetups/active",
         response_model=MeetupOut,
-        responses={404: {"description": "No active meetup"}},
+        responses={404: {"model": ErrorOut, "description": "No active meetup"}},
         dependencies=meetups_read,
     )
     async def active_meetup():
         """Return the active meetup: the latest one not closed yet."""
         return out(_active(container))
 
-    @api.post("/meetups", response_model=MeetupOut, status_code=201, dependencies=meetups_write)
+    @api.post(
+        "/meetups",
+        response_model=MeetupOut,
+        status_code=201,
+        responses={409: {"model": ErrorOut, "description": "A meetup exists at that date"}},
+        dependencies=meetups_write,
+    )
     async def create_meetup(body: CreateMeetupBody):
         """Create an empty meetup; 409 if one exists at that date."""
         try:
@@ -175,7 +194,12 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         await notifier.on_meetup_created(meetup)
         return out(meetup)
 
-    @api.delete("/meetups/{meetup_id}", response_model=MeetupOut, dependencies=meetups_write)
+    @api.delete(
+        "/meetups/{meetup_id}",
+        response_model=MeetupOut,
+        responses=_GUARDED,
+        dependencies=meetups_write,
+    )
     async def cancel_meetup(meetup_id: str):
         """Cancel the active meetup; 409 for any other meetup or one with results."""
         if _meetup(container, meetup_id).id != _active(container).id:
@@ -187,6 +211,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     @api.put(
         "/meetups/{meetup_id}/players/{player_id}",
         response_model=MeetupOut,
+        responses=_GUARDED,
         dependencies=meetups_write,
     )
     async def join(meetup_id: str, player_id: str):
@@ -204,6 +229,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     @api.delete(
         "/meetups/{meetup_id}/players/{player_id}",
         response_model=MeetupOut,
+        responses=_GUARDED,
         dependencies=meetups_write,
     )
     async def leave(meetup_id: str, player_id: str):
@@ -216,7 +242,12 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         await notifier.on_player_left(updated, player, player.group == "substitute")
         return out(updated)
 
-    @api.put("/meetups/{meetup_id}/lineup", response_model=MeetupOut, dependencies=meetups_write)
+    @api.put(
+        "/meetups/{meetup_id}/lineup",
+        response_model=MeetupOut,
+        responses=_GUARDED,
+        dependencies=meetups_write,
+    )
     async def set_lineup(meetup_id: str, body: LineupBody):
         """Replace the roster and, with team_algorithm, build the teams: one step, one event."""
         meetup = _meetup(container, meetup_id)
@@ -229,7 +260,12 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         await notifier.on_meetup_updated(updated)
         return out(updated)
 
-    @api.put("/meetups/{meetup_id}/capacity", response_model=MeetupOut, dependencies=meetups_write)
+    @api.put(
+        "/meetups/{meetup_id}/capacity",
+        response_model=MeetupOut,
+        responses=_GUARDED,
+        dependencies=meetups_write,
+    )
     async def set_capacity(meetup_id: str, body: CapacityBody):
         """Set how many players the meetup plays with."""
         meetup = _meetup(container, meetup_id)
@@ -242,6 +278,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     @api.post(
         "/meetups/{meetup_id}/substitute-search",
         response_model=MeetupOut,
+        responses=_GUARDED,
         dependencies=meetups_write,
     )
     async def open_search(meetup_id: str):
@@ -259,6 +296,7 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     @api.delete(
         "/meetups/{meetup_id}/substitute-search",
         response_model=MeetupOut,
+        responses=_GUARDED,
         dependencies=meetups_write,
     )
     async def close_search(meetup_id: str):
@@ -268,19 +306,29 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         await notifier.on_meetup_updated(updated)
         return out(updated)
 
+    async def subscription() -> AsyncIterator[Subscription]:
+        # A dependency runs before the 200 is sent, so no event written after it is missed.
+        last_id, queue = container.event_log.subscribe()
+        try:
+            yield last_id, queue
+        finally:
+            container.event_log.unsubscribe(queue)
+
     @api.get("/events", dependencies=meetups_read, response_class=EventSourceResponse)
     async def events(
         after: int | None = Query(default=None, ge=0),
         last_event_id: int | None = Header(default=None, ge=0),
+        subscribed: Subscription = Depends(subscription),
     ) -> AsyncIterable[EventOut]:
         """Stream events as server-sent events, each with its id, type and JSON data.
 
         Resume with the Last-Event-ID header or ?after=<id> to receive every later event in
         order, then the live ones; ?after=0 replays the whole log. With neither, only new
-        events are sent. An idle stream sends a `: ping` comment every 15 s.
+        events are sent: every event written after the 200 arrives. An idle stream sends a
+        `: ping` comment every 15 s.
         """
         seen = last_event_id if last_event_id is not None else after
-        async for event in event_stream(container.event_log, seen):
+        async for event in event_stream(container.event_log, subscribed, seen):
             # The annotation documents each item's data as EventOut in the OpenAPI schema;
             # FastAPI sends ServerSentEvent items as they are, with their id and type.
             yield ServerSentEvent(  # type: ignore[misc]
@@ -290,19 +338,42 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     return api
 
 
-async def event_stream(log: "EventLog", after: int | None) -> AsyncIterator[dict[str, Any]]:
-    """Yield the events after ``after`` (none if None), then live ones.
+async def event_stream(
+    log: "EventLog", subscribed: Subscription, after: int | None
+) -> AsyncIterator[dict[str, Any]]:
+    """Yield the events after ``after`` (none if None), then the live ones of ``subscribed``.
 
-    Ends when the log closes its subscribers, on shutdown.
+    ``subscribed`` is what ``log.subscribe()`` returned. Ends when the log closes its
+    subscribers, on shutdown.
     """
-    last_id, queue = log.subscribe()
-    try:
-        for event in log.after(last_id if after is None else after, up_to=last_id):
-            yield event
-        while (live := await queue.get()) is not None:
-            yield live
-    finally:
-        log.unsubscribe(queue)
+    last_id, queue = subscribed
+    for event in log.after(last_id if after is None else after, up_to=last_id):
+        yield event
+    while (live := await queue.get()) is not None:
+        yield live
+
+
+_NOT_FOUND: dict[int | str, dict[str, Any]] = {
+    404: {"model": ErrorOut, "description": "No such meetup"}
+}
+_GUARDED: dict[int | str, dict[str, Any]] = {
+    **_NOT_FOUND,
+    409: {"model": ErrorOut, "description": "The meetup refuses the change"},
+    422: {
+        "description": "Invalid request: FastAPI's validation list, or the core's own detail",
+        "content": {
+            "application/json": {
+                "schema": {
+                    "anyOf": [
+                        {"$ref": "#/components/schemas/HTTPValidationError"},
+                        {"$ref": "#/components/schemas/ErrorOut"},
+                    ]
+                }
+            }
+        },
+    },
+}
+"""The errors of a route that changes a meetup through ``_guarded()``."""
 
 
 def _active(container: "Container") -> Meetup:

@@ -187,7 +187,7 @@ async def test_stream_resumes_after_the_last_seen_event_in_order(container):
     for _ in range(3):
         log.append("meetup.updated", meetup)
 
-    stream = event_stream(log, after=1)
+    stream = event_stream(log, log.subscribe(), after=1)
     frames = [await anext(stream) for _ in range(2)]
     log.append("meetup.updated", meetup)  # a live event after the replay
     frames.append(await anext(stream))

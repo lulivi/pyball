@@ -135,8 +135,9 @@ esté (ver [ADR 0001](adr/0001-rust-core-behind-contract-suite.es.md)).
   `contract/fixtures/club`, y un `config.toml` con un `api_port` libre y un token de manage
   nuevo. `PYBALL_CORE_CMD` es el comando de shell que lo arranca, ejecutado en el
   workspace; por defecto es el núcleo de Python, `uv run --project <repo> pyball`.
-- Cada respuesta correcta se valida contra su esquema de `plugins/openapi.json`. Las
-  respuestas de error se comprueban solo por su código, nunca por su texto.
+- Cada respuesta, correcta o de error, se valida contra el esquema que
+  `plugins/openapi.json` documenta para su código, y un código que no documenta hace
+  fallar el test.
 - Tras cada escritura, los tests leen los ficheros que guarda el núcleo:
   `data/meetups/*.json` y `data/events.jsonl`.
 - Cada área es una feature de Cargo (`players`, `meetups`, `matches`, `stats`, `events`),

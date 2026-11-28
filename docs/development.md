@@ -128,8 +128,8 @@ tests hold for any core whatever its language (see
   `contract/fixtures/club`, and a `config.toml` with a free `api_port` and a fresh manage
   token. `PYBALL_CORE_CMD` is the shell command that starts it, run in the workspace; it
   defaults to the Python core, `uv run --project <repo> pyball`.
-- Every success reply is checked against its schema in `plugins/openapi.json`. Error
-  replies are checked by status only, never by their text.
+- Every reply, success or error, is checked against the schema `plugins/openapi.json`
+  documents for its status, and a status it doesn't document fails the test.
 - After each write, the tests read the files the core keeps: `data/meetups/*.json` and
   `data/events.jsonl`.
 - Each area is a Cargo feature (`players`, `meetups`, `matches`, `stats`, `events`), all on

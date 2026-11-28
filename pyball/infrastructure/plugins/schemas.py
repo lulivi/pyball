@@ -83,6 +83,12 @@ class SettingsOut(BaseModel):
     locale: str
 
 
+class ErrorOut(BaseModel):
+    """An error the core raised itself: why it refused, in ``detail``."""
+
+    detail: str
+
+
 class EventOut(BaseModel):
     """Something that happened to a meetup, with the meetup as it was right after."""
 
