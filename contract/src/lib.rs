@@ -234,19 +234,27 @@ impl Core {
 impl Drop for Core {
     /// Stop the whole process group: `sh`, a wrapper such as `uv run`, and the core.
     fn drop(&mut self) {
-        let group = format!("-{}", self.child.id());
-        let _ = Command::new("kill").args(["-TERM", "--", &group]).status();
+        let group = self.child.id();
+        signal_group("TERM", group);
         let deadline = Instant::now() + Duration::from_secs(10);
         while self.child.try_wait().ok().flatten().is_none() && Instant::now() < deadline {
             sleep(Duration::from_millis(50));
         }
         // Usually the group is gone by now; this reaps whatever ignored SIGTERM.
-        let _ = Command::new("kill")
-            .args(["-KILL", "--", &group])
-            .stderr(Stdio::null())
-            .status();
+        signal_group("KILL", group);
+        let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+/// Send `signal` to process group `group` with the shell's `kill`: slim images have no
+/// `kill` binary.
+fn signal_group(signal: &str, group: u32) {
+    let _ = Command::new("sh")
+        .arg("-c")
+        .arg(format!("kill -{signal} -{group}"))
+        .stderr(Stdio::null())
+        .status();
 }
 
 /// An open server-sent event stream.
@@ -348,7 +356,7 @@ default_week_day = "wednesday"
 default_hour = "20:00"
 base_url = "http://localhost"
 team_colors = ["blanco", "negro", "rojo"]
-locale = "en_US.UTF-8"
+locale = "C.UTF-8"
 display_date_format = "%Y-%m-%d %H:%M"
 data_dir = "data"
 api_port = {port}

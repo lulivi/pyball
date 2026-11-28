@@ -30,7 +30,7 @@ fn settings_are_the_club_display_settings() {
     assert_eq!(reply.status, 200);
     assert_eq!(
         reply.json,
-        json!({ "display_date_format": "%Y-%m-%d %H:%M", "locale": "en_US.UTF-8" })
+        json!({ "display_date_format": "%Y-%m-%d %H:%M", "locale": "C.UTF-8" })
     );
 }
 
