@@ -17,6 +17,7 @@ make l                                           # lint (black, isort, pydocstyl
 make f                                           # format
 make plugins-check                               # format, lint and tests of plugins/*, clients/*
 make openapi                                     # regenerate plugins/openapi.json
+make contract                                    # contract suite against the Python core
 uvx nox -e test -- tests/unit/<path>.py -k <name> -v # one test file or test
 ```
 
