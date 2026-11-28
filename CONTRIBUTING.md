@@ -21,8 +21,7 @@ uv sync                         # install PyBall and its dev tools
 
 ```bash
 uv run pyball --bootstrap       # first run only, generates config.toml
-uv run pyball                   # /manage + /match and the declared plugins; add /signup
-                                # via enable_web_signup = true in config.toml
+uv run pyball                   # /manage + /match and the declared plugins
 
 make up                         # build the image from source and run it via Docker Compose
 ```

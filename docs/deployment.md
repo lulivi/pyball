@@ -3,7 +3,7 @@
 🇬🇧 English | 🇪🇸 [Español](deployment.es.md)
 
 By default PyBall is only reachable on its host machine's local network —
-`/manage`, `/match`, and `/signup` are plain HTTP on whatever port you configured.
+`/manage` and `/match` are plain HTTP on whatever port you configured.
 This guide covers two ways to reach them from outside that network, depending on
 what you have available.
 
@@ -141,8 +141,8 @@ re-run `docker compose up -d` after exporting; compose recreates the container w
 the new environment.
 
 **Set access tokens before you tunnel.** Once ngrok is open, the entire app —
-including `/manage` — is reachable by anyone who finds the URL. Set `match_token`,
-`signup_token`, and `manage_token` in `config.toml` first (see
+including `/manage` — is reachable by anyone who finds the URL. Set `match_token`
+and `manage_token` in `config.toml` first (see
 [setup.md's Access tokens section](setup.md#6-access-tokens)).
 
 The free ngrok tier assigns a new random URL every time the tunnel restarts —

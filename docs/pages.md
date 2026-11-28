@@ -2,7 +2,7 @@
 
 🇬🇧 English | 🇪🇸 [Español](pages.es.md)
 
-This document is a structural tour of PyBall's three web pages — what tabs or screens
+This document is a structural tour of PyBall's two web pages — what tabs or screens
 each one has and what each shows. It doesn't repeat the step-by-step behavior already
 covered in [docs/workflow.md](workflow.md), or how each page is protected, covered in
 [docs/setup.md's Access tokens section](setup.md#6-access-tokens) — it links to both
@@ -14,9 +14,7 @@ The admin page. Three tabs:
 
 ### Jugadores
 
-The player database: search, add, edit, or remove a player, and — if `enable_web_signup`
-is set in `config.toml` — generate or regenerate a player's personal signup code (see
-[Self-service signup via `/signup`](workflow.md#self-service-signup-via-signup)).
+The player database: search, add, edit, or remove a player.
 
 ### Convocatoria actual
 
@@ -25,7 +23,7 @@ The active meetup, if one exists: pasting and recognizing a callup
 ([step 2](workflow.md#2-manage-the-roster)), including its capacity and the substitute
 search, generating or editing teams
 ([step 3](workflow.md#3-generate-teams)), destroying teams,
-canceling the match, copying the signup and match links, and — for a triangular —
+canceling the match, copying the match link, and — for a triangular —
 closing the session ([step 5](workflow.md#5-close-a-triangular-session)). Empty if no
 meetup is active.
 
@@ -68,27 +66,6 @@ picking an assist — see [step 4](workflow.md#4-track-the-match).
 
 The chronological event log for the current match (edit or delete a previously recorded goal here),
 and the "Finalizar partido" action to close out the match with a final score.
-
-## `/signup`
-
-The self-service page for players, only reachable when `enable_web_signup` is set in
-`config.toml` — see
-[Self-service signup via `/signup`](workflow.md#self-service-signup-via-signup) for the
-full behavior. Two states rather than tabs:
-
-### Code entry
-
-The initial screen: just a field for the player's personal code.
-
-### Logged in
-
-Once a valid code is entered, either:
-- the open-roster view, with an "Apuntarme" / "Salir" button, while signup is still
-  open; or
-- the read-only teams view, with the player's own name highlighted, once teams exist.
-
-"No soy yo" is always available to release the device for the next player, without
-losing the page's own access token.
 
 ## Related documentation
 

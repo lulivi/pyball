@@ -13,17 +13,12 @@ cual, pero lee antes [Ejecutar en Windows (WSL2)](#ejecutar-en-windows-wsl2).
 ## 1. Qué ejecuta PyBall
 
 PyBall se distribuye como una imagen Docker, `lulivi/pyball`: el servidor web con
-`/manage`, `/match` y opcionalmente el alta por cuenta propia en `/signup` (ver abajo),
-más los plugins incluidos, que solo se ejecutan cuando `config.toml` los declara.
+`/manage` y `/match`, más los plugins incluidos, que solo se ejecutan cuando `config.toml` los declara.
 
 Todas las funciones — crear partidos, generar equipos (clásico o triangular), seguir un
 partido, cerrar una sesión triangular, ver estadísticas — están disponibles desde
-`/manage` y `/match`; Telegram y `/signup` son capas de conveniencia añadidas encima,
-nunca un requisito. Pon `enable_web_signup = true` en `config.toml` si quieres que los
-jugadores se apunten o se bajen ellos mismos de un partido con su código personal en
-`/signup` (ver [Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup))
-sin tocar `/manage`, o déjalo en `false` (por defecto) para que el alta siga siendo una
-tarea de admin, hecha desde `/manage`. Activa el plugin
+`/manage` y `/match`; Telegram es una capa de conveniencia añadida encima, nunca un
+requisito. Activa el plugin
 [telegram](plugins/telegram/README.es.md) si quieres que las convocatorias se publiquen
 automáticamente en un grupo, con botones para unirse o salir, y comandos de admin desde
 Telegram.
@@ -139,18 +134,14 @@ La interfaz web de PyBall son dos páginas:
   un móvil o tablet durante la sesión — carga automáticamente el partido activo en cada
   momento, sin configuración manual una vez superado el aviso de token (abajo).
 
-Con `enable_web_signup = true` también existe `/signup`, una página de alta por cuenta
-propia para jugadores — ver
-[Alta por cuenta propia en `/signup`](workflow.es.md#alta-por-cuenta-propia-en-signup).
-
 Ver [docs/workflow.es.md](workflow.es.md) para el flujo completo paso a paso.
 
 ## 6. Tokens de acceso
 
-`match_token`, `signup_token` y `manage_token` protegen la aplicación cuando se expone
+`match_token` y `manage_token` protegen la aplicación cuando se expone
 más allá de tu propia red privada (ej. a través de un proxy inverso en internet) — sin
-ellos, `/manage`, `/match` y `/signup` quedan abiertos a cualquiera que llegue a la URL.
-Si los tres se dejan vacíos, no se aplica ninguna autenticación (correcto para una red
+ellos, `/manage` y `/match` quedan abiertos a cualquiera que llegue a la URL.
+Si ambos se dejan vacíos, no se aplica ninguna autenticación (correcto para una red
 privada en la que ya confías). Cómo expongas la aplicación públicamente (proxy inverso,
 VPN, túnel, etc.) depende de ti — estos tokens funcionan igual en cualquier caso.
 
@@ -158,21 +149,13 @@ VPN, túnel, etc.) depende de ti — estos tokens funcionan igual en cualquier c
 |---|---|
 | `/`, archivos estáticos, manifiestos PWA | Ninguno (siempre público) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **o** `manage_token` |
-| `/signup` y `/api/signup/*` (solo si `enable_web_signup` está activo) | `signup_token` **o** `manage_token` |
 | `/api/v1/*` (la API de plugins) | `Authorization: Bearer` con el token propio de un plugin **o** `manage_token` — ver [Plugins](#8-plugins) |
 | `/manage` y todo lo demás bajo `/api/*` | Solo `manage_token` |
 
 Dale el `match_token` (solo marcador) a un dispositivo que solo deba ver `/match` (ej.
-una tablet montada en el campo), el `signup_token` a los jugadores (si `/signup` está
-activo), y el `manage_token` a los admins. Visitar una URL con `?token=<valor>` una vez valida el
+una tablet montada en el campo), y el `manage_token` a los admins. Visitar una URL con `?token=<valor>` una vez valida el
 token y guarda una cookie `HttpOnly` que dura un año — no hace falta volver a pasar el
 token en ese mismo dispositivo/navegador.
-
-`signup_token` solo protege la propia página `/signup`, como una contraseña compartida
-con todo el que puede usarla; una vez dentro, cada jugador se identifica además con su
-propio código personal de alta (ver
-[Flujo de la aplicación](workflow.es.md#alta-por-cuenta-propia-en-signup)) — son dos
-capas independientes, y ninguna sustituye a la otra.
 
 ## 7. Actualizar
 

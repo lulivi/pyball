@@ -26,8 +26,8 @@ tokens, and plugins, the Telegram bot among them.
 - **[docs/setup.md](docs/setup.md)** — install, configure, and run PyBall.
 - **[docs/workflow.md](docs/workflow.md)** — how a meetup goes from creation to
   finished stats, including the classic (2-team) and triangular (3-team) match formats.
-- **[docs/pages.md](docs/pages.md)** — a structural tour of `/manage`, `/match`, and
-  `/signup`: their tabs, screens, and what each one shows.
+- **[docs/pages.md](docs/pages.md)** — a structural tour of `/manage` and `/match`:
+  their tabs, screens, and what each one shows.
 - **[docs/plugins/README.md](docs/plugins/README.md)** — optional plugins: the bundled
   ones, such as the fair sit-out draw, and how to write your own.
 - **[docs/data-directory.md](docs/data-directory.md)** — the directory structure PyBall

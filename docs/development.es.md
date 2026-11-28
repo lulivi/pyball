@@ -22,7 +22,6 @@ pyball/
 ├── infrastructure/    # Implementaciones concretas de las interfaces del dominio
 │   ├── persistence/   #   Repositorios JSON
 │   ├── images/        #   Renderizado de la imagen de estadísticas (WeasyPrint + Jinja2)
-│   ├── signup/        #   Códigos personales de inscripción
 │   ├── plugins/       #   API de plugins (/api/v1), registro de eventos, credenciales, supervisor
 │   ├── alerts.py      #   Avisos y errores del núcleo enviados al chat de alertas
 │   └── http/          #   App FastAPI, rutas, autenticación por token, páginas web estáticas
@@ -35,8 +34,7 @@ pyball/
   aplicación están en su nivel superior: `bootstrap.py`, el contenedor de dependencias, la
   interfaz `MatchNotifier` e `init_workspace.py` (el generador del espacio de trabajo de
   `--bootstrap`).
-- `infrastructure/http/static/` y `static_signup/` son HTML y JavaScript sin más, sin
-  paso de compilación.
+- `infrastructure/http/static/` es HTML y JavaScript sin más, sin paso de compilación.
 
 Fuera de `pyball/`:
 
@@ -59,12 +57,11 @@ servidor.
 
 ## Un servidor
 
-`pyball` siempre sirve `/manage` y `/match`; `/signup` se activa con `enable_web_signup`
-en `config.toml`. Toda integración, Telegram incluido, es un plugin. Todas las funciones
-son accesibles solo con `/manage` y `/match`. Telegram y `/signup` son capas de comodidad
-sobre los mismos casos de uso, nunca un requisito: un administrador siempre puede añadir,
-quitar o mover a un jugador entre equipos desde `/manage`, sin que ningún jugador visite
-`/signup` y sin ningún plugin en marcha.
+`pyball` siempre sirve `/manage` y `/match`. Toda integración, Telegram incluido, es un
+plugin. Todas las funciones son accesibles solo con `/manage` y `/match`. Telegram es una
+capa de comodidad sobre los mismos casos de uso, nunca un requisito: un administrador
+siempre puede añadir, quitar o mover a un jugador entre equipos desde `/manage`, sin
+ningún plugin en marcha.
 
 ## Plugins
 

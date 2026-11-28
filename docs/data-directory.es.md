@@ -28,10 +28,8 @@ pyball/
 │   │   ├── 2026-04-15T20:00.json
 │   │   ├── 2026-04-22T20:00.json
 │   │   └── ...         # un archivo por partido, nombrado según su fecha/hora
-│   ├── plugins/
-│   │   └── <nombre>/   # el estado propio de cada plugin — ver docs/plugins/README.es.md
-│   └── signup/
-│       └── codes.json   # solo si enable_web_signup está activo — ver más abajo
+│   └── plugins/
+│       └── <nombre>/   # el estado propio de cada plugin — ver docs/plugins/README.es.md
 └── logs/
     └── ...             # archivos de log de la aplicación
 ```
@@ -186,37 +184,6 @@ correcto — PyBall lo trata igual que un archivo vacío:
   }
 }
 ```
-
-## El alta web es opcional mediante `enable_web_signup`
-
-El directorio `data/signup/` de abajo solo existe cuando `enable_web_signup` está
-activo (`true`) en `config.toml`. Si se deja en `false` (por defecto), nada lo lee ni
-lo escribe.
-
-### `data/signup/codes.json`
-
-Una entrada por cada jugador al que se le ha dado un código personal de alta, indexada
-por su id:
-
-```json
-{
-  "11111111-1111-4111-8111-111111111111": {
-    "salt": "3f9c2a1b8e7d4f605a3c9b8e1d7f6042",
-    "hash": "8e1a9c3f7b2d6e405c1a8f9b3d7e6042c1a8f9b3d7e6042c1a8f9b3d7e60428e"
-  }
-}
-```
-
-- `salt` — bytes aleatorios propios de cada jugador (en hex), generados de nuevo cada
-  vez que se fija un código.
-- `hash` — el hash PBKDF2-HMAC-SHA256 del código con ese salt (200.000 iteraciones).
-
-Los códigos nunca se guardan en texto plano, así que un código existente nunca se puede
-recuperar de este archivo — solo regenerar (el botón "Regenerar código" de la fila de un
-jugador en `/manage`, o automáticamente la primera vez que se crea un jugador con
-`enable_web_signup` activo; ver [docs/workflow.es.md](workflow.es.md)). Este archivo se crea
-automáticamente la primera vez que hace falta, y es seguro borrarlo: hacerlo simplemente
-invalida el código de todos los jugadores, obligando a generarles uno nuevo a cada uno.
 
 ## Documentación relacionada
 
