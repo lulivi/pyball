@@ -74,5 +74,5 @@ right after (see [`data/events.jsonl`](../data-directory.md#dataeventsjsonl) for
 and fields). To miss nothing, a plugin keeps the last `id` it handled and reconnects
 with `Last-Event-ID: <id>` (or `?after=<id>`): it receives every later event, in order
 and without duplicates, then new ones as they happen. `?after=0` replays the whole log;
-with neither, the stream starts with the next event. An idle stream sends a comment
-every 15 s.
+with neither, the stream starts with the next event: every event written after the
+`200` arrives. An idle stream sends a comment every 15 s.

@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, AsyncIterable, AsyncIterator, Callable, Literal
 
@@ -59,6 +60,10 @@ if TYPE_CHECKING:
     from pyball.application.notifier import MatchNotifier
     from pyball.infrastructure.plugins.auth import PluginCredentials
     from pyball.infrastructure.plugins.event_log import EventLog
+
+
+Subscription = tuple[int, asyncio.Queue[dict[str, Any] | None]]
+"""What ``EventLog.subscribe()`` returns: the last id in the log and the live queue."""
 
 
 class CreateMeetupBody(BaseModel):
@@ -268,19 +273,29 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
         await notifier.on_meetup_updated(updated)
         return out(updated)
 
+    async def subscription() -> AsyncIterator[Subscription]:
+        # A dependency runs before the 200 is sent, so no event written after it is missed.
+        last_id, queue = container.event_log.subscribe()
+        try:
+            yield last_id, queue
+        finally:
+            container.event_log.unsubscribe(queue)
+
     @api.get("/events", dependencies=meetups_read, response_class=EventSourceResponse)
     async def events(
         after: int | None = Query(default=None, ge=0),
         last_event_id: int | None = Header(default=None, ge=0),
+        subscribed: Subscription = Depends(subscription),
     ) -> AsyncIterable[EventOut]:
         """Stream events as server-sent events, each with its id, type and JSON data.
 
         Resume with the Last-Event-ID header or ?after=<id> to receive every later event in
         order, then the live ones; ?after=0 replays the whole log. With neither, only new
-        events are sent. An idle stream sends a `: ping` comment every 15 s.
+        events are sent: every event written after the 200 arrives. An idle stream sends a
+        `: ping` comment every 15 s.
         """
         seen = last_event_id if last_event_id is not None else after
-        async for event in event_stream(container.event_log, seen):
+        async for event in event_stream(container.event_log, subscribed, seen):
             # The annotation documents each item's data as EventOut in the OpenAPI schema;
             # FastAPI sends ServerSentEvent items as they are, with their id and type.
             yield ServerSentEvent(  # type: ignore[misc]
@@ -290,19 +305,19 @@ def create_plugin_api(  # pylint: disable=too-many-locals,too-many-statements
     return api
 
 
-async def event_stream(log: "EventLog", after: int | None) -> AsyncIterator[dict[str, Any]]:
-    """Yield the events after ``after`` (none if None), then live ones.
+async def event_stream(
+    log: "EventLog", subscribed: Subscription, after: int | None
+) -> AsyncIterator[dict[str, Any]]:
+    """Yield the events after ``after`` (none if None), then the live ones of ``subscribed``.
 
-    Ends when the log closes its subscribers, on shutdown.
+    ``subscribed`` is what ``log.subscribe()`` returned. Ends when the log closes its
+    subscribers, on shutdown.
     """
-    last_id, queue = log.subscribe()
-    try:
-        for event in log.after(last_id if after is None else after, up_to=last_id):
-            yield event
-        while (live := await queue.get()) is not None:
-            yield live
-    finally:
-        log.unsubscribe(queue)
+    last_id, queue = subscribed
+    for event in log.after(last_id if after is None else after, up_to=last_id):
+        yield event
+    while (live := await queue.get()) is not None:
+        yield live
 
 
 def _active(container: "Container") -> Meetup:

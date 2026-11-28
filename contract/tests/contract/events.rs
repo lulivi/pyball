@@ -21,10 +21,6 @@
 //! The event stream and `data/events.jsonl`: what each write records, and replaying,
 //! resuming and following the stream.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-use std::time::Duration;
-
 use pyball_contract::{Core, player};
 use serde_json::{Value, json};
 
@@ -156,28 +152,13 @@ fn the_stream_without_a_position_sends_only_new_events() {
     let core = Core::start();
     let id = two_events(&core);
     let mut stream = core.events("/events", None);
-    // The core may subscribe the stream after its 200, missing a write sent in between, so
-    // player 1 keeps leaving and rejoining until an event arrives: none may be from before.
-    let done = AtomicBool::new(false);
-    let first = thread::scope(|scope| {
-        scope.spawn(|| {
-            let roster = "/meetups/{meetup_id}/players/{player_id}";
-            for method in ["DELETE", "PUT"].iter().cycle() {
-                if done.load(Ordering::Relaxed) {
-                    break;
-                }
-                core.call(method, roster, &[&id, &player(1)], None);
-                thread::sleep(Duration::from_millis(100));
-            }
-        });
-        let first = stream.next_event();
-        done.store(true, Ordering::Relaxed);
-        first
-    });
-    assert!(
-        first["id"].as_u64().unwrap() > 2,
-        "replayed an old event: {first}"
+    core.call(
+        "DELETE",
+        "/meetups/{meetup_id}/players/{player_id}",
+        &[&id, &player(1)],
+        None,
     );
+    assert_eq!(stream.next_event()["id"], 3);
 }
 
 #[test]

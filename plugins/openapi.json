@@ -623,7 +623,7 @@
     "/events": {
       "get": {
         "summary": "Events",
-        "description": "Stream events as server-sent events, each with its id, type and JSON data.\n\nResume with the Last-Event-ID header or ?after=<id> to receive every later event in\norder, then the live ones; ?after=0 replays the whole log. With neither, only new\nevents are sent. An idle stream sends a `: ping` comment every 15 s.",
+        "description": "Stream events as server-sent events, each with its id, type and JSON data.\n\nResume with the Last-Event-ID header or ?after=<id> to receive every later event in\norder, then the live ones; ?after=0 replays the whole log. With neither, only new\nevents are sent: every event written after the 200 arrives. An idle stream sends a\n`: ping` comment every 15 s.",
         "operationId": "events_events_get",
         "security": [
           {

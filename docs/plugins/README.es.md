@@ -78,4 +78,5 @@ para los tipos y campos). Para no perderse nada, un plugin guarda el último `id
 procesó y se reconecta con `Last-Event-ID: <id>` (o `?after=<id>`): recibe todos los
 eventos posteriores, en orden y sin duplicados, y luego los nuevos según ocurren.
 `?after=0` reproduce todo el registro; sin ninguno de los dos, el flujo empieza en el
-siguiente evento. Un flujo sin actividad envía un comentario cada 15 s.
+siguiente evento: llega todo evento escrito después del `200`. Un flujo sin actividad
+envía un comentario cada 15 s.
