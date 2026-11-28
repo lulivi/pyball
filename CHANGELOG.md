@@ -2,6 +2,63 @@
 
 <!-- version list -->
 
+## v10.0.1 (2026-11-28)
+
+### Bug Fixes
+
+- **api**: Document the error replies of /api/v1 ([#47](https://github.com/lulivi/pyball/pull/47),
+  [`c173e8b`](https://github.com/lulivi/pyball/commit/c173e8b7eb03f45a2ff048a9c835acd1636a44e9))
+
+- **api**: Subscribe /events before its 200 and document error replies
+  ([#47](https://github.com/lulivi/pyball/pull/47),
+  [`c173e8b`](https://github.com/lulivi/pyball/commit/c173e8b7eb03f45a2ff048a9c835acd1636a44e9))
+
+- **api**: Subscribe the event stream before sending its 200
+  ([#47](https://github.com/lulivi/pyball/pull/47),
+  [`c173e8b`](https://github.com/lulivi/pyball/commit/c173e8b7eb03f45a2ff048a9c835acd1636a44e9))
+
+### Continuous Integration
+
+- Run the contract suite against the Python core ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+### Documentation
+
+- Document the contract suite and the Rust core ADR
+  ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+### Testing
+
+- **contract**: Add the black-box contract suite for the core
+  ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Add the black-box contract suite harness and players area
+  ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Cover a lineup's event and a search on a meetup with teams
+  ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Cover the events area ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Cover the matches and stats areas ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Cover the meetups area ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Drop the fixed wait from the no-backlog stream test
+  ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+- **contract**: Run the suite in the slim CI image ([#46](https://github.com/lulivi/pyball/pull/46),
+  [`66150fe`](https://github.com/lulivi/pyball/commit/66150fe8ba0cbfdd4307593e60543054aeca80eb))
+
+
 ## v10.0.0 (2026-11-28)
 
 ### Documentation
