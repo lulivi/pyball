@@ -22,3 +22,6 @@
 
 #[cfg(feature = "players")]
 mod players;
+
+#[cfg(feature = "meetups")]
+mod meetups;

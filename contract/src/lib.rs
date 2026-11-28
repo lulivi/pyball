@@ -145,12 +145,23 @@ impl Core {
         serde_json::from_str(&text).expect("data file is not JSON")
     }
 
+    /// The file of `meetup` in `data/meetups/`, named after its date down to the minute.
+    pub fn meetup_file(&self, meetup: &Value) -> Value {
+        let date = meetup["date"].as_str().expect("meetup without date");
+        self.data(&format!("meetups/{}.json", &date[..16]))
+    }
+
     /// Every event in `data/events.jsonl`, in order.
     pub fn event_log(&self) -> Vec<Value> {
         let text = fs::read_to_string(self.data_dir().join("events.jsonl")).unwrap_or_default();
         text.lines()
             .map(|line| serde_json::from_str(line).unwrap())
             .collect()
+    }
+
+    /// The path of `data/<relative>`, to check whether a file exists.
+    pub fn data_path(&self, relative: &str) -> PathBuf {
+        self.data_dir().join(relative)
     }
 
     fn data_dir(&self) -> PathBuf {
@@ -278,13 +289,19 @@ impl Events {
 static OPENAPI: LazyLock<Value> =
     LazyLock::new(|| serde_json::from_str(include_str!("../../plugins/openapi.json")).unwrap());
 
-/// Check `body` against the schema `openapi.json` documents for this response, if any.
+/// Check a success `body` against the schema `openapi.json` documents for it, if any.
+///
+/// Error bodies are no part of the contract, only their status: the Python core answers
+/// its own 422s with a `detail` string where `openapi.json` documents FastAPI's list.
 fn check_schema(method: &str, path: &str, status: u16, body: &Value) {
     let operation = &OPENAPI["paths"][path][method.to_lowercase()];
     assert!(
         !operation.is_null(),
         "{method} {path} is not in openapi.json"
     );
+    if !(200..300).contains(&status) {
+        return;
+    }
     let schema =
         &operation["responses"][status.to_string()]["content"]["application/json"]["schema"];
     if !schema.is_null() {
