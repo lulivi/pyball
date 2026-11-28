@@ -354,8 +354,7 @@ fn meetup_operations_need_a_token() {
         ("DELETE", format!("/meetups/{id}/substitute-search")),
     ];
     for (method, path) in calls {
-        let status = core.request(method, &path, None).send().unwrap().status();
-        assert_eq!(status, 401, "{method} {path}");
+        core.assert_unauthorized(method, &path, None);
     }
 }
 

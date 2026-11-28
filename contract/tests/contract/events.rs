@@ -165,13 +165,7 @@ fn the_stream_without_a_position_sends_only_new_events() {
 fn the_stream_rejects_a_negative_position_and_needs_a_token() {
     let core = Core::start();
     assert_eq!(core.call("GET", "/events?after=-1", &[], None).status, 422);
-    assert_eq!(
-        core.request("GET", "/events", None)
-            .send()
-            .unwrap()
-            .status(),
-        401
-    );
+    core.assert_unauthorized("GET", "/events", None);
 }
 
 /// Create a meetup and have player 1 join it: events 1 and 2. Returns the meetup id.

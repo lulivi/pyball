@@ -48,8 +48,7 @@ fn a_missing_or_wrong_token_is_unauthorized() {
     let core = Core::start();
     for path in ["/settings", "/players"] {
         for token in [None, Some("wrong")] {
-            let status = core.request("GET", path, token).send().unwrap().status();
-            assert_eq!(status, 401, "GET {path} with {token:?}");
+            core.assert_unauthorized("GET", path, token);
         }
     }
 }

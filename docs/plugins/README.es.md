@@ -52,6 +52,11 @@ mismo esquema está guardado en el repositorio como
 [`plugins/openapi.json`](../../plugins/openapi.json), así un plugin puede generar un
 cliente a partir de él o comprobar sus propios tipos sin un PyBall en marcha.
 
+Una respuesta de error es un JSON con un texto `detail` que explica el motivo: `401` si
+falta el token o es incorrecto, `403` si el token no tiene el permiso, `404` si el
+partido no existe, `409` si el partido rechaza el cambio. Un `422` trae ese texto o,
+cuando la petición no encaja con su esquema, la lista de campos erróneos de FastAPI.
+
 | Llamada | Scope | Qué hace |
 |---|---|---|
 | `GET /settings` | cualquiera | El `display_date_format` y el `locale` del club |

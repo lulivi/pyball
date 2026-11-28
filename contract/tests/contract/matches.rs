@@ -147,8 +147,7 @@ fn match_operations_need_a_token() {
         ("PUT", format!("/meetups/{CLOSED_MEETUP}/lineup")),
         ("GET", format!("/meetups/{CLOSED_MEETUP}/summary")),
     ] {
-        let status = core.request(method, &path, None).send().unwrap().status();
-        assert_eq!(status, 401, "{method} {path}");
+        core.assert_unauthorized(method, &path, None);
     }
 }
 
