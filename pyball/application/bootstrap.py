@@ -67,11 +67,6 @@ def _log_startup_info(settings: AppSettings, container: Container) -> None:
         startup_message_lines.append(
             f"    Manage url: {container.base_url}" f"/manage?token={settings.pyball.manage_token}"
         )
-    if settings.pyball.enable_web_signup:
-        signup_url = f"{container.base_url}/signup"
-        if settings.pyball.signup_token:
-            signup_url += f"?token={settings.pyball.signup_token}"
-        startup_message_lines.append(f"    Signup url: {signup_url}")
 
     logger.info("*" * 40)
     logger.info("\n* ".join(startup_message_lines))

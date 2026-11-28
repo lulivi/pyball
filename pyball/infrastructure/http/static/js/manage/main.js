@@ -8,20 +8,6 @@ import {
     escHtml, escAttr, _formatDate, _buildFreshFlowHTML,
 } from './views.js';
 
-initSignupCodesIfEnabled();
-
-async function initSignupCodesIfEnabled() {
-    try {
-        const { signup_enabled } = await get('/api/config');
-        if (signup_enabled) {
-            const { initSignupCodes } = await import('./signup-codes.js');
-            initSignupCodes();
-        }
-    } catch {
-        // /api/config unreachable — leave signup-code UI disabled
-    }
-}
-
 // ── STATE ────────────────────────────────────────────────────────────────────
 let allPlayers = [];        // [{id, name}, ...] from /api/players
 let parsedPlayers = [];     // [{raw, player_id, name, confidence, candidates, excluded}, ...]
@@ -226,7 +212,6 @@ function renderState1(data) {
     <button class="btn btn-gray" onclick="toggleEditPanel()">✏️ Editar convocatoria</button>
     ${_buildCapacityRow(data)}
     ${buildTeamButtonsRow()}
-    ${data.signupUrl ? copyLinkButton('🔗 Copiar link apuntarse', data.signupUrl) : ''}
     ${buildCancelTrigger()}
   `;
 }
@@ -962,7 +947,7 @@ async function _loadConvocatoriaDetail(date) {
     }
 }
 
-export function copyToClipboard(text, onDone = () => alert('Copiado al portapapeles ✓')) {
+function copyToClipboard(text, onDone = () => alert('Copiado al portapapeles ✓')) {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(onDone);
         return;

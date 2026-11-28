@@ -286,41 +286,12 @@ class TestTokenSettings:
         assert settings.pyball.manage_token == "env-manage"
 
 
-class TestWebSignupSetting:
-    """Tests for the enable_web_signup config field."""
-
-    def test_defaults_to_false(self):
-        """PyballConfig defaults enable_web_signup to False."""
-        settings = PyballConfig()
-        assert settings.enable_web_signup is False
-
-    def test_loads_true_from_config(self, tmp_path):
-        """enable_web_signup = true in config.toml is loaded as a Python bool."""
-        content = _FULL_CORE + "enable_web_signup = true\n"
-        f = _write(tmp_path, content)
-        settings = load_app_settings(f)
-        assert settings.pyball.enable_web_signup is True
-
-    def test_absent_from_config_defaults_to_false(self, tmp_path):
-        """Absent enable_web_signup does not raise and defaults to False."""
-        f = _write(tmp_path, _FULL_CORE)
-        settings = load_app_settings(f)
-        assert settings.pyball.enable_web_signup is False
-
-    def test_env_var_override_true(self, tmp_path, monkeypatch):
-        """PYBALL_CORE_ENABLE_WEB_SIGNUP=true overrides an absent config value."""
-        f = _write(tmp_path, _FULL_CORE)
-        monkeypatch.setenv("PYBALL_CORE_ENABLE_WEB_SIGNUP", "true")
-        settings = load_app_settings(f)
-        assert settings.pyball.enable_web_signup is True
-
-    def test_env_var_override_false_string(self, tmp_path, monkeypatch):
-        """PYBALL_CORE_ENABLE_WEB_SIGNUP=false parses to False, not a truthy string."""
-        content = _FULL_CORE + "enable_web_signup = true\n"
-        f = _write(tmp_path, content)
-        monkeypatch.setenv("PYBALL_CORE_ENABLE_WEB_SIGNUP", "false")
-        settings = load_app_settings(f)
-        assert settings.pyball.enable_web_signup is False
+def test_removed_web_signup_keys_are_ignored(tmp_path):
+    """A config.toml still carrying the removed web-signup keys loads unchanged."""
+    content = _FULL_CORE + 'enable_web_signup = true\nsignup_token = "old"\n'
+    settings = load_app_settings(_write(tmp_path, content))
+    assert settings.pyball.name == load_app_settings(_write(tmp_path, _FULL_CORE)).pyball.name
+    assert not hasattr(settings.pyball, "enable_web_signup")
 
 
 class TestNameSettings:

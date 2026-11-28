@@ -76,8 +76,6 @@ despliegue sin editar el archivo.
 | `data_dir` | Directorio para los archivos de datos JSON; una ruta relativa parte de la carpeta de `config.toml` | `data` |
 | `match_token` | Token de acceso solo para `/match` (opcional, ver [Tokens de acceso](#6-tokens-de-acceso)) | *(vacío)* |
 | `manage_token` | Token de acceso para todo, incluyendo `/manage` (opcional) | *(vacío)* |
-| `enable_web_signup` | Activa la página de alta por cuenta propia `/signup` | `false` |
-| `signup_token` | Token de acceso solo para `/signup` (opcional; solo relevante si `enable_web_signup` está activo, inofensivo si se deja vacío) | *(vacío)* |
 | `theme_color` | Color de tema/fondo de la PWA | `#0f172a` |
 | `icons_dir` | Directorio de iconos PWA personalizados (opcional); una ruta relativa parte de la carpeta de `config.toml` | *(vacío)* |
 

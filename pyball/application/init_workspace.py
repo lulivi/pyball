@@ -70,21 +70,12 @@ locale = "es_ES.UTF-8"
 # Override with PYBALL_CORE_DATA_DIR
 data_dir = "data"
 
-# Enable the self-service /signup page (players join/leave with a personal code)
-# Override with PYBALL_CORE_ENABLE_WEB_SIGNUP
-enable_web_signup = false
-
 # Static tokens for public access (optional -- leave empty to disable auth)
 # Override with PYBALL_CORE_MATCH_TOKEN
 # match_token = ""
 
 # Override with PYBALL_CORE_MANAGE_TOKEN
 # manage_token = ""
-
-# Static token gating /signup -- only relevant when enable_web_signup is true,
-# harmless if left unset
-# Override with PYBALL_CORE_SIGNUP_TOKEN
-# signup_token = ""
 
 # Override with PYBALL_CORE_THEME_COLOR
 theme_color = "#0f172a"
@@ -134,9 +125,7 @@ _PYBALL_README = f"""\
 # PyBall
 
 PyBall is a self-hosted football meetup manager with a web UI for tracking matches,
-managing players, and recording results — including an optional self-service /signup
-page where players join or leave a meetup with their own personal code (enable it with
-`enable_web_signup = true` in config.toml), and an optional Telegram bot, the bundled
+managing players, and recording results, and an optional Telegram bot, the bundled
 `telegram` plugin.
 
 ## Quick Start
@@ -146,7 +135,7 @@ docker compose up -d
 ```
 
 Edit `config.toml` first — see the full setup guide for configuration, access tokens
-(including `signup_token`), and how to use `/manage`, `/match`, and `/signup`:
+and how to use `/manage` and `/match`:
 
 - [Setup Guide]({_DOCS_BASE_URL}/setup.md) / [Guía de instalación]({_DOCS_BASE_URL}/setup.es.md)
 - [Application Workflow]({_DOCS_BASE_URL}/workflow.md) / \

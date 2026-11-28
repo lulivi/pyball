@@ -121,9 +121,3 @@ class UpdateMeetupLocationInput(BaseModel):
 
     date: str
     location: str
-
-
-class VerifyCodeInput(BaseModel):
-    """Request body for POST /api/signup/verify."""
-
-    code: str
