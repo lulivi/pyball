@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v10.0.0 (2026-11-28)
+
+### Documentation
+
+- Remove web signup from the documentation ([#43](https://github.com/lulivi/pyball/pull/43),
+  [`bc8060a`](https://github.com/lulivi/pyball/commit/bc8060a2a9f697851baf65837e910ce100da5e68))
+
+### Features
+
+- Remove web signup ([#43](https://github.com/lulivi/pyball/pull/43),
+  [`bc8060a`](https://github.com/lulivi/pyball/commit/bc8060a2a9f697851baf65837e910ce100da5e68))
+
+
 ## v9.0.1 (2026-11-23)
 
 ### Bug Fixes
