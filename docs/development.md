@@ -21,7 +21,6 @@ pyball/
 ├── infrastructure/    # Concrete implementations of the domain interfaces
 │   ├── persistence/   #   JSON repositories
 │   ├── images/        #   Stats image rendering (WeasyPrint + Jinja2)
-│   ├── signup/        #   Personal signup codes
 │   ├── plugins/       #   Plugin API (/api/v1), event log, credentials, supervisor
 │   ├── alerts.py      #   Core warnings and errors sent to the alert chat
 │   └── http/          #   FastAPI app, routes, token auth, static web pages
@@ -33,8 +32,7 @@ pyball/
 - `application/` holds one use case per file. Shared application pieces live at its top
   level: `bootstrap.py`, the dependency container, the `MatchNotifier` interface, and
   `init_workspace.py` (the `--bootstrap` workspace generator).
-- `infrastructure/http/static/` and `static_signup/` are plain HTML and JavaScript, with
-  no build step.
+- `infrastructure/http/static/` is plain HTML and JavaScript, with no build step.
 
 Outside `pyball/`:
 
@@ -56,12 +54,10 @@ connections, and stop first, before the event streams close and the server exits
 
 ## One server
 
-`pyball` always serves `/manage` and `/match`; `/signup` is opt-in via
-`enable_web_signup` in `config.toml`. Every integration, Telegram included, is a plugin.
-Every feature is reachable from `/manage` and `/match` alone. Telegram and `/signup` are
-convenience layers over the same use cases, never a requirement: an admin can always add,
-remove or move a player between teams from `/manage`, with no player visiting `/signup`
-and no plugin running.
+`pyball` always serves `/manage` and `/match`. Every integration, Telegram included, is
+a plugin. Every feature is reachable from `/manage` and `/match` alone. Telegram is a
+convenience layer over the same use cases, never a requirement: an admin can always add,
+remove or move a player between teams from `/manage`, with no plugin running.
 
 ## Plugins
 

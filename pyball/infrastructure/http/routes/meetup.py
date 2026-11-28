@@ -65,14 +65,13 @@ def register_meetup_routes(
     app: FastAPI,
     container: "Container",
     notifier: "MatchNotifier",
-    enable_web_signup: bool = False,
 ) -> None:
     """Register meetup-related routes."""
 
     @app.get("/api/meetup/active")
     async def meetup_active():
         """Return the current active meetup with or without teams, or 404."""
-        return build_meetup_active_response(container, enable_web_signup)
+        return build_meetup_active_response(container)
 
     @app.get("/api/meetup/history")
     async def meetup_history():
@@ -126,7 +125,7 @@ def register_meetup_routes(
     @app.post("/api/meetup/generate-teams")
     async def generate_teams_endpoint(body: GenerateTeamsInput):
         """Generate balanced teams for an existing meetup and return the full meetup state."""
-        return await _handle_generate_teams(container, notifier, body, enable_web_signup)
+        return await _handle_generate_teams(container, notifier, body)
 
     @app.post("/api/meetup/assign-teams")
     async def assign_teams(body: AssignTeamsInput):
@@ -158,22 +157,22 @@ def register_meetup_routes(
             raise HTTPException(422, str(exc)) from exc
 
         await notifier.on_meetup_updated(meetup)
-        return build_meetup_active_response(container, enable_web_signup)
+        return build_meetup_active_response(container)
 
     @app.post("/api/meetup/destroy-teams")
     async def destroy_teams_endpoint(body: MeetupDateInput):
         """Destroy the meetup's teams and reopen signup, or 404/409."""
-        return await _handle_destroy_teams(container, notifier, body, enable_web_signup)
+        return await _handle_destroy_teams(container, notifier, body)
 
     @app.post("/api/meetup/create")
     async def create_meetup_endpoint(body: CreateMeetupInput):
         """Create (or reset) a meetup with the given player list."""
-        return await _handle_create_meetup(container, notifier, body, enable_web_signup)
+        return await _handle_create_meetup(container, notifier, body)
 
     @app.post("/api/meetup/create-next")
     async def create_next_meetup_endpoint():
         """Create an empty meetup at the next occurrence of the default weekday/hour."""
-        return await _handle_create_next_meetup(container, notifier, enable_web_signup)
+        return await _handle_create_next_meetup(container, notifier)
 
     @app.post("/api/meetup/date")
     async def update_meetup_date_endpoint(body: UpdateMeetupDateInput):
@@ -193,7 +192,7 @@ def register_meetup_routes(
             lambda: container.set_meetup_capacity().execute(meetup_date, body.capacity)
         )
         await notifier.on_meetup_updated(meetup)
-        return build_meetup_active_response(container, enable_web_signup)
+        return build_meetup_active_response(container)
 
     @app.post("/api/meetup/substitute-search/open")
     async def open_substitute_search_endpoint(body: MeetupDateInput):
@@ -201,12 +200,12 @@ def register_meetup_routes(
         meetup_date = _parse_date(body.date)
         current = container.meetup_repository.find_by_datetime(meetup_date)
         if current is not None and current.substitute_search:
-            return build_meetup_active_response(container, enable_web_signup)
+            return build_meetup_active_response(container)
         meetup = _run_meetup_change(
             lambda: container.open_substitute_search().execute(meetup_date)
         )
         await notifier.on_substitute_search_opened(meetup)
-        return build_meetup_active_response(container, enable_web_signup)
+        return build_meetup_active_response(container)
 
     @app.post("/api/meetup/substitute-search/close")
     async def close_substitute_search_endpoint(body: MeetupDateInput):
@@ -216,7 +215,7 @@ def register_meetup_routes(
             lambda: container.close_substitute_search().execute(meetup_date)
         )
         await notifier.on_meetup_updated(meetup)
-        return build_meetup_active_response(container, enable_web_signup)
+        return build_meetup_active_response(container)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
@@ -226,7 +225,6 @@ async def _handle_create_meetup(
     container: "Container",
     notifier: "MatchNotifier",
     body: CreateMeetupInput,
-    enable_web_signup: bool,
 ) -> dict:
     """Validate, upsert via SetMeetupPlayers, notify, and serialise the response."""
     try:
@@ -273,14 +271,10 @@ async def _handle_create_meetup(
         "capacity": meetup.capacity,
         "substituteSearch": meetup.substitute_search,
     }
-    if enable_web_signup:
-        response["signupUrl"] = container.signup_link_builder().build()
     return response
 
 
-async def _handle_create_next_meetup(
-    container: "Container", notifier: "MatchNotifier", enable_web_signup: bool
-) -> dict:
+async def _handle_create_next_meetup(container: "Container", notifier: "MatchNotifier") -> dict:
     """Create an empty meetup at the next default weekday/hour and notify."""
     next_date = _get_next_default_date(container.default_week_day, container.default_hour)
     try:
@@ -297,8 +291,6 @@ async def _handle_create_next_meetup(
         "capacity": meetup.capacity,
         "substituteSearch": meetup.substitute_search,
     }
-    if enable_web_signup:
-        response["signupUrl"] = container.signup_link_builder().build()
     return response
 
 
@@ -306,7 +298,6 @@ async def _handle_generate_teams(
     container: "Container",
     notifier: "MatchNotifier",
     body: GenerateTeamsInput,
-    enable_web_signup: bool,
 ) -> dict:
     """Validate, generate teams, notify, and serialise the active meetup response."""
     try:
@@ -328,14 +319,13 @@ async def _handle_generate_teams(
         raise HTTPException(409, "Meetup has a recorded result, cannot regenerate teams") from exc
 
     await notifier.on_meetup_updated(meetup)
-    return build_meetup_active_response(container, enable_web_signup)
+    return build_meetup_active_response(container)
 
 
 async def _handle_destroy_teams(
     container: "Container",
     notifier: "MatchNotifier",
     body: MeetupDateInput,
-    enable_web_signup: bool,
 ) -> dict:
     """Validate, destroy the meetup's teams, notify, and return the active meetup response."""
     try:
@@ -355,7 +345,7 @@ async def _handle_destroy_teams(
         ) from exc
 
     await notifier.on_meetup_updated(meetup)
-    return build_meetup_active_response(container, enable_web_signup)
+    return build_meetup_active_response(container)
 
 
 async def _handle_update_meetup_date(

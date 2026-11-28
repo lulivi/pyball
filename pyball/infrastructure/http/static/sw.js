@@ -24,7 +24,6 @@ const PRECACHE_ASSETS = [
     '/js/manage/main.js',
     '/js/manage/views.js',
     '/js/manage/players.js',
-    '/js/manage/signup-codes.js',
 ];
 
 // allSettled: an auth-gated shell that can't be fetched yet (no cookie set) must not

@@ -28,8 +28,8 @@ entre ellos el bot de Telegram.
 - **[docs/workflow.es.md](docs/workflow.es.md)** — cómo va un partido desde que se crea
   hasta las estadísticas finales, incluyendo los formatos clásico (2 equipos) y
   triangular (3 equipos).
-- **[docs/pages.es.md](docs/pages.es.md)** — un recorrido estructural por `/manage`,
-  `/match` y `/signup`: sus pestañas, pantallas, y qué muestra cada una.
+- **[docs/pages.es.md](docs/pages.es.md)** — un recorrido estructural por `/manage` y
+  `/match`: sus pestañas, pantallas, y qué muestra cada una.
 - **[docs/plugins/README.es.md](docs/plugins/README.es.md)** — plugins opcionales: los
   incluidos, como el sorteo justo de quién descansa, y cómo escribir los tuyos.
 - **[docs/data-directory.es.md](docs/data-directory.es.md)** — la estructura de

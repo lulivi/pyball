@@ -17,9 +17,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Tests for MatchLinkBuilder and SignupLinkBuilder."""
+"""Tests for MatchLinkBuilder."""
 
-from pyball.infrastructure.http.links import MatchLinkBuilder, SignupLinkBuilder
+from pyball.infrastructure.http.links import MatchLinkBuilder
 
 
 def test_build_with_token():
@@ -30,13 +30,3 @@ def test_build_with_token():
 def test_build_without_token():
     builder = MatchLinkBuilder("http://pyball:8000")
     assert builder.build() == "http://pyball:8000/match"
-
-
-def test_signup_build_with_token():
-    builder = SignupLinkBuilder("http://pyball:8000", signup_token="tok-456")
-    assert builder.build() == "http://pyball:8000/signup?token=tok-456"
-
-
-def test_signup_build_without_token():
-    builder = SignupLinkBuilder("http://pyball:8000")
-    assert builder.build() == "http://pyball:8000/signup"

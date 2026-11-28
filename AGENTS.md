@@ -34,9 +34,8 @@ conventions: the release automation tags `main` from the commit types.
 - `application/` holds one use case per file, injected with repository interfaces.
 - `cmd/run_pyball.py` is the Composition Root: wiring lives there, never in `domain/` or
   `application/`. Integrations are plugins on `/api/v1`.
-- Every feature is reachable from `/manage` and `/match` alone. Telegram and `/signup` are
-  convenience layers over the same use cases, so a feature works with no Telegram bot
-  configured and no player visiting `/signup`.
+- Every feature is reachable from `/manage` and `/match` alone. Telegram is a convenience
+  layer over the same use cases, so a feature works with no Telegram bot configured.
 
 ## Code organization
 

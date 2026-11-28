@@ -64,8 +64,6 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         "api_port",
         "match_token",
         "manage_token",
-        "signup_token",
-        "enable_web_signup",
         "theme_color",
         "icons_dir",
         "meetup_capacity",
@@ -73,8 +71,6 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
     raw = {k: _get_env_override("core", k, core_cfg.get(k)) for k in core_keys}
     raw["match_token"] = raw["match_token"] or ""
     raw["manage_token"] = raw["manage_token"] or ""
-    raw["signup_token"] = raw["signup_token"] or ""
-    raw["enable_web_signup"] = raw["enable_web_signup"] or False
     raw["theme_color"] = raw["theme_color"] or "#0f172a"
     raw["icons_dir"] = raw["icons_dir"] or ""
     if raw["meetup_capacity"] is None:
@@ -105,8 +101,6 @@ def load_app_settings(config_path: Path = Path("config.toml")) -> AppSettings:
         api_port=_parse_api_port(raw["api_port"]),
         match_token=raw["match_token"],
         manage_token=raw["manage_token"],
-        signup_token=raw["signup_token"],
-        enable_web_signup=_parse_bool(raw["enable_web_signup"]),
         theme_color=raw["theme_color"],
         icons_dir=raw["icons_dir"],
         meetup_capacity=_parse_meetup_capacity(raw["meetup_capacity"]),
@@ -165,8 +159,6 @@ class PyballConfig:  # pylint: disable=too-many-instance-attributes
     data_dir: str = "data"
     match_token: str = ""
     manage_token: str = ""
-    signup_token: str = ""
-    enable_web_signup: bool = False
     theme_color: str = "#0f172a"
     icons_dir: str = ""
     meetup_capacity: int = 10
@@ -316,15 +308,6 @@ def _parse_alerts(section: dict) -> TelegramAlerts | None:
     if not bot_token:
         raise SettingsValidationError(f"Falta {path}.bot_token para enviar las alertas.")
     return TelegramAlerts(bot_token, chat_id, thread_id or None)
-
-
-def _parse_bool(value) -> bool:
-    """Parse enable_web_signup from a native TOML bool or an env var string."""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() in ("1", "true", "yes", "on")
-    return False
 
 
 def _parse_team_colors(value) -> tuple[str, ...]:

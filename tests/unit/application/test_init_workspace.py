@@ -67,20 +67,6 @@ class TestInitWorkspacePyball:
         assert "PORT=8000" in content
         assert "TAG=latest" in content
 
-    def test_config_includes_enable_web_signup_toggle(self, tmp_path):
-        """config.toml includes the enable_web_signup key, defaulting to false."""
-        init_workspace(tmp_path / "config.toml")
-
-        content = (tmp_path / "config.toml").read_text()
-        assert "enable_web_signup = false" in content
-
-    def test_readme_mentions_signup_opt_in(self, tmp_path):
-        """README.md tells the reader how to turn /signup on."""
-        init_workspace(tmp_path / "config.toml")
-
-        content = (tmp_path / "README.md").read_text()
-        assert "enable_web_signup" in content
-
 
 def test_readme_links_docs_on_github(tmp_path):
     """The generated README links to the docs on GitHub."""

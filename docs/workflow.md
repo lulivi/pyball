@@ -6,8 +6,7 @@ This document walks through the full life of a meetup in PyBall: creating it, bu
 teams, playing, and closing it out — covering both match formats PyBall supports. Every
 step can be done from the `/manage` and `/match` web pages; where a Telegram bot command
 exists too (only with the [telegram](plugins/telegram/README.md) plugin enabled), it's
-noted alongside, and where players can act on their own from `/signup` (only if
-`enable_web_signup` is set in `config.toml`), that's noted too.
+noted alongside.
 
 ## The two match formats
 
@@ -62,37 +61,6 @@ usually do this themselves via the "✔ Unirse" / "✖ Salir" buttons from step 
   roster is back at the default, the capacity returns to the default: with 11 players
   searching for 12, one leave brings you to 10 and the search is complete. Regulars can
   keep joining regardless.
-
-## Self-service signup via `/signup`
-
-If `enable_web_signup` is set in `config.toml`, players can join or leave a meetup
-themselves at `/signup`, without ever touching `/manage`. Each player identifies
-themselves with their own 8-character personal code, shown once when an admin creates
-them in `/manage`, or regenerated anytime with the "Regenerar código" button on their
-row — that modal also offers "📤 Compartir" (where the browser supports it) and
-"📋 Copiar mensaje", bundling the player's code together with the `/signup` URL
-(protected by `signup_token`, see [Access tokens](setup.md#6-access-tokens)) into one
-ready-to-send message. The bare `/signup` URL can also be copied on its own from
-"Convocatoria actual" via "🔗 Copiar link apuntarse", shown until the match starts —
-both while you're still assembling the roster and after teams have been generated.
-
-- **Entering the code:** the first screen just asks for the code. A correct one greets
-  the player by name and shows the currently active meetup, if any.
-- **Joining/leaving:** while signup is still open (before teams are generated — see
-  [step 3](#3-generate-teams)), an "Apuntarme" / "Salir" button lets the player add or
-  remove themselves from the roster, exactly as if an admin had done it from `/manage`.
-  The join or leave is recorded in the event stream for plugins, posted to the club's
-  chat by the [activity](plugins/activity/README.md) plugin if it is enabled, and counts
-  toward the substitute search.
-- **Once teams exist:** the join/leave button disappears; the player instead sees all
-  teams, read-only, the same view `/manage` and `/match` show everyone else — with their
-  own name highlighted so they can find themselves at a glance.
-- **Shared devices:** "No soy yo" logs the current player out (clears their identity
-  cookie) without touching the `signup_token` cookie, so the next person can enter their
-  own code on the same phone or tablet.
-
-`/signup` is pure convenience — an admin can always add, remove, or reassign a player
-from `/manage` without anyone ever visiting `/signup`.
 
 ## 3. Generate teams
 

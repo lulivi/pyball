@@ -17,7 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""The PyBall entrypoint: /manage, /match, optional /signup, the plugin API and plugins."""
+"""The PyBall entrypoint: /manage, /match, the plugin API and plugins."""
 
 import argparse
 import asyncio
@@ -38,7 +38,7 @@ from pyball.settings import SettingsValidationError
 
 def main() -> None:
     """Start the server and its plugins."""
-    parser = argparse.ArgumentParser(description="PyBall server (manage, match, optional signup)")
+    parser = argparse.ArgumentParser(description="PyBall server (manage, match)")
     parser.add_argument(
         "--config",
         type=Path,
@@ -67,7 +67,7 @@ def main() -> None:
 
 
 async def _main_async(config_path: Path) -> None:
-    """Boot PyBall, with /signup enabled or not per config."""
+    """Boot PyBall: the web app, the plugin API and the plugin supervisor."""
     app_settings, container = bootstrap_core(config_path)
     config_alerts(app_settings.alerts)
     notifier = EventLogNotifier(container.event_log)
@@ -77,8 +77,6 @@ async def _main_async(config_path: Path) -> None:
         notifier,
         match_token=app_settings.pyball.match_token,
         manage_token=app_settings.pyball.manage_token,
-        signup_token=app_settings.pyball.signup_token,
-        enable_web_signup=app_settings.pyball.enable_web_signup,
         plugin_credentials=credentials,
     )
     supervisor = PluginSupervisor(

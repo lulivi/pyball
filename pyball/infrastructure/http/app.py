@@ -31,7 +31,6 @@ from pyball.infrastructure.http.routes import (
     register_match_routes,
     register_meetup_routes,
     register_player_routes,
-    register_signup_routes,
     register_static_routes,
 )
 from pyball.infrastructure.plugins.api import create_plugin_api
@@ -42,39 +41,30 @@ if TYPE_CHECKING:
     from pyball.application.notifier import MatchNotifier
 
 _DEFAULT_STATIC_DIR = Path(__file__).parent / "static"
-_DEFAULT_SIGNUP_STATIC_DIR = Path(__file__).parent / "static_signup"
 
 
 def create_app(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     container: "Container",
     notifier: "MatchNotifier",
     static_dir: Path = _DEFAULT_STATIC_DIR,
-    signup_static_dir: Path = _DEFAULT_SIGNUP_STATIC_DIR,
     match_token: str = "",
     manage_token: str = "",
-    signup_token: str = "",
-    enable_web_signup: bool = False,
     plugin_credentials: PluginCredentials | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application, with the plugin API at /api/v1."""
     app = FastAPI(title="PyBall API")
 
-    if match_token or manage_token or signup_token:
+    if match_token or manage_token:
         app.add_middleware(
             TokenAuthMiddleware,
             match_token=match_token,
             manage_token=manage_token,
-            signup_token=signup_token,
         )
 
-    register_static_routes(app, static_dir, container, enable_web_signup=enable_web_signup)
+    register_static_routes(app, static_dir, container)
     register_match_routes(app, container, notifier)
-    register_player_routes(app, container, enable_web_signup=enable_web_signup)
-    register_meetup_routes(app, container, notifier, enable_web_signup=enable_web_signup)
-    if enable_web_signup:
-        register_signup_routes(
-            app, container, notifier, signup_token, static_dir=signup_static_dir
-        )
+    register_player_routes(app, container)
+    register_meetup_routes(app, container, notifier)
 
     credentials = plugin_credentials or PluginCredentials([], manage_token)
     app.mount("/api/v1", create_plugin_api(container, notifier, credentials))
@@ -82,9 +72,6 @@ def create_app(  # pylint: disable=too-many-arguments,too-many-positional-argume
     icons_dir = Path(container.icons_dir) if container.icons_dir else None
     if icons_dir and icons_dir.exists():
         app.mount("/icons", StaticFiles(directory=icons_dir), name="icons")
-
-    if enable_web_signup and signup_static_dir.exists():
-        app.mount("/signup-static", StaticFiles(directory=signup_static_dir), name="signup-static")
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

@@ -12,18 +12,13 @@ read [Running on Windows (WSL2)](#running-on-windows-wsl2) before step 1.
 
 ## 1. What PyBall runs
 
-PyBall ships as one Docker image, `lulivi/pyball`: the web server with `/manage`, `/match`
-and an optional self-service `/signup` (see below), plus the bundled plugins, which run
+PyBall ships as one Docker image, `lulivi/pyball`: the web server with `/manage` and
+`/match`, plus the bundled plugins, which run
 only once `config.toml` declares them.
 
 Every feature — creating meetups, building teams (classic or triangular), tracking a
 match, closing a triangular session, viewing stats — is reachable from `/manage` and
-`/match`; Telegram and `/signup` are convenience layers on top, never a requirement. Set
-`enable_web_signup = true` in `config.toml` if you want players to join or leave a meetup
-themselves from a personal code at `/signup` (see
-[Application Workflow](workflow.md#self-service-signup-via-signup)) without touching
-`/manage`, or leave it `false` (the default) to keep signup an admin-only,
-`/manage`-driven task. Enable the [telegram](plugins/telegram/README.md) plugin if you
+`/match`; Telegram is a convenience layer on top, never a requirement. Enable the [telegram](plugins/telegram/README.md) plugin if you
 want meetups posted to a group chat automatically, with join/leave buttons, and admin
 commands from Telegram.
 
@@ -73,8 +68,6 @@ out of `config.toml` or overriding a value per-deployment without editing the fi
 | `data_dir` | Directory for JSON data files; a relative path starts from the folder holding `config.toml` | `data` |
 | `match_token` | Access token for `/match` only (optional, see [Access tokens](#6-access-tokens)) | *(empty)* |
 | `manage_token` | Access token for everything, including `/manage` (optional) | *(empty)* |
-| `enable_web_signup` | Enables the self-service `/signup` page | `false` |
-| `signup_token` | Access token for `/signup` only (optional; only relevant if `enable_web_signup` is true, harmless if left unset) | *(empty)* |
 | `theme_color` | PWA theme/background color | `#0f172a` |
 | `icons_dir` | Custom PWA icons directory (optional); a relative path starts from the folder holding `config.toml` | *(empty)* |
 
@@ -136,18 +129,14 @@ PyBall's web UI is two pages:
   the session — it auto-loads whichever match is currently active, no manual setup
   needed once you're past the token prompt (below).
 
-With `enable_web_signup = true` there's also `/signup`, a self-service page for
-players — see
-[Self-service signup via `/signup`](workflow.md#self-service-signup-via-signup).
-
 See [docs/workflow.md](workflow.md) for the full step-by-step flow.
 
 ## 6. Access tokens
 
-`match_token`, `signup_token`, and `manage_token` protect the app when it's exposed
+`match_token` and `manage_token` protect the app when it's exposed
 beyond your own private network (e.g. through a reverse proxy on the public internet) —
-without them, `/manage`, `/match`, and `/signup` are open to anyone who reaches the URL.
-If all three are left empty, no authentication is enforced at all (fine for a private
+without them, `/manage` and `/match` are open to anyone who reaches the URL.
+If both are left empty, no authentication is enforced at all (fine for a private
 network you already trust). How you expose the app publicly (reverse proxy, VPN, tunnel,
 etc.) is up to you — these tokens work the same regardless.
 
@@ -155,21 +144,13 @@ etc.) is up to you — these tokens work the same regardless.
 |---|---|
 | `/`, static assets, PWA manifests | None (always public) |
 | `/match`, `GET /api/match/active`, `POST /api/match/finish` | `match_token` **or** `manage_token` |
-| `/signup` and `/api/signup/*` (only when `enable_web_signup` is true) | `signup_token` **or** `manage_token` |
 | `/api/v1/*` (the plugin API) | `Authorization: Bearer` with a plugin's own token **or** `manage_token` — see [Plugins](#8-plugins) |
 | `/manage` and everything else under `/api/*` | `manage_token` only |
 
 Give the scoreboard-only `match_token` to a device that should only ever see `/match`
-(e.g. a tablet mounted at the pitch), the `signup_token` to players (if `/signup` is
-enabled), and the `manage_token` to admins. Visiting a URL with `?token=<value>` once validates it
+(e.g. a tablet mounted at the pitch), and the `manage_token` to admins. Visiting a URL with `?token=<value>` once validates it
 and sets an `HttpOnly` cookie that lasts a year — no need to pass the token again after
 that on the same device/browser.
-
-`signup_token` only gates the `/signup` page itself, like a site password shared with
-everyone who's allowed to use it; once inside, each player additionally identifies
-themselves with their own personal signup code (see
-[Application Workflow](workflow.md#self-service-signup-via-signup)) — the two are
-independent layers, and neither substitutes for the other.
 
 ## 7. Updating
 

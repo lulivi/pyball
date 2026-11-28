@@ -3,7 +3,7 @@
 🇬🇧 [English](deployment.md) | 🇪🇸 Español
 
 Por defecto, PyBall solo es accesible en la red local de la máquina que lo aloja —
-`/manage`, `/match` y `/signup` son HTTP plano en el puerto que hayas configurado.
+`/manage` y `/match` son HTTP plano en el puerto que hayas configurado.
 Esta guía cubre dos formas de acceder desde fuera de esa red, según lo que tengas
 disponible.
 
@@ -146,7 +146,7 @@ recrea el contenedor con el nuevo entorno.
 
 **Configura los tokens de acceso antes de abrir el túnel.** En cuanto ngrok está
 activo, toda la app — incluido `/manage` — es accesible para quien encuentre la
-URL. Configura `match_token`, `signup_token` y `manage_token` en `config.toml`
+URL. Configura `match_token` y `manage_token` en `config.toml`
 primero (ver [Tokens de acceso en setup.es.md](setup.es.md#6-tokens-de-acceso)).
 
 El plan gratuito de ngrok asigna una URL aleatoria nueva cada vez que el túnel se
