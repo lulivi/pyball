@@ -31,3 +31,6 @@ mod matches;
 
 #[cfg(feature = "stats")]
 mod stats;
+
+#[cfg(feature = "events")]
+mod events;
