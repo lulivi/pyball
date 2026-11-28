@@ -1,0 +1,88 @@
+{
+  "players": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "Álvaro",
+      "group": "regular",
+      "position": "portero"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "name": "Bruno",
+      "group": "regular",
+      "position": "defensa"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "name": "Carlos",
+      "group": "regular",
+      "position": "defensa"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "name": "Dani",
+      "group": "regular",
+      "position": "centrocampista"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "name": "Edu",
+      "group": "regular",
+      "position": "centrocampista"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "name": "Fran",
+      "group": "regular",
+      "position": "delantero"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "name": "Gonzalo",
+      "group": "regular",
+      "position": "portero"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000008",
+      "name": "Hugo",
+      "group": "regular",
+      "position": "defensa"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000009",
+      "name": "Iván",
+      "group": "regular",
+      "position": "defensa"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "name": "Javi",
+      "group": "regular",
+      "position": "centrocampista"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "name": "Kike",
+      "group": "regular",
+      "position": "centrocampista"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "name": "Luis",
+      "group": "regular",
+      "position": "delantero"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "name": "Marcos",
+      "group": "substitute",
+      "position": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000014",
+      "name": "Nico",
+      "group": "substitute",
+      "position": null
+    }
+  ]
+}

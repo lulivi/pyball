@@ -60,6 +60,13 @@ plugins-check:
 plugins-build:
 	for dir in clients/*/ plugins/*/; do $(MAKE) -C "$$dir" build || exit 1; done
 
+# The contract suite, against the Python core unless PYBALL_CORE_CMD names another
+
+.PHONY: contract
+contract:
+	uv sync --frozen
+	$(MAKE) -C contract check
+
 # Docker development
 
 .PHONY: build

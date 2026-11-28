@@ -28,8 +28,8 @@ make up                         # build the image from source and run it via Doc
 
 ## Checks
 
-CI runs the lint and test sessions and the plugin checks on every pull request; run them
-before you push:
+CI runs the lint and test sessions, the plugin checks and the contract suite on every pull
+request; run them before you push:
 
 ```bash
 make test        # alias: make t — full test suite with coverage
@@ -37,6 +37,7 @@ make lint        # alias: make l — black, isort, pydocstyle, pycodestyle, mypy
 make format      # alias: make f — format code (black + isort)
 make plugins-check  # format, lint and tests of every plugin in plugins/
 make plugins-build  # release build of every plugin, for local development
+make contract    # the contract suite, against the Python core
 
 # A single test file, or any pytest flags
 uvx nox -e test -- tests/unit/domain/test_meetup.py -k test_name -v

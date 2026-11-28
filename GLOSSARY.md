@@ -34,3 +34,9 @@ a meetup was created, closed or cancelled, posted to a chat the club chooses.
 
 **Alert**: a warning or error about the PyBall deployment itself, including a plugin that
 crashes, sent to the club's alert channel whether or not any plugin is running.
+
+**Core**: the PyBall server itself, which owns `data/`, serves `/manage` and `/match` and
+the plugin API, and starts the plugins.
+
+**Contract suite**: the black-box tests that define what any core must do, seen only from
+its HTTP API and its `data/` files.

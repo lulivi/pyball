@@ -124,6 +124,29 @@ de eventos, los `Endpoint` por los que pasa cada llamada, `contract.check_endpoi
 propios modelos de pydantic, solo con los campos que lee. Su objetivo `check` ejecuta
 black, isort, mypy, pylint y pytest.
 
+## Suite de contrato
+
+`contract/` es la comprobación permanente del contrato público del núcleo: un crate de Rust
+con tests de caja negra que solo ven un núcleo a través de `/api/v1` y de sus ficheros de
+`data/`, de modo que los mismos tests valen para cualquier núcleo, esté en el lenguaje que
+esté (ver [ADR 0001](adr/0001-rust-core-behind-contract-suite.es.md)).
+
+- Cada test arranca su propio núcleo sobre un workspace temporal: `data/` copiado de
+  `contract/fixtures/club`, y un `config.toml` con un `api_port` libre y un token de manage
+  nuevo. `PYBALL_CORE_CMD` es el comando de shell que lo arranca, ejecutado en el
+  workspace; por defecto es el núcleo de Python, `uv run --project <repo> pyball`.
+- Cada respuesta correcta se valida contra su esquema de `plugins/openapi.json`. Las
+  respuestas de error se comprueban solo por su código, nunca por su texto.
+- Tras cada escritura, los tests leen los ficheros que guarda el núcleo:
+  `data/meetups/*.json` y `data/events.jsonl`.
+- Cada área es una feature de Cargo (`players`, `meetups`, `matches`, `stats`, `events`),
+  todas activas por defecto. Un núcleo que implementa solo algunas áreas ejecuta esas:
+  `cargo test --no-default-features --features players`.
+
+`make contract` ejecuta su comprobación de formato, lint y tests contra el núcleo de
+Python, igual que el job `contract` de CI. Un cambio en `/api/v1` o en los formatos de
+`data/` actualiza estos tests en el mismo cambio.
+
 ## Formatos de partido
 
 Un partido tiene 2 o 3 equipos. Con 2 equipos es un único partido clásico, que se cierra

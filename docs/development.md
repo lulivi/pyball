@@ -117,6 +117,29 @@ every call goes through, `contract.check_endpoints` against `plugins/openapi.jso
 the helpers in `pyball_client.plugin`. Each plugin keeps its own pydantic models, with
 only the fields it reads. Its `check` target runs black, isort, mypy, pylint and pytest.
 
+## Contract suite
+
+`contract/` is the permanent check of the core's public contract: a Rust crate of
+black-box tests that see a core only through `/api/v1` and its `data/` files, so the same
+tests hold for any core whatever its language (see
+[ADR 0001](adr/0001-rust-core-behind-contract-suite.md)).
+
+- Each test starts its own core on a temporary workspace: `data/` copied from
+  `contract/fixtures/club`, and a `config.toml` with a free `api_port` and a fresh manage
+  token. `PYBALL_CORE_CMD` is the shell command that starts it, run in the workspace; it
+  defaults to the Python core, `uv run --project <repo> pyball`.
+- Every success reply is checked against its schema in `plugins/openapi.json`. Error
+  replies are checked by status only, never by their text.
+- After each write, the tests read the files the core keeps: `data/meetups/*.json` and
+  `data/events.jsonl`.
+- Each area is a Cargo feature (`players`, `meetups`, `matches`, `stats`, `events`), all on
+  by default. A core that implements only some areas runs those:
+  `cargo test --no-default-features --features players`.
+
+`make contract` runs its format check, lint and tests against the Python core, and so
+does the `contract` CI job. A change to `/api/v1` or to the `data/` formats updates
+these tests in the same change.
+
 ## Match formats
 
 A meetup holds 2 or 3 teams. With 2 teams it is a single classic match, which closes the
